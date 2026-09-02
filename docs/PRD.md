@@ -13,7 +13,9 @@
 | **Status** | 🟡 Rascunho — pendente de validação com o cliente |
 | **Versão** | 1.1 — 02/09/2026 |
 
-> **Revisão 1.1.** Alinha o documento ao *Guia de Especificação de Itens de Trabalho*
+> **Revisão 1.1.** Fecha também a decisão sobre o n8n: mantido, com versionamento de
+> workflows via `n8n-local-sync` (seção 10.6) e a fronteira de ingestão fixada na seção 10.1.
+> Alinha o documento ao *Guia de Especificação de Itens de Trabalho*
 > entregue pela PRO4TECH em 25/08. Mudanças estruturais: a hierarquia passa a ser
 > `Projeto → Épico → Feature → PBI` (a entidade "Requisito" deixa de existir), cada nível
 > ganha estrutura obrigatória própria, e o checklist de qualidade do cliente passa a ser a
@@ -402,7 +404,7 @@ Prioridade: **M**ust · **S**hould · **C**ould
 | RNF-01 | **IA sempre assistiva** — nenhuma persistência sem confirmação humana |
 | RNF-02 | **Anti-alucinação** — o chat afirma apenas o que consta na base recuperada, sempre com fonte |
 | RNF-03 | **Execução 100% local e offline** — nenhum dado trafega para serviços externos |
-| RNF-04 | **Ferramentas de código aberto** — ver ressalva sobre a licença do n8n na seção 10.1 |
+| RNF-04 | **Ferramentas abertas e auto-hospedadas** — componentes de IA e de dados são open source. O n8n é *source-available* (Sustainable Use License, "fair-code"), não aprovada pela OSI: sem impedimento de uso, mas evitar a afirmação "integralmente open source" ao cliente |
 | RNF-05 | **Português do Brasil** — interface e pipeline de IA otimizados para o idioma |
 | RNF-06 | **Desempenho** — busca em < 2s; primeira resposta do chat em < 5s |
 | RNF-07 | **Usabilidade** — especificar uma Feature completa sem treinamento prévio |
@@ -424,7 +426,8 @@ Prioridade: **M**ust · **S**hould · **C**ould
 | Orquestração de IA | **Python** | Embeddings, RAG, harness, chamadas ao LLM |
 | Banco relacional | **PostgreSQL** | Dados estruturados |
 | Banco vetorial | **pgvector** *(preferido)* ou **ChromaDB** | Local e offline. Pinecone descartado por ser cloud |
-| Pipeline de ingestão | **n8n** | ⚠️ Ver ressalva abaixo |
+| Orquestração de ingestão | **n8n** (self-hosted, container) | Workflows versionados via `n8n-local-sync` — ver abaixo |
+| Versionamento de workflows | **`n8n-local-sync`** | Ferramenta própria da equipe, publicada no PyPI (MIT) |
 | LLM | Modelo aberto executado **localmente** | Ver 10.5 |
 | Versionamento / CI | **GitHub** | |
 
@@ -432,14 +435,17 @@ Prioridade: **M**ust · **S**hould · **C**ould
 > `pgvector` evita um segundo banco, permite filtrar metadado e buscar vetor na mesma query
 > (essencial para o RF-31) e simplifica o backup.
 
-> ⚠️ **Ressalva sobre o n8n — decisão pendente.** Três pontos a avaliar antes de fixá-lo:
-> **(a)** o *Source Control* via Git é recurso enterprise; na community edition, sincronizar
-> workflows entre as máquinas do grupo exige `export`/`import` manual de JSON, sem merge;
-> **(b)** a ingestão duplica o que o serviço Python já fará, com risco de o chunking da
-> ingestão divergir do da consulta; **(c)** o n8n usa a *Sustainable Use License*
-> ("fair-code"), não aprovada pela OSI — sem impedimento para uso acadêmico, mas incompatível
-> com afirmar "integralmente open source" ao cliente. **Alternativa:** ingestão como endpoint
-> do serviço Python, e o n8n como item opcional pós-`Must`. Ver risco R8.
+> **Decisão: n8n mantido, com fronteira definida.** O bloqueio original era a
+> sincronização de workflows entre as máquinas do grupo — o *Source Control* via Git do n8n é
+> recurso enterprise, e a community edition só permite `export`/`import` manual de JSON, sem
+> diff revisável. A equipe resolveu isso construindo o **`n8n-local-sync`** (seção 10.6).
+
+> ⚠️ **Fronteira obrigatória da ingestão.** O **chunking e o embedding pertencem ao serviço
+> Python**, não aos nós do n8n. O risco não é manutenção, é **divergência silenciosa**: se a
+> ingestão fragmentar diferente da consulta, a qualidade da busca cai de um jeito difícil de
+> diagnosticar. O n8n orquestra em volta — gatilhos, watch de pasta, conversão de formato,
+> retry e conectores externos (RF-34, RF-35) — e chama `POST /ingest` do serviço Python, que é
+> a fonte única de verdade da fragmentação.
 
 ### 10.2. Visão geral
 
@@ -523,6 +529,47 @@ alterar o núcleo do RAG. É o principal diferencial técnico do projeto.
 
 ⚠️ LLM local exige GPU (≥ 8 GB VRAM) ou Apple Silicon com memória unificada. Ver risco R1.
 
+### 10.6. Versionamento dos workflows do n8n
+
+O n8n armazena workflows no próprio banco, e o *Source Control* nativo via Git é recurso
+enterprise. Sem isso, a community edition obriga a `export`/`import` manual de JSON — sem diff
+legível, sem revisão e sem detecção de conflito.
+
+A equipe resolveu construindo o **`n8n-local-sync`**, CLI GitOps publicado no PyPI sob licença
+MIT (v0.1.0, 29/08/2026), que opera sobre a API REST pública do n8n.
+
+| Comando | Função |
+|---|---|
+| `n8n-sync init` | Cria `.n8n-sync.yaml` e `.env.example` |
+| `n8n-sync sync` *(pull)* | Traz os workflows remotos para o repositório |
+| `n8n-sync push` *(import)* | Envia os workflows locais para a instância |
+| `n8n-sync diff` | Diferenças estruturais local × remoto |
+| `n8n-sync status` | Tabela de estado de sincronização |
+| `n8n-sync validate` | Validação estrutural + varredura heurística de segredos |
+
+Flags `--dry-run`, `--force` e `--tag`. Estados tratados: `UNCHANGED`, `REMOTE_MODIFIED`,
+`LOCAL_MODIFIED`, `CONFLICT`, `REMOTE_ONLY`, `LOCAL_ONLY`.
+
+**Por que isso importa aqui.** O ganho decisivo é o *hashing* determinístico somado à limpeza de
+metadados e à normalização da ordem dos nós: sem isso, o diff de um workflow do n8n vem poluído
+de ruído — posições, timestamps, ordem instável — e ninguém revisa. Com o diff normalizado,
+**alteração de workflow passa a ser revisável em Pull Request** como qualquer outro código, e o
+`validate` cobre parcialmente a lacuna de testabilidade apontada no risco R8.
+
+Conflito é detectado e **pulado com aviso**, exigindo `--force`. Não há merge automático — dois
+integrantes editando o mesmo workflow ainda precisam decidir manualmente, regime equivalente ao
+de um arquivo binário.
+
+**Pontos de operação:**
+
+- **Credenciais não são versionadas.** A ferramenta sincroniza workflows; credenciais continuam
+  por máquina. O `N8N_ENCRYPTION_KEY` deve ser fixado em `.env` compartilhado desde o setup —
+  do contrário cada instância gera a sua e qualquer credencial importada quebra.
+- **`N8N_API_KEY` nunca vai para o `.n8n-sync.yaml`** — só variável de ambiente ou `.env`,
+  conforme a própria documentação da ferramenta.
+- A varredura de segredos importa: o JSON do n8n guarda referência de credencial, mas nada
+  impede um nó com valor fixo no parâmetro — que é exatamente o que a heurística detecta.
+
 ## 11. Modelo de dados (esboço)
 
 | Tabela | Campos principais |
@@ -584,7 +631,7 @@ alterar o núcleo do RAG. É o principal diferencial técnico do projeto.
 - Cobrar a entrega D3 (dados de projetos anteriores)
 - **Spike de hardware:** validar LLM local nas máquinas do grupo (R1)
 - **Spike de modelo:** comparar 2–3 LLMs e 2 modelos de embedding em PT-BR (R3)
-- Decidir sobre o n8n (seção 10.1)
+- Subir o n8n em container, instalar o `n8n-local-sync` e validar o ciclo `pull → git diff → push` entre pelo menos duas máquinas, com `N8N_ENCRYPTION_KEY` compartilhado no `.env`
 - Setup: repositório, containers, CI, ambientes
 
 ### 12.3. Sprint 1 — Fundação e estrutura de backlog (07/09 a 27/09)
@@ -639,6 +686,7 @@ Sprint Review final · ensaio da apresentação · material da Feira ·
 - [ ] Endpoints documentados (OpenAPI)
 - [ ] Sem regressão nos fluxos das sprints anteriores
 - [ ] Documentação do repositório atualizada
+- [ ] Workflows do n8n alterados versionados e aprovados em `n8n-sync validate` na CI
 
 ## 14. Riscos
 
@@ -651,7 +699,7 @@ Sprint Review final · ensaio da apresentação · material da Feira ·
 | R5 | Modelo de dados mais complexo que o previsto — três estruturas distintas e critérios polimórficos | 🟠 Médio | Modelagem fechada antes da Sprint 1; o guia é preciso o bastante para não haver retrabalho de interpretação |
 | R6 | Alucinação do chat destruindo a confiança na demo | 🟠 Médio | Citação obrigatória e recusa sem evidência (RF-42, RF-43); bateria de 20 perguntas por sprint |
 | R7 | Dois runtimes de backend (Node + Python) gerando acoplamento confuso | 🟠 Médio | Contrato de fronteira explícito (10.2); API interna versionada; um dono por serviço |
-| R8 | n8n: sincronização manual entre máquinas, duplicação de lógica e licença não-OSI | 🟠 Médio | Decidir na semana de planning; manter a ingestão desacoplada para poder migrar ao serviço Python |
+| R8 | Dependência do `n8n-local-sync`, ferramenta própria em v0.1.0 e sem uso em produção | 🟡 Baixo | Código nosso, MIT e pequeno — bug é corrigível internamente. Cobrir com `n8n-sync validate` na CI e testar o ciclo completo no setup, antes da Sprint 1 |
 | R9 | LGPD nos dados de competências | 🟡 Baixo | Apenas dados profissionais, com consentimento; acesso restrito |
 
 ## 15. Perguntas abertas para o cliente
@@ -690,5 +738,5 @@ Sprint Review final · ensaio da apresentação · material da Feira ·
 | P4 | Confirmar o nome do contato da PRO4TECH — fontes divergem entre *Matesco* e *Monteiro* | Time |
 | P5 | Validar este PRD com o cliente e levar as perguntas da seção 15 | PO do grupo |
 | P6 | Definir a estratégia final de chunking com base em teste medido | Time de IA |
-| P7 | **Decidir sobre o n8n** (seção 10.1) | Time |
+| ~~P7~~ | ~~Decidir sobre o n8n~~ — ✅ **resolvida em 02/09**: mantido, com a fronteira de ingestão fixada na seção 10.1 e versionamento via `n8n-local-sync` | — |
 | P8 | Escrever o backlog do próprio projeto no padrão do guia — valida o entendimento antes de codificar | Time |

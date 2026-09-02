@@ -393,7 +393,7 @@ Prioridade: **M** (Must) · **S** (Should) · **C** (Could)
 | RNF-01 | **IA estritamente assistiva** — nenhuma persistência sem confirmação humana |
 | RNF-02 | **Respostas fundamentadas** — o chat afirma apenas o que consta na base recuperada, sempre com citação |
 | RNF-03 | **Execução 100% local e offline** — nenhum dado trafega para serviços externos ou nuvem de terceiros |
-| RNF-04 | **Ferramentas de código aberto** — solução construída sobre software livre |
+| RNF-04 | **Ferramentas abertas e auto-hospedadas** — os componentes de IA e de dados são open source; todos os componentes executam em infraestrutura própria, sem serviços proprietários em nuvem |
 | RNF-05 | **Português do Brasil** — interface e pipeline de IA otimizados para o idioma |
 | RNF-06 | **Desempenho** — busca em menos de 2 segundos; primeira resposta do chat em menos de 5 segundos |
 | RNF-07 | **Usabilidade** — especificação de uma Feature completa sem treinamento prévio |
@@ -415,11 +415,25 @@ Prioridade: **M** (Must) · **S** (Should) · **C** (Could)
 | Orquestração de IA | Python |
 | Banco de dados relacional | PostgreSQL |
 | Banco de dados vetorial | pgvector (extensão do PostgreSQL) |
+| Orquestração de ingestão | n8n (self-hosted, em container) |
 | Modelo de linguagem | Modelo aberto executado localmente |
 | Versionamento e CI | GitHub |
 
 A stack opera sem dependência de serviços em nuvem, em atendimento aos requisitos RNF-03 e
 RNF-04. Soluções de banco vetorial hospedadas em nuvem foram descartadas por essa razão.
+
+**Automação versionada como código.** Os fluxos de ingestão executados no n8n são mantidos em
+Git, por meio de uma ferramenta desenvolvida pela equipe e publicada como pacote aberto sob
+licença MIT (`n8n-local-sync`). Ela sincroniza os workflows entre a instância e o repositório
+com diffs normalizados e legíveis, o que permite revisão por Pull Request, validação automática
+em integração contínua — incluindo varredura de segredos — e promoção controlada entre
+ambientes. A automação fica sujeita às mesmas práticas de DevOps aplicadas ao código da
+aplicação.
+
+A lógica de fragmentação e vetorização permanece no serviço Python, que é a fonte única de
+verdade: o n8n orquestra o fluxo (gatilhos, conversão de formato, novas tentativas e conectores
+externos) e delega o processamento. Essa separação evita que a fragmentação da ingestão divirja
+da utilizada na consulta.
 
 ### 10.2. Visão geral
 
