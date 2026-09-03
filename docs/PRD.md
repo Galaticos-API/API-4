@@ -7,7 +7,7 @@
 |---|---|
 | **Instituição** | Fatec São José dos Campos — Prof. Jessen Vidal / Centro Paula Souza |
 | **Cliente / Parceiro acadêmico** | PRO4TECH — Digital Tech Transformation |
-| **Contato do cliente** | Rafael (PRO4TECH) — ver pendência P4 |
+| **Contato do cliente** | Rafael Monteiro (PRO4TECH) |
 | **Período** | 03/08/2026 a 14/12/2026 · Feira de Soluções em **03/12/2026** |
 | **Fontes** | [Kick-off.md](./Kick-off.md) · Ata do kickoff (24/08) · Reunião técnica do grupo (24/08) · **Guia de Especificação de Itens de Trabalho (PRO4TECH, 25/08)** |
 | **Status** | 🟡 Rascunho — pendente de validação com o cliente |
@@ -735,7 +735,7 @@ Sprint Review final · ensaio da apresentação · material da Feira ·
 | P1 | Registrar integrantes do grupo, papéis, Scrum Master e PO | Time |
 | P2 | Critérios de avaliação da disciplina | Time |
 | P3 | Definir o nome definitivo do produto | Time |
-| P4 | Confirmar o nome do contato da PRO4TECH — fontes divergem entre *Matesco* e *Monteiro* | Time |
+| ~~P4~~ | ~~Confirmar o nome do contato da PRO4TECH~~ — ✅ **resolvida em 02/09**: o contato do cliente é **Rafael Monteiro**. *Rafael Matesco* é integrante do time de desenvolvimento do grupo e foi quem redigiu as anotações do kick-off | — |
 | P5 | Validar este PRD com o cliente e levar as perguntas da seção 15 | PO do grupo |
 | P6 | Definir a estratégia final de chunking com base em teste medido | Time de IA |
 | ~~P7~~ | ~~Decidir sobre o n8n~~ — ✅ **resolvida em 02/09**: mantido, com a fronteira de ingestão fixada na seção 10.1 e versionamento via `n8n-local-sync` | — |
