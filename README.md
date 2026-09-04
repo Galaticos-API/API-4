@@ -138,19 +138,26 @@ A esteira automatizada no GitHub Actions (`.github/workflows/ci.yml`) é dispara
 
 ## 📁 Estrutura de Pastas do Repositório
 
+Consulte o [Guia de Configuração e Desenvolvimento](docs/SETUP_GUIDE.md) para instruções detalhadas de inicialização de cada microsserviço.
+
 ```text
 API-4/
 ├── .github/
 │   └── workflows/
 │       └── ci.yml                 # Pipeline de validação no GitHub Actions
+├── ai-service/                    # Microsserviço Python/FastAPI (RAG, Chunking & Ollama)
+├── backend/                       # API REST Node.js/TypeScript (CRUD, Auth & Postgres)
 ├── docs/                          # Documentação do projeto, PRD, backlog e guias
+│   └── SETUP_GUIDE.md             # Guia completo de configuração das stacks
+├── frontend/                      # SPA React/TypeScript/Vite (Interface do PO)
 ├── n8n/
 │   ├── local-files/               # Diretório compartilhado montado em /files no n8n
 │   └── workflows/                 # Workflows exportados e versionados no Git
 ├── .env.example                   # Modelo de configuração de variáveis de ambiente
 ├── .gitignore                     # Arquivos e diretórios desconsiderados pelo Git
 ├── .n8n-sync.yaml                 # Configuração do n8n-local-sync
-├── docker-compose.yml             # Orquestração dos containers (Postgres + n8n)
+├── docker-compose.yml             # Orquestração dos containers (Postgres, n8n & Ollama)
 ├── LICENSE                        # Licença do projeto
 └── README.md                      # Este arquivo
 ```
+
