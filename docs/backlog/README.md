@@ -101,18 +101,18 @@ técnicas abaixo do PBI, mas é explícito que elas não substituem a descriçã
 infraestrutura não descreve comportamento de usuário. Ficam registrados aqui para
 planejamento, fora da hierarquia.
 
-| # | Habilitador | Quando | Bloqueia |
-|---|---|---|---|
-| HT-01 | Repositório, containers, ambientes e pipeline de CI | Pré-Sprint 1 | Tudo |
-| HT-02 | Modelagem e migrations do banco relacional | Pré-Sprint 1 | FT-01.1 |
-| HT-03 | Design system e biblioteca de componentes | Pré-Sprint 1 | Todo o front |
-| HT-04 | Protótipo navegável das telas da Sprint 1 | Pré-Sprint 1 | FT-01.1, FT-01.4 |
-| HT-05 | Spike: validar LLM local nas máquinas do time | Pré-Sprint 1 | FT-03.\* |
-| HT-06 | Spike: comparar modelos de embedding em PT-BR | Pré-Sprint 1 | FT-02.2 |
-| HT-07 | n8n em container + `n8n-local-sync` + `N8N_ENCRYPTION_KEY` compartilhado | Pré-Sprint 1 | FT-02.2 |
-| HT-08 | Serviço Python de IA: esqueleto e contrato com o Node | Sprint 1 | FT-02.2, FT-03.\* |
-| HT-09 | Carga inicial da base de conhecimento *(seed)* | Sprint 1 | FT-02.3, FT-03.1 |
-| HT-10 | Bateria de 20 perguntas de regressão para busca e chat | Sprint 2 | FT-02.3, FT-04.1 |
+| # | Habilitador | Quando | Bloqueia | Status |
+|:---:|---|---|---|:---:|
+| HT-01 | Repositório, containers, ambientes e pipeline de CI | Pré-Sprint 1 | Tudo | [x] Concluído |
+| HT-02 | Modelagem e migrations do banco relacional | Pré-Sprint 1 | FT-01.1 | [x] Concluído |
+| HT-03 | Design system e biblioteca de componentes | Pré-Sprint 1 | Todo o front | [ ] Pendente |
+| HT-04 | Protótipo navegável das telas da Sprint 1 | Pré-Sprint 1 | FT-01.1, FT-01.4 | [ ] Pendente |
+| HT-05 | Spike: validar LLM local nas máquinas do time | Pré-Sprint 1 | FT-03.\* | [x] Concluído |
+| HT-06 | Spike: comparar modelos de embedding em PT-BR | Pré-Sprint 1 | FT-02.2 | [ ] Pendente |
+| HT-07 | n8n em container + `n8n-local-sync` + `N8N_ENCRYPTION_KEY` compartilhado | Pré-Sprint 1 | FT-02.2 | [x] Concluído |
+| HT-08 | Serviço Python de IA: esqueleto e contrato com o Node | Sprint 1 | FT-02.2, FT-03.\* | [x] Concluído |
+| HT-09 | Carga inicial da base de conhecimento *(seed)* | Sprint 1 | FT-02.3, FT-03.1 | [ ] Pendente |
+| HT-10 | Bateria de 20 perguntas de regressão para busca e chat | Sprint 2 | FT-02.3, FT-04.1 | [ ] Pendente |
 
 > ⚠️ **HT-09 é crítico.** A proposta de valor é reúso, e a base nasce vazia. Depende da entrega
 > **D3** (dados de projetos anteriores) pela PRO4TECH, ainda pendente. Sem ela, o seed precisa

@@ -1,0 +1,87 @@
+{
+  "active": false,
+  "activeVersion": null,
+  "activeVersionId": null,
+  "connections": {
+    "Webhook Ingest\u00e3o": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Resposta HTTP",
+            "type": "main"
+          }
+        ]
+      ]
+    }
+  },
+  "description": null,
+  "id": "kbeyMs38qerFoS65",
+  "isArchived": false,
+  "meta": null,
+  "name": "Sinapse - Document Ingestion Trigger",
+  "nodeGroups": [],
+  "nodes": [
+    {
+      "id": "1b9d6bcd-bbfd-4b2d-9b5d-ab8dfbbd4bed",
+      "name": "Webhook Ingest\u00e3o",
+      "parameters": {
+        "httpMethod": "POST",
+        "options": {},
+        "path": "sinapse-ingest",
+        "responseMode": "responseNode"
+      },
+      "position": [
+        250,
+        300
+      ],
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "webhookId": "sinapse-ingest"
+    },
+    {
+      "id": "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d",
+      "name": "Resposta HTTP",
+      "parameters": {
+        "options": {},
+        "respondWith": "json",
+        "responseBody": "={\n  \"status\": \"received\",\n  \"message\": \"Documento recebido para processamento e fragmenta\u00e7\u00e3o.\"\n}"
+      },
+      "position": [
+        480,
+        300
+      ],
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1
+    }
+  ],
+  "pinData": null,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "shared": [
+    {
+      "createdAt": "2026-09-04T16:05:19.905Z",
+      "project": {
+        "createdAt": "2026-09-04T15:48:46.781Z",
+        "creatorId": "e5e5ae0c-2378-4760-9d12-df630ec0a254",
+        "customTelemetryTags": [],
+        "description": null,
+        "icon": null,
+        "id": "aRQxNxjlWLdGSczA",
+        "name": "Daniel Dias Pereira <dani.pereira8539@gmail.com>",
+        "type": "personal",
+        "updatedAt": "2026-09-04T15:52:20.173Z"
+      },
+      "projectId": "aRQxNxjlWLdGSczA",
+      "role": "workflow:owner",
+      "updatedAt": "2026-09-04T16:05:19.905Z",
+      "workflowId": "kbeyMs38qerFoS65"
+    }
+  ],
+  "sourceWorkflowId": null,
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 0,
+  "versionCounter": 1
+}

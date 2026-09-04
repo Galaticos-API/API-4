@@ -1,0 +1,7 @@
+version: 1
+n8n:
+  url: http://localhost:5678
+workflows:
+  directory: ./n8n/workflows
+sync:
+  strategy: official-api

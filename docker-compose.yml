@@ -1,0 +1,136 @@
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: sinapse-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-sinapse}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-sinapse_dev_password}
+      POSTGRES_DB: ${POSTGRES_DB:-sinapse}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-sinapse} -d ${POSTGRES_DB:-sinapse}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - sinapse-network
+
+  n8n:
+    image: docker.n8n.io/n8nio/n8n:latest
+    container_name: sinapse-n8n
+    restart: unless-stopped
+    ports:
+      - "${N8N_PORT:-5678}:5678"
+    environment:
+      - N8N_PORT=5678
+      - N8N_ENCRYPTION_KEY=${N8N_ENCRYPTION_KEY:-sinapse-shared-dev-encryption-key-2026}
+      - GENERIC_TIMEZONE=${GENERIC_TIMEZONE:-America/Sao_Paulo}
+      - TZ=${TZ:-America/Sao_Paulo}
+      - N8N_PROTOCOL=http
+      - N8N_HOST=localhost
+      - WEBHOOK_URL=${N8N_BASE_URL:-http://localhost:5678}/
+      - N8N_METRICS=false
+      - N8N_DIAGNOSTICS_ENABLED=false
+    volumes:
+      - n8n_data:/home/node/.n8n
+      - ./n8n/local-files:/files
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - sinapse-network
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: sinapse-ollama
+    restart: unless-stopped
+    ports:
+      - "${OLLAMA_PORT:-11434}:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    environment:
+      - OLLAMA_KEEP_ALIVE=${OLLAMA_KEEP_ALIVE:-24h}
+    healthcheck:
+      test: ["CMD-SHELL", "ollama list || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - sinapse-network
+
+  backend:
+    build: ./backend
+    container_name: sinapse-backend
+    restart: unless-stopped
+    ports:
+      - "${BACKEND_PORT:-3001}:3001"
+    environment:
+      - NODE_ENV=production
+      - PORT=3001
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_USER=${POSTGRES_USER:-sinapse}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-sinapse_dev_password}
+      - POSTGRES_DB=${POSTGRES_DB:-sinapse}
+      - AI_SERVICE_URL=http://ai-service:8000
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - sinapse-network
+
+  ai-service:
+    build: ./ai-service
+    container_name: sinapse-ai-service
+    restart: unless-stopped
+    ports:
+      - "${AI_SERVICE_PORT:-8000}:8000"
+    environment:
+      - AI_SERVICE_PORT=8000
+      - AI_SERVICE_HOST=0.0.0.0
+      - OLLAMA_BASE_URL=http://ollama:11434
+      - OLLAMA_LLM_MODEL=${OLLAMA_LLM_MODEL:-qwen2.5:1.5b}
+      - OLLAMA_EMBEDDING_MODEL=${OLLAMA_EMBEDDING_MODEL:-bge-m3}
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_USER=${POSTGRES_USER:-sinapse}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-sinapse_dev_password}
+      - POSTGRES_DB=${POSTGRES_DB:-sinapse}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      ollama:
+        condition: service_healthy
+    networks:
+      - sinapse-network
+
+  frontend:
+    build: ./frontend
+    container_name: sinapse-frontend
+    restart: unless-stopped
+    ports:
+      - "${FRONTEND_PORT:-5173}:5173"
+    depends_on:
+      - backend
+    networks:
+      - sinapse-network
+
+volumes:
+  postgres_data:
+    name: sinapse_postgres_data
+  n8n_data:
+    name: sinapse_n8n_data
+  ollama_data:
+    name: sinapse_ollama_data
+
+networks:
+  sinapse-network:
+    name: sinapse-network
+    driver: bridge
+
