@@ -64,6 +64,63 @@ services:
     networks:
       - sinapse-network
 
+  backend:
+    build: ./backend
+    container_name: sinapse-backend
+    restart: unless-stopped
+    ports:
+      - "${BACKEND_PORT:-3001}:3001"
+    environment:
+      - NODE_ENV=production
+      - PORT=3001
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_USER=${POSTGRES_USER:-sinapse}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-sinapse_dev_password}
+      - POSTGRES_DB=${POSTGRES_DB:-sinapse}
+      - AI_SERVICE_URL=http://ai-service:8000
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - sinapse-network
+
+  ai-service:
+    build: ./ai-service
+    container_name: sinapse-ai-service
+    restart: unless-stopped
+    ports:
+      - "${AI_SERVICE_PORT:-8000}:8000"
+    environment:
+      - AI_SERVICE_PORT=8000
+      - AI_SERVICE_HOST=0.0.0.0
+      - OLLAMA_BASE_URL=http://ollama:11434
+      - OLLAMA_LLM_MODEL=${OLLAMA_LLM_MODEL:-qwen2.5:1.5b}
+      - OLLAMA_EMBEDDING_MODEL=${OLLAMA_EMBEDDING_MODEL:-bge-m3}
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_USER=${POSTGRES_USER:-sinapse}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-sinapse_dev_password}
+      - POSTGRES_DB=${POSTGRES_DB:-sinapse}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      ollama:
+        condition: service_healthy
+    networks:
+      - sinapse-network
+
+  frontend:
+    build: ./frontend
+    container_name: sinapse-frontend
+    restart: unless-stopped
+    ports:
+      - "${FRONTEND_PORT:-5173}:5173"
+    depends_on:
+      - backend
+    networks:
+      - sinapse-network
+
 volumes:
   postgres_data:
     name: sinapse_postgres_data
