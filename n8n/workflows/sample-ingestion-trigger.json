@@ -1,0 +1,66 @@
+{
+  "name": "Sinapse - Document Ingestion Trigger",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "sinapse-ingest",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "1b9d6bcd-bbfd-4b2d-9b5d-ab8dfbbd4bed",
+      "name": "Webhook Ingestão",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        250,
+        300
+      ],
+      "webhookId": "sinapse-ingest"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"status\": \"received\",\n  \"message\": \"Documento recebido para processamento e fragmentação.\"\n}",
+        "options": {}
+      },
+      "id": "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d",
+      "name": "Resposta HTTP",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        480,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook Ingestão": {
+      "main": [
+        [
+          {
+            "node": "Resposta HTTP",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "1b9d6bcd-bbfd-4b2d-9b5d-ab8dfbbd4bed",
+  "meta": {
+    "instanceId": "sinapse-local-dev"
+  },
+  "tags": [
+    {
+      "name": "ingestao"
+    },
+    {
+      "name": "sinapse"
+    }
+  ]
+}
