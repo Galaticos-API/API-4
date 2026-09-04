@@ -104,7 +104,7 @@ planejamento, fora da hierarquia.
 | # | Habilitador | Quando | Bloqueia | Status |
 |:---:|---|---|---|:---:|
 | HT-01 | Repositório, containers, ambientes e pipeline de CI | Pré-Sprint 1 | Tudo | [x] Concluído |
-| HT-02 | Modelagem e migrations do banco relacional | Pré-Sprint 1 | FT-01.1 | [ ] Pendente |
+| HT-02 | Modelagem e migrations do banco relacional | Pré-Sprint 1 | FT-01.1 | [x] Concluído |
 | HT-03 | Design system e biblioteca de componentes | Pré-Sprint 1 | Todo o front | [ ] Pendente |
 | HT-04 | Protótipo navegável das telas da Sprint 1 | Pré-Sprint 1 | FT-01.1, FT-01.4 | [ ] Pendente |
 | HT-05 | Spike: validar LLM local nas máquinas do time | Pré-Sprint 1 | FT-03.\* | [x] Concluído |
