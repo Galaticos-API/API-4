@@ -59,6 +59,8 @@ out/
 # n8n local files (ignore actual downloaded/uploaded payload files, retain directory structure)
 n8n/local-files/*
 !n8n/local-files/.gitkeep
+.n8n-sync-state.json
+
 
 # Testing & Coverage
 .coverage
