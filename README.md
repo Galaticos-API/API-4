@@ -15,6 +15,7 @@ A stack base deste repositório compreende:
 |---|---|---|
 | **postgres** | `pgvector/pgvector:pg16` | Banco de dados unificado: relacional e busca vetorial (HNSW) |
 | **n8n** | `docker.n8n.io/n8nio/n8n:latest` | Orquestração do pipeline de ingestão e gatilhos de documentos |
+| **ollama** | `ollama/ollama:latest` | Runtime local de IA: inferência de LLM e geração de embeddings |
 | **`n8n-local-sync`** | CLI GitOps em Python ([PyPI](https://pypi.org/project/n8n-local-sync/)) | Versionamento, validação e sincronização bidirecional de workflows |
 | **Python RAG / IA** *(em desenv.)* | Python 3.11+ | Chunking, embeddings e integração com LLM local |
 | **Backend Aplicação** *(em desenv.)* | Node.js | API REST, regras de negócio e controle de acesso |
@@ -40,7 +41,7 @@ cp .env.example .env
 > A chave definida no `.env.example` (`sinapse-shared-dev-encryption-key-2026`) é compartilhada entre toda a equipe de desenvolvimento. **Não altere esta chave localmente em desenvolvimento**, pois ela garante que as credenciais e workflows exportados continuem válidos e interoperáveis entre as máquinas do time.
 
 ### 3. Subir os Containers
-Inicie os containers do PostgreSQL (com pgvector) e do n8n em segundo plano:
+Inicie os containers do PostgreSQL (com pgvector), n8n e Ollama em segundo plano:
 
 ```bash
 docker compose up -d
@@ -54,6 +55,21 @@ docker compose ps
 
 - **PostgreSQL:** `localhost:5432` (Usuário: `sinapse`, Senha padrão: `sinapse_dev_password`, Banco: `sinapse`)
 - **n8n Web UI:** [http://localhost:5678](http://localhost:5678)
+- **Ollama API:** [http://localhost:11434](http://localhost:11434)
+
+### 4. Baixar Modelos no Ollama
+Os modelos são persistidos no volume Docker `sinapse_ollama_data`. Para baixar os modelos recomendados no PRD:
+
+```bash
+# Modelo de Embeddings multilíngue (recomendado)
+docker compose exec ollama ollama pull bge-m3
+
+# Modelo LLM para inferência (versão leve para desenvolvimento em CPU)
+docker compose exec ollama ollama pull qwen2.5:1.5b
+
+# Listar modelos instalados
+docker compose exec ollama ollama list
+```
 
 ---
 

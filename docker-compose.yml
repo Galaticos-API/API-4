@@ -44,13 +44,35 @@ services:
     networks:
       - sinapse-network
 
+  ollama:
+    image: ollama/ollama:latest
+    container_name: sinapse-ollama
+    restart: unless-stopped
+    ports:
+      - "${OLLAMA_PORT:-11434}:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    environment:
+      - OLLAMA_KEEP_ALIVE=${OLLAMA_KEEP_ALIVE:-24h}
+    healthcheck:
+      test: ["CMD-SHELL", "ollama list || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - sinapse-network
+
 volumes:
   postgres_data:
     name: sinapse_postgres_data
   n8n_data:
     name: sinapse_n8n_data
+  ollama_data:
+    name: sinapse_ollama_data
 
 networks:
   sinapse-network:
     name: sinapse-network
     driver: bridge
+
