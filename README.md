@@ -148,6 +148,7 @@ API-4/
 ├── ai-service/                    # Microsserviço Python/FastAPI (RAG, Chunking & Ollama)
 ├── backend/                       # API REST Node.js/TypeScript (CRUD, Auth & Postgres)
 ├── docs/                          # Documentação do projeto, PRD, backlog e guias
+│   ├── Architecture/              # Diagramas de arquitetura, fluxo RAG e ERD
 │   └── SETUP_GUIDE.md             # Guia completo de configuração das stacks
 ├── frontend/                      # SPA React/TypeScript/Vite (Interface do PO)
 ├── n8n/
