@@ -1,175 +1,155 @@
-# Planejamento Scrum — Sinapse
+# Planejamento de Tarefas por Sprint — Sinapse
 
-> Documento central de execução do projeto API do 4º semestre de ADS da Fatec São José dos Campos.
+> Organização das tarefas de desenvolvimento e sua relação direta com as User Stories do Backlog de Produto v1.0.
 
-| Informação | Definição |
-|---|---|
-| Produto | Sinapse — Base Inteligente de Requisitos |
-| Cliente | PRO4TECH |
-| Scrum Master | Cauan Gabriel |
-| Equipe | 7 integrantes do Dev Team + Product Owner + Scrum Master |
-| Backlog | 6 épicos, 18 features e 63 User Stories/PBIs |
-| Execução | 67 tarefas técnicas distribuídas em 3 sprints |
-| Quadro | [Sinapse — Scrum — 2026/2](https://trello.com/b/CY2QHrh1/sinapse-scrum-2026-2) |
+## Visão geral
 
-## 1. Objetivo
-
-Este documento é o ponto de entrada para o planejamento e a execução do projeto. Ele conecta o backlog de produto, as User Stories, as tarefas técnicas e o quadro Scrum sem substituir os critérios de aceitação originais.
-
-Cada tarefa deve:
-
-1. estar vinculada a uma ou mais User Stories por meio do código `PBI-XX.X.X`;
-2. permanecer na sprint definida no plano até que uma decisão formal de planejamento determine o contrário;
-3. ter exatamente uma prioridade e pelo menos uma área técnica;
-4. ser atribuída a uma pessoa somente durante o Sprint Planning;
-5. atender aos cenários `DADO/QUANDO/ENTÃO` dos PBIs vinculados.
-
-## 2. Documentos de referência
-
-| Documento | Finalidade |
-|---|---|
-| [Índice do backlog](backlog/README.md) | Navegação pelos épicos, features e PBIs |
-| [Plano detalhado das tarefas](planning/PLANO_DE_TAREFAS_DESENVOLVIMENTO.md) | Escopo, dependências, tamanho, prioridade e rastreabilidade das 67 tarefas |
-| [Automação do Trello](planning/TRELLO_AUTOMACAO.md) | Instruções para sincronizar e manter o quadro |
-| [README principal](../README.md#-user-stories-e-rastreabilidade-das-tarefas) | Matriz resumida de tarefas por User Story |
-
-## 3. Organização das sprints
-
-| Sprint | Período | Tarefas | Meta |
-|:---:|:---:|:---:|---|
-| 1 | 07/09/2026 a 27/09/2026 | 32 | Entregar hierarquia PRO4TECH, autenticação, validações determinísticas, decisões e anexos sem dependência de IA. |
-| 2 | 05/10/2026 a 25/10/2026 | 18 | Formar o acervo pesquisável e introduzir a IA como apoio, sempre com confirmação humana. |
-| 3 | 02/11/2026 a 22/11/2026 | 17 | Entregar chat fundamentado, perfis profissionais, administração e o release final. |
-| **Total** | — | **67** | Cobrir integralmente as 63 User Stories do backlog. |
-
-## 4. Fluxo do quadro
-
-```text
-Backlog da Sprint
-        ↓
-Em andamento
-        ↓
-Revisão de código
-        ↓
-Teste e Validação
-        ↓
-Concluído
-```
-
-As listas `Visão e Regras` e `Decisões e Impedimentos` concentram governança, metas, dúvidas do cliente e bloqueios externos.
-
-### Limites de trabalho em andamento
-
-| Etapa | Limite |
+| Informação | Quantidade |
 |---|:---:|
-| Em andamento | 7 cartões |
-| Revisão de código | 4 cartões |
-| Teste e Validação | 4 cartões |
+| Épicos | 6 |
+| Features | 18 |
+| User Stories/PBIs | 63 |
+| Tarefas técnicas | 67 |
+| Sprints | 3 |
 
-O limite de sete tarefas em andamento representa um foco principal por integrante do Dev Team. Finalizar ou encaminhar o trabalho atual tem precedência sobre iniciar uma nova tarefa.
+Este planejamento converte as 63 User Stories em tarefas técnicas executáveis. Cada tarefa está vinculada a pelo menos um PBI existente e deve ser validada contra os respectivos cenários de aceitação.
 
-## 5. Padrão dos cartões
+Nenhuma tarefa está atribuída individualmente. A divisão entre os sete integrantes do time de desenvolvimento será definida posteriormente, conforme capacidade e competências disponíveis.
 
-### Título
+## Documentos de referência
 
-```text
-[ID] Resultado técnico esperado
-```
+| Documento | Conteúdo |
+|---|---|
+| [Índice do backlog](backlog/README.md) | Organização dos seis épicos e das 18 features |
+| [EP-01 — Especificar o backlog](backlog/EP-01-especificar-backlog.md) | Estruturação, qualidade e navegação do backlog |
+| [EP-02 — Preservar o conhecimento](backlog/EP-02-preservar-conhecimento.md) | Documentos, indexação e busca |
+| [EP-03 — Apoio de inteligência artificial](backlog/EP-03-apoio-inteligencia-artificial.md) | Sugestões e assistência por IA |
+| [EP-04 — Consultar o conhecimento](backlog/EP-04-consultar-conhecimento.md) | Consulta fundamentada e conversas |
+| [EP-05 — Competências da equipe](backlog/EP-05-competencias-equipe.md) | Perfis, competências e alocações |
+| [EP-06 — Acesso controlado](backlog/EP-06-acesso-controlado.md) | Autenticação e administração |
+| [Plano detalhado](planning/PLANO_DE_TAREFAS_DESENVOLVIMENTO.md) | Escopo, prioridade, dependências e tamanho das tarefas |
 
-Exemplo:
+## Sprint 1
 
-```text
-[S2-06] Implementar busca híbrida PT-BR
-```
+**Período:** 07/09/2026 a 27/09/2026
 
-### Descrição
+**Quantidade:** 32 tarefas
 
-Todo cartão técnico contém, nesta ordem:
+**Meta:** entregar a hierarquia no padrão PRO4TECH, autenticação, validações determinísticas, decisões e anexos sem dependência de IA.
 
-1. **Resumo** — explicação curta do que será entregue;
-2. **Detalhamento** — comportamento e resultado esperado;
-3. **Referência do backlog** — links diretos para os PBIs relacionados;
-4. **Resultado esperado** — condição observável da entrega;
-5. **Dependências** — cartões que precisam estar concluídos ou encaminhados;
-6. **Tamanho estimado** — `P`, `M` ou `G`;
-7. **Áreas envolvidas** — componentes técnicos afetados;
-8. **Como validar a conclusão** — checklist da Definição de Pronto.
+### Habilitadores
 
-## 6. Etiquetas
+| Tarefa | User Stories relacionadas |
+|---|---|
+| PRE-01 | PBI-01.1.1, PBI-01.1.2, PBI-01.1.3, PBI-01.1.4 |
+| PRE-02 | PBI-01.1.1, PBI-01.1.5, PBI-01.5.1, PBI-02.2.4, PBI-03.2.2, PBI-04.2.1, PBI-05.1.1, PBI-06.1.1 |
+| PRE-03 | PBI-02.1.1, PBI-02.1.4, PBI-02.2.1, PBI-03.2.1 |
+| PRE-04 | PBI-01.3.1, PBI-02.3.1, PBI-04.1.3, PBI-06.1.1 |
+| PRE-05 | PBI-01.1.1, PBI-01.1.2, PBI-01.1.3, PBI-01.1.4 |
+| PRE-06 | PBI-02.3.1, PBI-03.1.4, PBI-05.2.1 |
+| PRE-07 | PBI-02.3.1, PBI-04.1.1 |
+| PRE-08 | PBI-06.1.1, PBI-06.1.2, PBI-06.1.3 |
+| PRE-09 | PBI-02.2.1, PBI-03.1.1, PBI-04.1.1 |
 
-### Sprint
+### Implementação funcional
 
-- `🗓️ Sprint 1`
-- `🗓️ Sprint 2`
-- `🗓️ Sprint 3`
+| Tarefa | User Stories relacionadas |
+|---|---|
+| S1-01 | PBI-06.1.1, PBI-06.1.2, PBI-06.1.3 |
+| S1-02 | PBI-06.1.1, PBI-06.1.2, PBI-06.1.3 |
+| S1-03 | PBI-01.1.1 |
+| S1-04 | PBI-01.1.1 |
+| S1-05 | PBI-01.1.2 |
+| S1-06 | PBI-01.1.3 |
+| S1-07 | PBI-01.1.4 |
+| S1-08 | PBI-01.1.5 |
+| S1-09 | PBI-01.1.6 |
+| S1-10 | PBI-01.2.1, PBI-01.2.2, PBI-01.2.3 |
+| S1-11 | PBI-01.2.1, PBI-01.2.2, PBI-01.2.3 |
+| S1-12 | PBI-01.2.4 |
+| S1-13 | PBI-01.3.1, PBI-01.3.2, PBI-01.3.3, PBI-01.3.4 |
+| S1-14 | PBI-01.3.5 |
+| S1-15 | PBI-01.3.6 |
+| S1-16 | PBI-01.4.1, PBI-01.4.2 |
+| S1-17 | PBI-01.4.3 |
+| S1-18 | PBI-01.5.1, PBI-01.5.2 |
+| S1-19 | PBI-02.1.1 |
+| S1-20 | PBI-02.1.2 |
+| S1-21 | PBI-02.1.3 |
+| S1-22 | PBI-02.1.4 |
+| S1-23 | PBI-01.1.1, PBI-01.1.2, PBI-01.1.3, PBI-01.1.4, PBI-01.1.5, PBI-01.2.1, PBI-01.2.2, PBI-01.2.3, PBI-01.3.1, PBI-01.3.2, PBI-01.3.3, PBI-01.3.5, PBI-01.4.1, PBI-01.4.2, PBI-01.5.1, PBI-01.5.2, PBI-02.1.1, PBI-06.1.1, PBI-06.1.2, PBI-06.1.3 |
 
-### Prioridade
+## Sprint 2
 
-- `🚨 Bloqueante` — impede o avanço de outras entregas;
-- `🔴 Obrigatória (Must)` — indispensável para o incremento;
-- `🟡 Importante (Should)` — importante, mas negociável diante de risco;
-- `🟢 Opcional (Could)` — executada apenas se houver capacidade.
+**Período:** 05/10/2026 a 25/10/2026
 
-### Área técnica
+**Quantidade:** 18 tarefas
 
-As etiquetas começam com `Área:` e identificam competências necessárias, como Backend, Frontend, Banco de Dados, IA e RAG, Segurança, Qualidade e Testes, UX/UI, DevOps e Documentação. Elas não representam responsáveis.
+**Meta:** formar o acervo pesquisável e introduzir a IA como apoio assistivo, sempre com confirmação humana.
 
-### Governança
+| Tarefa | User Stories relacionadas |
+|---|---|
+| S2-01 | PBI-02.2.1 |
+| S2-02 | PBI-02.2.1 |
+| S2-03 | PBI-02.2.2 |
+| S2-04 | PBI-02.2.3 |
+| S2-05 | PBI-02.2.4 |
+| S2-06 | PBI-02.3.1 |
+| S2-07 | PBI-02.3.2 |
+| S2-08 | PBI-02.3.3 |
+| S2-09 | PBI-03.3.1, PBI-03.3.2 |
+| S2-10 | PBI-03.1.1, PBI-03.1.2 |
+| S2-11 | PBI-03.1.3 |
+| S2-12 | PBI-03.1.4 |
+| S2-13 | PBI-03.2.1 |
+| S2-14 | PBI-03.2.2, PBI-03.2.3 |
+| S2-15 | PBI-01.5.3 |
+| S2-16 | PBI-01.5.4 |
+| S2-17 | PBI-02.3.1, PBI-02.3.2 |
+| S2-18 | PBI-02.2.1, PBI-02.2.2, PBI-02.2.4, PBI-02.3.1, PBI-02.3.2, PBI-02.3.3, PBI-03.1.1, PBI-03.1.2, PBI-03.1.4, PBI-03.2.1, PBI-03.2.2, PBI-03.2.3, PBI-03.3.1, PBI-03.3.2 |
 
-As etiquetas `Tipo: Governança` e `Papel:` identificam cartões de processo e responsabilidades de Scrum Master, Product Owner e Dev Team.
+## Sprint 3
 
-## 7. Papéis e responsabilidades
+**Período:** 02/11/2026 a 22/11/2026
 
-### Product Owner
+**Quantidade:** 17 tarefas
 
-- ordenar o backlog por valor;
-- esclarecer regras e cenários dos PBIs;
-- confirmar decisões pendentes com a PRO4TECH;
-- aceitar ou rejeitar resultados demonstrados.
+**Meta:** entregar consulta fundamentada, memória de conversas, perfis profissionais, administração e o release final.
 
-### Scrum Master
+| Tarefa | User Stories relacionadas |
+|---|---|
+| S3-01 | PBI-04.1.1, PBI-04.1.2 |
+| S3-02 | PBI-04.1.3 |
+| S3-03 | PBI-04.1.4 |
+| S3-04 | PBI-04.1.1, PBI-04.1.2, PBI-04.1.3, PBI-04.1.4 |
+| S3-05 | PBI-04.2.1 |
+| S3-06 | PBI-04.2.2 |
+| S3-07 | PBI-04.2.3 |
+| S3-08 | PBI-05.1.1, PBI-05.1.4 |
+| S3-09 | PBI-05.1.2 |
+| S3-10 | PBI-05.1.3, PBI-05.2.3 |
+| S3-11 | PBI-05.2.1 |
+| S3-12 | PBI-05.2.2 |
+| S3-13 | PBI-06.2.1 |
+| S3-14 | PBI-06.2.2 |
+| S3-15 | PBI-01.5.5 |
+| S3-16 | PBI-04.1.1, PBI-04.1.2, PBI-04.1.3, PBI-04.1.4, PBI-05.1.1, PBI-05.1.2, PBI-05.1.3, PBI-05.1.4, PBI-05.2.1 |
+| S3-17 | PBI-04.1.1, PBI-04.1.2, PBI-05.2.1, PBI-06.2.1, PBI-06.2.2 |
 
-- facilitar eventos Scrum;
-- acompanhar riscos, bloqueios e limites de WIP;
-- proteger a rastreabilidade entre User Stories e tarefas;
-- apoiar o time sem distribuir trabalho unilateralmente.
+## Regras de rastreabilidade
 
-### Dev Team
+1. Toda tarefa conserva o ID técnico `PRE-*`, `S1-*`, `S2-*` ou `S3-*`.
+2. Toda tarefa referencia ao menos um PBI no formato `PBI-XX.X.X`.
+3. Os critérios de aceitação oficiais permanecem nos documentos do backlog.
+4. Uma tarefa pode atender a vários PBIs quando a implementação for transversal.
+5. Um PBI pode originar várias tarefas quando exigir entregas separadas de interface, backend, dados, IA ou qualidade.
+6. Habilitadores, integrações e atividades de release também indicam os PBIs beneficiados.
 
-- estimar e selecionar trabalho conforme a capacidade;
-- implementar, testar, documentar e revisar em conjunto;
-- manter um responsável principal por cartão;
-- registrar dependências e impedimentos assim que forem identificados.
+## Resumo de cobertura
 
-## 8. Definição de Pronto
-
-Uma tarefa só pode ir para `Concluído` quando:
-
-- o resultado pode ser demonstrado contra todos os PBIs vinculados;
-- os cenários de aceitação relevantes estão atendidos;
-- testes automatizados passam na integração contínua;
-- regras de autorização e isolamento possuem testes de negação quando aplicáveis;
-- o Pull Request foi revisado por outra pessoa;
-- endpoints alterados estão documentados em OpenAPI;
-- workflows alterados passam no `n8n-sync validate`;
-- logs não expõem tokens, senhas, documentos completos ou outros dados sensíveis;
-- a documentação foi atualizada quando necessário.
-
-## 9. Política de rastreabilidade
-
-A rastreabilidade oficial segue este caminho:
-
-```text
-Épico → Feature → User Story/PBI → Tarefa técnica → Pull Request
-```
-
-- O código do PBI identifica o épico e a feature de origem.
-- Toda tarefa técnica referencia pelo menos um PBI existente.
-- Uma tarefa pode atender a vários PBIs quando a implementação é transversal.
-- Um PBI pode exigir mais de uma tarefa quando houver separação por interface, backend, dados, IA ou validação.
-- Habilitadores `PRE-*`, tarefas de integração e release também possuem PBIs concretos relacionados.
-- O Pull Request deve citar o ID da tarefa e os PBIs atendidos.
-
-## 10. Segurança das credenciais do Trello
-
-A automação lê `TRELLO_API_KEY` e `TRELLO_TOKEN` exclusivamente do ambiente local. Credenciais não devem ser adicionadas ao código, à documentação, aos commits ou ao histórico do Git.
+| Sprint | Tarefas | Situação |
+|:---:|:---:|---|
+| 1 | 32 | Todas relacionadas a PBIs existentes |
+| 2 | 18 | Todas relacionadas a PBIs existentes |
+| 3 | 17 | Todas relacionadas a PBIs existentes |
+| **Total** | **67** | **63 PBIs cobertos, sem tarefas órfãs** |

@@ -18,7 +18,7 @@ O Backlog de Produto v1.0 contém **63 User Stories (PBIs)**, organizadas em sei
 - [EP-05 — Competências da equipe](docs/backlog/EP-05-competencias-equipe.md)
 - [EP-06 — Acesso controlado](docs/backlog/EP-06-acesso-controlado.md)
 
-Cada tarefa técnica abaixo está ligada diretamente a pelo menos uma User Story. Os cartões do Trello repetem estes IDs com links para o documento correspondente; critérios de aceitação da tarefa nunca substituem os cenários da User Story.
+Cada tarefa técnica abaixo está ligada diretamente a pelo menos uma User Story. Os critérios de aceitação da tarefa nunca substituem os cenários da User Story.
 
 <details>
 <summary><strong>Sprint 1 — 32 tarefas</strong></summary>
