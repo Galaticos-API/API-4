@@ -7,6 +7,111 @@ O **Sinapse** é a memória institucional da fábrica de software. A plataforma 
 
 ---
 
+## 📖 User Stories e rastreabilidade das tarefas
+
+O Backlog de Produto v1.0 contém **63 User Stories (PBIs)**, organizadas em seis épicos. A descrição completa de cada história — `COMO UM`, `EU QUERO`, `PARA QUE`, cenários `DADO/QUANDO/ENTÃO` e prioridade — está nos documentos abaixo:
+
+- [EP-01 — Especificar o backlog](docs/backlog/EP-01-especificar-backlog.md)
+- [EP-02 — Preservar o conhecimento](docs/backlog/EP-02-preservar-conhecimento.md)
+- [EP-03 — Apoio de inteligência artificial](docs/backlog/EP-03-apoio-inteligencia-artificial.md)
+- [EP-04 — Consultar o conhecimento](docs/backlog/EP-04-consultar-conhecimento.md)
+- [EP-05 — Competências da equipe](docs/backlog/EP-05-competencias-equipe.md)
+- [EP-06 — Acesso controlado](docs/backlog/EP-06-acesso-controlado.md)
+
+Cada tarefa técnica abaixo está ligada diretamente a pelo menos uma User Story. Os cartões do Trello repetem estes IDs com links para o documento correspondente; critérios de aceitação da tarefa nunca substituem os cenários da User Story.
+
+<details>
+<summary><strong>Sprint 1 — 32 tarefas</strong></summary>
+
+| Tarefa | User Stories relacionadas |
+|---|---|
+| PRE-01 | PBI-01.1.1, PBI-01.1.2, PBI-01.1.3, PBI-01.1.4 |
+| PRE-02 | PBI-01.1.1, PBI-01.1.5, PBI-01.5.1, PBI-02.2.4, PBI-03.2.2, PBI-04.2.1, PBI-05.1.1, PBI-06.1.1 |
+| PRE-03 | PBI-02.1.1, PBI-02.1.4, PBI-02.2.1, PBI-03.2.1 |
+| PRE-04 | PBI-01.3.1, PBI-02.3.1, PBI-04.1.3, PBI-06.1.1 |
+| PRE-05 | PBI-01.1.1, PBI-01.1.2, PBI-01.1.3, PBI-01.1.4 |
+| PRE-06 | PBI-02.3.1, PBI-03.1.4, PBI-05.2.1 |
+| PRE-07 | PBI-02.3.1, PBI-04.1.1 |
+| PRE-08 | PBI-06.1.1, PBI-06.1.2, PBI-06.1.3 |
+| PRE-09 | PBI-02.2.1, PBI-03.1.1, PBI-04.1.1 |
+| S1-01 | PBI-06.1.1, PBI-06.1.2, PBI-06.1.3 |
+| S1-02 | PBI-06.1.1, PBI-06.1.2, PBI-06.1.3 |
+| S1-03, S1-04 | PBI-01.1.1 |
+| S1-05 | PBI-01.1.2 |
+| S1-06 | PBI-01.1.3 |
+| S1-07 | PBI-01.1.4 |
+| S1-08 | PBI-01.1.5 |
+| S1-09 | PBI-01.1.6 |
+| S1-10, S1-11 | PBI-01.2.1, PBI-01.2.2, PBI-01.2.3 |
+| S1-12 | PBI-01.2.4 |
+| S1-13 | PBI-01.3.1, PBI-01.3.2, PBI-01.3.3, PBI-01.3.4 |
+| S1-14 | PBI-01.3.5 |
+| S1-15 | PBI-01.3.6 |
+| S1-16 | PBI-01.4.1, PBI-01.4.2 |
+| S1-17 | PBI-01.4.3 |
+| S1-18 | PBI-01.5.1, PBI-01.5.2 |
+| S1-19 | PBI-02.1.1 |
+| S1-20 | PBI-02.1.2 |
+| S1-21 | PBI-02.1.3 |
+| S1-22 | PBI-02.1.4 |
+| S1-23 | PBI-01.1.1, PBI-01.1.2, PBI-01.1.3, PBI-01.1.4, PBI-01.1.5, PBI-01.2.1, PBI-01.2.2, PBI-01.2.3, PBI-01.3.1, PBI-01.3.2, PBI-01.3.3, PBI-01.3.5, PBI-01.4.1, PBI-01.4.2, PBI-01.5.1, PBI-01.5.2, PBI-02.1.1, PBI-06.1.1, PBI-06.1.2, PBI-06.1.3 |
+
+</details>
+
+<details>
+<summary><strong>Sprint 2 — 18 tarefas</strong></summary>
+
+| Tarefa | User Stories relacionadas |
+|---|---|
+| S2-01, S2-02 | PBI-02.2.1 |
+| S2-03 | PBI-02.2.2 |
+| S2-04 | PBI-02.2.3 |
+| S2-05 | PBI-02.2.4 |
+| S2-06 | PBI-02.3.1 |
+| S2-07 | PBI-02.3.2 |
+| S2-08 | PBI-02.3.3 |
+| S2-09 | PBI-03.3.1, PBI-03.3.2 |
+| S2-10 | PBI-03.1.1, PBI-03.1.2 |
+| S2-11 | PBI-03.1.3 |
+| S2-12 | PBI-03.1.4 |
+| S2-13 | PBI-03.2.1 |
+| S2-14 | PBI-03.2.2, PBI-03.2.3 |
+| S2-15 | PBI-01.5.3 |
+| S2-16 | PBI-01.5.4 |
+| S2-17 | PBI-02.3.1, PBI-02.3.2 |
+| S2-18 | PBI-02.2.1, PBI-02.2.2, PBI-02.2.4, PBI-02.3.1, PBI-02.3.2, PBI-02.3.3, PBI-03.1.1, PBI-03.1.2, PBI-03.1.4, PBI-03.2.1, PBI-03.2.2, PBI-03.2.3, PBI-03.3.1, PBI-03.3.2 |
+
+</details>
+
+<details>
+<summary><strong>Sprint 3 — 17 tarefas</strong></summary>
+
+| Tarefa | User Stories relacionadas |
+|---|---|
+| S3-01 | PBI-04.1.1, PBI-04.1.2 |
+| S3-02 | PBI-04.1.3 |
+| S3-03 | PBI-04.1.4 |
+| S3-04 | PBI-04.1.1, PBI-04.1.2, PBI-04.1.3, PBI-04.1.4 |
+| S3-05 | PBI-04.2.1 |
+| S3-06 | PBI-04.2.2 |
+| S3-07 | PBI-04.2.3 |
+| S3-08 | PBI-05.1.1, PBI-05.1.4 |
+| S3-09 | PBI-05.1.2 |
+| S3-10 | PBI-05.1.3, PBI-05.2.3 |
+| S3-11 | PBI-05.2.1 |
+| S3-12 | PBI-05.2.2 |
+| S3-13 | PBI-06.2.1 |
+| S3-14 | PBI-06.2.2 |
+| S3-15 | PBI-01.5.5 |
+| S3-16 | PBI-04.1.1, PBI-04.1.2, PBI-04.1.3, PBI-04.1.4, PBI-05.1.1, PBI-05.1.2, PBI-05.1.3, PBI-05.1.4, PBI-05.2.1 |
+| S3-17 | PBI-04.1.1, PBI-04.1.2, PBI-05.2.1, PBI-06.2.1, PBI-06.2.2 |
+
+</details>
+
+O detalhamento operacional das 67 tarefas, dependências, tamanhos e critérios globais está no [Plano de Tarefas de Desenvolvimento](docs/planning/PLANO_DE_TAREFAS_DESENVOLVIMENTO.md).
+
+---
+
 ## 🏗️ Arquitetura e Componentes de Infraestrutura
 
 A stack base deste repositório compreende:
