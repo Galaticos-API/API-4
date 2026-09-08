@@ -17,18 +17,19 @@ depende de estar disponível a quem precisa e protegido de quem não deveria ace
 
 - Autenticação e sessão
 - Perfis de acesso por papel
-- Gestão do vocabulário controlado de tecnologias
+- Padronização dos nomes de tecnologias usados para classificar itens e competências
 
 ## Resultado esperado
 
-Cada pessoa acessa a plataforma com o nível de permissão previsto para o seu papel, e o
-vocabulário de tecnologias permanece consistente, sem variações que fragmentem a busca.
+Cada pessoa acessa a plataforma com o nível de permissão previsto para o seu papel, e a mesma
+tecnologia é sempre registrada com o mesmo nome, sem variações de escrita que fragmentem as
+buscas.
 
 ## Critérios de aceitação
 
 - Nenhuma funcionalidade deve ser acessível sem autenticação.
 - A alteração de permissões deve produzir efeito sem exigir nova implantação.
-- Termos do vocabulário em uso não devem poder ser removidos sem tratamento das associações
+- Nomes de tecnologia em uso não devem poder ser removidos sem tratamento das associações
   existentes.
 
 ---
@@ -119,7 +120,7 @@ ENTÃO o sistema deve recusá-la sem retornar dado algum.
 
 **Sprint 3** · 2 PBIs
 
-**Descrição.** Gestão dos perfis de acesso e do vocabulário controlado de tecnologias.
+**Descrição.** Gestão dos perfis de acesso e da lista padronizada de nomes de tecnologias.
 
 **Objetivo.** Permitir que a plataforma seja mantida pelo próprio time da fábrica, sem exigir
 alteração de código para operações rotineiras.
@@ -150,23 +151,34 @@ DADO que exista um único usuário com perfil de administrador
 QUANDO eu tentar alterar o perfil dele
 ENTÃO o sistema deve impedir a alteração.
 
-### PBI-06.2.2 — Gerenciar o vocabulário de tecnologias · `Should`
+### PBI-06.2.2 — Padronizar os nomes de tecnologias usados no acervo · `Should`
 
 COMO UM administrador
-EU QUERO manter o vocabulário de tecnologias
-PARA QUE a classificação do acervo permaneça consistente.
+EU QUERO manter uma lista única de nomes de tecnologias
+PARA QUE a mesma tecnologia não seja registrada de várias formas e fragmente as buscas.
 
-**Cenário 1 — Incluir tecnologia**
-DADO que eu esteja na administração do vocabulário
-QUANDO eu incluir uma tecnologia com nome e categoria
-ENTÃO ela deve passar a estar disponível para associação a itens e competências.
+**Cenário 1 — Selecionar de uma lista ao classificar**
+DADO que eu esteja associando tecnologias a um item de trabalho ou a um perfil profissional
+QUANDO eu digitar o nome
+ENTÃO o sistema deve oferecer as tecnologias já cadastradas, em vez de aceitar texto livre.
 
-**Cenário 2 — Impedir duplicidade**
-DADO que já exista tecnologia com o mesmo nome
-QUANDO eu tentar incluí-la novamente
-ENTÃO o sistema deve impedir e indicar o registro existente.
+**Cenário 2 — Incluir tecnologia nova**
+DADO que a tecnologia ainda não exista na lista
+QUANDO eu cadastrá-la com nome e categoria
+ENTÃO ela deve passar a estar disponível para associação.
 
-**Cenário 3 — Tratar remoção de tecnologia em uso**
+**Cenário 3 — Impedir variações de escrita**
+DADO que já exista "Node.js" cadastrado
+QUANDO alguém tentar cadastrar "NodeJS"
+ENTÃO o sistema deve apontar o registro existente e oferecer utilizá-lo.
+
+**Cenário 4 — Tratar remoção de tecnologia em uso**
 DADO que a tecnologia esteja associada a itens ou competências
 QUANDO eu tentar removê-la
 ENTÃO o sistema deve informar quantas associações existem e exigir confirmação explícita.
+
+**Regras e observações.** Reescrito após a revisão da PRO4TECH em 08/09, que apontou não ter
+compreendido a funcionalidade na redação anterior. É o que sustenta a busca por tecnologia do
+`PBI-02.3.2` e as consultas sobre a equipe do `PBI-05.2.1`: sem uma lista única, a pergunta
+"quem já trabalhou com Node?" devolve resultados parciais, porque cada pessoa terá escrito o
+nome de um jeito.

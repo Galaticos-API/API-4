@@ -1,6 +1,6 @@
 # EP-03 — Especificar com apoio da inteligência artificial
 
-**Sprint:** 2 · **9 PBIs** · [← voltar ao índice](README.md)
+**Sprint:** 2 · **10 PBIs** · [← voltar ao índice](README.md)
 
 ## Descrição
 
@@ -170,7 +170,7 @@ busca e ao chat, não à sugestão de similares.
 
 ## FT-03.2 — Controle das sugestões
 
-**Sprint 2** · 3 PBIs
+**Sprint 2** · 4 PBIs
 
 **Descrição.** Mecanismos que garantem que a autoria da especificação permaneça humana:
 decisão explícita sobre cada sugestão, registro de origem e possibilidade de dispensar
@@ -184,6 +184,8 @@ apoia, não substitui o Product Owner — de forma verificável, e não apenas d
 - Nenhuma sugestão deve ser incorporada ao item sem ação explícita do usuário.
 - A origem de cada campo deve permanecer registrada após a conclusão do item.
 - Todas as funcionalidades de cadastro devem operar com a inteligência artificial desativada.
+- Nenhuma sugestão deve introduzir conteúdo que não esteja fundamentado no item em edição ou
+  no acervo.
 
 ### PBI-03.2.1 — Aceitar, editar ou descartar sugestão · `Must`
 
@@ -248,6 +250,38 @@ operantes.
 
 **Regras e observações.** As validações de conformidade de `FT-01.3` são determinísticas e não
 dependem do serviço de IA — este cenário confirma essa separação.
+
+### PBI-03.2.4 — Restringir as sugestões ao acervo e ao item em edição · `Must`
+
+COMO UM Product Owner
+EU QUERO que a inteligência artificial não invente conteúdo
+PARA QUE eu não incorpore à especificação um requisito que ninguém pediu.
+
+**Cenário 1 — Fundamentar a sugestão**
+DADO que a proposta se baseie em item semelhante do acervo
+QUANDO ela for apresentada
+ENTÃO o sistema deve indicar o item de origem que a fundamenta.
+
+**Cenário 2 — Perguntar em vez de preencher**
+DADO que uma informação necessária não conste do item em edição nem do acervo
+QUANDO a lacuna for identificada
+ENTÃO o sistema deve formular uma pergunta ao autor, sem propor conteúdo para o campo ausente.
+
+**Cenário 3 — Não introduzir regra de negócio nova**
+DADO que eu solicite a padronização de um texto
+QUANDO a proposta for apresentada
+ENTÃO ela deve reorganizar o conteúdo existente, sem acrescentar regra, ator ou condição que eu
+não tenha informado.
+
+**Cenário 4 — Sinalizar suposição**
+DADO que parte de uma proposta não possa ser fundamentada
+QUANDO ela for apresentada
+ENTÃO o trecho não fundamentado deve ser sinalizado como suposição a confirmar.
+
+**Regras e observações.** Aplica ao copiloto de especificação a mesma regra que o `PBI-04.1.3`
+aplica ao chat. Solicitado pela PRO4TECH na revisão de 08/09: o risco de a IA inventar é maior
+no momento da escrita do que na consulta, porque o conteúdo proposto entra na especificação e
+passa a valer como requisito para quem implementa.
 
 ---
 

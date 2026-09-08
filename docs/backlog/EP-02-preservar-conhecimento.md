@@ -84,7 +84,7 @@ DADO que ocorra uma falha durante o envio
 QUANDO o erro for detectado
 ENTÃO o sistema deve informar a falha e permitir nova tentativa sem perder a seleção do arquivo.
 
-### PBI-02.1.2 — Consultar documentos do projeto · `Should`
+### PBI-02.1.2 — Consultar documentos do projeto · `Must`
 
 COMO UM membro da equipe
 EU QUERO consultar os documentos anexados a um projeto
@@ -104,6 +104,9 @@ ENTÃO o sistema deve indicar o estado do processamento daquele documento.
 DADO que o projeto não possua documentos
 QUANDO eu abrir a aba
 ENTÃO o sistema deve orientar o envio do primeiro documento.
+
+**Regras e observações.** Elevado a `Must` a pedido da PRO4TECH na revisão de 08/09: anexar sem
+poder listar e reabrir entrega metade da capacidade — a mesma prioridade do `PBI-02.1.1`.
 
 ### PBI-02.1.3 — Anexar protótipo ao PBI · `Should`
 
@@ -208,7 +211,7 @@ ENTÃO o sistema deve indexá-la vinculada ao item e ao projeto.
 **Regras e observações.** Cada item de trabalho é indexado como uma unidade, sem fragmentação
 por tamanho fixo: a granularidade semântica já é definida pelo guia da PRO4TECH.
 
-### PBI-02.2.3 — Reindexar item alterado · `Should`
+### PBI-02.2.3 — Reindexar item alterado · `Must`
 
 COMO UM membro da equipe
 EU QUERO que alterações em um item se reflitam nas buscas
@@ -224,6 +227,10 @@ resultados.
 DADO que um item seja arquivado
 QUANDO o arquivamento for concluído
 ENTÃO seu conteúdo não deve mais retornar nas buscas de trabalho ativo.
+
+**Regras e observações.** Elevado a `Must` a pedido da PRO4TECH na revisão de 08/09. Sem
+reindexação a busca devolve conteúdo desatualizado, o que é pior do que não ter busca: quebra a
+confiança no acervo inteiro.
 
 ### PBI-02.2.4 — Expurgar o contexto de um projeto · `Must`
 

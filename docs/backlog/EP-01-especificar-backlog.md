@@ -1,6 +1,6 @@
 # EP-01 — Especificar o backlog de produto no padrão da fábrica
 
-**Sprints:** 1, 2 e 3 · **24 PBIs** · [← voltar ao índice](README.md)
+**Sprints:** 1, 2 e 3 · **26 PBIs** · [← voltar ao índice](README.md)
 
 ## Descrição
 
@@ -21,7 +21,8 @@ que espalha a informação e torna caro consultar o que foi definido. Ao tornar 
 - Critérios de aceitação nos três níveis, no formato que o guia define para cada nível
 - Verificação automática de conformidade com o guia de especificação
 - Navegação, filtro e leitura do backlog
-- Registro de decisões e rastreabilidade entre itens
+- Registro de decisões, justificativas de alteração e rastreabilidade entre itens
+- Configuração, pela organização, do padrão de qualidade aplicado aos itens
 
 ## Resultado esperado
 
@@ -176,6 +177,9 @@ ENTÃO o sistema deve avisar sobre a perda e pedir confirmação.
 DADO que o item esteja arquivado
 QUANDO eu abrir seus detalhes
 ENTÃO o sistema deve apresentá-lo apenas para leitura.
+
+**Regras e observações.** A justificativa da alteração é tratada no `PBI-01.5.6`, e o histórico
+resultante no `PBI-01.5.4`.
 
 ### PBI-01.1.6 — Arquivar item de trabalho · `Should`
 
@@ -412,27 +416,57 @@ DADO que uma verificação esteja reprovada
 QUANDO eu selecionar essa verificação
 ENTÃO o sistema deve levar o foco ao campo que a originou.
 
+**Cenário 4 — Refletir a configuração vigente**
+DADO que o administrador tenha alterado as verificações da organização
+QUANDO eu abrir o painel de qualidade
+ENTÃO devem constar apenas as verificações ativas naquele momento.
+
+**Regras e observações.** O conjunto de verificações é dado da organização, não regra fixa do
+sistema — configurado em `FT-01.6`. O conjunto inicial corresponde ao Guia de Especificação de
+Itens de Trabalho da PRO4TECH.
+
 ### PBI-01.3.6 — Exibir indicador de completude · `Should`
 
 COMO UM Product Owner
 EU QUERO ver um indicador de completude do item
 PARA QUE eu tenha uma noção imediata da maturidade da especificação.
 
-**Cenário 1 — Calcular a partir do checklist**
-DADO que o item possua verificações aprovadas e reprovadas
+**Cenário 1 — Calcular sobre as verificações aplicáveis**
+DADO que o item possua verificações de qualidade aplicáveis ao seu nível
 QUANDO eu visualizar o item
-ENTÃO o sistema deve exibir um indicador proporcional às verificações aprovadas.
+ENTÃO o sistema deve exibir a proporção entre verificações aprovadas e verificações
+aplicáveis, em percentual.
 
-**Cenário 2 — Exibir na listagem**
+**Cenário 2 — Desconsiderar o que não se aplica**
+DADO que uma verificação não se aplique ao item, como a exigência de protótipo em item sem
+interface
+QUANDO o indicador for calculado
+ENTÃO essa verificação não deve ser contada no total nem como reprovada.
+
+**Cenário 3 — Refletir a configuração da organização**
+DADO que o administrador tenha alterado as verificações vigentes
+QUANDO eu visualizar o indicador
+ENTÃO ele deve ser recalculado sobre o conjunto atual de verificações.
+
+**Cenário 4 — Exibir na listagem**
 DADO que eu esteja navegando o backlog
 QUANDO eu visualizar a lista de itens
 ENTÃO o sistema deve exibir o indicador de cada item, permitindo identificar os menos maduros.
+
+**Cenário 5 — Tratar item sem verificação aplicável**
+DADO que nenhuma verificação se aplique ao item
+QUANDO eu visualizá-lo
+ENTÃO o sistema não deve exibir indicador, em vez de apresentar completude total.
+
+**Regras e observações.** O indicador é a razão entre verificações aprovadas e aplicáveis,
+**sem pesos** — cada verificação vale o mesmo. A escolha é deliberada: atribuir peso por
+verificação produz um número que ninguém consegue explicar nem auditar.
 
 ---
 
 ## FT-01.4 — Navegação do backlog
 
-**Sprint 1** · 3 PBIs
+**Sprint 1** · 2 PBIs
 
 **Descrição.** Leitura, navegação hierárquica e filtragem do backlog de um projeto.
 
@@ -467,11 +501,11 @@ DADO que o projeto não possua épicos
 QUANDO eu abrir sua tela
 ENTÃO o sistema deve orientar a criação do primeiro épico.
 
-### PBI-01.4.2 — Filtrar o backlog · `Must`
+### PBI-01.4.2 — Filtrar e localizar itens no backlog · `Must`
 
 COMO UM membro da equipe
-EU QUERO filtrar o backlog
-PARA QUE eu encontre rapidamente o subconjunto de itens que me interessa.
+EU QUERO filtrar o backlog e localizar itens por texto
+PARA QUE eu encontre rapidamente o que me interessa sem percorrer a hierarquia inteira.
 
 **Cenário 1 — Filtrar por status**
 DADO que eu esteja navegando o backlog
@@ -484,35 +518,32 @@ QUANDO eu adicionar um filtro por tecnologia
 ENTÃO o sistema deve aplicar os dois critérios simultaneamente e indicar quantos filtros estão
 ativos.
 
-**Cenário 3 — Tratar resultado vazio**
-DADO que a combinação de filtros não retorne itens
+**Cenário 3 — Localizar por texto**
+DADO que eu informe um termo presente no título ou na descrição de um item
+QUANDO eu executar a busca
+ENTÃO o sistema deve listar os itens correspondentes com seu caminho na hierarquia e o trecho
+onde o termo aparece.
+
+**Cenário 4 — Combinar texto e filtros**
+DADO que eu tenha filtros ativos
+QUANDO eu informar um termo de busca
+ENTÃO o resultado deve respeitar simultaneamente o termo e os filtros.
+
+**Cenário 5 — Tratar resultado vazio**
+DADO que a combinação de termo e filtros não retorne itens
 QUANDO o resultado for apresentado
-ENTÃO o sistema deve informar a ausência de resultados e oferecer a limpeza dos filtros.
+ENTÃO o sistema deve informar a ausência de resultados e oferecer a limpeza dos critérios.
 
-### PBI-01.4.3 — Buscar item por texto · `Should`
-
-COMO UM membro da equipe
-EU QUERO buscar itens por texto
-PARA QUE eu localize um item específico sem navegar a hierarquia inteira.
-
-**Cenário 1 — Localizar por título**
-DADO que eu informe um termo presente no título de um item
-QUANDO eu executar a busca
-ENTÃO o sistema deve listar os itens correspondentes com seu caminho na hierarquia.
-
-**Cenário 2 — Buscar no conteúdo**
-DADO que eu informe um termo presente na descrição de um item
-QUANDO eu executar a busca
-ENTÃO o sistema deve retornar o item com o trecho onde o termo aparece.
-
-**Regras e observações.** Busca textual sobre a base relacional. A busca por significado no
-acervo é tratada em `FT-02.3`, na Sprint 2.
+**Regras e observações.** Busca textual sobre a base relacional, no mesmo controle dos filtros
+— conforme observação da PRO4TECH na revisão de 08/09, separar os dois criava distinção
+técnica sem sentido para quem usa. A busca por significado no acervo é tratada em `FT-02.3`,
+na Sprint 2.
 
 ---
 
 ## FT-01.5 — Rastreabilidade das decisões
 
-**Sprints 1, 2 e 3** · 5 PBIs
+**Sprints 1, 2 e 3** · 6 PBIs
 
 **Descrição.** Registro do "porquê" das definições e das relações entre itens, permitindo
 recuperar o raciocínio por trás da especificação.
@@ -609,3 +640,108 @@ estrutura do guia.
 DADO que eu solicite a exportação de uma feature
 QUANDO o arquivo for gerado
 ENTÃO ele deve conter apenas aquela feature e seus PBIs.
+
+### PBI-01.5.6 — Justificar a alteração de um item · `Must` · Sprint 1
+
+COMO UM Product Owner
+EU QUERO informar o motivo ao alterar um item de trabalho
+PARA QUE quem consultar depois entenda por que a especificação mudou ao longo do tempo.
+
+**Cenário 1 — Registrar a justificativa ao salvar**
+DADO que eu tenha alterado um item já concluído
+QUANDO eu salvar a alteração
+ENTÃO o sistema deve oferecer um campo de justificativa e vinculá-la àquela versão do item.
+
+**Cenário 2 — Consultar no histórico**
+DADO que uma versão possua justificativa registrada
+QUANDO eu abrir o histórico do item
+ENTÃO cada versão deve exibir sua justificativa junto do autor e da data.
+
+**Cenário 3 — Exigir quando a organização determinar**
+DADO que a organização tenha configurado a justificativa como obrigatória
+QUANDO eu tentar salvar sem informá-la
+ENTÃO o sistema deve impedir a gravação e indicar o campo.
+
+**Cenário 4 — Dispensar em rascunho**
+DADO que o item ainda esteja em rascunho
+QUANDO eu salvar uma alteração
+ENTÃO o sistema não deve solicitar justificativa.
+
+**Regras e observações.** Difere do registro de decisão (`PBI-01.5.1`), que é o ato deliberado
+de documentar um raciocínio: aqui a justificativa está atrelada à alteração e é recuperada pelo
+histórico de versões (`PBI-01.5.4`). O cenário 4 evita atrito durante a redação — exigir
+justificativa em cada ajuste de rascunho produz registros vazios do tipo "correção". Sugerido
+pela PRO4TECH na revisão de 08/09.
+
+---
+
+## FT-01.6 — Configuração do padrão de qualidade
+
+**Sprint 2** · 2 PBIs
+
+**Descrição.** Cadastro, pela própria organização, das verificações de qualidade aplicadas aos
+itens de trabalho e das definições de Preparado e de Pronto adotadas pela fábrica.
+
+**Objetivo.** Fazer com que o padrão de qualidade seja dado da organização, e não regra fixa do
+sistema, permitindo que a fábrica ajuste o próprio critério sem depender de alteração de código.
+
+**Critérios de aceitação**
+
+- A configuração é única para a organização, e não definida por projeto.
+- O conjunto inicial de verificações corresponde ao Guia de Especificação de Itens de Trabalho,
+  e pode ser alterado a partir dele.
+- Alterar a configuração não invalida itens já concluídos sob o critério anterior.
+- Toda alteração na configuração registra autor e data.
+
+### PBI-01.6.1 — Configurar as verificações de qualidade da organização · `Must`
+
+COMO UM administrador
+EU QUERO definir quais verificações de qualidade se aplicam a cada nível
+PARA QUE o padrão do sistema corresponda ao padrão adotado pela fábrica.
+
+**Cenário 1 — Ativar e desativar verificações**
+DADO que eu esteja nas configurações da organização
+QUANDO eu desativar uma verificação de determinado nível
+ENTÃO ela deve deixar de ser aplicada e de compor o indicador de completude daquele nível.
+
+**Cenário 2 — Partir do padrão do guia**
+DADO que a organização nunca tenha alterado a configuração
+QUANDO eu abrir a tela
+ENTÃO devem estar ativas as verificações previstas no Guia de Especificação de Itens de
+Trabalho.
+
+**Cenário 3 — Manter a lista de termos a evitar**
+DADO que eu esteja configurando as verificações
+QUANDO eu incluir ou remover um termo da lista de termos vagos
+ENTÃO a verificação correspondente deve passar a considerar a lista atualizada.
+
+**Cenário 4 — Preservar itens já concluídos**
+DADO que existam itens concluídos sob a configuração anterior
+QUANDO eu alterar a configuração
+ENTÃO esses itens devem permanecer concluídos, indicando que foram avaliados por critério
+anterior.
+
+### PBI-01.6.2 — Definir a Definição de Preparado e a Definição de Pronto · `Should`
+
+COMO UM administrador
+EU QUERO cadastrar a Definição de Preparado e a Definição de Pronto da organização
+PARA QUE toda a fábrica trabalhe sob o mesmo entendimento do que é um item pronto.
+
+**Cenário 1 — Cadastrar as definições**
+DADO que eu esteja nas configurações da organização
+QUANDO eu registrar as condições que compõem cada definição
+ENTÃO elas devem passar a ser apresentadas aos autores durante a especificação.
+
+**Cenário 2 — Consultar durante a escrita**
+DADO que eu esteja editando um item
+QUANDO eu abrir o painel de qualidade
+ENTÃO o sistema deve apresentar as condições aplicáveis ao nível daquele item.
+
+**Cenário 3 — Manter critérios distintos por nível**
+DADO que a organização adote critérios diferentes para épico, feature e PBI
+QUANDO eu cadastrar as definições
+ENTÃO deve ser possível registrar condições específicas para cada nível.
+
+**Regras e observações.** Solicitado pela PRO4TECH na revisão de 08/09. As definições são
+descritivas e orientam o autor; as verificações automáticas continuam sendo as configuradas no
+`PBI-01.6.1`.
