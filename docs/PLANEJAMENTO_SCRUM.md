@@ -14,7 +14,42 @@
 
 Este planejamento converte as 63 User Stories em tarefas técnicas executáveis. Cada tarefa está vinculada a pelo menos um PBI existente e deve ser validada contra os respectivos cenários de aceitação.
 
-Nenhuma tarefa está atribuída individualmente. A divisão entre os sete integrantes do time de desenvolvimento será definida posteriormente, conforme capacidade e competências disponíveis.
+A distribuição individual está em andamento. As atribuições já confirmadas aparecem abaixo; todas as demais tarefas continuam sem responsável definido.
+
+## Distribuição parcial da equipe
+
+### Habilitadores da Sprint 1
+
+| Tarefa | Entrega | Responsável(is) |
+|---|---|---|
+| PRE-05 | Design System e protótipo navegável | Giovanni |
+| PRE-07 | Spike de embeddings em português | Rafael Matesco |
+| PRE-08 | Correção das vulnerabilidades do backend | Vitor e Gustavo Bueno |
+
+### Implementação da Sprint 1
+
+| Tarefa | Entrega | Responsável |
+|---|---|---|
+| S1-01 | Autenticação, sessões, papéis e proteção contra tentativas indevidas | Gustavo Bueno |
+| S1-02 | Telas de login/logout e proteção das rotas do frontend | Giovanni |
+| S1-03 | API de cadastro, listagem e consulta de projetos | Daniel (PO) |
+| S1-04 | Interface de cadastro e consulta de projetos | Giovanni |
+| S1-10 | Modelo e regras dos critérios de aceitação | Vitor |
+| S1-13 | Validações automáticas de qualidade dos PBIs | Vitor |
+
+> **Observação sobre a S1-03:** Daniel foi informado como responsável e identificado como Product Owner. A atribuição foi registrada exatamente dessa forma; durante o acompanhamento, convém deixar claro quando ele atua na implementação e quando atua na validação de produto.
+
+### Resumo por pessoa
+
+| Pessoa | Tarefas atribuídas | Quantidade |
+|---|---|:---:|
+| Giovanni | PRE-05, S1-02, S1-04 | 3 |
+| Vitor | PRE-08, S1-10, S1-13 | 3 |
+| Gustavo Bueno | PRE-08, S1-01 | 2 |
+| Rafael Matesco | PRE-07 | 1 |
+| Daniel (PO) | S1-03 | 1 |
+
+`PRE-08` é uma tarefa compartilhada por duas pessoas. Por isso, o total de atribuições individuais é dez, distribuído entre nove tarefas.
 
 ## Como ler este documento
 

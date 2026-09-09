@@ -4,7 +4,7 @@
 
 **Equipe considerada:** 7 pessoas
 
-**Atribuição individual:** não realizada nesta versão
+**Atribuição individual:** parcial; 9 tarefas com responsáveis confirmados
 
 **Base funcional:** Backlog de Produto v1.0 (03/09/2026), 6 épicos, 18 features e 63 PBIs
 
@@ -19,8 +19,27 @@ suficiente para acompanhamento diário e preparados para posterior organização
 Este documento não substitui os PBIs nem altera seus critérios de aceitação. Cada tarefa
 abaixo deve ser executada e demonstrada contra os cenários do PBI indicado.
 
-Nenhuma tarefa está atribuída a uma pessoa. As etiquetas de componente indicam somente a
-natureza do trabalho necessária para facilitar filtro e planejamento.
+A atribuição individual está em andamento. Nove tarefas já possuem responsáveis confirmados;
+as demais continuam sem responsável. As etiquetas de componente indicam somente a natureza
+do trabalho e não substituem a atribuição nominal.
+
+### Distribuição parcial confirmada
+
+| Fase | Tarefa | Responsável(is) |
+|---|---|---|
+| Habilitador da Sprint 1 | PRE-05 — Design System e protótipo | Giovanni |
+| Habilitador da Sprint 1 | PRE-07 — Spike de embeddings PT-BR | Rafael Matesco |
+| Habilitador da Sprint 1 | PRE-08 — Tratar vulnerabilidades do backend | Vitor e Gustavo Bueno |
+| Sprint 1 | S1-01 — Domínio de identidade e autenticação | Gustavo Bueno |
+| Sprint 1 | S1-02 — Login, logout e proteção de rotas no frontend | Giovanni |
+| Sprint 1 | S1-03 — API de projetos | Daniel (PO) |
+| Sprint 1 | S1-04 — Interface de projetos | Giovanni |
+| Sprint 1 | S1-10 — Critérios de aceitação por nível | Vitor |
+| Sprint 1 | S1-13 — Motor de validação determinística | Vitor |
+
+Daniel foi informado como responsável pela `S1-03` e identificado como Product Owner. Esta
+definição deve distinguir sua atuação na implementação de sua responsabilidade de validar o
+valor e os critérios de produto.
 
 ## 2. Premissas e divergências identificadas
 
@@ -75,7 +94,8 @@ Campos recomendados:
 - **Dependências:** outros cartões que precisam estar prontos.
 - **Tamanho:** `P` (até 1 dia), `M` (1 a 2 dias), `G` (2 a 3 dias).
 - **Etiquetas:** Frontend, Backend, Banco, IA/RAG, n8n, QA, UX, Segurança, Docs.
-- **Responsável:** deixar vazio até a divisão posterior.
+- **Responsável:** usar a distribuição parcial confirmada; manter vazio somente nas tarefas
+  ainda não distribuídas.
 
 Cartões maiores que 3 dias devem ser quebrados durante o Planning. A prioridade dos cartões
 deriva dos PBIs: nenhum `Should` ou `Could` deve começar enquanto houver `Must` bloqueante na
@@ -239,6 +259,6 @@ Teste/Validação -> Concluído`.
 
 Os cartões devem ser criados a partir dos IDs PRE/S1/S2/S3, preservando PBI, prioridade,
 dependências, tamanho, etiquetas e checklist. Usar somente as etiquetas de iteração
-`Sprint 1`, `Sprint 2` e `Sprint 3`; todos os cartões `PRE-*` recebem `Sprint 1`. A atribuição
-às sete pessoas deve acontecer somente depois de confirmar disponibilidade, competências e
-capacidade da Sprint 1.
+`Sprint 1`, `Sprint 2` e `Sprint 3`; todos os cartões `PRE-*` recebem `Sprint 1`. As novas
+atribuições devem considerar disponibilidade, competências, dependências e capacidade da
+Sprint 1, preservando as responsabilidades já confirmadas neste documento.
