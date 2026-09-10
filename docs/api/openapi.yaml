@@ -1,0 +1,107 @@
+openapi: 3.0.3
+info:
+  title: Sinapse Service Contracts
+  version: 0.1.0
+  description: Contratos versionados entre backend, serviço de IA e automações n8n.
+servers:
+  - url: http://localhost:3001/api/v1
+    description: Backend local
+  - url: http://localhost:8000
+    description: Serviço de IA local
+paths:
+  /health:
+    get:
+      summary: Verifica disponibilidade do serviço
+      responses:
+        '200': { description: Serviço saudável }
+        '503': { description: Dependência indisponível }
+  /ai/ingest/document:
+    post:
+      summary: Solicita ingestão assíncrona de documento
+      operationId: ingestDocument
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/IngestDocumentRequest' }
+      responses:
+        '202': { description: Solicitação aceita para processamento }
+        '400': { $ref: '#/components/responses/ValidationError' }
+  /ai/ingest/entity:
+    post:
+      summary: Indexa uma entidade estruturada
+      operationId: ingestEntity
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/IngestEntityRequest' }
+      responses:
+        '200': { description: Entidade processada }
+        '400': { $ref: '#/components/responses/ValidationError' }
+  /ai/embeddings:
+    post:
+      summary: Gera embedding para um texto
+      operationId: generateEmbedding
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/EmbeddingRequest' }
+      responses:
+        '200': { description: Vetor gerado }
+        '502': { description: Ollama indisponível }
+  /ai/rag/query:
+    post:
+      summary: Responde usando somente os trechos fornecidos
+      operationId: queryRag
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RagQueryRequest' }
+      responses:
+        '200': { description: Resposta fundamentada }
+        '502': { description: Ollama indisponível }
+components:
+  schemas:
+    IngestDocumentRequest:
+      type: object
+      required: [document_id, text_content]
+      properties:
+        document_id: { type: string }
+        text_content: { type: string }
+        project_id: { type: string, format: uuid, nullable: true }
+        metadata: { type: object, additionalProperties: true }
+    IngestEntityRequest:
+      type: object
+      required: [entity_type, data]
+      properties:
+        entity_type: { type: string, enum: [epic, feature, requirement, decision] }
+        data: { type: object, additionalProperties: true }
+    EmbeddingRequest:
+      type: object
+      required: [text]
+      properties:
+        text: { type: string, minLength: 1 }
+        model: { type: string, nullable: true }
+    RagQueryRequest:
+      type: object
+      required: [query]
+      properties:
+        query: { type: string, minLength: 1 }
+        project_id: { type: string, format: uuid, nullable: true }
+        context_chunks: { type: array, items: { type: string } }
+    Error:
+      type: object
+      required: [error, correlation_id]
+      properties:
+        error: { type: string }
+        correlation_id: { type: string, format: uuid }
+        details: { type: object, additionalProperties: true }
+  responses:
+    ValidationError:
+      description: Corpo inválido
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }

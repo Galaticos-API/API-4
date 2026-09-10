@@ -4,6 +4,20 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
 
+// Load a local, gitignored credential file when the caller did not export the
+// variables in the current process. The values are never printed.
+const localEnvPath = path.resolve(process.env.TRELLO_ENV_FILE || ".env.trello.local");
+try {
+  const localEnv = await fs.readFile(localEnvPath, "utf8");
+  for (const line of localEnv.split(/\r?\n/)) {
+    const match = line.match(/^\s*([A-Z][A-Z0-9_]*)\s*=\s*(.*?)\s*$/);
+    if (!match || match[1].startsWith("#") || process.env[match[1]]) continue;
+    process.env[match[1]] = match[2].replace(/^['\"]|['\"]$/g, "");
+  }
+} catch (error) {
+  if (error.code !== "ENOENT") throw error;
+}
+
 const API_BASE = "https://api.trello.com/1";
 const API_KEY = process.env.TRELLO_API_KEY;
 const API_TOKEN = process.env.TRELLO_TOKEN;
