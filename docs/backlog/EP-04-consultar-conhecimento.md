@@ -126,7 +126,8 @@ QUANDO eu enviar a pergunta
 ENTÃO o sistema deve informar que sua base de conhecimento se restringe ao acervo da fábrica.
 
 **Regras e observações.** Este é o PBI que sustenta a confiança na plataforma. Deve ser
-verificado a cada sprint pela bateria de perguntas de regressão (habilitador HT-10).
+verificado a cada sprint pela bateria de perguntas de regressão (habilitador de
+regressão, ainda sem `PRE-*` correspondente).
 
 ### PBI-04.1.4 — Selecionar o escopo da conversa · `Must`
 

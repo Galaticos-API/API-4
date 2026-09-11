@@ -6,7 +6,7 @@
 
 **Atribuição individual:** parcial; 9 tarefas com responsáveis confirmados
 
-**Base funcional:** Backlog de Produto v1.0 (03/09/2026), 6 épicos, 18 features e 63 PBIs
+**Base funcional:** Backlog de Produto v1.1 (08/09/2026), 6 épicos, 18 features e 66 PBIs
 
 **Estado do código analisado:** `main` no commit `237cd50`
 
@@ -41,12 +41,26 @@ Daniel foi informado como responsável pela `S1-03` e identificado como Product 
 definição deve distinguir sua atuação na implementação de sua responsabilidade de validar o
 valor e os critérios de produto.
 
+### PBIs da revisão v1.1 ainda sem tarefa
+
+O parecer da PRO4TECH sobre o backlog v1.0 acrescentou quatro PBIs e fundiu um. As tarefas
+técnicas abaixo ainda precisam ser criadas; até lá o plano não cobre o escopo inteiro.
+
+| PBI | Título | Sprint | Prioridade |
+|---|---|:---:|:---:|
+| `PBI-01.5.6` | Justificar a alteração de um item | 1 | Must |
+| `PBI-01.6.1` | Configurar as verificações de qualidade da organização | 2 | Must |
+| `PBI-01.6.2` | Definir a Definição de Preparado e a Definição de Pronto | 2 | Should |
+| `PBI-03.2.4` | Restringir as sugestões ao acervo e ao item em edição | 2 | Must |
+
+O `PBI-01.4.3` foi fundido no `PBI-01.4.2`; a tarefa `S1-17` foi reapontada.
+
 ## 2. Premissas e divergências identificadas
 
 - A informação mais recente do Scrum Master prevalece para capacidade: a equipe tem 7
   pessoas. O índice Markdown antigo ainda menciona 9 pessoas.
-- O PDF v1.0 de 03/09/2026 é usado como referência de escopo e calendário. Os arquivos
-  Markdown do repositório, de 02/09/2026, detalham o mesmo conjunto de 63 PBIs.
+- O PDF v1.0 de 03/09/2026 foi a referência original de escopo e calendário. O escopo vigente
+  é a v1.1 do backlog, de 08/09/2026, com 66 PBIs após o parecer da PRO4TECH.
 - A hierarquia de trabalho adotada provisoriamente é
   `Projeto -> Épico -> Feature -> PBI`, conforme PRD e backlog.
 - A plataforma é uma base de conhecimento e especificação. Sprint, kanban, horas e gestão de
@@ -156,7 +170,7 @@ validações determinísticas, decisões e anexos, sem depender de IA.
 | S1-14 | Must | Criar painel de qualidade em tempo real, navegação para campo inválido e bloqueio apenas na conclusão | PBI-01.3.5 | S1-13 | M | Frontend, Backend, UX |
 | S1-15 | Should | Calcular e exibir completude derivada do checklist, com regra versionada e sem uso de IA | PBI-01.3.6 | S1-13, S1-14 | M | Backend, Frontend |
 | S1-16 | Must | Implementar árvore hierárquica, breadcrumb navegável, filtros combinados persistidos na sessão e estados vazios | PBI-01.4.1, PBI-01.4.2 | S1-03, S1-05, S1-06, S1-07 | G | Frontend, Backend |
-| S1-17 | Should | Implementar busca textual relacional por título e descrição, com trecho e caminho hierárquico | PBI-01.4.3 | S1-16 | M | Backend, Frontend, Banco |
+| S1-17 | Should | Implementar busca textual relacional por título e descrição, com trecho e caminho hierárquico | PBI-01.4.2 | S1-16 | M | Backend, Frontend, Banco |
 | S1-18 | Must | Implementar decisões em qualquer nível com contexto, justificativa, alternativas, autor/data e herança visual dos ascendentes | PBI-01.5.1, PBI-01.5.2 | PRE-02, S1-08 | G | Backend, Frontend, Banco |
 | S1-19 | Must | Implementar upload seguro de PDF/DOCX/MD/TXT: tamanho configurável, MIME real, armazenamento, retry e auditoria | PBI-02.1.1 | S1-01, PRE-02, PRE-03 | G | Backend, Segurança |
 | S1-20 | Should | Criar aba de documentos com metadados, status de processamento, estados vazio/erro e atualização de status | PBI-02.1.2 | S1-19 | M | Frontend, Backend |

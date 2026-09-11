@@ -9,7 +9,7 @@ O **Sinapse** é a memória institucional da fábrica de software. A plataforma 
 
 ## 📖 User Stories e rastreabilidade das tarefas
 
-O Backlog de Produto v1.0 contém **63 User Stories (PBIs)**, organizadas em seis épicos. A descrição completa de cada história — `COMO UM`, `EU QUERO`, `PARA QUE`, cenários `DADO/QUANDO/ENTÃO` e prioridade — está nos documentos abaixo:
+O Backlog de Produto v1.1 contém **66 User Stories (PBIs)**, organizadas em seis épicos. A descrição completa de cada história — `COMO UM`, `EU QUERO`, `PARA QUE`, cenários `DADO/QUANDO/ENTÃO` e prioridade — está nos documentos abaixo:
 
 - [EP-01 — Especificar o backlog](docs/backlog/EP-01-especificar-backlog.md)
 - [EP-02 — Preservar o conhecimento](docs/backlog/EP-02-preservar-conhecimento.md)
@@ -48,7 +48,7 @@ Cada tarefa técnica abaixo está ligada diretamente a pelo menos uma User Story
 | S1-14 | PBI-01.3.5 |
 | S1-15 | PBI-01.3.6 |
 | S1-16 | PBI-01.4.1, PBI-01.4.2 |
-| S1-17 | PBI-01.4.3 |
+| S1-17 | PBI-01.4.2 |
 | S1-18 | PBI-01.5.1, PBI-01.5.2 |
 | S1-19 | PBI-02.1.1 |
 | S1-20 | PBI-02.1.2 |

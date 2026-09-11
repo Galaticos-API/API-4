@@ -8,11 +8,11 @@
 |---|:---:|
 | Épicos | 6 |
 | Features | 18 |
-| User Stories/PBIs | 63 |
+| User Stories/PBIs | 66 |
 | Tarefas técnicas | 67 |
 | Sprints | 3 |
 
-Este planejamento converte as 63 User Stories em tarefas técnicas executáveis. Cada tarefa está vinculada a pelo menos um PBI existente e deve ser validada contra os respectivos cenários de aceitação.
+Este planejamento converte as 66 User Stories em tarefas técnicas executáveis. Cada tarefa está vinculada a pelo menos um PBI existente e deve ser validada contra os respectivos cenários de aceitação.
 
 A distribuição individual está em andamento. As atribuições já confirmadas aparecem abaixo; todas as demais tarefas continuam sem responsável definido.
 
@@ -130,7 +130,7 @@ Ao final da Sprint 1, espera-se que uma pessoa autorizada consiga entrar na plat
 | S1-14 | Mostrar um painel de qualidade e indicar como corrigir problemas | PBI-01.3.5 |
 | S1-15 | Calcular e exibir o nível de completude do item | PBI-01.3.6 |
 | S1-16 | Criar navegação hierárquica, caminho do item e filtros de consulta | PBI-01.4.1, PBI-01.4.2 |
-| S1-17 | Permitir localizar itens por título ou descrição | PBI-01.4.3 |
+| S1-17 | Permitir localizar itens por título ou descrição | PBI-01.4.2 |
 | S1-18 | Registrar e consultar decisões e justificativas em qualquer nível | PBI-01.5.1, PBI-01.5.2 |
 | S1-19 | Permitir upload seguro de documentos suportados | PBI-02.1.1 |
 | S1-20 | Exibir documentos, metadados e estado de processamento | PBI-02.1.2 |
@@ -219,4 +219,4 @@ Ao final da Sprint 3, as pessoas poderão conversar com o acervo e receber respo
 | 1 | 32 | Todas relacionadas a PBIs existentes |
 | 2 | 18 | Todas relacionadas a PBIs existentes |
 | 3 | 17 | Todas relacionadas a PBIs existentes |
-| **Total** | **67** | **63 PBIs cobertos, sem tarefas órfãs** |
+| **Total** | **67** | **62 dos 66 PBIs cobertos — os 4 itens da revisão v1.1 ainda não têm tarefa** |

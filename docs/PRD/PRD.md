@@ -742,7 +742,7 @@ construída a partir dos projetos de API que o grupo desenvolveu nos três prime
 **Por que isso funciona melhor que a alternativa original.** Além de resolver o cold start, o
 time **conhece esses projetos** — o que torna possível julgar se a recuperação está correta.
 Com documentação de projetos reais da PRO4TECH teríamos conteúdo sem capacidade de avaliar a
-qualidade das respostas, e a bateria de regressão (HT-10) não teria gabarito confiável.
+qualidade das respostas, e a bateria de regressão não teria gabarito confiável.
 
 **A sobreposição necessária ao reúso existe**, verificada nos repositórios:
 

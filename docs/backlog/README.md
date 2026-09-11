@@ -105,20 +105,36 @@ técnicas abaixo do PBI, mas é explícito que elas não substituem a descriçã
 infraestrutura não descreve comportamento de usuário. Ficam registrados aqui para
 planejamento, fora da hierarquia.
 
-| # | Habilitador | Quando | Bloqueia | Status |
-|:---:|---|---|---|:---:|
-| HT-01 | Repositório, containers, ambientes e pipeline de CI | Pré-Sprint 1 | Tudo | [x] Concluído |
-| HT-02 | Modelagem e migrations do banco relacional | Pré-Sprint 1 | FT-01.1 | [x] Concluído |
-| HT-03 | Design system e biblioteca de componentes | Pré-Sprint 1 | Todo o front | [ ] Pendente |
-| HT-04 | Protótipo navegável das telas da Sprint 1 | Pré-Sprint 1 | FT-01.1, FT-01.4 | [ ] Pendente |
-| HT-05 | Spike: validar LLM local nas máquinas do time | Pré-Sprint 1 | FT-03.\* | [x] Concluído |
-| HT-06 | Spike: comparar modelos de embedding em PT-BR | Pré-Sprint 1 | FT-02.2 | [ ] Pendente |
-| HT-07 | n8n em container + `n8n-local-sync` + `N8N_ENCRYPTION_KEY` compartilhado | Pré-Sprint 1 | FT-02.2 | [x] Concluído |
-| HT-08 | Serviço Python de IA: esqueleto e contrato com o Node | Sprint 1 | FT-02.2, FT-03.\* | [x] Concluído |
-| HT-09 | Curadoria e carga inicial da base a partir dos projetos API-1, API-2 e API-3 | Sprint 1 | FT-02.3, FT-03.1 | [ ] Pendente |
-| HT-10 | Bateria de 20 perguntas de regressão para busca e chat | Sprint 2 | FT-02.3, FT-04.1 | [ ] Pendente |
+Os habilitadores são identificados como `PRE-*` e a lista oficial vive no
+[Plano de Tarefas de Desenvolvimento](../planning/PLANO_DE_TAREFAS_DESENVOLVIMENTO.md), que é
+a fonte dos cartões do quadro. A tabela abaixo é a visão do backlog: acrescenta quais
+**features** cada habilitador bloqueia. Responsáveis e situação técnica ficam no plano de
+tarefas e no [PRE_STATUS](../planning/PRE_STATUS.md), para não divergirem daqui.
 
-> **HT-09 — origem definida.** A PRO4TECH orientou construir a base inicial a partir dos
+| # | Habilitador | Bloqueia |
+|:---:|---|---|
+| PRE-01 | Registrar as decisões Q1–Q5 com a PRO4TECH | FT-01.1 |
+| PRE-02 | Migrations versionadas e correção do schema | FT-01.1, FT-01.5, FT-02.2, FT-03.2, FT-04.2, FT-05.1, FT-06.1 |
+| PRE-03 | Contrato HTTP entre Node, Python e n8n | FT-02.1, FT-02.2, FT-03.2 |
+| PRE-04 | Fundação de testes e pipeline de CI | FT-01.3, FT-02.3, FT-04.1, FT-06.1 |
+| PRE-05 | Design system e protótipo navegável da Sprint 1 | Todo o front da Sprint 1 — em especial FT-01.1 e FT-01.4 |
+| PRE-06 | Carga inicial da base de conhecimento e política de dados | FT-02.3, FT-03.1, FT-05.2 |
+| PRE-07 | Spike de embeddings em PT-BR | FT-02.3, FT-04.1 |
+| PRE-08 | Triagem de vulnerabilidades do backend | FT-06.1 |
+| PRE-09 | Validação do ambiente completo em máquina com Docker | FT-02.2, FT-03.1, FT-04.1 |
+
+> **Equivalência com a numeração anterior.** Até a v1.0 este documento usava `HT-*`. A
+> correspondência é: `HT-02`→`PRE-02`, `HT-08`→`PRE-03`, `HT-03` e `HT-04`→`PRE-05`,
+> `HT-09`→`PRE-06`, `HT-06`→`PRE-07`. O antigo `HT-01` se dividiu entre `PRE-04` e `PRE-09`, e
+> os concluídos `HT-05` (LLM local) e `HT-07` (n8n em container) foram absorvidos pela
+> validação de ambiente do `PRE-09`. Referências a `HT-*` em documentos anteriores devem ser
+> lidas por esta tabela.
+
+> ⚠️ **Sem correspondência.** A bateria de 20 perguntas de regressão para busca e chat
+> (antigo `HT-10`, previsto para a Sprint 2, bloqueando FT-02.3 e FT-04.1) não tem habilitador
+> `PRE-*` equivalente. Precisa ser criada no plano de tarefas ou o trabalho fica sem cartão.
+
+> **PRE-06 — origem definida.** A PRO4TECH orientou construir a base inicial a partir dos
 > projetos de API do próprio grupo (API-1, API-2 e API-3), cuja sobreposição temática foi
 > verificada: autenticação, dashboards, gestão de equipe e upload de documentos aparecem em
 > mais de um projeto. Detalhes na seção 16.1 do [PRD](../PRD/PRD.md).
@@ -190,4 +206,4 @@ nenhum rejeitado.
 Sprint 2, que passa de 18 para 21.
 
 **Pedido adicional.** A PRO4TECH solicitou um protótipo navegável para alinhar expectativas
-antes da entrega. Corresponde aos habilitadores `HT-03` e `HT-04`, ambos pendentes.
+antes da entrega. Corresponde ao habilitador `PRE-05`, ainda pendente.
