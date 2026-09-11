@@ -9,7 +9,7 @@
 | **Cliente / Parceiro acadêmico** | PRO4TECH — Digital Tech Transformation |
 | **Contato do cliente** | Rafael Monteiro (PRO4TECH) |
 | **Período** | 03/08/2026 a 14/12/2026 · Feira de Soluções em **03/12/2026** |
-| **Fontes** | [Kick-off.md](./Kick-off.md) · Ata do kickoff (24/08) · Reunião técnica do grupo (24/08) · **Guia de Especificação de Itens de Trabalho (PRO4TECH, 25/08)** |
+| **Fontes** | [Kick-off.md](../Kick-off/Kick-off.md) · Ata do kickoff (24/08) · Reunião técnica do grupo (24/08) · **Guia de Especificação de Itens de Trabalho (PRO4TECH, 25/08)** |
 | **Status** | 🟡 Rascunho — pendente de validação com o cliente |
 | **Versão** | 1.1 — 02/09/2026 |
 
@@ -693,7 +693,7 @@ Sprint Review final · ensaio da apresentação · material da Feira ·
 | # | Risco | Impacto | Mitigação |
 |---|---|:---:|---|
 | R1 | Hardware do grupo insuficiente para o LLM local | 🔴 Alto | Spike nesta semana; modelo quantizado menor; uma máquina como servidor de IA compartilhado |
-| R2 | **Cold start** — a proposta é reúso, mas a base começa vazia. **D3 ainda não entregue** | 🔴 Alto | Cobrar D3 até 04/09. Plano B: seed de 5–10 projetos fictícios com temas sobrepostos, escritos no padrão do guia |
+| R2 | **Cold start** — a proposta é reúso e a base nasce vazia | 🟡 Baixo | **Resolvido**: carga a partir dos projetos API-1, API-2 e API-3 do grupo (seção 16.1), com sobreposição temática verificada. Resta a curadoria do que entra |
 | R3 | Qualidade do modelo aberto em PT-BR abaixo do necessário | 🟠 Médio | Comparar 2–3 modelos no spike; o pipeline de recuperação pesa mais que o tamanho do modelo |
 | R4 | **Escopo amplo** — 58 requisitos para 3 sprints de 3 semanas | 🔴 Alto | MoSCoW rígido; E9 é condicional; nenhum `Should` antes de todos os `Must`. Boa parte de E2 é validação determinística, barata de implementar |
 | R5 | Modelo de dados mais complexo que o previsto — três estruturas distintas e critérios polimórficos | 🟠 Médio | Modelagem fechada antes da Sprint 1; o guia é preciso o bastante para não haver retrabalho de interpretação |
@@ -723,10 +723,49 @@ Sprint Review final · ensaio da apresentação · material da Feira ·
 |---|---|---|---|
 | D1 | Apresentação institucional | ✅ **Recebida** (25/08) | — |
 | D2 | Modelos de estruturação: epic, feature e backlog | ✅ **Recebida** (25/08) — *Guia de Especificação de Itens de Trabalho* | Aplicada nesta revisão 1.1 |
-| D3 | Dados de projetos anteriores para a base inicial | ⏳ **Pendente** | 🔴 Alto — sem isso o cold start (R2) permanece |
+| D3 | Dados de projetos anteriores para a base inicial | ✅ **Definida** (03/09) — a PRO4TECH orientou usar os projetos de API dos três primeiros semestres do próprio grupo | Resolve o cold start (R2); ver seção 16.1 |
 
-> O guia recebido é declaradamente **genérico, com exemplos fictícios**. Ele resolve a D2, mas
-> **não substitui a D3**: continuamos sem conteúdo real para popular a base de conhecimento.
+> O guia recebido é declaradamente **genérico, com exemplos fictícios** — ele estabelece o
+> padrão de escrita, não fornece conteúdo.
+
+### 16.1. Carga inicial: os projetos de API do grupo
+
+Em resposta à solicitação da D3, a PRO4TECH orientou que a base de conhecimento inicial seja
+construída a partir dos projetos de API que o grupo desenvolveu nos três primeiros semestres.
+
+| Projeto | Domínio | Stack | Documentação de requisitos disponível |
+|---|---|---|---|
+| **API-1** | Atestados e gestão de equipe | Python/Flask + HTML | Requisitos de Cliente, 2 sprint reviews, diagramas |
+| **API-2** | Youtan — Plano de Desenvolvimento Individual | Java/JavaFX + SQL | Requisitos do Cliente, DocSprint 1/2/3, pesquisa de dashboard |
+| **API-3** | ETL, análise de dados e LLM | Python + Docker | Product Backlog, requisitos de backend, dicionário de dados, manuais |
+
+**Por que isso funciona melhor que a alternativa original.** Além de resolver o cold start, o
+time **conhece esses projetos** — o que torna possível julgar se a recuperação está correta.
+Com documentação de projetos reais da PRO4TECH teríamos conteúdo sem capacidade de avaliar a
+qualidade das respostas, e a bateria de regressão (HT-10) não teria gabarito confiável.
+
+**A sobreposição necessária ao reúso existe**, verificada nos repositórios:
+
+| Tema | Onde aparece |
+|---|---|
+| Autenticação e cadastro de usuário | API-1, API-2 |
+| Dashboard e gráficos | API-2, API-3 |
+| Gestão de equipe | API-1, API-2 |
+| Upload e gestão de documentos | API-1, API-2 |
+| Integração com LLM | API-3, API-4 |
+
+O exemplo do cliente — *"já tivemos alguma integração com PIX?"* — passa a ser demonstrado como
+*"já fizemos autenticação antes?"*, com resposta verdadeira e verificável em dois projetos.
+
+**Ganho adicional: o EP-05 deixa de depender de dado fictício.** Os nove integrantes atuaram
+nesses projetos, então o mapeamento de competências e o histórico de atuação podem ser
+populados com informação real e conferível.
+
+> ⚠️ **A ingestão precisa ser curada, não em massa.** O repositório da API-2 contém arquivos de
+> teste com dados pessoais em `documentos_pdi/`, cuja indexação colidiria com o RNF-10. Escopo
+> da carga: pastas `DOCS/`, PDFs de requisitos e documentação de sprint. **Fora do escopo:**
+> código-fonte, arquivos de configuração de IDE e anexos de teste — o acervo trata de
+> requisitos, não de implementação.
 
 ## 17. Pendências internas
 

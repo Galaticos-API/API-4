@@ -583,20 +583,32 @@ documentação atualizada.
 | Apresentação institucional | Contextualização da equipe e documentação do projeto |
 | **Guia de Especificação de Itens de Trabalho** | Aplicado integralmente nas seções 7 e 8 desta revisão. Define a hierarquia, a estrutura obrigatória de cada nível e os critérios de qualidade da plataforma |
 
-### 13.2. Pendente
+### 13.2. Carga inicial da base de conhecimento
 
-| Material | Finalidade |
-|---|---|
-| **Exemplos de projetos e requisitos já realizados** | Compor a base de conhecimento inicial. A proposta de valor da plataforma é o reúso do conhecimento acumulado; sem uma base inicial, não é possível demonstrar o comportamento real da solução. Um conjunto de 5 a 10 projetos é suficiente |
+Conforme orientação da PRO4TECH, a base de conhecimento inicial será construída a partir dos
+projetos de API desenvolvidos pela equipe nos três primeiros semestres do curso.
 
-O guia recebido é declaradamente genérico, com exemplos fictícios — ele estabelece o padrão de
-escrita, mas não fornece conteúdo para a base.
+| Projeto | Domínio | Documentação disponível |
+|---|---|---|
+| API-1 | Atestados e gestão de equipe | Requisitos de cliente, revisões de sprint, diagramas |
+| API-2 | Plano de Desenvolvimento Individual | Requisitos de cliente, documentação de três sprints |
+| API-3 | ETL, análise de dados e integração com modelo de linguagem | Product backlog, requisitos de backend, dicionário de dados |
 
-Os materiais podem ser fornecidos de forma **anonimizada**, com nomes de clientes e dados
-sensíveis substituídos: o que é relevante ao projeto é a estrutura da documentação e a natureza
-dos itens, não a identificação dos envolvidos. Cabe registrar que a arquitetura definida
-executa integralmente de forma local e offline, com modelos de IA open source — nenhum dado
-trafega para serviços de terceiros ou para a nuvem (RNF-03).
+A adequação desse conjunto foi verificada: os projetos apresentam sobreposição temática
+suficiente para demonstrar o reúso de conhecimento — autenticação e cadastro de usuário
+aparecem em dois deles, assim como dashboards, gestão de equipe e tratamento de documentos.
+A consulta que motivou o projeto, exemplificada no kick-off como *"já tivemos alguma integração
+com pagamento via PIX?"*, será demonstrada na forma *"já implementamos autenticação antes?"*,
+com resposta verificável em dois projetos distintos.
+
+Como a equipe participou da construção desses projetos, é possível avaliar se as respostas da
+plataforma estão corretas — condição necessária para a bateria de testes de regressão prevista
+para a busca e o chat.
+
+A carga será curada: entram documentos de requisitos, backlogs e documentação de sprint;
+permanecem fora código-fonte, arquivos de configuração e anexos de teste. Cabe registrar que a
+arquitetura definida executa integralmente de forma local e offline, com modelos de IA open
+source — nenhum dado trafega para serviços de terceiros ou para a nuvem (RNF-03).
 
 ---
 

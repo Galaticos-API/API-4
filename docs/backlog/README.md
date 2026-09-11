@@ -1,8 +1,8 @@
 # Backlog de Produto — Sinapse
 
 **Cliente:** PRO4TECH · **Grupo Galáticos** — Fatec São José dos Campos
-**Padrão:** [Guia de Especificação de Itens de Trabalho](../Guia_Especificacao_Itens_de_Trabalho_FATEC.pdf) (PRO4TECH, 25/08/2026)
-**Base:** [PRD.md](../PRD.md) v1.1
+**Padrão:** [Guia de Especificação de Itens de Trabalho](../Kick-off/Guia_Especificacao_Itens_de_Trabalho_FATEC.pdf) (PRO4TECH, 25/08/2026)
+**Base:** [PRD.md](../PRD/PRD.md) v1.1
 **Versão:** 1.0 — 02/09/2026 · **Time:** 9 pessoas
 
 ---
@@ -111,13 +111,18 @@ planejamento, fora da hierarquia.
 | HT-06 | Spike: comparar modelos de embedding em PT-BR | Pré-Sprint 1 | FT-02.2 | [ ] Pendente |
 | HT-07 | n8n em container + `n8n-local-sync` + `N8N_ENCRYPTION_KEY` compartilhado | Pré-Sprint 1 | FT-02.2 | [x] Concluído |
 | HT-08 | Serviço Python de IA: esqueleto e contrato com o Node | Sprint 1 | FT-02.2, FT-03.\* | [x] Concluído |
-| HT-09 | Carga inicial da base de conhecimento *(seed)* | Sprint 1 | FT-02.3, FT-03.1 | [ ] Pendente |
+| HT-09 | Curadoria e carga inicial da base a partir dos projetos API-1, API-2 e API-3 | Sprint 1 | FT-02.3, FT-03.1 | [ ] Pendente |
 | HT-10 | Bateria de 20 perguntas de regressão para busca e chat | Sprint 2 | FT-02.3, FT-04.1 | [ ] Pendente |
 
-> ⚠️ **HT-09 é crítico.** A proposta de valor é reúso, e a base nasce vazia. Depende da entrega
-> **D3** (dados de projetos anteriores) pela PRO4TECH, ainda pendente. Sem ela, o seed precisa
-> ser construído com projetos fictícios escritos no padrão do guia — trabalho que precisa entrar
-> no planejamento da Sprint 1, não ser descoberto na véspera da review.
+> **HT-09 — origem definida.** A PRO4TECH orientou construir a base inicial a partir dos
+> projetos de API do próprio grupo (API-1, API-2 e API-3), cuja sobreposição temática foi
+> verificada: autenticação, dashboards, gestão de equipe e upload de documentos aparecem em
+> mais de um projeto. Detalhes na seção 16.1 do [PRD](../PRD/PRD.md).
+>
+> ⚠️ **A carga precisa ser curada, não em massa.** O repositório da API-2 contém anexos de
+> teste com dados pessoais, cuja indexação colidiria com o requisito de LGPD. Entram: pastas
+> `DOCS/`, PDFs de requisitos e documentação de sprint. Ficam fora: código-fonte, configuração
+> de IDE e anexos de teste.
 
 ---
 
@@ -137,7 +142,7 @@ disciplina de priorização é o que separa entregar de quase entregar.
 
 ## Definição de pronto
 
-Herdada do [PRD](../PRD.md), seção 13. Um PBI só é dado como concluído com:
+Herdada do [PRD](../PRD/PRD.md), seção 13. Um PBI só é dado como concluído com:
 
 - [ ] Todos os cenários de aceitação demonstráveis
 - [ ] Código revisado por outro integrante e integrado via Pull Request
@@ -155,4 +160,4 @@ Herdada do [PRD](../PRD.md), seção 13. Um PBI só é dado como concluído com:
 | Q4 | Existe um nível "Projeto" acima do Épico? | Altera `PBI-01.1.1` e a raiz de toda a hierarquia |
 | Q5 | Padrão de identificação de itens da PRO4TECH | Altera a convenção de códigos deste documento |
 | Q1 | A plataforma é ferramenta principal de especificação ou repositório consultivo? | Reequilibra o peso entre EP-01 e EP-04 |
-| D3 | Dados de projetos anteriores | Define se HT-09 é carga ou construção do zero |
+| ~~D3~~ | ~~Dados de projetos anteriores~~ — ✅ resolvida em 03/09: base construída a partir dos projetos API-1, API-2 e API-3 | — |
