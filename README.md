@@ -123,6 +123,7 @@ API-4/
 │   ├── PLANO_DE_TAREFAS_DESENVOLVIMENTO.md # Plano detalhado e status
 │   ├── api/                   # Contrato OpenAPI (openapi.yaml)
 │   ├── AGENTS.md              # Diretrizes canônicas para agentes e LLMs
+│   ├── PLANEJAMENTO_SCRUM.md  # Organização das tarefas de desenvolvimento
 │   ├── SETUP_GUIDE.md         # Guia de configuração e desenvolvimento
 │   └── Spike Embeddings.md    # Relatório técnico do Spike PRE-07
 ├── frontend/                  # SPA React 19/TypeScript/Vite (Interface do PO)
