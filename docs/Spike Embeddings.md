@@ -7,7 +7,7 @@
 | **Responsável** | Rafael Matesco |
 | **Data de Execução** | Setembro de 2026 |
 | **Status** | **Concluído com Recomendação** |
-| **Script Reprodutível** | [`scripts/spike_embeddings.py`](file:///r:/FATEC/sem4/API-4/scripts/spike_embeddings.py) |
+| **Script Reprodutível** | [`scripts/spike_embeddings.py`](../scripts/spike_embeddings.py) |
 
 ---
 
@@ -18,7 +18,7 @@ Este spike investigou modelos de representação vetorial (*embeddings*) com foc
 ### Recomendação Final:
 * **Modelo Escolhido:** **`BAAI/bge-m3`** (executado localmente via runtime **Ollama**).
 * **Dimensão do Vetor:** **1024**.
-* **Compatibilidade com o Banco:** **100% aderente** à definição atual da coluna `chunk.embedding vector(1024)` do PostgreSQL 16 com `pgvector` ([database/init.sql](file:///r:/FATEC/sem4/API-4/database/init.sql#L115)), **sem necessidade de migrações ou alterações de schema**.
+* **Compatibilidade com o Banco:** **100% aderente** à definição atual da coluna `chunk.embedding vector(1024)` do PostgreSQL 16 com `pgvector` ([database/init.sql](../database/init.sql#L115)), **sem necessidade de migrações ou alterações de schema**.
 * **Janela de Contexto:** Suporta até **8.192 tokens** por chunk (ideal para requisitos longos, critérios de aceitação complexos e documentos de arquitetura).
 * **Desempenho em PT-BR:** Acurácia de **100% no Top-1** nos testes de similaridade, com margem média de separação semântica de **+0,81** em relação a conteúdos distratores.
 
@@ -84,7 +84,7 @@ Para simular o ecossistema real da fábrica de software da PRO4TECH, foi estrutu
 
 ## 5. Resultados e Comparação Quantitativa
 
-O benchmark foi executado pelo script automatizado [`scripts/spike_embeddings.py`](file:///r:/FATEC/sem4/API-4/scripts/spike_embeddings.py).
+O benchmark foi executado pelo script automatizado [`scripts/spike_embeddings.py`](../scripts/spike_embeddings.py).
 
 ### 5.1. Tabela Comparativa de Resultados
 
@@ -126,7 +126,7 @@ Para o modelo recomendado (**`bge-m3`**), os coeficientes de similaridade obtido
 
 ## 6. Verificação de Compatibilidade com o Banco de Dados
 
-### 6.1. O Schema Atual do PostgreSQL ([database/init.sql](file:///r:/FATEC/sem4/API-4/database/init.sql#L115-L203))
+### 6.1. O Schema Atual do PostgreSQL ([database/init.sql](../database/init.sql#L115-L203))
 
 No script DDL da aplicação, a tabela de trechos vetoriais foi estabelecida com a seguinte assinatura:
 
@@ -176,14 +176,14 @@ Na máquina de desenvolvimento ou no container de IA, executar:
 ollama pull bge-m3
 ```
 
-### 8.2. Configuração no Microsserviço de IA ([ai-service/config.py](file:///r:/FATEC/sem4/API-4/ai-service/config.py#L16))
+### 8.2. Configuração no Microsserviço de IA ([ai-service/config.py](../ai-service/config.py#L16))
 O serviço já está pré-configurado para consumir o modelo selecionado:
 ```python
 OLLAMA_BASE_URL: str = "http://localhost:11434"
 OLLAMA_EMBEDDING_MODEL: str = "bge-m3"
 ```
 
-### 8.3. Consumo via API HTTP ([ai-service/main.py](file:///r:/FATEC/sem4/API-4/ai-service/main.py#L119-L131))
+### 8.3. Consumo via API HTTP ([ai-service/main.py](../ai-service/main.py#L119-L131))
 A geração de embedding é feita via endpoint REST:
 ```http
 POST /embeddings HTTP/1.1

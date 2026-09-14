@@ -1,6 +1,6 @@
 # Planejamento de Tarefas por Sprint — Sinapse
 
-> Organização das tarefas de desenvolvimento e sua relação direta com as User Stories do Backlog de Produto v1.0.
+> Organização das tarefas de desenvolvimento e sua relação direta com as User Stories do Backlog de Produto v1.1.
 
 ## Visão geral
 
@@ -9,7 +9,7 @@
 | Épicos | 6 |
 | Features | 18 |
 | User Stories/PBIs | 66 |
-| Tarefas técnicas | 67 |
+| Tarefas técnicas | 71 |
 | Sprints | 3 |
 
 Este planejamento converte as 66 User Stories em tarefas técnicas executáveis. Cada tarefa está vinculada a pelo menos um PBI existente e deve ser validada contra os respectivos cenários de aceitação.
@@ -51,25 +51,8 @@ A distribuição individual está em andamento. As atribuições já confirmadas
 
 `PRE-08` é uma tarefa compartilhada por duas pessoas. Por isso, o total de atribuições individuais é dez, distribuído entre nove tarefas.
 
-## Como ler este documento
-
-O documento foi organizado para atender dois públicos:
-
-- **Visão de produto:** a seção “O que será entregue” explica o resultado de cada sprint sem depender de conhecimento técnico.
-- **Visão de desenvolvimento:** as tabelas apresentam o identificador, a entrega técnica e os PBIs que definem o comportamento esperado.
-
-### Glossário rápido
-
-| Termo | Explicação simples |
-|---|---|
-| Épico | Objetivo amplo do produto que reúne várias capacidades |
-| Feature | Capacidade do produto que ajuda a realizar um épico |
-| User Story | Necessidade escrita do ponto de vista de quem usará o produto |
-| PBI | Identificador da User Story no backlog, como `PBI-01.1.1` |
-| Tarefa técnica | Trabalho concreto necessário para implementar uma ou mais User Stories |
-| Habilitador | Preparação técnica necessária antes de uma funcionalidade |
-| RAG | Técnica que permite à IA responder usando informações recuperadas do acervo |
-| Spike | Investigação curta usada para reduzir uma dúvida técnica |
+## Documentos de referência detalhados
+Para critérios de aceitação específicos, estimativas de tamanho e dependências de cada tarefa, consulte o [Plano Detalhado de Tarefas](planning/PLANO_DE_TAREFAS_DESENVOLVIMENTO.md).
 
 ## Documentos de referência
 
@@ -137,6 +120,7 @@ Ao final da Sprint 1, espera-se que uma pessoa autorizada consiga entrar na plat
 | S1-21 | Permitir anexar e visualizar protótipos associados a PBIs | PBI-02.1.3 |
 | S1-22 | Remover anexos e eliminar de forma consistente o conteúdo indexado | PBI-02.1.4 |
 | S1-23 | Integrar e validar os fluxos obrigatórios da Sprint 1 com testes e documentação | PBI-01.1.1, PBI-01.1.2, PBI-01.1.3, PBI-01.1.4, PBI-01.1.5, PBI-01.2.1, PBI-01.2.2, PBI-01.2.3, PBI-01.3.1, PBI-01.3.2, PBI-01.3.3, PBI-01.3.5, PBI-01.4.1, PBI-01.4.2, PBI-01.5.1, PBI-01.5.2, PBI-02.1.1, PBI-06.1.1, PBI-06.1.2, PBI-06.1.3 |
+| S1-24 | Exigir justificativa obrigatória e gravar histórico ao alterar item salvo | PBI-01.5.6 |
 
 ## Sprint 2
 
@@ -170,6 +154,9 @@ Ao final da Sprint 2, documentos e itens concluídos deverão formar um acervo p
 | S2-16 | Guardar versões e permitir comparar alterações de um item | PBI-01.5.4 |
 | S2-17 | Criar uma base de consultas para medir precisão, isolamento e velocidade da busca | PBI-02.3.1, PBI-02.3.2 |
 | S2-18 | Integrar e validar os fluxos obrigatórios da Sprint 2, inclusive falhas e segurança | PBI-02.2.1, PBI-02.2.2, PBI-02.2.4, PBI-02.3.1, PBI-02.3.2, PBI-02.3.3, PBI-03.1.1, PBI-03.1.2, PBI-03.1.4, PBI-03.2.1, PBI-03.2.2, PBI-03.2.3, PBI-03.3.1, PBI-03.3.2 |
+| S2-19 | Implementar endpoints e configuração das regras de qualidade da organização | PBI-01.6.1 |
+| S2-20 | Permitir configurar e exibir Definição de Preparado (DoR) e Definição de Pronto (DoD) | PBI-01.6.2 |
+| S2-21 | Restringir sugestões semânticas do copiloto estritamente ao acervo do projeto e item em edição | PBI-03.2.4 |
 
 ## Sprint 3
 
@@ -216,7 +203,7 @@ Ao final da Sprint 3, as pessoas poderão conversar com o acervo e receber respo
 
 | Sprint | Tarefas | Situação |
 |:---:|:---:|---|
-| 1 | 32 | Todas relacionadas a PBIs existentes |
-| 2 | 18 | Todas relacionadas a PBIs existentes |
+| 1 | 33 (9 PRE + 24 S1) | Todas relacionadas a PBIs existentes |
+| 2 | 21 | Todas relacionadas a PBIs existentes |
 | 3 | 17 | Todas relacionadas a PBIs existentes |
-| **Total** | **67** | **62 dos 66 PBIs cobertos — os 4 itens da revisão v1.1 ainda não têm tarefa** |
+| **Total** | **71** | **100% de cobertura (66 de 66 PBIs mapeados)** |

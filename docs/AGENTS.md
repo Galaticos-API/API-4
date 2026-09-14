@@ -5,9 +5,9 @@ project: "Sinapse"
 project_aliases:
   - "Memória da Fábrica de Software"
   - "Base Inteligente de Requisitos"
-status: "draft-authoritative-context"
-repo_scope: "docs-only-initial-state"
-repository: "r:/FATEC/sem4/API-4"
+status: "authoritative-context"
+repo_scope: "sprint-1-active"
+repository: "Galaticos-API/API-4"
 source_documents:
   - "docs/Kick-off.md"
   - "docs/PRD.md"
@@ -26,7 +26,7 @@ Project goal:
 - The platform is not a project management tool; it is a memory layer for the software factory.
 
 Product essence:
-- Project -> Epic -> Feature -> Requirement
+- Project -> Epic -> Feature -> PBI
 - AI acts as an assistant, not an autonomous author.
 - Every requirement and decision is stored as reusable knowledge.
 - Knowledge is retrievable through semantic/text search and conversational Q&A.
@@ -128,23 +128,23 @@ Secondary personas:
 
 ## 7. CORE PRODUCT CAPABILITIES
 
-### 7.1 Requirement lifecycle
-- Project -> Epic -> Feature -> Requirement -> Acceptance criteria
-- Requirements must use a standard template with fields for:
-  - code
-  - title
-  - type
-  - description
-  - actor
-  - acceptance criteria (Gherkin)
-  - business rules
-  - priority (MoSCoW)
-  - technologies/integrations
-  - dependencies
+### 7.1 Backlog Item (PBI) lifecycle
+- Project -> Epic -> Feature -> PBI -> Acceptance criteria (BDD)
+- PBIs must use a standard template with fields for:
+  - code (ex: PBI-01.1.1)
+  - title (verb in infinitive)
+  - user story (Como um..., Eu quero..., Para que...)
+  - acceptance criteria (Gherkin: Dado, Quando, Então)
+  - business rules / observations
+  - type (Functional / Non-Functional)
+  - priority (MoSCoW: Must, Should, Could, Won't)
+  - technologies and tags
+  - dependencies and relations
   - decisions and rationale
-  - status
-  - provenance
-  - version/history
+  - status (draft, ready, done, archived)
+  - score_completude (0 to 100 derived deterministically)
+  - provenance (human-authored, ai-accepted, ai-edited)
+  - version history
 
 ### 7.2 Completion scoring
 - Each requirement should be assigned a completeness score from 0 to 100.
@@ -268,8 +268,8 @@ Core hierarchy:
 - Project
   - Epic
     - Feature
-      - Requirement
-        - Acceptance criterion
+      - PBI
+        - Acceptance criterion (BDD)
 
 Relationships:
 - Project has many documents
@@ -284,21 +284,20 @@ Metadata model requirement:
 
 ## 12. DATA / DOCUMENT MODEL
 
-Standard requirement schema:
-- code
-- title
-- type
-- description
-- actor
-- acceptanceCriteria
-- businessRules
-- priority
-- technologiesIntegrations
-- dependencies
-- decisionsAndRationale
-- status
-- provenance
-- versionHistory
+Standard PBI schema:
+- id (UUID)
+- feature_id (UUID FK)
+- codigo (string, unique)
+- titulo (string, infinitivo)
+- historia_como_um (text)
+- historia_eu_quero (text)
+- historia_para_que (text)
+- regras_observacoes (text)
+- tipo (Funcional / Não-Funcional)
+- prioridade (Must, Should, Could, Won't)
+- score_completude (integer 0-100)
+- provenance (human-authored, ai-accepted, ai-edited)
+- created_at / updated_at (timestamp)
 
 Provenance model:
 - human-authored
@@ -376,5 +375,9 @@ When generating or modifying code for this project, treat the following as bindi
 ## 18. AGENT READY STATE
 
 This file is the canonical entry point for AI-driven work on this project.
-The repository at this moment appears to be in a planning/documentation phase, so documentation is the source of truth.
-Any implementation work should be grounded here before adding code, schema, or architecture changes.
+The repository is in active Sprint 1 implementation:
+- Infrastructure: Docker Compose (PostgreSQL 16 + pgvector, n8n, Ollama) is orchestrated.
+- Database: DDL init schema and versioned migrations runner implemented.
+- Microservices: Backend (Express/TS), Frontend (React/Vite) and AI Service (FastAPI) skeletons established.
+- Technical Spikes: PRE-07 (Portuguese embeddings benchmark) is completed with `BAAI/bge-m3` (1024 dimensions) validated.
+Any implementation work should adhere to the non-negotiable architectural boundaries and deterministic quality rules established in the PRD and this context.

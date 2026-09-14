@@ -41,19 +41,16 @@ Daniel foi informado como responsável pela `S1-03` e identificado como Product 
 definição deve distinguir sua atuação na implementação de sua responsabilidade de validar o
 valor e os critérios de produto.
 
-### PBIs da revisão v1.1 ainda sem tarefa
+### Cobertura Integral dos PBIs da Revisão v1.1
 
-O parecer da PRO4TECH sobre o backlog v1.0 acrescentou quatro PBIs e fundiu um. As tarefas
-técnicas abaixo ainda precisam ser criadas; até lá o plano não cobre o escopo inteiro.
+O parecer da PRO4TECH sobre o backlog v1.0 acrescentou quatro PBIs e fundiu o `PBI-01.4.3` no `PBI-01.4.2` (com `S1-17` reapontada). Todos os quatro novos itens foram mapeados em tarefas técnicas dedicadas, assegurando 100% de cobertura do backlog:
 
-| PBI | Título | Sprint | Prioridade |
-|---|---|:---:|:---:|
-| `PBI-01.5.6` | Justificar a alteração de um item | 1 | Must |
-| `PBI-01.6.1` | Configurar as verificações de qualidade da organização | 2 | Must |
-| `PBI-01.6.2` | Definir a Definição de Preparado e a Definição de Pronto | 2 | Should |
-| `PBI-03.2.4` | Restringir as sugestões ao acervo e ao item em edição | 2 | Must |
-
-O `PBI-01.4.3` foi fundido no `PBI-01.4.2`; a tarefa `S1-17` foi reapontada.
+| PBI | Título | Tarefa Técnica | Sprint | Prioridade |
+|---|---|:---:|:---:|:---:|
+| `PBI-01.5.6` | Justificar a alteração de um item | `S1-24` | 1 | Must |
+| `PBI-01.6.1` | Configurar as verificações de qualidade da organização | `S2-19` | 2 | Must |
+| `PBI-01.6.2` | Definir a Definição de Preparado e a Definição de Pronto | `S2-20` | 2 | Should |
+| `PBI-03.2.4` | Restringir as sugestões ao acervo e ao item em edição | `S2-21` | 2 | Must |
 
 ## 2. Premissas e divergências identificadas
 
@@ -135,17 +132,17 @@ Estas nove tarefas pertencem à **Sprint 1** e devem receber a etiqueta `Sprint 
 Trello. O prefixo `PRE` apenas sinaliza que são habilitadores a iniciar antes das tarefas
 funcionais dependentes; ele não representa uma quarta sprint nem uma etapa externa ao plano.
 
-| ID | Prioridade | Tarefa | Resultado verificável | Dependências | Tam. | Etiquetas |
-|---|---|---|---|---|:---:|---|
-| PRE-01 | Bloqueante | Registrar decisões Q1-Q5 com a PRO4TECH | PBI-01.1.1, PBI-01.1.2, PBI-01.1.3, PBI-01.1.4 | Validação do cliente | P | Docs, Produto |
-| PRE-02 | Bloqueante | Adotar migrations versionadas e corrigir o schema | PBI-01.1.1, PBI-01.1.5, PBI-01.5.1, PBI-02.2.4, PBI-03.2.2, PBI-04.2.1, PBI-05.1.1, PBI-06.1.1 | PRE-01 | G | Banco, Backend |
-| PRE-03 | Must | Definir contrato HTTP Node-Python-n8n | PBI-02.1.1, PBI-02.1.4, PBI-02.2.1, PBI-03.2.1 | PRE-01 | M | Backend, IA/RAG, n8n |
-| PRE-04 | Must | Criar fundação de testes | PBI-01.3.1, PBI-02.3.1, PBI-04.1.3, PBI-06.1.1 | — | M | QA, CI |
-| PRE-05 | Must | Criar design system e protótipo navegável da Sprint 1 | PBI-01.1.1, PBI-01.1.2, PBI-01.1.3, PBI-01.1.4 | PRE-01 | G | UX, Frontend |
-| PRE-06 | Must | Preparar seed inicial e política de dados | PBI-02.3.1, PBI-03.1.4, PBI-05.2.1 | Entrega D3 ou decisão de Plano B | G | Banco, QA, Docs |
-| PRE-07 | Must | Executar spike de embeddings PT-BR | PBI-02.3.1, PBI-04.1.1 | PRE-06 | M | IA/RAG, QA |
-| PRE-08 | Must | Triar vulnerabilidades do backend | PBI-06.1.1, PBI-06.1.2, PBI-06.1.3 | PRE-04 | P | Backend, Segurança |
-| PRE-09 | Must | Validar ambiente completo em máquina com Docker | PBI-02.2.1, PBI-03.1.1, PBI-04.1.1 | PRE-02, PRE-03 | M | DevOps, QA |
+| ID | Prioridade | Situação Técnica | Tarefa | Evidência / Resultado verificável | Dependências | Tam. | Etiquetas |
+|---|---|---|---|---|---|:---:|---|
+| PRE-01 | Bloqueante | Concluída | Registrar decisões Q1-Q5 com a PRO4TECH | Decisões registradas no backlog v1.1 e quadro | — | P | Docs, Produto |
+| PRE-02 | Bloqueante | Em andamento | Adotar migrations versionadas e corrigir o schema | Migrations e runner Node em backend/src/database/migrate.ts; pendente validação em banco ativo | PRE-01 | G | Banco, Backend |
+| PRE-03 | Must | Em andamento | Definir contrato HTTP Node-Python-n8n | Contrato OpenAPI versionado em docs/api/openapi.yaml | PRE-01 | M | Backend, IA/RAG, n8n |
+| PRE-04 | Must | Em andamento | Criar fundação de testes | Scripts npm test e CI configurados; pendente cobertura de testes de integração | — | M | QA, CI |
+| PRE-05 | Must | Pendente | Criar design system e protótipo navegável da Sprint 1 | Entrega de UX/protótipo depende do responsável de Design | PRE-01 | G | UX, Frontend |
+| PRE-06 | Must | Em andamento | Preparar seed inicial e política de dados | Seed fictício idempotente criado em database/seed/dev_seed.sql | — | G | Banco, QA, Docs |
+| PRE-07 | Must | Concluída | Executar spike de embeddings PT-BR | Spike executado; modelo BAAI/bge-m3 (1024 dimensões) validado em docs/Spike Embeddings.md | PRE-06 | M | IA/RAG, QA |
+| PRE-08 | Must | Concluída | Triar vulnerabilidades do backend | Auditoria de produção limpa com override de dependências no backend | PRE-04 | P | Backend, Segurança |
+| PRE-09 | Must | Bloqueada | Validar ambiente completo em máquina com Docker | Requer Docker/WSL 2 ativo para validação do ambiente integrado | PRE-02, PRE-03 | M | DevOps, QA |
 
 ## 7. Sprint 1 — implementação funcional — 07/09 a 27/09
 
@@ -177,6 +174,7 @@ validações determinísticas, decisões e anexos, sem depender de IA.
 | S1-21 | Should | Implementar anexo de protótipo PNG/JPG/PDF com legenda, preview e alerta quando não há cenários | PBI-02.1.3 | S1-07, S1-10, S1-19 | M | Frontend, Backend |
 | S1-22 | Should | Implementar remoção confirmada de anexo e evento idempotente para excluir conteúdo indexado | PBI-02.1.4 | S1-19, PRE-03 | M | Backend, IA/RAG, n8n |
 | S1-23 | Must | Fechar integração da Sprint 1: testes E2E dos fluxos Must, OpenAPI, acessibilidade básica e roteiro de review | PBI-01.1.1, PBI-01.1.2, PBI-01.1.3, PBI-01.1.4, PBI-01.1.5, PBI-01.2.1, PBI-01.2.2, PBI-01.2.3, PBI-01.3.1, PBI-01.3.2, PBI-01.3.3, PBI-01.3.5, PBI-01.4.1, PBI-01.4.2, PBI-01.5.1, PBI-01.5.2, PBI-02.1.1, PBI-06.1.1, PBI-06.1.2, PBI-06.1.3 | S1-01 a S1-22 | G | QA, Docs, Frontend, Backend |
+| S1-24 | Must | Implementar campo de justificativa obrigatória ao alterar item salvo e registro no histórico de auditoria | PBI-01.5.6 | S1-08 | M | Backend, Frontend, Banco |
 
 ### Ordem recomendada da Sprint 1
 
@@ -210,6 +208,9 @@ com confirmação humana.
 | S2-16 | Should | Implementar snapshot de versões, listagem por autor/data e comparação de campos | PBI-01.5.4 | PRE-02, S1-08 | G | Backend, Frontend, Banco |
 | S2-17 | Must | Criar bateria versionada de 20+ consultas PT-BR com expectativa, fonte, escopo e métrica de precisão/latência | PBI-02.3.1, PBI-02.3.2 | PRE-06, S2-06 | M | QA, IA/RAG |
 | S2-18 | Must | Fechar integração da Sprint 2: falhas recuperáveis, observabilidade, segurança, E2E, OpenAPI e review | PBI-02.2.1, PBI-02.2.2, PBI-02.2.4, PBI-02.3.1, PBI-02.3.2, PBI-02.3.3, PBI-03.1.1, PBI-03.1.2, PBI-03.1.4, PBI-03.2.1, PBI-03.2.2, PBI-03.2.3, PBI-03.3.1, PBI-03.3.2 | S2-01 a S2-17 | G | QA, Docs, Segurança |
+| S2-19 | Must | Implementar endpoints e configuração das verificações de qualidade da organização | PBI-01.6.1 | S1-13 | M | Backend, QA |
+| S2-20 | Should | Permitir configuração e exibição de Definição de Preparado (DoR) e Definição de Pronto (DoD) | PBI-01.6.2 | S2-19, S1-14 | M | Backend, Frontend |
+| S2-21 | Must | Restringir sugestões semânticas do copiloto estritamente ao acervo do projeto e item em edição | PBI-03.2.4 | S2-07, S2-09 | M | IA/RAG, Backend |
 
 ## 9. Sprint 3 — 02/11 a 22/11
 
