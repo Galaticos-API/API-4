@@ -13,12 +13,12 @@ Toda a especificação técnica, backlog e decisões arquiteturais estão estrut
 
 | Documento | Descrição e Conteúdo |
 |---|---|
-| 📄 **[PRD — Product Requirements Document](docs/PRD/PRD.md)** | Requisitos funcionais (RF), não-funcionais (RNF), regras de negócio e governança de IA. |
+| 📄 **[PRD — Product Requirements Document](docs/PRD-PRO4TECH.md)** | Requisitos funcionais (RF), não-funcionais (RNF), regras de negócio e governança de IA. |
 | 🏛️ **[Arquitetura e Modelagem de Dados](docs/Architecture/README.md)** | Diagramas de componentes, fluxo de RAG, diagrama ERD e fronteiras entre camadas. |
 | 🤖 **[Contexto Canônico de IA e Agentes](docs/AGENTS.md)** | Regras não-negociáveis para agentes autônomos e desenvolvedores (assistência estrita, proveniência e isolamento). |
 | 🛠️ **[Guia de Configuração e Ambiente](docs/SETUP_GUIDE.md)** | Passo a passo de instalação local de todas as stacks, variáveis de ambiente e portas padrão. |
 | 📋 **[Backlog de Produto (66 PBIs)](docs/backlog/README.md)** | Especificação completa dos 6 épicos e 18 features no padrão da fábrica. |
-| 📅 **[Plano de Tarefas e Execução Técnica](docs/planning/PLANO_DE_TAREFAS_DESENVOLVIMENTO.md)** | Detalhamento operacional das 71 tarefas técnicas, estimativas, dependências e status real das PREs. |
+| 📅 **[Plano de Tarefas e Execução Técnica](docs/PLANO_DE_TAREFAS_DESENVOLVIMENTO.md)** | Detalhamento operacional das 71 tarefas técnicas, estimativas, dependências e status real das PREs. |
 | 📊 **[Planejamento Scrum por Sprint](docs/PLANEJAMENTO_SCRUM.md)** | Metas executivas de entrega divididas entre Sprint 1, 2 e 3. |
 | 🔬 **[Spike Técnico: Embeddings PT-BR](docs/Spike%20Embeddings.md)** | Relatório de validação do modelo `BAAI/bge-m3` (1024 dimensões) e índice HNSW no `pgvector`. |
 | 🔌 **[Contrato OpenAPI (Serviços)](docs/api/openapi.yaml)** | Especificação dos endpoints e schemas HTTP compartilhados entre backend, IA e n8n. |
@@ -118,11 +118,12 @@ API-4/
 │   └── seed/                  # Carga de dados fictícios para desenvolvimento
 ├── docs/                      # Documentação canônica consolidada
 │   ├── Architecture/          # Diagramas de arquitetura, fluxo RAG e ERD
-│   ├── PRD/                   # Especificação técnica e requisitos funcionais
 │   ├── backlog/               # Mapeamento dos 6 épicos e 66 PBIs
-│   ├── planning/              # Plano detalhado de tarefas técnicas e status
 │   ├── api/                   # Contrato OpenAPI (openapi.yaml)
 │   ├── AGENTS.md              # Diretrizes canônicas para agentes e LLMs
+|   ├── PLANEJAMENTO_SCRUM.md  # Organização das tarefas de desenvolvimento
+|   ├── PLANO_DE_TAREFAS_DESENVOLVIMENTO.md # Escopo do projeto
+|   ├── PRD-PRO4TECH.md        # Documento de Requisitos do Produto
 │   ├── SETUP_GUIDE.md         # Guia de configuração e desenvolvimento
 │   └── Spike Embeddings.md    # Relatório técnico do Spike PRE-07
 ├── frontend/                  # SPA React 19/TypeScript/Vite (Interface do PO)
