@@ -3,7 +3,10 @@
 **Cliente:** PRO4TECH · **Grupo Galáticos** — Fatec São José dos Campos
 **Padrão:** [Guia de Especificação de Itens de Trabalho](../Kick-off/Guia_Especificacao_Itens_de_Trabalho_FATEC.pdf) (PRO4TECH, 25/08/2026)
 **Base:** [PRD.md](../PRD/PRD.md) v1.1
-**Versão:** 1.0 — 02/09/2026 · **Time:** 9 pessoas
+**Versão:** 1.1 — 08/09/2026 · **Time:** 9 pessoas
+
+> **Revisão 1.1.** Incorpora o parecer da PRO4TECH sobre a versão 1.0, recebido em 08/09.
+> Ver [Registro da revisão](#registro-da-revisão-do-cliente) ao final.
 
 ---
 
@@ -36,13 +39,13 @@ pertence à Feature `FT-01.3`, que realiza parte do Épico `EP-01`.
 
 | Código | Épico | Sprints | PBIs |
 |---|---|:---:|:---:|
-| [EP-01](EP-01-especificar-backlog.md) | Especificar o backlog de produto no padrão da fábrica | 1, 2, 3 | 24 |
+| [EP-01](EP-01-especificar-backlog.md) | Especificar o backlog de produto no padrão da fábrica | 1, 2, 3 | 26 |
 | [EP-02](EP-02-preservar-conhecimento.md) | Preservar o conhecimento dos projetos | 1, 2 | 11 |
-| [EP-03](EP-03-apoio-inteligencia-artificial.md) | Especificar com apoio da inteligência artificial | 2 | 9 |
+| [EP-03](EP-03-apoio-inteligencia-artificial.md) | Especificar com apoio da inteligência artificial | 2 | 10 |
 | [EP-04](EP-04-consultar-conhecimento.md) | Consultar o conhecimento em linguagem natural | 3 | 7 |
 | [EP-05](EP-05-competencias-equipe.md) | Mapear as competências da equipe | 3 | 7 |
 | [EP-06](EP-06-acesso-controlado.md) | Operar a plataforma com acesso controlado | 1, 3 | 5 |
-| | **Total** | | **63** |
+| | **Total** | | **66** |
 
 ---
 
@@ -59,8 +62,8 @@ pertence à Feature `FT-01.3`, que realiza parte do Épico `EP-01`.
 | FT-01.1 Estruturação dos itens de trabalho | 6 |
 | FT-01.2 Critérios de aceitação por nível | 4 |
 | FT-01.3 Conformidade com o guia de especificação | 6 |
-| FT-01.4 Navegação do backlog | 3 |
-| FT-01.5 Rastreabilidade das decisões *(parcial)* | 2 |
+| FT-01.4 Navegação do backlog | 2 |
+| FT-01.5 Rastreabilidade das decisões *(parcial)* | 3 |
 | FT-02.1 Anexos e protótipos | 4 |
 
 **Por que esta ordem.** As validações de conformidade (FT-01.3) são determinísticas — regex de
@@ -68,7 +71,7 @@ verbo no infinitivo, parsing da história e dos cenários, lista de termos vagos
 implementar e entregam a percepção de "o sistema entende meu trabalho" já na primeira review,
 que é exatamente onde o cliente consegue opinar melhor.
 
-### Sprint 2 — 05/10 a 25/10 · **18 PBIs**
+### Sprint 2 — 05/10 a 25/10 · **21 PBIs**
 > **Foco: o acervo passa a existir e a IA entra como copiloto.**
 
 | Feature | PBIs |
@@ -76,9 +79,10 @@ que é exatamente onde o cliente consegue opinar melhor.
 | FT-02.2 Indexação do acervo | 4 |
 | FT-02.3 Busca no acervo | 3 |
 | FT-03.1 Copiloto de especificação | 4 |
-| FT-03.2 Controle das sugestões | 3 |
+| FT-03.2 Controle das sugestões | 4 |
 | FT-03.3 Governança do comportamento da IA | 2 |
 | FT-01.5 Rastreabilidade *(restante)* | 2 |
+| FT-01.6 Configuração do padrão de qualidade | 2 |
 
 ### Sprint 3 — 02/11 a 22/11 · **17 PBIs**
 > **Foco: conversa com o acervo, conhecimento sobre a equipe e fechamento.**
@@ -101,20 +105,36 @@ técnicas abaixo do PBI, mas é explícito que elas não substituem a descriçã
 infraestrutura não descreve comportamento de usuário. Ficam registrados aqui para
 planejamento, fora da hierarquia.
 
-| # | Habilitador | Quando | Bloqueia | Status |
-|:---:|---|---|---|:---:|
-| HT-01 | Repositório, containers, ambientes e pipeline de CI | Pré-Sprint 1 | Tudo | [x] Concluído |
-| HT-02 | Modelagem e migrations do banco relacional | Pré-Sprint 1 | FT-01.1 | [x] Concluído |
-| HT-03 | Design system e biblioteca de componentes | Pré-Sprint 1 | Todo o front | [ ] Pendente |
-| HT-04 | Protótipo navegável das telas da Sprint 1 | Pré-Sprint 1 | FT-01.1, FT-01.4 | [ ] Pendente |
-| HT-05 | Spike: validar LLM local nas máquinas do time | Pré-Sprint 1 | FT-03.\* | [x] Concluído |
-| HT-06 | Spike: comparar modelos de embedding em PT-BR | Pré-Sprint 1 | FT-02.2 | [ ] Pendente |
-| HT-07 | n8n em container + `n8n-local-sync` + `N8N_ENCRYPTION_KEY` compartilhado | Pré-Sprint 1 | FT-02.2 | [x] Concluído |
-| HT-08 | Serviço Python de IA: esqueleto e contrato com o Node | Sprint 1 | FT-02.2, FT-03.\* | [x] Concluído |
-| HT-09 | Curadoria e carga inicial da base a partir dos projetos API-1, API-2 e API-3 | Sprint 1 | FT-02.3, FT-03.1 | [ ] Pendente |
-| HT-10 | Bateria de 20 perguntas de regressão para busca e chat | Sprint 2 | FT-02.3, FT-04.1 | [ ] Pendente |
+Os habilitadores são identificados como `PRE-*` e a lista oficial vive no
+[Plano de Tarefas de Desenvolvimento](../planning/PLANO_DE_TAREFAS_DESENVOLVIMENTO.md), que é
+a fonte dos cartões do quadro. A tabela abaixo é a visão do backlog: acrescenta quais
+**features** cada habilitador bloqueia. Responsáveis e situação técnica ficam no plano de
+tarefas e no [PRE_STATUS](../planning/PRE_STATUS.md), para não divergirem daqui.
 
-> **HT-09 — origem definida.** A PRO4TECH orientou construir a base inicial a partir dos
+| # | Habilitador | Bloqueia |
+|:---:|---|---|
+| PRE-01 | Registrar as decisões Q1–Q5 com a PRO4TECH | FT-01.1 |
+| PRE-02 | Migrations versionadas e correção do schema | FT-01.1, FT-01.5, FT-02.2, FT-03.2, FT-04.2, FT-05.1, FT-06.1 |
+| PRE-03 | Contrato HTTP entre Node, Python e n8n | FT-02.1, FT-02.2, FT-03.2 |
+| PRE-04 | Fundação de testes e pipeline de CI | FT-01.3, FT-02.3, FT-04.1, FT-06.1 |
+| PRE-05 | Design system e protótipo navegável da Sprint 1 | Todo o front da Sprint 1 — em especial FT-01.1 e FT-01.4 |
+| PRE-06 | Carga inicial da base de conhecimento e política de dados | FT-02.3, FT-03.1, FT-05.2 |
+| PRE-07 | Spike de embeddings em PT-BR | FT-02.3, FT-04.1 |
+| PRE-08 | Triagem de vulnerabilidades do backend | FT-06.1 |
+| PRE-09 | Validação do ambiente completo em máquina com Docker | FT-02.2, FT-03.1, FT-04.1 |
+
+> **Equivalência com a numeração anterior.** Até a v1.0 este documento usava `HT-*`. A
+> correspondência é: `HT-02`→`PRE-02`, `HT-08`→`PRE-03`, `HT-03` e `HT-04`→`PRE-05`,
+> `HT-09`→`PRE-06`, `HT-06`→`PRE-07`. O antigo `HT-01` se dividiu entre `PRE-04` e `PRE-09`, e
+> os concluídos `HT-05` (LLM local) e `HT-07` (n8n em container) foram absorvidos pela
+> validação de ambiente do `PRE-09`. Referências a `HT-*` em documentos anteriores devem ser
+> lidas por esta tabela.
+
+> ⚠️ **Sem correspondência.** A bateria de 20 perguntas de regressão para busca e chat
+> (antigo `HT-10`, previsto para a Sprint 2, bloqueando FT-02.3 e FT-04.1) não tem habilitador
+> `PRE-*` equivalente. Precisa ser criada no plano de tarefas ou o trabalho fica sem cartão.
+
+> **PRE-06 — origem definida.** A PRO4TECH orientou construir a base inicial a partir dos
 > projetos de API do próprio grupo (API-1, API-2 e API-3), cuja sobreposição temática foi
 > verificada: autenticação, dashboards, gestão de equipe e upload de documentos aparecem em
 > mais de um projeto. Detalhes na seção 16.1 do [PRD](../PRD/PRD.md).
@@ -129,14 +149,14 @@ planejamento, fora da hierarquia.
 ## Priorização
 
 Todo PBI carrega prioridade **MoSCoW**. A regra do time: **nenhum `Should` começa antes de
-todos os `Must` da sprint estarem fechados**. São 63 PBIs para 3 sprints de 3 semanas — a
+todos os `Must` da sprint estarem fechados**. São 66 PBIs para 3 sprints de 3 semanas — a
 disciplina de priorização é o que separa entregar de quase entregar.
 
-| Prioridade | Significado |
-|---|---|
-| **Must** | Sem isso a sprint não é entregável |
-| **Should** | Importante, mas a sprint sobrevive sem |
-| **Could** | Entra se sobrar folga |
+| Prioridade | Significado | Itens |
+|---|---|:---:|
+| **Must** | Sem isso a sprint não é entregável | 45 |
+| **Should** | Importante, mas a sprint sobrevive sem | 18 |
+| **Could** | Entra se sobrar folga | 3 |
 
 ---
 
@@ -161,3 +181,29 @@ Herdada do [PRD](../PRD/PRD.md), seção 13. Um PBI só é dado como concluído 
 | Q5 | Padrão de identificação de itens da PRO4TECH | Altera a convenção de códigos deste documento |
 | Q1 | A plataforma é ferramenta principal de especificação ou repositório consultivo? | Reequilibra o peso entre EP-01 e EP-04 |
 | ~~D3~~ | ~~Dados de projetos anteriores~~ — ✅ resolvida em 03/09: base construída a partir dos projetos API-1, API-2 e API-3 | — |
+
+---
+
+## Registro da revisão do cliente
+
+Parecer da PRO4TECH sobre o backlog v1.0, recebido em **08/09/2026**. Nove itens comentados,
+nenhum rejeitado.
+
+| Item | Parecer | Encaminhamento |
+|---|---|---|
+| `PBI-01.1.5` | Edição poderia integrar a criação, mas o requisito ficou entendido | Mantido separado — tem cenários próprios de descarte e de item arquivado |
+| `PBI-01.3.5` | Quem define o checklist? Poder cadastrar DoR e DoD nas configurações da organização | **Nova feature `FT-01.6`**, com 2 PBIs na Sprint 2 |
+| `PBI-01.3.6` | Como o indicador será medido? | Cenários reescritos com a fórmula explícita: razão entre verificações aprovadas e aplicáveis, sem pesos |
+| `PBI-01.4.3` | Não caberia dentro do `PBI-01.4.2`? | **Fundido** — busca textual passou a ser cenário do filtro |
+| `PBI-01.5.1` | Permitir justificativa ao editar, recuperável no histórico | **Novo `PBI-01.5.6`** na Sprint 1 |
+| `PBI-02.1.2` | Deveria ser `Must` | Elevado a `Must` |
+| `PBI-02.2.3` | Deveria ser `Must` | Elevado a `Must` |
+| `PBI-04.1.3` | Guardrails para a IA não inventar durante a descrição das atividades | **Novo `PBI-03.2.4`** na Sprint 2 — o pedido é sobre o copiloto, não o chat |
+| `PBI-06.2.2` | Não compreendido | Reescrito em linguagem de uso, com exemplo concreto |
+
+**Efeito no escopo:** 63 → 66 PBIs. A Sprint 1 permanece com 28 itens — a fusão do
+`PBI-01.4.3` compensou a entrada do `PBI-01.5.6`. Os três itens novos restantes caíram na
+Sprint 2, que passa de 18 para 21.
+
+**Pedido adicional.** A PRO4TECH solicitou um protótipo navegável para alinhar expectativas
+antes da entrega. Corresponde ao habilitador `PRE-05`, ainda pendente.

@@ -8,7 +8,7 @@ possível e conter apenas a alteração daquela versão.
 
 `database/init.sql` é o baseline inicial do projeto e é executado pelo
 PostgreSQL na criação de um volume novo. Ele corresponde à versão `001` do
-schema (HT-02).
+schema (PRE-02).
 
 Antes de alterar tabelas existentes, crie uma nova migration numerada. Não
 edite `init.sql` para corrigir um banco já criado: volumes existentes não
