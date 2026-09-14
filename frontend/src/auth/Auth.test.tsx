@@ -4,6 +4,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/re
 import { AuthGate, AuthProvider, useAuth } from "./Auth";
 import { navigate, safeDestination } from "./navigation";
 import { apiRequest } from "./api";
+import { useLayoutEffect, useRef } from "react";
 
 const user = { id: "1", name: "Pessoa", email: "pessoa@example.com" };
 const reply = (status: number, body: unknown = {}) => Promise.resolve(new Response(JSON.stringify(body), { status }));
@@ -145,4 +146,23 @@ it("não mostra aviso de expiração no primeiro acesso anônimo", async () => {
   mount();
   await screen.findByText("Entrar");
   expect(screen.queryByText("Sua sessão expirou. Entre novamente para continuar.")).toBeNull();
+});
+
+it("revalida histórico imediatamente após restaurar a sessão, antes dos efeitos passivos", async () => {
+  const fetchMock = vi.fn().mockImplementationOnce(() => reply(200, { user })).mockImplementationOnce(() => reply(401));
+  vi.stubGlobal("fetch", fetchMock);
+  function ImmediateNavigation() {
+    const sent = useRef(false);
+    useLayoutEffect(() => {
+      if (sent.current) return;
+      sent.current = true;
+      window.history.replaceState(null, "", "/requirements?filter=active#list");
+      window.dispatchEvent(new PopStateEvent("popstate"));
+    }, []);
+    return <Content />;
+  }
+  render(<AuthProvider><AuthGate><ImmediateNavigation /></AuthGate></AuthProvider>);
+  expect(await screen.findByText("Sua sessão expirou. Entre novamente para continuar.")).toBeTruthy();
+  expect(fetchMock).toHaveBeenCalledTimes(2);
+  expect(screen.queryByText("Conteúdo interno")).toBeNull();
 });

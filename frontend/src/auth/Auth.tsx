@@ -9,7 +9,13 @@ const AuthContext = createContext<{
 } | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [session, setSession] = useState<Session>({ status: "loading" });
+  const [session, setSessionState] = useState<Session>({ status: "loading" });
+  const sessionStatus = useRef<Session["status"]>("loading");
+  // Native events can arrive before React commits passive effects.
+  const setSession = useCallback((next: Session) => {
+    sessionStatus.current = next.status;
+    setSessionState(next);
+  }, []);
   const [notice, setNotice] = useState("");
   const revision = useRef(0);
   const hadSession = useRef(false);
@@ -18,7 +24,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     hadSession.current = false;
     setNotice("Sua sessão expirou. Entre novamente para continuar.");
     setSession({ status: "anonymous" });
-  }, []);
+  }, [setSession]);
   const restore = useCallback(async () => {
     const current = ++revision.current;
     setSession({ status: "loading" });
@@ -36,7 +42,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         else setSession({ status: "anonymous" });
       } else setSession({ status: "error" });
     }
-  }, [expire]);
+  }, [expire, setSession]);
   useEffect(() => { void restore(); return () => { revision.current++; }; }, [restore]);
   useEffect(() => {
     window.addEventListener("session-expired", expire);
@@ -45,22 +51,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Validate on navigation (including Back/Forward) and return to the app.
   // No polling: idle expiration remains authoritative on the server.
   useEffect(() => {
-    const revalidate = () => { if (session.status === "authenticated") void restore(); };
+    const revalidate = () => { if (sessionStatus.current === "authenticated") void restore(); };
     window.addEventListener("focus", revalidate);
     window.addEventListener("popstate", revalidate);
     return () => {
       window.removeEventListener("focus", revalidate);
       window.removeEventListener("popstate", revalidate);
     };
-  }, [session.status, restore]);
+  }, [restore]);
   async function login(email: string, password: string) {
     const current = ++revision.current;
     const user = await readUser(await apiRequest("/auth/login", { method: "POST", body: JSON.stringify({ email, password }) }));
     if (current !== revision.current) return;
     hadSession.current = true;
     setNotice("");
-    setSession({ status: "authenticated", user });
     navigate(loginDestination(), true);
+    setSession({ status: "authenticated", user });
   }
   async function logout() {
     const current = ++revision.current;
