@@ -1,9 +1,11 @@
 import { readFile } from "node:fs/promises";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { readdir } from "node:fs/promises";
 import { pool } from "./db.js";
 
-const migrationsDir = join(process.cwd(), "..", "database", "migrations");
+// npm runs scripts with backend/ as the working directory, including when
+// invoked from the repository root via `npm --prefix backend run migrate`.
+const migrationsDir = resolve(process.cwd(), "../database/migrations");
 
 async function loadMigration(file: string): Promise<string> {
   const path = join(migrationsDir, file);

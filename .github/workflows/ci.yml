@@ -118,3 +118,7 @@ jobs:
       - name: Compile and check syntax
         working-directory: ai-service
         run: python -m py_compile main.py config.py services/__init__.py services/chunker.py services/ollama_client.py
+
+      - name: Run deterministic AI service tests
+        working-directory: ai-service
+        run: python -m unittest discover -s tests -v

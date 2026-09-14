@@ -9,8 +9,8 @@ status: "authoritative-context"
 repo_scope: "sprint-1-active"
 repository: "Galaticos-API/API-4"
 source_documents:
-  - "docs/Kick-off.md"
-  - "docs/PRD.md"
+  - "docs/Kick-off/Kick-off.md"
+  - "docs/PRD-PRO4TECH.md"
   - "docs/PRD-PRO4TECH.md"
 read_first: true
 purpose: "This file is the canonical context for AI agents working on this project. It is not intended for end users."

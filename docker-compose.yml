@@ -8,7 +8,9 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-sinapse_dev_password}
       POSTGRES_DB: ${POSTGRES_DB:-sinapse}
     ports:
-      - "${POSTGRES_PORT:-5432}:5432"
+      # 5432 is commonly occupied by a host PostgreSQL installation.
+      # The containers still use PostgreSQL on 5432 internally.
+      - "${POSTGRES_PORT:-55432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
@@ -46,6 +48,7 @@ services:
       - sinapse-network
 
   ollama:
+    profiles: [local-ai]
     image: ollama/ollama:latest
     container_name: sinapse-ollama
     restart: unless-stopped
@@ -86,6 +89,7 @@ services:
       - sinapse-network
 
   ai-service:
+    profiles: [local-ai]
     build: ./ai-service
     container_name: sinapse-ai-service
     restart: unless-stopped
@@ -133,4 +137,3 @@ networks:
   sinapse-network:
     name: sinapse-network
     driver: bridge
-

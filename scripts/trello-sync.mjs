@@ -24,7 +24,7 @@ const API_TOKEN = process.env.TRELLO_TOKEN;
 const BOARD_REFERENCE = process.env.TRELLO_BOARD_ID || "CY2QHrh1";
 let boardId = BOARD_REFERENCE;
 const PLAN_PATH = path.resolve(
-  process.env.TRELLO_PLAN_PATH || "docs/planning/PLANO_DE_TAREFAS_DESENVOLVIMENTO.md",
+  process.env.TRELLO_PLAN_PATH || "docs/PLANO_DE_TAREFAS_DESENVOLVIMENTO.md",
 );
 const DRY_RUN = process.argv.includes("--dry-run");
 const RESET_STATUS = process.argv.includes("--reset-status");

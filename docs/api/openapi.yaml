@@ -4,8 +4,6 @@ info:
   version: 0.1.0
   description: Contratos versionados entre backend, serviço de IA e automações n8n.
 servers:
-  - url: http://localhost:3001/api/v1
-    description: Backend local
   - url: http://localhost:8000
     description: Serviço de IA local
 paths:
@@ -15,7 +13,7 @@ paths:
       responses:
         '200': { description: Serviço saudável }
         '503': { description: Dependência indisponível }
-  /ai/ingest/document:
+  /ingest/document:
     post:
       summary: Solicita ingestão assíncrona de documento
       operationId: ingestDocument
@@ -25,9 +23,13 @@ paths:
           application/json:
             schema: { $ref: '#/components/schemas/IngestDocumentRequest' }
       responses:
-        '202': { description: Solicitação aceita para processamento }
+        '200':
+          description: Documento fragmentado e embeddings calculados
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/IngestDocumentResponse' }
         '400': { $ref: '#/components/responses/ValidationError' }
-  /ai/ingest/entity:
+  /ingest/entity:
     post:
       summary: Indexa uma entidade estruturada
       operationId: ingestEntity
@@ -39,7 +41,7 @@ paths:
       responses:
         '200': { description: Entidade processada }
         '400': { $ref: '#/components/responses/ValidationError' }
-  /ai/embeddings:
+  /embeddings:
     post:
       summary: Gera embedding para um texto
       operationId: generateEmbedding
@@ -51,7 +53,7 @@ paths:
       responses:
         '200': { description: Vetor gerado }
         '502': { description: Ollama indisponível }
-  /ai/rag/query:
+  /rag/query:
     post:
       summary: Responde usando somente os trechos fornecidos
       operationId: queryRag
@@ -73,6 +75,25 @@ components:
         text_content: { type: string }
         project_id: { type: string, format: uuid, nullable: true }
         metadata: { type: object, additionalProperties: true }
+    IngestDocumentResponse:
+      type: object
+      required: [document_id, total_chunks, status, chunks]
+      properties:
+        document_id: { type: string }
+        total_chunks: { type: integer, minimum: 0 }
+        status: { type: string, enum: [chunked_and_indexed] }
+        chunks:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProcessedChunk'
+    ProcessedChunk:
+      type: object
+      required: [chunk_index, text, vector_dimension]
+      properties:
+        chunk_index: { type: integer, minimum: 0 }
+        text: { type: string }
+        vector_dimension: { type: integer, minimum: 0 }
+        project_id: { type: string, format: uuid, nullable: true }
     IngestEntityRequest:
       type: object
       required: [entity_type, data]

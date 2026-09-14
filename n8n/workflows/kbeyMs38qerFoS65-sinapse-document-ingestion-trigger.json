@@ -8,6 +8,17 @@
         [
           {
             "index": 0,
+            "node": "Enviar para AI Service",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Enviar para AI Service": {
+      "main": [
+        [
+          {
+            "index": 0,
             "node": "Resposta HTTP",
             "type": "main"
           }
@@ -40,15 +51,35 @@
       "webhookId": "sinapse-ingest"
     },
     {
+      "id": "4f23ad8d-b8e6-4f06-a65e-7c0bf15d2c01",
+      "name": "Enviar para AI Service",
+      "parameters": {
+        "method": "POST",
+        "url": "http://ai-service:8000/ingest/document",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { document_id: $json.document_id, text_content: $json.text_content, project_id: $json.project_id, metadata: $json.metadata || {} } }}",
+        "options": {
+          "timeout": 120000
+        }
+      },
+      "position": [
+        480,
+        300
+      ],
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2
+    },
+    {
       "id": "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d",
       "name": "Resposta HTTP",
       "parameters": {
         "options": {},
         "respondWith": "json",
-        "responseBody": "={\n  \"status\": \"received\",\n  \"message\": \"Documento recebido para processamento e fragmenta\u00e7\u00e3o.\"\n}"
+        "responseBody": "={{ { status: $json.status || 'received', document_id: $json.document_id, total_chunks: $json.total_chunks } }}"
       },
       "position": [
-        480,
+        710,
         300
       ],
       "type": "n8n-nodes-base.respondToWebhook",
