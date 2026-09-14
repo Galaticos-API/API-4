@@ -128,6 +128,7 @@ Descreve a modelagem de dados relacional e vetorial unificada no PostgreSQL.
 - **Rastreabilidade e Proveniência:** Critérios de aceitação com formato BDD (`dado`, `quando`, `entao`) e campos específicos para histórias de usuário (`historia_como_um`, `historia_eu_quero`, `historia_para_que`).
 - **Isolamento de Conhecimento:** A tabela `CHUNK` armazena `projeto_id` desnormalizado para garantir que as buscas vetoriais não vazem informações entre projetos diferentes. A coluna `embedding` utiliza o tipo nativo `vector` do `pgvector`.
 - **Mapeamento de Competências:** Relação `USUARIO` &rarr; `DESENVOLVEDOR` &rarr; `COMPETENCIA` &rarr; `TECNOLOGIA` para identificação de especialistas na equipe.
+- **Registro de Decisões:** A entidade `DECISAO` (armazenamento de contexto, justificativa e alternativas descartadas em qualquer nível da hierarquia) está planejada para implementação no DDL na tarefa `S1-18`.
 
 ### Diagrama ERD Mermaid
 
