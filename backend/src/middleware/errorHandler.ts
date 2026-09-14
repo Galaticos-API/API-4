@@ -25,6 +25,14 @@ export function errorHandler(
     return;
   }
 
+  if (err instanceof SyntaxError && (err as { type?: string }).type === "entity.parse.failed") {
+    res.status(400).json({
+      error: "Corpo JSON inválido.",
+      code: "VALIDATION_ERROR",
+    });
+    return;
+  }
+
   console.error("[Internal Server Error]", err);
   res.status(500).json({
     error: "Erro interno do servidor.",
