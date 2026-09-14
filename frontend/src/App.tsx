@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from "react";
+import { navigate, routes } from "./auth/navigation";
+import { useAuth } from "./auth/Auth";
 import {
   Cpu,
   Layers,
@@ -17,7 +19,15 @@ interface ServiceStatus {
 }
 
 export const App: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<"architecture" | "requirements" | "rag">("architecture");
+  const { session, logout } = useAuth();
+  const [pathname, setPathname] = useState(window.location.pathname);
+  const activeTab = (Object.keys(routes) as Array<keyof typeof routes>).find(key => routes[key] === pathname);
+  const setActiveTab = (tab: keyof typeof routes) => navigate(routes[tab]);
+  useEffect(() => {
+    const update = () => setPathname(window.location.pathname);
+    window.addEventListener("popstate", update);
+    return () => window.removeEventListener("popstate", update);
+  }, []);
   const [backendHealth, setBackendHealth] = useState<string>("checking");
   const [ollamaHealth, setOllamaHealth] = useState<string>("checking");
 
@@ -162,6 +172,8 @@ export const App: React.FC = () => {
         </div>
 
         <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+          <span>{session.user?.name}</span>
+          <button className="btn-secondary" onClick={() => void logout()}>Sair</button>
           <span className="badge badge-success">
             <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#10b981" }} />
             Ambiente Local Ativo
@@ -171,6 +183,7 @@ export const App: React.FC = () => {
 
       {/* Main Content Area */}
       <main style={{ flex: 1, padding: "32px", maxWidth: "1280px", margin: "0 auto", width: "100%" }}>
+        {!activeTab && <section><h2>Página não encontrada</h2><button className="btn-primary" onClick={() => navigate("/", true)}>Ir para o início</button></section>}
         {activeTab === "architecture" && (
           <div>
             <div style={{ marginBottom: "28px" }}>
