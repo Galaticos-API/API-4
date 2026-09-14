@@ -2,8 +2,10 @@ import express, { Request, Response } from "express";
 import cors from "cors";
 import { env } from "./config/env.js";
 import { checkDatabaseConnection } from "./database/db.js";
+import { projectsRouter } from "./modules/projects/projects.routes.js";
+import { errorHandler } from "./middleware/errorHandler.js";
 
-const app = express();
+export const app = express();
 
 app.use(cors());
 app.use(express.json());
@@ -24,6 +26,10 @@ app.get("/health", async (_req: Request, res: Response) => {
   });
 });
 
+// Projects API Endpoints (v1 e alias)
+app.use("/api/v1/projects", projectsRouter);
+app.use("/api/projects", projectsRouter);
+
 // Root Information Endpoint
 app.get("/api/v1", (_req: Request, res: Response) => {
   res.json({
@@ -40,10 +46,15 @@ app.get("/api/v1", (_req: Request, res: Response) => {
   });
 });
 
+// Global Error Handler
+app.use(errorHandler);
+
 const PORT = env.PORT;
-app.listen(PORT, () => {
-  console.log(`[Sinapse Backend] Servidor iniciado na porta ${PORT}`);
-  console.log(`[Sinapse Backend] Healthcheck em http://localhost:${PORT}/health`);
-});
+if (env.NODE_ENV !== "test") {
+  app.listen(PORT, () => {
+    console.log(`[Sinapse Backend] Servidor iniciado na porta ${PORT}`);
+    console.log(`[Sinapse Backend] Healthcheck em http://localhost:${PORT}/health`);
+  });
+}
 
 export default app;
