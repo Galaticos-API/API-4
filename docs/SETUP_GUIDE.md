@@ -3,7 +3,7 @@
 > **PRO4TECH · Fatec São José dos Campos · Grupo Galáticos**  
 > *Base Inteligente de Requisitos — Memória da Fábrica de Software*
 
-Este documento descreve como configurar, executar e validar as stacks principais do projeto **Sinapse** em ambiente de desenvolvimento local, em conformidade com as diretrizes do [PRD](PRD/PRD.md) e [AGENTS.md](AGENTS.md).
+Este documento descreve como configurar, executar e validar as stacks principais do projeto **Sinapse** em ambiente de desenvolvimento local, em conformidade com as diretrizes do [PRD](PRD-PRO4TECH.md) e [AGENTS.md](AGENTS.md).
 
 ---
 
@@ -11,7 +11,7 @@ Este documento descreve como configurar, executar e validar as stacks principais
 
 | Serviço / Componente | Stack / Tecnologia | Diretório / Container | Porta Local | Função Principal |
 |---|---|---|---|---|
-| **PostgreSQL + pgvector** | `pgvector:pg16` | Container `sinapse-postgres` | `5432` | Banco unificado: dados relacionais e vetores HNSW |
+| **PostgreSQL + pgvector** | `pgvector/pgvector:pg16` | Container `sinapse-postgres` | `55432` (host) | Banco unificado: dados relacionais e vetores HNSW |
 | **n8n** | `n8nio/n8n:latest` | Container `sinapse-n8n` | `5678` | Orquestração de pipeline, watch em `/files` e gatilhos |
 | **Ollama** | `ollama/ollama:latest` | Container `sinapse-ollama` | `11434` | Runtime local de IA: inferência de LLM e embeddings |
 | **Backend** | Node.js 20+ / TS / Express | `backend/` | `3001` | API REST, CRUD, Auth, validações determinísticas |
@@ -41,8 +41,8 @@ cp .env.example .env
 
 > ⚠️ **Atenção:** Mantenha a chave `N8N_ENCRYPTION_KEY` idêntica à do modelo para garantir que credenciais e workflows permaneçam interoperáveis entre todas as máquinas da equipe.
 
-### 2.2. Subir os Containers
-Inicie o banco de dados, o orquestrador e o runtime de IA em segundo plano:
+### 2.2. Subir os Containers principais
+O Ollama é opcional e fica desativado por padrão para evitar o download de imagens/modelos grandes:
 
 ```bash
 docker compose up -d
@@ -55,22 +55,23 @@ docker compose ps
 ```
 
 Endpoints ativos:
-- PostgreSQL: `localhost:5432`
+- PostgreSQL: `localhost:55432` (internamente, os containers usam `postgres:5432`)
 - n8n Web: [http://localhost:5678](http://localhost:5678)
-- Ollama API: [http://localhost:11434](http://localhost:11434)
+- Backend: [http://localhost:3001/health](http://localhost:3001/health)
+- Frontend: [http://localhost:5173](http://localhost:5173)
 
 ### 2.3. Baixar os Modelos no Ollama
 Os modelos baixados são persistidos no volume Docker `sinapse_ollama_data`:
 
 ```bash
 # Modelo de Embeddings multilíngue (recomendado no PRD)
-docker compose exec ollama ollama pull bge-m3
+docker compose --profile local-ai exec ollama ollama pull bge-m3
 
 # Modelo LLM para inferência (versão leve para CPU em desenvolvimento)
-docker compose exec ollama ollama pull qwen2.5:1.5b
+docker compose --profile local-ai exec ollama ollama pull qwen2.5:1.5b
 
 # Listar modelos instalados
-docker compose exec ollama ollama list
+docker compose --profile local-ai exec ollama ollama list
 ```
 
 ---

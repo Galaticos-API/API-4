@@ -3,7 +3,7 @@
 > **PRO4TECH · Fatec São José dos Campos · Grupo Galáticos**  
 > *Base Inteligente de Requisitos — Memória Institucional da Fábrica de Software*
 
-Este documento consolida todos os diagramas arquiteturais, fluxos de execução e modelos de dados do **Sinapse**, servindo como referência visual e técnica central para a equipe de desenvolvimento e stakeholders, em conformidade com o [PRD](../PRD/PRD.md) e o [AGENTS.md](../AGENTS.md).
+Este documento consolida todos os diagramas arquiteturais, fluxos de execução e modelos de dados do **Sinapse**, servindo como referência visual e técnica central para a equipe de desenvolvimento e stakeholders, em conformidade com o [PRD](../PRD-PRO4TECH.md) e o [AGENTS.md](../AGENTS.md).
 
 ---
 

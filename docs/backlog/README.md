@@ -2,7 +2,7 @@
 
 **Cliente:** PRO4TECH · **Grupo Galáticos** — Fatec São José dos Campos
 **Padrão:** [Guia de Especificação de Itens de Trabalho](../Kick-off/Guia_Especificacao_Itens_de_Trabalho_FATEC.pdf) (PRO4TECH, 25/08/2026)
-**Base:** [PRD.md](../PRD/PRD.md) v1.1
+**Base:** [PRD-PRO4TECH.md](../PRD-PRO4TECH.md) v1.1
 **Versão:** 1.1 — 08/09/2026 · **Time:** 9 pessoas
 
 > **Revisão 1.1.** Incorpora o parecer da PRO4TECH sobre a versão 1.0, recebido em 08/09.
@@ -106,10 +106,10 @@ infraestrutura não descreve comportamento de usuário. Ficam registrados aqui p
 planejamento, fora da hierarquia.
 
 Os habilitadores são identificados como `PRE-*` e a lista oficial vive no
-[Plano de Tarefas de Desenvolvimento](../planning/PLANO_DE_TAREFAS_DESENVOLVIMENTO.md), que é
+[Plano de Tarefas de Desenvolvimento](../PLANO_DE_TAREFAS_DESENVOLVIMENTO.md), que é
 a fonte dos cartões do quadro. A tabela abaixo é a visão do backlog: acrescenta quais
 **features** cada habilitador bloqueia. Responsáveis e situação técnica ficam no plano de
-tarefas e no [PRE_STATUS](../planning/PRE_STATUS.md), para não divergirem daqui.
+tarefas e no registro de status do [Plano de Tarefas](../PLANO_DE_TAREFAS_DESENVOLVIMENTO.md), para não divergirem daqui.
 
 | # | Habilitador | Bloqueia |
 |:---:|---|---|
@@ -137,7 +137,7 @@ tarefas e no [PRE_STATUS](../planning/PRE_STATUS.md), para não divergirem daqui
 > **PRE-06 — origem definida.** A PRO4TECH orientou construir a base inicial a partir dos
 > projetos de API do próprio grupo (API-1, API-2 e API-3), cuja sobreposição temática foi
 > verificada: autenticação, dashboards, gestão de equipe e upload de documentos aparecem em
-> mais de um projeto. Detalhes na seção 16.1 do [PRD](../PRD/PRD.md).
+> mais de um projeto. Detalhes na seção 16.1 do [PRD](../PRD-PRO4TECH.md).
 >
 > ⚠️ **A carga precisa ser curada, não em massa.** O repositório da API-2 contém anexos de
 > teste com dados pessoais, cuja indexação colidiria com o requisito de LGPD. Entram: pastas
@@ -162,7 +162,7 @@ disciplina de priorização é o que separa entregar de quase entregar.
 
 ## Definição de pronto
 
-Herdada do [PRD](../PRD/PRD.md), seção 13. Um PBI só é dado como concluído com:
+Herdada do [PRD](../PRD-PRO4TECH.md), seção 13. Um PBI só é dado como concluído com:
 
 - [ ] Todos os cenários de aceitação demonstráveis
 - [ ] Código revisado por outro integrante e integrado via Pull Request

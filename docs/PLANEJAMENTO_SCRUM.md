@@ -52,7 +52,7 @@ A distribuição individual está em andamento. As atribuições já confirmadas
 `PRE-08` é uma tarefa compartilhada por duas pessoas. Por isso, o total de atribuições individuais é dez, distribuído entre nove tarefas.
 
 ## Documentos de referência detalhados
-Para critérios de aceitação específicos, estimativas de tamanho e dependências de cada tarefa, consulte o [Plano Detalhado de Tarefas](planning/PLANO_DE_TAREFAS_DESENVOLVIMENTO.md).
+Para critérios de aceitação específicos, estimativas de tamanho e dependências de cada tarefa, consulte o [Plano Detalhado de Tarefas](PLANO_DE_TAREFAS_DESENVOLVIMENTO.md).
 
 ## Documentos de referência
 
@@ -65,7 +65,7 @@ Para critérios de aceitação específicos, estimativas de tamanho e dependênc
 | [EP-04 — Consultar o conhecimento](backlog/EP-04-consultar-conhecimento.md) | Consulta fundamentada e conversas |
 | [EP-05 — Competências da equipe](backlog/EP-05-competencias-equipe.md) | Perfis, competências e alocações |
 | [EP-06 — Acesso controlado](backlog/EP-06-acesso-controlado.md) | Autenticação e administração |
-| [Plano detalhado](planning/PLANO_DE_TAREFAS_DESENVOLVIMENTO.md) | Escopo, prioridade, dependências e tamanho das tarefas |
+| [Plano detalhado](PLANO_DE_TAREFAS_DESENVOLVIMENTO.md) | Escopo, prioridade, dependências e tamanho das tarefas |
 
 ## Sprint 1
 

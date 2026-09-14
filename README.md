@@ -31,7 +31,7 @@ O ecossistema é distribuído em microsserviços conteinerizados e locais:
 
 | Componente | Tecnologia | Porta Local | Responsabilidade Principal |
 |---|---|:---:|---|
-| **Banco Unificado** | PostgreSQL 16 + `pgvector` | `5432` | Dados relacionais de negócio e vetores de chunks indexados por HNSW (`vector_cosine_ops`). |
+| **Banco Unificado** | PostgreSQL 16 + `pgvector` | `55432` (host) | Dados relacionais de negócio e vetores de chunks indexados por HNSW (`vector_cosine_ops`). |
 | **Orquestrador** | n8n (`latest`) | `5678` | Pipeline assíncrono de ingestão, gatilhos de arquivos em `/files` e integrações. |
 | **Runtime de IA** | Ollama | `11434` | Inferência local de LLM (`qwen2.5:1.5b`) e geração de embeddings (`bge-m3`). |
 | **Backend** | Node.js 20+ / Express / TS | `3001` | Autenticação JWT, CRUD, validações determinísticas (RF-08 a RF-11) e **única escrita no banco de negócio**. |
@@ -58,17 +58,20 @@ cp .env.example .env
 docker compose up -d
 ```
 Serviços disponíveis:
-- PostgreSQL: `localhost:5432` (Usuário: `sinapse`, Senha padrão: `sinapse_dev_password`, Banco: `sinapse`)
+- PostgreSQL: `localhost:55432` (Usuário: `sinapse`, Senha padrão: `sinapse_dev_password`, Banco: `sinapse`)
 - n8n Web: [http://localhost:5678](http://localhost:5678)
-- Ollama API: [http://localhost:11434](http://localhost:11434)
+- Backend: [http://localhost:3001/health](http://localhost:3001/health)
+- Frontend: [http://localhost:5173](http://localhost:5173)
 
-### 4. Baixar Modelos Locais no Ollama
+### 4. Baixar Modelos Locais no Ollama (opcional)
 ```bash
+docker compose --profile local-ai up -d
+
 # Modelo de Embeddings PT-BR (validado no Spike PRE-07)
-docker compose exec ollama ollama pull bge-m3
+docker compose --profile local-ai exec ollama ollama pull bge-m3
 
 # Modelo LLM para inferência rápida local (CPU)
-docker compose exec ollama ollama pull qwen2.5:1.5b
+docker compose --profile local-ai exec ollama ollama pull qwen2.5:1.5b
 ```
 
 ---
