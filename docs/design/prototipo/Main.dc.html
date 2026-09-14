@@ -282,6 +282,60 @@
         </div>
 
         <div style="flex-grow: 1; overflow-y: auto; padding: 28px 32px;">
+
+          <!-- ---- editor de ÉPICO ou FEATURE: critérios de aceitação ---- -->
+          <sc-if value="{{ ehNivelAlto }}" hint-placeholder-val="{{ true }}">
+            <div style="display: flex; flex-direction: column; gap: 22px;">
+              <div style="display: flex; flex-direction: column; gap: 6px;">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                  <span style="font-family: 'JetBrains Mono', ui-monospace, Menlo, monospace; font-size: 12px; color: #F1885B;">{{ selCodigo }}</span>
+                  <span style="display: inline-flex; align-items: center; height: 22px; padding: 0 10px; border-radius: 9999px; background: rgba(196,199,204,0.09); color: #A6AAB3; border: 1px solid rgba(196,199,204,0.22); font-size: 10px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;">{{ selNivel }}</span>
+                </div>
+                <h2 style="font-family: 'Public Sans', sans-serif; font-weight: 700; font-size: 24px; line-height: 1.2; margin: 0; color: #FFFFFF; letter-spacing: -0.01em;">{{ selTitulo }}</h2>
+              </div>
+
+              <div style="display: flex; flex-direction: column; gap: 14px; padding: 20px; border-radius: 10px; background: #111827; border: 1px solid rgba(196,199,204,0.14);">
+                <div style="display: flex; align-items: center;">
+                  <span style="font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #6B7280;">Critérios de aceitação</span>
+                  <div style="flex-grow: 1;"></div>
+                  <span style="font-size: 12px; color: #6B7280;">{{ textoNivel }}</span>
+                </div>
+
+                <div style="display: flex; flex-direction: column; gap: 8px;">
+                  <sc-for list="{{ criterios }}" as="cr" hint-placeholder-count="3">
+                    <div class="sn-row" style="display: flex; align-items: flex-start; gap: 12px; padding: 12px 14px; border-radius: 10px; background: #0B0D10; border: 1px solid rgba(196,199,204,0.14);">
+                      <span style="font-family: 'JetBrains Mono', ui-monospace, Menlo, monospace; font-size: 11px; color: #6B7280; flex-shrink: 0; margin-top: 2px;">{{ cr.n }}</span>
+                      <span style="font-size: 13.5px; line-height: 1.6; color: #E5E7EB; flex-grow: 1;">{{ cr.texto }}</span>
+                      <div style="display: flex; gap: 4px; flex-shrink: 0;">
+                        <button class="sn-btn" style="width: 26px; height: 26px; border-radius: 10px; background: transparent; border: 1px solid rgba(196,199,204,0.14); display: flex; align-items: center; justify-content: center;" onClick="{{ cr.subir }}">
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#6B7280" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"></polyline></svg>
+                        </button>
+                        <button class="sn-btn" style="width: 26px; height: 26px; border-radius: 10px; background: transparent; border: 1px solid rgba(196,199,204,0.14); display: flex; align-items: center; justify-content: center;" onClick="{{ cr.descer }}">
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#6B7280" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                        </button>
+                        <button class="sn-btn" style="width: 26px; height: 26px; border-radius: 10px; background: transparent; border: 1px solid rgba(196,199,204,0.14); display: flex; align-items: center; justify-content: center;" onClick="{{ cr.remover }}">
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#F0635D" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                        </button>
+                      </div>
+                    </div>
+                  </sc-for>
+                  <sc-if value="{{ semCriterios }}" hint-placeholder-val="{{ true }}">
+                    <div style="padding: 18px 14px; border-radius: 10px; border: 1px dashed rgba(196,199,204,0.14);">
+                      <p style="margin: 0; font-size: 13px; line-height: 1.55; color: #6B7280; text-align: center;">Nenhum critério registrado ainda.</p>
+                    </div>
+                  </sc-if>
+                </div>
+
+                <div style="display: flex; gap: 10px;">
+                  <input class="sn-in" type="text" value="{{ novoCriterio }}" onChange="{{ mudarNovoCriterio }}" placeholder="Descreva o que caracteriza a conclusão" />
+                  <button class="sn-btn" style="height: 40px; padding: 0 18px; flex-shrink: 0; border-radius: 10px; background: linear-gradient(135deg, #F1885B 0%, #ED6A32 100%); color: #FFFFFF; font-size: 14px; font-weight: 600;" onClick="{{ adicionarCriterio }}">Adicionar</button>
+                </div>
+              </div>
+            </div>
+          </sc-if>
+
+          <!-- ---- editor de PBI ---- -->
+          <sc-if value="{{ ehPBI }}" hint-placeholder-val="{{ true }}">
           <div style="display: flex; flex-direction: column; gap: 22px;">
 
             <div style="display: flex; align-items: center; gap: 10px;">
@@ -308,7 +362,6 @@
                 </div>
               </div>
             </div>
-            <span style="font-size: 12px; color: #6B7280; margin-top: -14px;">Experimente trocar o título por “Melhorias na tela” e veja o checklist reagir.</span>
 
             <div style="display: flex; flex-direction: column; gap: 12px; padding: 20px; border-radius: 10px; background: #111827; border: 1px solid rgba(196,199,204,0.14);">
               <span style="font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #6B7280;">História do usuário</span>
@@ -326,24 +379,84 @@
               </div>
             </div>
 
+            <!-- cenários, reordenáveis -->
+            <div style="display: flex; flex-direction: column; gap: 12px;">
+              <sc-for list="{{ cenarios }}" as="ce" hint-placeholder-count="2">
+                <div style="display: flex; flex-direction: column; gap: 12px; padding: 20px; border-radius: 10px; background: #111827; border: 1px solid rgba(196,199,204,0.14);">
+                  <div style="display: flex; align-items: center; gap: 10px;">
+                    <span style="font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #6B7280;">Cenário {{ ce.n }}</span>
+                    <div style="flex-grow: 1;"></div>
+                    <button class="sn-btn" style="width: 26px; height: 26px; border-radius: 10px; background: transparent; border: 1px solid rgba(196,199,204,0.14); display: flex; align-items: center; justify-content: center;" onClick="{{ ce.subir }}">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#6B7280" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"></polyline></svg>
+                    </button>
+                    <button class="sn-btn" style="width: 26px; height: 26px; border-radius: 10px; background: transparent; border: 1px solid rgba(196,199,204,0.14); display: flex; align-items: center; justify-content: center;" onClick="{{ ce.descer }}">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#6B7280" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                    </button>
+                    <button class="sn-btn" style="width: 26px; height: 26px; border-radius: 10px; background: transparent; border: 1px solid rgba(196,199,204,0.14); display: flex; align-items: center; justify-content: center;" onClick="{{ ce.remover }}">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#F0635D" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                    </button>
+                  </div>
+                  <div style="display: flex; gap: 14px; align-items: center;">
+                    <span style="font-family: 'JetBrains Mono', ui-monospace, Menlo, monospace; font-size: 11px; font-weight: 700; color: #F1885B; width: 74px; flex-shrink: 0;">DADO</span>
+                    <input class="sn-in" type="text" value="{{ ce.dado }}" onChange="{{ ce.mudarDado }}" placeholder="a condição inicial" />
+                  </div>
+                  <div style="display: flex; gap: 14px; align-items: center;">
+                    <span style="font-family: 'JetBrains Mono', ui-monospace, Menlo, monospace; font-size: 11px; font-weight: 700; color: #F1885B; width: 74px; flex-shrink: 0;">QUANDO</span>
+                    <input class="sn-in" type="text" value="{{ ce.quando }}" onChange="{{ ce.mudarQuando }}" placeholder="a ação do usuário" />
+                  </div>
+                  <div style="display: flex; gap: 14px; align-items: center;">
+                    <span style="font-family: 'JetBrains Mono', ui-monospace, Menlo, monospace; font-size: 11px; font-weight: 700; color: #F1885B; width: 74px; flex-shrink: 0;">ENTÃO</span>
+                    <input class="sn-in" type="text" value="{{ ce.entao }}" onChange="{{ ce.mudarEntao }}" placeholder="o resultado observável" />
+                  </div>
+                </div>
+              </sc-for>
+              <sc-if value="{{ semCenarios }}" hint-placeholder-val="{{ true }}">
+                <div style="padding: 20px; border-radius: 10px; border: 1px dashed rgba(196,199,204,0.14);">
+                  <p style="margin: 0; font-size: 13px; line-height: 1.55; color: #6B7280; text-align: center;">Nenhum cenário de aceitação. Sem eles, não há como demonstrar o item pronto.</p>
+                </div>
+              </sc-if>
+              <button class="sn-btn" style="height: 40px; align-self: flex-start; padding: 0 16px; border-radius: 10px; background: transparent; color: #A6AAB3; border: 1px dashed rgba(196,199,204,0.22); font-size: 14px; font-weight: 500; display: inline-flex; align-items: center; gap: 8px;" onClick="{{ adicionarCenario }}">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#A6AAB3" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                Adicionar cenário
+              </button>
+            </div>
+
+            <!-- anexos e protótipo -->
             <div style="display: flex; flex-direction: column; gap: 12px; padding: 20px; border-radius: 10px; background: #111827; border: 1px solid rgba(196,199,204,0.14);">
               <div style="display: flex; align-items: center;">
-                <span style="font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #6B7280;">Cenário 1</span>
+                <span style="font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #6B7280;">Protótipo e referência visual</span>
                 <div style="flex-grow: 1;"></div>
-                <span style="font-size: 12px; color: #6B7280;">Uma cláusula por linha.</span>
+                <span style="font-size: 12px; color: #6B7280;">PNG, JPG ou PDF</span>
               </div>
-              <div style="display: flex; gap: 14px; align-items: center;">
-                <span style="font-family: 'JetBrains Mono', ui-monospace, Menlo, monospace; font-size: 11px; font-weight: 700; color: #F1885B; width: 74px; flex-shrink: 0;">DADO</span>
-                <input class="sn-in" type="text" value="{{ dado }}" onChange="{{ mudarDado }}" placeholder="a condição inicial" />
-              </div>
-              <div style="display: flex; gap: 14px; align-items: center;">
-                <span style="font-family: 'JetBrains Mono', ui-monospace, Menlo, monospace; font-size: 11px; font-weight: 700; color: #F1885B; width: 74px; flex-shrink: 0;">QUANDO</span>
-                <input class="sn-in" type="text" value="{{ quando }}" onChange="{{ mudarQuando }}" placeholder="a ação do usuário" />
-              </div>
-              <div style="display: flex; gap: 14px; align-items: center;">
-                <span style="font-family: 'JetBrains Mono', ui-monospace, Menlo, monospace; font-size: 11px; font-weight: 700; color: #F1885B; width: 74px; flex-shrink: 0;">ENTÃO</span>
-                <input class="sn-in" type="text" value="{{ entao }}" onChange="{{ mudarEntao }}" placeholder="o resultado observável" />
-              </div>
+
+              <sc-for list="{{ anexos }}" as="an" hint-placeholder-count="1">
+                <div style="display: flex; align-items: center; gap: 14px; padding: 12px 14px; border-radius: 10px; background: #0B0D10; border: 1px solid rgba(196,199,204,0.14);">
+                  <div style="width: 54px; height: 40px; flex-shrink: 0; border-radius: 10px; background: #171A21; border: 1px solid rgba(196,199,204,0.14); display: flex; align-items: center; justify-content: center;">
+                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#6B7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
+                  </div>
+                  <div style="display: flex; flex-direction: column; gap: 2px; flex-grow: 1; min-width: 0;">
+                    <span style="font-size: 13.5px; color: #E5E7EB;">{{ an.nome }}</span>
+                    <span style="font-size: 12px; color: #6B7280;">{{ an.legenda }}</span>
+                  </div>
+                  <button class="sn-btn" style="width: 30px; height: 30px; flex-shrink: 0; border-radius: 10px; background: transparent; border: 1px solid rgba(196,199,204,0.14); display: flex; align-items: center; justify-content: center;" onClick="{{ an.remover }}">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#F0635D" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                  </button>
+                </div>
+              </sc-for>
+
+              <sc-if value="{{ alertaProtitipo }}" hint-placeholder-val="{{ true }}">
+                <div style="display: flex; align-items: flex-start; gap: 10px; padding: 12px 14px; border-radius: 10px; background: #3E2A00; border: 1px solid rgba(200,139,0,0.42);">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#C88B00" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0; margin-top: 1px;"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+                  <span style="font-size: 12.5px; line-height: 1.55; color: #C88B00;">O protótipo não substitui os critérios escritos. Ele não registra regra de negócio, exceção nem estado de erro — escreva ao menos um cenário.</span>
+                </div>
+              </sc-if>
+
+              <sc-if value="{{ semAnexos }}" hint-placeholder-val="{{ true }}">
+                <button class="sn-btn" style="height: 40px; align-self: flex-start; padding: 0 16px; border-radius: 10px; background: transparent; color: #A6AAB3; border: 1px dashed rgba(196,199,204,0.22); font-size: 14px; font-weight: 500; display: inline-flex; align-items: center; gap: 8px;" onClick="{{ anexarProtitipo }}">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#A6AAB3" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                  Anexar protótipo
+                </button>
+              </sc-if>
             </div>
 
             <div style="display: flex; gap: 10px; padding-bottom: 12px;">
@@ -352,8 +465,10 @@
             </div>
 
           </div>
+          </sc-if>
         </div>
 
+        <sc-if value="{{ ehPBI }}" hint-placeholder-val="{{ true }}">
         <div style="width: 300px; flex-shrink: 0; display: flex; flex-direction: column; border-left: 1px solid rgba(196,199,204,0.14); background: #0B0D10; overflow-y: auto;">
           <div style="display: flex; flex-direction: column; gap: 13px; padding: 20px; border-bottom: 1px solid rgba(196,199,204,0.14);">
             <div style="display: flex; align-items: baseline; justify-content: space-between;">
@@ -386,6 +501,7 @@
             </sc-for>
           </div>
         </div>
+        </sc-if>
 
       </div>
     </sc-if>
@@ -450,14 +566,70 @@ class Component extends DCLogic {
       mensagens: [],
       filtro: '',
       abertos: { 'EP-01': true, 'FT-01.1': true },
+      selecionado: 'PBI-01.1.4',
       titulo: 'Cadastrar PBI',
       comoUm: 'Product Owner',
       euQuero: 'cadastrar um PBI dentro de uma feature',
       paraQue: 'a equipe saiba exatamente o que construir',
-      dado: 'que a feature esteja selecionada',
-      quando: 'eu confirmar o cadastro do PBI',
-      entao: 'o item aparece na árvore sob aquela feature'
+      cenarios: [
+        { dado: 'que a feature esteja selecionada', quando: 'eu confirmar o cadastro do PBI', entao: 'o item aparece na árvore sob aquela feature' },
+        { dado: 'que o título esteja vazio', quando: 'eu tentar confirmar', entao: 'o sistema recusa e indica o campo obrigatório' }
+      ],
+      anexos: [],
+      novoCriterio: '',
+      criterios: {
+        'EP-01': [
+          'Todo item de trabalho da fábrica pode ser criado, editado e arquivado na plataforma.',
+          'A hierarquia Épico, Feature e PBI é respeitada em toda a árvore, sem item órfão.',
+          'Nenhum PBI pode ser aprovado sem passar pelo checklist do guia de especificação.'
+        ],
+        'EP-06': [
+          'Nenhuma tela do produto é acessível sem sessão autenticada.',
+          'Cada ação registrada no histórico identifica quem a executou.'
+        ],
+        'FT-01.1': [
+          'Os quatro níveis podem ser cadastrados e aparecem na árvore imediatamente.',
+          'Arquivar um item preserva o histórico em vez de apagar o registro.'
+        ],
+        'FT-01.2': [
+          'Épico e feature aceitam critérios em lista ordenada.',
+          'PBI aceita cenários no formato DADO, QUANDO e ENTÃO.'
+        ],
+        'FT-01.3': [
+          'O checklist do guia é avaliado a cada alteração, sem ação manual.',
+          'Termo vago no título ou na história é sinalizado com o termo encontrado.'
+        ],
+        'FT-01.4': [
+          'A árvore navega do épico ao PBI sem recarregar a página.',
+          'O filtro localiza por título, código ou pessoa responsável.'
+        ],
+        'FT-06.1': [
+          'Sessão encerrada não permite retorno pelo botão voltar do navegador.'
+        ]
+      }
     };
+  }
+
+  rotuloNivel(codigo) {
+    if (codigo.indexOf('EP-') === 0) return 'Épico';
+    if (codigo.indexOf('FT-') === 0) return 'Feature';
+    return 'PBI';
+  }
+
+  itens() {
+    return [
+      { codigo: 'EP-01', titulo: 'Especificar itens de trabalho', nivel: 0, id: 'EP-01' },
+      { codigo: 'FT-01.1', titulo: 'Estruturação dos itens', nivel: 1, pai: 'EP-01', id: 'FT-01.1' },
+      { codigo: 'PBI-01.1.1', titulo: 'Cadastrar projeto', nivel: 2, pai: 'FT-01.1', dono: 'Daniel' },
+      { codigo: 'PBI-01.1.2', titulo: 'Cadastrar épico', nivel: 2, pai: 'FT-01.1', dono: 'Daniel' },
+      { codigo: 'PBI-01.1.4', titulo: 'Cadastrar PBI', nivel: 2, pai: 'FT-01.1', dono: 'Daniel' },
+      { codigo: 'PBI-01.1.5', titulo: 'Editar item de trabalho', nivel: 2, pai: 'FT-01.1', dono: 'Giovanni' },
+      { codigo: 'FT-01.2', titulo: 'Critérios de aceitação por nível', nivel: 1, pai: 'EP-01', id: 'FT-01.2' },
+      { codigo: 'FT-01.3', titulo: 'Conformidade com o guia', nivel: 1, pai: 'EP-01', id: 'FT-01.3' },
+      { codigo: 'FT-01.4', titulo: 'Navegação do backlog', nivel: 1, pai: 'EP-01', id: 'FT-01.4' },
+      { codigo: 'EP-06', titulo: 'Acessar a plataforma com segurança', nivel: 0, id: 'EP-06' },
+      { codigo: 'FT-06.1', titulo: 'Acesso à plataforma', nivel: 1, pai: 'EP-06', id: 'FT-06.1' }
+    ];
   }
 
   // ---------- regras do Guia de Especificação ----------
@@ -476,16 +648,30 @@ class Component extends DCLogic {
     const s = this.state;
     const vagoTitulo = this.termoVago(s.titulo);
     const vagoHistoria = this.termoVago(s.euQuero + ' ' + s.paraQue);
-    return [
+    const cs = s.cenarios;
+    const completos = cs.filter((c) => (c.dado || '').trim().length > 4 && (c.quando || '').trim().length > 4 && (c.entao || '').trim().length > 4);
+
+    const lista = [
       { texto: 'Título começa por verbo no infinitivo', ok: this.temVerboInfinitivo(s.titulo), dica: 'Troque a primeira palavra por um verbo terminado em -ar, -er ou -ir.' },
       { texto: 'Título sem termo vago', ok: !vagoTitulo, dica: vagoTitulo ? 'O termo “' + vagoTitulo + '” não diz o que verificar.' : '' },
       { texto: 'História informa o papel', ok: (s.comoUm || '').trim().length > 2, dica: 'Diga quem é o usuário da história.' },
       { texto: 'História informa o desejo', ok: (s.euQuero || '').trim().length > 4, dica: 'Descreva o que a pessoa quer fazer.' },
       { texto: 'História informa o valor', ok: (s.paraQue || '').trim().length > 4, dica: 'Explique por que isso importa.' },
       { texto: 'História sem termo vago', ok: !vagoHistoria, dica: vagoHistoria ? 'O termo “' + vagoHistoria + '” não é verificável.' : '' },
-      { texto: 'Cenário tem condição inicial e ação', ok: (s.dado || '').trim().length > 4 && (s.quando || '').trim().length > 4, dica: 'Preencha DADO e QUANDO.' },
-      { texto: 'Cenário tem resultado observável', ok: (s.entao || '').trim().length > 4, dica: 'O ENTÃO precisa ser algo que dá para ver acontecer.' }
+      { texto: 'Tem ao menos um cenário de aceitação', ok: cs.length > 0, dica: 'Sem cenário não há como demonstrar o item pronto.' },
+      { texto: 'Todo cenário tem DADO, QUANDO e ENTÃO', ok: cs.length > 0 && completos.length === cs.length, dica: cs.length === 0 ? 'Adicione um cenário.' : (cs.length - completos.length) + ' cenário(s) com cláusula faltando.' }
     ];
+
+    // Só se aplica quando existe protótipo anexado (PBI-02.1.3, cenário 2).
+    if (s.anexos.length > 0) {
+      lista.push({
+        texto: 'Protótipo acompanhado de critérios escritos',
+        ok: cs.length > 0,
+        dica: 'O protótipo não registra regra de negócio, exceção nem estado de erro.'
+      });
+    }
+
+    return lista;
   }
 
   // ---------- pessoas ----------
@@ -561,8 +747,7 @@ class Component extends DCLogic {
     const t = (txt || '').trim();
     if (!t) return;
     const resposta = this.responder(t);
-    const novas = this.state.mensagens.concat([{ tipo: 'usuario', texto: t }, resposta]);
-    this.setState({ mensagens: novas, entrada: '' });
+    this.setState({ mensagens: this.state.mensagens.concat([{ tipo: 'usuario', texto: t }, resposta]), entrada: '' });
   }
 
   decidirProposta(iMsg, iProp, estado) {
@@ -575,31 +760,50 @@ class Component extends DCLogic {
     this.setState({ mensagens: msgs });
   }
 
-  montarArvore() {
+  // ---------- manipulação de listas ----------
+  mover(arr, i, delta) {
+    const j = i + delta;
+    if (j < 0 || j >= arr.length) return arr;
+    const c = arr.slice();
+    const t = c[i]; c[i] = c[j]; c[j] = t;
+    return c;
+  }
+
+  moverCenario(i, d) { this.setState({ cenarios: this.mover(this.state.cenarios, i, d) }); }
+  removerCenario(i) { this.setState({ cenarios: this.state.cenarios.filter((_, j) => j !== i) }); }
+  mudarCenario(i, campo, valor) {
+    this.setState({ cenarios: this.state.cenarios.map((c, j) => (j === i ? Object.assign({}, c, { [campo]: valor }) : c)) });
+  }
+
+  criteriosDo(codigo) { return this.state.criterios[codigo] || []; }
+
+  setCriterios(codigo, lista) {
+    this.setState({ criterios: Object.assign({}, this.state.criterios, { [codigo]: lista }) });
+  }
+
+  renderVals() {
     const s = this.state;
-    const base = [
-      { codigo: 'EP-01', titulo: 'Especificar itens de trabalho', nivel: 0, id: 'EP-01' },
-      { codigo: 'FT-01.1', titulo: 'Estruturação dos itens', nivel: 1, pai: 'EP-01', id: 'FT-01.1' },
-      { codigo: 'PBI-01.1.1', titulo: 'Cadastrar projeto', nivel: 2, pai: 'FT-01.1', dono: 'Daniel' },
-      { codigo: 'PBI-01.1.2', titulo: 'Cadastrar épico', nivel: 2, pai: 'FT-01.1', dono: 'Daniel' },
-      { codigo: 'PBI-01.1.4', titulo: 'Cadastrar PBI', nivel: 2, pai: 'FT-01.1', dono: 'Daniel', ativo: true },
-      { codigo: 'PBI-01.1.5', titulo: 'Editar item de trabalho', nivel: 2, pai: 'FT-01.1', dono: 'Giovanni' },
-      { codigo: 'FT-01.2', titulo: 'Critérios de aceitação por nível', nivel: 1, pai: 'EP-01', id: 'FT-01.2' },
-      { codigo: 'FT-01.3', titulo: 'Conformidade com o guia', nivel: 1, pai: 'EP-01', id: 'FT-01.3' },
-      { codigo: 'FT-01.4', titulo: 'Navegação do backlog', nivel: 1, pai: 'EP-01', id: 'FT-01.4' },
-      { codigo: 'EP-06', titulo: 'Acessar a plataforma com segurança', nivel: 0, id: 'EP-06' },
-      { codigo: 'FT-06.1', titulo: 'Acesso à plataforma', nivel: 1, pai: 'EP-06', id: 'FT-06.1' }
-    ];
+    const sel = s.selecionado;
+    const nivelSel = this.rotuloNivel(sel);
+    const ehPBI = nivelSel === 'PBI';
+    const itemSel = this.itens().find((x) => x.codigo === sel) || { titulo: '' };
+
+    const lista = this.montarChecklist();
+    const okCount = lista.filter((c) => c.ok).length;
+    const pct = Math.round((okCount / lista.length) * 100);
+
     const pes = this.pessoas();
     const f = (s.filtro || '').trim().toLowerCase();
-    const visiveis = base.filter((n) => {
+    const visiveis = this.itens().filter((n) => {
       if (f) return (n.codigo + ' ' + n.titulo + ' ' + (n.dono || '')).toLowerCase().includes(f);
       if (n.nivel === 0) return true;
       return s.abertos[n.pai];
     });
-    return visiveis.map((n) => {
+
+    const arvore = visiveis.map((n) => {
       const dono = n.dono ? pes.find((x) => x.nome === n.dono) : null;
       const tom = dono ? this.tons(dono.tom) : null;
+      const ativo = n.codigo === sel;
       return {
         codigo: n.codigo,
         titulo: n.titulo,
@@ -607,24 +811,18 @@ class Component extends DCLogic {
         peso: n.nivel === 0 ? '600' : '400',
         pesoTitulo: n.nivel === 0 ? '600' : n.nivel === 1 ? '500' : '400',
         corCodigo: n.nivel === 0 ? '#F1885B' : '#6B7280',
-        corTitulo: n.ativo ? '#FFFFFF' : n.nivel === 2 ? '#A6AAB3' : '#E5E7EB',
-        fundo: n.ativo ? 'rgba(237,106,50,0.09)' : 'transparent',
-        borda: n.ativo ? 'rgba(237,106,50,0.32)' : 'transparent',
+        corTitulo: ativo ? '#FFFFFF' : n.nivel === 2 ? '#A6AAB3' : '#E5E7EB',
+        fundo: ativo ? 'rgba(237,106,50,0.09)' : 'transparent',
+        borda: ativo ? 'rgba(237,106,50,0.32)' : 'transparent',
         temDono: !!dono,
         dono: dono ? { iniciais: dono.iniciais, fundo: tom.fundo, borda: tom.borda, cor: tom.cor } : { iniciais: '', fundo: '', borda: '', cor: '' },
-        clicar: n.id
-          ? () => this.setState({ abertos: Object.assign({}, this.state.abertos, { [n.id]: !this.state.abertos[n.id] }) })
-          : () => {}
+        clicar: () => {
+          const patch = { selecionado: n.codigo };
+          if (n.id) patch.abertos = Object.assign({}, this.state.abertos, { [n.id]: !this.state.abertos[n.id] });
+          this.setState(patch);
+        }
       };
     });
-  }
-
-  renderVals() {
-    const s = this.state;
-    const lista = this.montarChecklist();
-    const okCount = lista.filter((c) => c.ok).length;
-    const pct = Math.round((okCount / lista.length) * 100);
-    const arvore = this.montarArvore();
 
     const selos = {
       pendente: { texto: 'Aguardando decisão', fundo: '#3E2A00', cor: '#C88B00', borda: 'rgba(200,139,0,0.42)' },
@@ -644,6 +842,8 @@ class Component extends DCLogic {
       ir: () => this.setState({ secao: x.chave })
     }));
 
+    const crits = this.criteriosDo(sel);
+
     return {
       ehLogin: s.tela === 'login',
       ehApp: s.tela !== 'login',
@@ -658,7 +858,54 @@ class Component extends DCLogic {
       projetoNome: s.projetoNome,
       filtro: s.filtro, entrada: s.entrada,
       titulo: s.titulo, comoUm: s.comoUm, euQuero: s.euQuero, paraQue: s.paraQue,
-      dado: s.dado, quando: s.quando, entao: s.entao,
+
+      // seleção e nível
+      ehPBI: ehPBI,
+      ehNivelAlto: !ehPBI,
+      selCodigo: sel,
+      selNivel: nivelSel,
+      selTitulo: itemSel.titulo,
+      textoNivel: nivelSel === 'Épico' ? 'O que caracteriza a iniciativa concluída' : 'O que caracteriza a feature entregue',
+
+      criterios: crits.map((t, i) => ({
+        n: (i + 1) + '.',
+        texto: t,
+        subir: () => this.setCriterios(sel, this.mover(crits, i, -1)),
+        descer: () => this.setCriterios(sel, this.mover(crits, i, 1)),
+        remover: () => this.setCriterios(sel, crits.filter((_, j) => j !== i))
+      })),
+      semCriterios: crits.length === 0,
+      novoCriterio: s.novoCriterio,
+      mudarNovoCriterio: (e) => this.setState({ novoCriterio: e.target.value }),
+      adicionarCriterio: () => {
+        const t = (this.state.novoCriterio || '').trim();
+        if (!t) return;
+        this.setCriterios(sel, this.criteriosDo(sel).concat([t]));
+        this.setState({ novoCriterio: '' });
+      },
+
+      // cenários
+      cenarios: s.cenarios.map((c, i) => ({
+        n: i + 1,
+        dado: c.dado, quando: c.quando, entao: c.entao,
+        subir: () => this.moverCenario(i, -1),
+        descer: () => this.moverCenario(i, 1),
+        remover: () => this.removerCenario(i),
+        mudarDado: (e) => this.mudarCenario(i, 'dado', e.target.value),
+        mudarQuando: (e) => this.mudarCenario(i, 'quando', e.target.value),
+        mudarEntao: (e) => this.mudarCenario(i, 'entao', e.target.value)
+      })),
+      semCenarios: s.cenarios.length === 0,
+      adicionarCenario: () => this.setState({ cenarios: this.state.cenarios.concat([{ dado: '', quando: '', entao: '' }]) }),
+
+      // anexos
+      anexos: s.anexos.map((a, i) => ({
+        nome: a.nome, legenda: a.legenda,
+        remover: () => this.setState({ anexos: this.state.anexos.filter((_, j) => j !== i) })
+      })),
+      semAnexos: s.anexos.length === 0,
+      alertaProtitipo: s.anexos.length > 0 && s.cenarios.length === 0,
+      anexarProtitipo: () => this.setState({ anexos: [{ nome: 'tela-cadastro-pbi.png', legenda: 'Rascunho do formulário, com o checklist à direita' }] }),
 
       mudarEmail: (e) => this.setState({ email: e.target.value, erroLogin: false }),
       mudarSenha: (e) => this.setState({ senha: e.target.value, erroLogin: false }),
@@ -677,9 +924,6 @@ class Component extends DCLogic {
       mudarComoUm: (e) => this.setState({ comoUm: e.target.value }),
       mudarEuQuero: (e) => this.setState({ euQuero: e.target.value }),
       mudarParaQue: (e) => this.setState({ paraQue: e.target.value }),
-      mudarDado: (e) => this.setState({ dado: e.target.value }),
-      mudarQuando: (e) => this.setState({ quando: e.target.value }),
-      mudarEntao: (e) => this.setState({ entao: e.target.value }),
 
       projetos: [
         { nome: 'API-1', ano: '2025-1', desc: 'Autenticação, cadastro de usuários e painel administrativo.', itens: 38, fontes: 12, pessoas: 6, abrir: () => this.setState({ tela: 'projeto', secao: 'conversa', projetoNome: 'API-1' }) },
@@ -695,9 +939,7 @@ class Component extends DCLogic {
         fontes: m.fontes || [],
         temPropostas: !!(m.propostas && m.propostas.length),
         propostas: (m.propostas || []).map((p, j) => ({
-          nivel: p.nivel,
-          titulo: p.titulo,
-          origem: p.origem,
+          nivel: p.nivel, titulo: p.titulo, origem: p.origem,
           pendente: p.estado === 'pendente',
           corTitulo: p.estado === 'dispensado' ? '#6B7280' : '#FFFFFF',
           borda: p.estado === 'aceito' ? 'rgba(34,180,88,0.42)' : p.estado === 'dispensado' ? 'rgba(196,199,204,0.14)' : 'rgba(237,106,50,0.32)',
@@ -723,7 +965,7 @@ class Component extends DCLogic {
         { nome: 'Anexos de teste — API-2.zip', tipo: 'Arquivo', status: 'Fora do acervo', corStatus: '#6B7280', corIcone: '#4B4F57', processando: false, progresso: '0%' }
       ],
 
-      equipe: this.pessoas().map((p) => {
+      equipe: pes.map((p) => {
         const t = this.tons(p.tom);
         return {
           nome: p.nome, iniciais: p.iniciais, papel: p.papel,
@@ -741,7 +983,7 @@ class Component extends DCLogic {
       percent: pct + '%',
       corPercent: pct === 100 ? '#22B458' : '#FFFFFF',
       larguraBarra: pct + '%',
-      resumo: okCount + ' de ' + lista.length + ' verificações aprovadas',
+      resumo: okCount + ' de ' + lista.length + ' verificações aplicáveis',
       checklist: lista.map((c) => ({
         texto: c.texto, ok: c.ok, falhou: !c.ok,
         cor: c.ok ? '#A6AAB3' : '#FFFFFF',

@@ -1,11 +1,48 @@
 {
   "artboards": [
-    { "file": "Main.dc.html", "title": "Sinapse — Sprint 1", "x": 0, "y": 0, "w": 1440, "h": 900, "is_interactive": true, "expand": "fit" }
+    {
+      "file": "Main.dc.html",
+      "title": "Sinapse — Sprint 1",
+      "x": 0,
+      "y": 0,
+      "w": 1440,
+      "h": 900,
+      "is_interactive": true,
+      "expand": "fit"
+    }
   ],
   "annotations": [
-    { "id": "como-navegar", "x": 0, "y": -230, "w": 660, "text": "Protótipo navegável, com controles que funcionam.\n\nEntre com qualquer e-mail e senha → escolha um projeto. Abre na CONVERSA, que é a porta de entrada principal: é por ali que reunião, transcrição e documento viram item de trabalho.\n\nClique “Resuma a reunião de 09/09” — a IA responde citando o trecho e propõe três itens, cada um esperando Aceitar ou Dispensar. Nenhum entra sozinho.\n\nPergunte qualquer outra coisa e ela responde que não sabe: é o guardrail do PBI-03.2.4, não uma falha." },
-    { "id": "abas", "x": 720, "y": -230, "w": 400, "text": "As três abas no topo:\n\nCONVERSA — entrada de dados por IA e consulta ao acervo.\n\nBACKLOG — a árvore com responsável por item e o editor com o checklist do guia validando ao vivo.\n\nEQUIPE — papel de cada pessoa no projeto, competências e o que está sob sua responsabilidade." },
-    { "id": "dados", "x": 1520, "y": 0, "w": 420, "text": "Os nomes e as atribuições da aba Equipe são reais: saíram do PLANEJAMENTO_SCRUM.md que o LoadCG subiu em 09/09.\n\nO resto é exemplo: as respostas da IA, os arquivos do acervo e a contagem dos cards de projeto.\n\nAinda fora do protótipo, e também na Sprint 1: anexar protótipo ao PBI, critérios de aceitação de épico e feature, e reordenar cenários." }
+    {
+      "id": "como-navegar",
+      "x": 0,
+      "y": -230,
+      "w": 660,
+      "text": "Protótipo navegável, com controles que funcionam.\n\nEntre com qualquer e-mail e senha → escolha um projeto. Abre na CONVERSA, que é a porta de entrada principal: é por ali que reunião, transcrição e documento viram item de trabalho.\n\nClique “Resuma a reunião de 09/09” — a IA responde citando o trecho e propõe três itens, cada um esperando Aceitar ou Dispensar. Nenhum entra sozinho.\n\nPergunte qualquer outra coisa e ela responde que não sabe: é o guardrail do PBI-03.2.4, não uma falha."
+    },
+    {
+      "id": "abas",
+      "x": 720,
+      "y": -230,
+      "w": 400,
+      "text": "As três abas no topo:\n\nCONVERSA — entrada de dados por IA e consulta ao acervo.\n\nBACKLOG — a árvore com responsável por item e o editor com o checklist do guia validando ao vivo.\n\nEQUIPE — papel de cada pessoa no projeto, competências e o que está sob sua responsabilidade."
+    },
+    {
+      "id": "dados",
+      "x": 1520,
+      "y": 0,
+      "w": 420,
+      "text": "Os nomes e as atribuições da aba Equipe são reais: saíram do PLANEJAMENTO_SCRUM.md que o LoadCG subiu em 09/09.\n\nO resto é exemplo: as respostas da IA, os arquivos do acervo e a contagem dos cards de projeto."
+    },
+    {
+      "id": "niveis",
+      "x": 1520,
+      "y": 300,
+      "w": 420,
+      "text": "O editor muda com o nível selecionado na árvore.\n\nClique em EP-01 ou numa FT: aparecem os critérios de aceitação em lista ordenada, com adicionar, remover e reordenar. Clique num PBI: volta o editor de história e cenários.\n\nNos cenários dá para reordenar e remover. E em \"Anexar protótipo\": assim que houver anexo, o checklist ganha uma décima verificação e avisa que imagem não substitui critério escrito — apague os cenários para ver o alerta."
+    }
   ],
-  "launch": { "view": "focused", "file": "Main.dc.html" }
+  "launch": {
+    "view": "focused",
+    "file": "Main.dc.html"
+  }
 }
