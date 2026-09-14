@@ -77,7 +77,7 @@ components:
       type: object
       required: [entity_type, data]
       properties:
-        entity_type: { type: string, enum: [epic, feature, requirement, decision] }
+        entity_type: { type: string, enum: [epic, feature, pbi, decision] }
         data: { type: object, additionalProperties: true }
     EmbeddingRequest:
       type: object

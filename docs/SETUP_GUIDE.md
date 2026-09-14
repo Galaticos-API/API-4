@@ -3,7 +3,7 @@
 > **PRO4TECH · Fatec São José dos Campos · Grupo Galáticos**  
 > *Base Inteligente de Requisitos — Memória da Fábrica de Software*
 
-Este documento descreve como configurar, executar e validar as stacks principais do projeto **Sinapse** em ambiente de desenvolvimento local, em conformidade com as diretrizes do [PRD](file:///c:/Users/danip/Documents/.Projetos/API-4/docs/PRD/PRD.md) e [AGENTS.md](file:///c:/Users/danip/Documents/.Projetos/API-4/docs/AGENTS.md).
+Este documento descreve como configurar, executar e validar as stacks principais do projeto **Sinapse** em ambiente de desenvolvimento local, em conformidade com as diretrizes do [PRD](PRD/PRD.md) e [AGENTS.md](AGENTS.md).
 
 ---
 
@@ -177,11 +177,14 @@ n8n-sync push
 ---
 
 ## 🧪 6. Comandos de Validação e Qualidade
-
+ 
 | Verificação | Comando |
 |---|---|
 | **Sintaxe Docker Compose** | `docker compose config --quiet` |
 | **Validação de Workflows** | `n8n-sync validate` |
+| **Execução de Migrations** | `cd backend && npm run migrate` |
+| **Testes Automatizados do Backend** | `cd backend && npm test` |
+| **Auditoria de Segurança de Produção** | `cd backend && npm run audit:security` |
 | **Tipagem do Backend** | `cd backend && npm run typecheck` |
 | **Build do Frontend** | `cd frontend && npm run build` |
 | **Sintaxe do Serviço de IA** | `python -m py_compile ai-service/main.py` |
