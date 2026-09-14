@@ -66,3 +66,9 @@ n8n/local-files/*
 .coverage
 htmlcov/
 .pytest_cache/
+
+# Canvases gerados pelo /design — regeneráveis a partir dos .dc.html
+docs/design/*.html
+!docs/design/*.dc.html
+docs/design/prototipo/*.html
+!docs/design/prototipo/*.dc.html

@@ -1,0 +1,12 @@
+{
+  "artboards": [
+    { "file": "Main.dc.html", "title": "Fundamentos", "x": 0, "y": 0, "w": 1120, "h": 1820, "print": "flow" },
+    { "file": "Componentes.dc.html", "x": 1240, "y": 0, "w": 1120, "h": 1420, "print": "flow" },
+    { "file": "Padroes.dc.html", "x": 2480, "y": 0, "w": 1120, "h": 1500, "print": "flow" }
+  ],
+  "annotations": [
+    { "id": "origem-tokens", "x": 0, "y": -150, "w": 520, "text": "Todos os valores de cor, fonte, raio e sombra saíram da folha de estilo do site da PRO4TECH (assets/css/main.css), não de aproximação visual.\n\nAs quatro cores semânticas são a exceção: a marca não publica cores de estado, então foram derivadas do laranja em oklch." },
+    { "id": "conflito-frontend", "x": 1240, "y": -150, "w": 520, "text": "Atenção: o frontend/src/index.css que está no repo hoje usa índigo #6366f1 e ciano #06b6d4, com visual glassmorphic. Não é a identidade da PRO4TECH.\n\nAdotar este design system significa trocar aquele arquivo." }
+  ],
+  "launch": { "view": "canvas" }
+}

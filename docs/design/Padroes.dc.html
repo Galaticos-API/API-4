@@ -1,0 +1,171 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Public+Sans:wght@600;700;800&display=swap">
+  <style>
+    body { margin: 0; font-family: 'Inter', -apple-system, 'Segoe UI', Roboto, sans-serif; }
+    a { color: #ED6A32; } a:hover { color: #F1885B; }
+  </style>
+</helmet>
+
+<div style="background: #0B0D10; color: #E5E7EB; padding: 48px; font-family: 'Inter', -apple-system, 'Segoe UI', Roboto, sans-serif; min-height: 100%;">
+
+  <div style="display: flex; flex-direction: column; gap: 8px; padding-bottom: 32px; border-bottom: 1px solid rgba(196, 199, 204, 0.14);">
+    <h1 style="font-family: 'Public Sans', 'Inter', sans-serif; font-weight: 800; font-size: 42px; line-height: 1.1; margin: 0; color: #FFFFFF; letter-spacing: -0.02em;">Padrões do Sinapse</h1>
+    <p style="margin: 0; font-size: 15px; line-height: 1.6; color: #6B7280; max-width: 620px; text-wrap: pretty;">Composições que só existem neste produto. Cada uma carrega uma regra do Guia de Especificação da PRO4TECH ou do PRD.</p>
+  </div>
+
+  <!-- HIERARQUIA -->
+  <div style="display: flex; flex-direction: column; gap: 18px; padding-top: 40px;">
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+      <h2 style="font-family: 'Public Sans', 'Inter', sans-serif; font-weight: 700; font-size: 12px; letter-spacing: 0.16em; text-transform: uppercase; color: #6B7280; margin: 0;">Hierarquia</h2>
+      <p style="margin: 0; font-size: 13px; color: #898E99;">Épico, Feature e PBI se distinguem pelo recuo e pelo peso do código — não por cor. O nível é informação estrutural, não decorativa.</p>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 2px; padding: 20px; border-radius: 10px; background: #111827; border: 1px solid rgba(196, 199, 204, 0.14);">
+
+      <div style="display: flex; align-items: center; gap: 12px; height: 48px; padding: 0 14px; border-radius: 10px; background: transparent;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0;"><polyline points="6 9 12 15 18 9"></polyline></svg>
+        <span style="font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 13px; font-weight: 600; color: #F1885B; width: 78px; flex-shrink: 0;">EP-01</span>
+        <span style="font-family: 'Public Sans', 'Inter', sans-serif; font-size: 15px; font-weight: 700; color: #FFFFFF; flex-grow: 1;">Especificar itens de trabalho</span>
+        <span style="font-size: 12px; color: #6B7280;">28 PBIs</span>
+      </div>
+
+      <div style="display: flex; align-items: center; gap: 12px; height: 48px; padding: 0 14px 0 42px; border-radius: 10px; background: transparent;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0;"><polyline points="6 9 12 15 18 9"></polyline></svg>
+        <span style="font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 13px; font-weight: 500; color: #A6AAB3; width: 78px; flex-shrink: 0;">FT-01.5</span>
+        <span style="font-size: 15px; font-weight: 600; color: #E5E7EB; flex-grow: 1;">Edição e rastreabilidade</span>
+        <span style="font-size: 12px; color: #6B7280;">6 PBIs</span>
+      </div>
+
+      <div style="display: flex; align-items: center; gap: 12px; height: 48px; padding: 0 14px 0 74px; border-radius: 10px; background: rgba(237, 106, 50, 0.09); border: 1px solid rgba(237, 106, 50, 0.32);">
+        <span style="font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 13px; font-weight: 400; color: #A6AAB3; width: 92px; flex-shrink: 0;">PBI-01.5.6</span>
+        <span style="font-size: 15px; font-weight: 400; color: #FFFFFF; flex-grow: 1;">Justificar a alteração de um item</span>
+        <span style="display: inline-flex; align-items: center; height: 22px; padding: 0 10px; border-radius: 9999px; background: #4A200F; color: #F1885B; border: 1px solid rgba(237, 106, 50, 0.42); font-size: 10px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; flex-shrink: 0;">Must</span>
+      </div>
+
+      <div style="display: flex; align-items: center; gap: 12px; height: 48px; padding: 0 14px 0 74px; border-radius: 10px; background: transparent;">
+        <span style="font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 13px; font-weight: 400; color: #A6AAB3; width: 92px; flex-shrink: 0;">PBI-01.5.1</span>
+        <span style="font-size: 15px; font-weight: 400; color: #E5E7EB; flex-grow: 1;">Editar um item já criado</span>
+        <span style="display: inline-flex; align-items: center; height: 22px; padding: 0 10px; border-radius: 9999px; background: #4A200F; color: #F1885B; border: 1px solid rgba(237, 106, 50, 0.42); font-size: 10px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; flex-shrink: 0;">Must</span>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- CENARIO -->
+  <div style="display: flex; flex-direction: column; gap: 18px; padding-top: 44px;">
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+      <h2 style="font-family: 'Public Sans', 'Inter', sans-serif; font-weight: 700; font-size: 12px; letter-spacing: 0.16em; text-transform: uppercase; color: #6B7280; margin: 0;">Cenário de aceitação</h2>
+      <p style="margin: 0; font-size: 13px; color: #898E99;">Uma cláusula por linha, com a palavra-chave em coluna própria. Foi o erro que quase mandamos ao cliente em PDF: rodando tudo num parágrafo, o padrão deixa de ser legível.</p>
+    </div>
+
+    <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px;">
+
+      <div style="display: flex; flex-direction: column; gap: 16px; padding: 24px; border-radius: 10px; background: #111827; border: 1px solid rgba(196, 199, 204, 0.14);">
+        <span style="font-family: 'Public Sans', 'Inter', sans-serif; font-size: 15px; font-weight: 600; color: #FFFFFF;">Cenário 1 — Registrar o motivo</span>
+        <div style="display: flex; flex-direction: column; gap: 7px;">
+          <div style="display: flex; gap: 14px; align-items: baseline;">
+            <span style="font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 11px; font-weight: 700; color: #F1885B; width: 54px; flex-shrink: 0; letter-spacing: 0.04em;">DADO</span>
+            <span style="font-size: 14px; line-height: 1.55; color: #E5E7EB;">que o item esteja aprovado</span>
+          </div>
+          <div style="display: flex; gap: 14px; align-items: baseline;">
+            <span style="font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 11px; font-weight: 700; color: #F1885B; width: 54px; flex-shrink: 0; letter-spacing: 0.04em;">QUANDO</span>
+            <span style="font-size: 14px; line-height: 1.55; color: #E5E7EB;">o Product Owner alterar a descrição</span>
+          </div>
+          <div style="display: flex; gap: 14px; align-items: baseline;">
+            <span style="font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 11px; font-weight: 700; color: #F1885B; width: 54px; flex-shrink: 0; letter-spacing: 0.04em;">ENTÃO</span>
+            <span style="font-size: 14px; line-height: 1.55; color: #E5E7EB;">o sistema pede a justificativa antes de salvar</span>
+          </div>
+        </div>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 16px; padding: 24px; border-radius: 10px; background: #111827; border: 1px solid rgba(196, 199, 204, 0.14);">
+        <span style="font-family: 'Public Sans', 'Inter', sans-serif; font-size: 15px; font-weight: 600; color: #FFFFFF;">Cenário 4 — Dispensar em rascunho</span>
+        <div style="display: flex; flex-direction: column; gap: 7px;">
+          <div style="display: flex; gap: 14px; align-items: baseline;">
+            <span style="font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 11px; font-weight: 700; color: #F1885B; width: 54px; flex-shrink: 0; letter-spacing: 0.04em;">DADO</span>
+            <span style="font-size: 14px; line-height: 1.55; color: #E5E7EB;">que o item ainda esteja em rascunho</span>
+          </div>
+          <div style="display: flex; gap: 14px; align-items: baseline;">
+            <span style="font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 11px; font-weight: 700; color: #F1885B; width: 54px; flex-shrink: 0; letter-spacing: 0.04em;">QUANDO</span>
+            <span style="font-size: 14px; line-height: 1.55; color: #E5E7EB;">qualquer campo for alterado</span>
+          </div>
+          <div style="display: flex; gap: 14px; align-items: baseline;">
+            <span style="font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 11px; font-weight: 700; color: #F1885B; width: 54px; flex-shrink: 0; letter-spacing: 0.04em;">ENTÃO</span>
+            <span style="font-size: 14px; line-height: 1.55; color: #E5E7EB;">a alteração é salva sem pedir justificativa</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- COMPLETUDE E IA -->
+  <div style="display: grid; grid-template-columns: 340px minmax(0, 1fr); gap: 20px; padding-top: 44px; align-items: start;">
+
+    <div style="display: flex; flex-direction: column; gap: 18px;">
+      <div style="display: flex; flex-direction: column; gap: 4px;">
+        <h2 style="font-family: 'Public Sans', 'Inter', sans-serif; font-weight: 700; font-size: 12px; letter-spacing: 0.16em; text-transform: uppercase; color: #6B7280; margin: 0;">Completude</h2>
+        <p style="margin: 0; font-size: 13px; color: #898E99;">Aprovadas sobre aplicáveis, sem pesos.</p>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 14px; padding: 24px; border-radius: 10px; background: #111827; border: 1px solid rgba(196, 199, 204, 0.14);">
+        <div style="display: flex; align-items: baseline; justify-content: space-between;">
+          <span style="font-size: 13px; font-weight: 600; color: #E5E7EB;">9 de 12 verificações</span>
+          <span style="font-family: 'Public Sans', 'Inter', sans-serif; font-size: 22px; font-weight: 800; color: #FFFFFF;">75%</span>
+        </div>
+        <div style="height: 8px; border-radius: 9999px; background: rgba(196, 199, 204, 0.12); overflow: hidden; display: flex;">
+          <div style="width: 75%; background: linear-gradient(135deg, #F1885B 0%, #ED6A32 100%);"></div>
+        </div>
+        <div style="height: 1px; background: rgba(196, 199, 204, 0.14);"></div>
+        <div style="display: flex; align-items: baseline; justify-content: space-between;">
+          <span style="font-size: 13px; font-weight: 600; color: #6B7280;">Nenhuma verificação aplicável</span>
+          <span style="font-family: 'Public Sans', 'Inter', sans-serif; font-size: 16px; font-weight: 700; color: #4B4F57;">—</span>
+        </div>
+        <p style="margin: 0; font-size: 12px; line-height: 1.55; color: #6B7280;">Sem verificação aplicável o indicador some. Nunca mostra 100%: seria dizer que está pronto sem ter olhado nada.</p>
+      </div>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 18px;">
+      <div style="display: flex; flex-direction: column; gap: 4px;">
+        <h2 style="font-family: 'Public Sans', 'Inter', sans-serif; font-weight: 700; font-size: 12px; letter-spacing: 0.16em; text-transform: uppercase; color: #6B7280; margin: 0;">Sugestão da IA</h2>
+        <p style="margin: 0; font-size: 13px; color: #898E99;">A regra inegociável do PRD: a IA nunca escreve sozinha. Toda sugestão mostra de onde veio e espera uma decisão explícita.</p>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 16px; padding: 24px; border-radius: 10px; background: #171A21; border: 1px solid rgba(237, 106, 50, 0.32); box-shadow: 0px 1px 14px 0px rgba(0, 0, 0, 0.13);">
+
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ED6A32" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0;"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3Z"></path></svg>
+          <span style="font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #F1885B;">Sugestão · não aplicada</span>
+        </div>
+
+        <p style="margin: 0; font-size: 14px; line-height: 1.6; color: #E5E7EB; text-wrap: pretty;">Acrescentar um cenário para o caso de o item já estar arquivado: a edição deve ser recusada antes de pedir justificativa.</p>
+
+        <div style="display: flex; align-items: flex-start; gap: 10px; padding: 12px 14px; border-radius: 10px; background: #0B0D10; border: 1px solid rgba(196, 199, 204, 0.14);">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6B7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0; margin-top: 2px;"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"></path></svg>
+          <div style="display: flex; flex-direction: column; gap: 2px;">
+            <span style="font-size: 12px; color: #A6AAB3; line-height: 1.5;">Baseada em <span style="font-family: ui-monospace, 'SF Mono', Menlo, monospace; color: #F1885B;">PBI-01.1.5</span> — API-2, documentação da Sprint 2</span>
+            <span style="font-size: 12px; color: #6B7280;">Nenhuma outra fonte foi usada.</span>
+          </div>
+        </div>
+
+        <div style="display: flex; gap: 10px;">
+          <span style="display: inline-flex; align-items: center; gap: 8px; height: 40px; padding: 0 18px; border-radius: 10px; background: linear-gradient(135deg, #F1885B 0%, #ED6A32 100%); color: #FFFFFF; font-size: 14px; font-weight: 600;">Aceitar e editar</span>
+          <span style="display: inline-flex; align-items: center; gap: 8px; height: 40px; padding: 0 18px; border-radius: 10px; background: #171A21; color: #E5E7EB; font-size: 14px; font-weight: 500; border: 1px solid rgba(196, 199, 204, 0.22);">Dispensar</span>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+
+</div>
+</x-dc>
+</body>
+</html>
