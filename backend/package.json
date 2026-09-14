@@ -11,7 +11,7 @@
     "typecheck": "tsc --noEmit",
     "migrate": "tsx src/database/migrate.ts",
     "audit:security": "npm audit --omit=dev",
-    "test": "tsx --test src/**/*.test.ts"
+    "test": "node scripts/test.mjs"
   },
   "dependencies": {
     "cors": "^2.8.5",
