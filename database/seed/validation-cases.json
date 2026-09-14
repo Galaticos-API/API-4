@@ -1,0 +1,11 @@
+{
+  "dataset": "pre06-historical-v1",
+  "status": "expectativas de conteúdo; motor de busca e embeddings não validados",
+  "cases": [
+    { "query": "Como restringir o acesso administrativo?", "project": "API-1", "expected_source": "Backlog 23", "purpose": "PBI-02.3.1" },
+    { "query": "Como administrar acesso de usuários?", "project": "API-2", "expected_source": "US-01", "purpose": "PBI-02.3.1" },
+    { "query": "Existe histórico de planos por ano?", "project": "API-2", "expected_source": "US-02", "purpose": "PBI-02.3.1" },
+    { "query": "Como apresentar métricas em gráficos?", "projects": ["API-1", "API-3"], "candidate_sources": ["Backlog 35", "GRF-01", "GRF-08"], "purpose": "PBI-03.1.4; candidatos documentais, sem afirmar equivalência funcional" },
+    { "query": "Quem implementou os gráficos?", "expected": "Não há evidência de experiência individual neste recorte.", "purpose": "PBI-05.2.1; cenário negativo" }
+  ]
+}
