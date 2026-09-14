@@ -107,7 +107,7 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/ProjectResponse' }
         '400': { $ref: '#/components/responses/ValidationError' }
-        '404': { $ref: '#/components/schemas/Error' }
+'404': { description: Projeto não encontrado, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
         '409':
           description: Conflito de nome duplicado com outro projeto ativo
           content:
