@@ -16,6 +16,12 @@ const envSchema = z.object({
   POSTGRES_HOST: z.string().default("localhost"),
   POSTGRES_PORT: z.coerce.number().default(5432),
   AI_SERVICE_URL: z.string().default("http://localhost:8000"),
+
+  // S1-01 — Autenticação e segurança
+  AUTH_MAX_LOGIN_ATTEMPTS: z.coerce.number().int().min(1).default(5),
+  AUTH_LOCKOUT_MINUTES: z.coerce.number().int().min(1).default(15),
+  AUTH_SESSION_IDLE_MINUTES: z.coerce.number().int().min(1).default(30),
+  AUTH_SESSION_MAX_HOURS: z.coerce.number().int().min(1).default(12),
 });
 
 export const env = envSchema.parse(process.env);
