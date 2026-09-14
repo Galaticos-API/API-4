@@ -177,3 +177,35 @@ test("deve permitir revogar uma sessão manualmente", async () => {
 
   assert.equal(repository.revoked, true);
 });
+
+test("deve revogar sessão ao atingir o tempo máximo absoluto", async () => {
+  const now = new Date();
+  const repository = new MockSessionRepository();
+
+  repository.session = {
+    ...createValidSession(now),
+    created_at: new Date(
+      now.getTime() - 13 * 60 * 60 * 1000,
+    ),
+    ultima_atividade_em: new Date(
+      now.getTime() - 60_000,
+    ),
+  };
+
+  const service = new SessionService(
+    repository,
+    () => now,
+  );
+
+  const result = await service.validateSession("token");
+
+  assert.equal(result.valid, false);
+  assert.equal(repository.revoked, true);
+
+  if (!result.valid) {
+    assert.equal(
+      result.reason,
+      "absolute_expired",
+    );
+  }
+});
