@@ -147,3 +147,29 @@ module.exports = {
   plugins: [],
 }
 ```
+
+### 5. Entrega obrigatória do protótipo no Figma
+
+O protótipo navegável da PRE-05 deve ser entregue em um arquivo editável do Figma.
+O código React e as capturas de tela servem como apoio para validação, mas não
+substituem o arquivo de design compartilhado com o time e o cliente.
+
+#### Fluxo mínimo a prototipar
+
+1. Login e retorno para a área interna.
+2. Lista de projetos e estado vazio.
+3. Cadastro de projeto com estados válido, inválido, carregando e erro.
+4. Navegação Projeto → Épico → Feature → PBI.
+5. Tela de detalhe/edição de PBI com critérios de aceitação.
+
+#### Critérios para considerar a PRE-05 pronta
+
+- O arquivo Figma possui páginas ou seções identificadas para o fluxo principal.
+- O Design System contém tokens, componentes reutilizáveis e estados de interface.
+- O protótipo tem conexões clicáveis entre as telas do fluxo principal.
+- As telas contemplam desktop e uma variação responsiva.
+- O link do Figma permite visualização e comentários do time e do PO.
+- O cartão da PRE-05 contém o link do arquivo, evidências e a validação do PO.
+
+**Link do arquivo Figma:** deve ser preenchido no cartão da PRE-05 assim que
+Giovanni e Emmanuel criarem ou receberem acesso de edição ao arquivo do time.

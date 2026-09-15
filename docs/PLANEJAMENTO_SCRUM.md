@@ -87,7 +87,7 @@ Ao final da Sprint 1, espera-se que uma pessoa autorizada consiga entrar na plat
 | PRE-02 | Criar migrations e completar o banco de dados para que o ambiente possa ser reproduzido com segurança | PBI-01.1.1, PBI-01.1.5, PBI-01.5.1, PBI-02.2.4, PBI-03.2.2, PBI-04.2.1, PBI-05.1.1, PBI-06.1.1 |
 | PRE-03 | Definir o contrato de comunicação entre backend, serviço de IA e automações | PBI-02.1.1, PBI-02.1.4, PBI-02.2.1, PBI-03.2.1 |
 | PRE-04 | Preparar testes automatizados para backend, frontend e serviço de IA | PBI-01.3.1, PBI-02.3.1, PBI-04.1.3, PBI-06.1.1 |
-| PRE-05 | Definir componentes visuais e validar um protótipo navegável do fluxo principal | PBI-01.1.1, PBI-01.1.2, PBI-01.1.3, PBI-01.1.4 |
+| PRE-05 | Definir componentes visuais e entregar no Figma um protótipo navegável do fluxo principal | PBI-01.1.1, PBI-01.1.2, PBI-01.1.3, PBI-01.1.4 |
 | PRE-06 | Preparar dados fictícios ou anonimizados para desenvolvimento e validação | PBI-02.3.1, PBI-03.1.4, PBI-05.2.1 |
 | PRE-07 | Comparar modelos de embeddings em português e escolher a configuração inicial | PBI-02.3.1, PBI-04.1.1 |
 | PRE-08 | Avaliar e tratar com segurança as vulnerabilidades conhecidas do backend | PBI-06.1.1, PBI-06.1.2, PBI-06.1.3 |
