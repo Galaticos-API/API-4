@@ -1,11 +1,12 @@
 // @vitest-environment jsdom
 import { afterEach, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { Projects } from "./Projects";
+import { Projects as ProjectsPage } from "./Projects";
 import { isProjectPath } from "./navigation";
 
 const project = { id: "project-1", nome: "Sinapse", cliente: "Cliente", descricao: "Conhecimento da equipe", status: "ativo" };
 const response = (body: unknown, status = 200) => Promise.resolve(new Response(JSON.stringify(body), { status }));
+const Projects = ({ pathname }: { pathname: string }) => <ProjectsPage pathname={pathname} canCreate />;
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); window.history.replaceState(null, "", "/"); });
 function form() { render(<Projects pathname="/projects/new" />); }
 function fill() {
@@ -14,8 +15,16 @@ function fill() {
   fireEvent.change(screen.getByLabelText("Descrição"), { target: { value: "Conhecimento da equipe" } });
 }
 
+it("bloqueia o formulário direto para perfil de leitura", () => {
+  const request = vi.fn(); vi.stubGlobal("fetch", request);
+  render(<ProjectsPage pathname="/projects/new" canCreate={false} />);
+  expect(screen.getByRole("alert").textContent).toBe("Seu perfil não permite criar projetos.");
+  expect(screen.queryByLabelText("Nome do projeto")).toBeNull();
+  expect(request).not.toHaveBeenCalled();
+});
+
 it("mostra carregamento e estado vazio com ação de criação", async () => {
-  vi.stubGlobal("fetch", vi.fn(() => response({ projects: [] })));
+  vi.stubGlobal("fetch", vi.fn(() => response({ items: [], total: 0, limit: 50, offset: 0 })));
   render(<Projects pathname="/projects" />);
   expect(screen.getByRole("status").textContent).toBe("Carregando projetos…");
   await screen.findByText("Nenhum projeto cadastrado");
@@ -24,14 +33,14 @@ it("mostra carregamento e estado vazio com ação de criação", async () => {
 });
 
 it("lista projetos e permite abrir detalhe", async () => {
-  vi.stubGlobal("fetch", vi.fn(() => response({ projects: [project] })));
+  vi.stubGlobal("fetch", vi.fn(() => response({ items: [project], total: 1, limit: 50, offset: 0 })));
   render(<Projects pathname="/projects" />);
   fireEvent.click(await screen.findByLabelText("Abrir projeto Sinapse"));
   expect(window.location.pathname).toBe("/projects/project-1");
 });
 
 it("permite recuperar a lista após erro", async () => {
-  vi.stubGlobal("fetch", vi.fn().mockImplementationOnce(() => response({}, 503)).mockImplementationOnce(() => response({ projects: [project] })));
+  vi.stubGlobal("fetch", vi.fn().mockImplementationOnce(() => response({}, 503)).mockImplementationOnce(() => response({ items: [project], total: 1, limit: 50, offset: 0 })));
   render(<Projects pathname="/projects" />);
   await screen.findByRole("alert");
   fireEvent.click(screen.getByText("Tentar novamente"));
@@ -60,7 +69,7 @@ it("indica dados válidos, impede envio duplicado e abre detalhe após salvar", 
   expect(request).toHaveBeenCalledTimes(1);
   expect((screen.getByText("Criando…") as HTMLButtonElement).disabled).toBe(true);
   expect(JSON.parse(request.mock.calls[0][1]?.body as string)).toEqual({ nome: "Sinapse", cliente: "Cliente", descricao: "Conhecimento da equipe" });
-  resolve(new Response(JSON.stringify({ project })));
+  resolve(new Response(JSON.stringify(project)));
   await waitFor(() => expect(window.location.pathname).toBe("/projects/project-1"));
 });
 
@@ -84,7 +93,7 @@ it.each([403, 422, 503])("trata erro %s ao criar sem apagar os campos", async st
 });
 
 it("apresenta os dados e status no detalhe", async () => {
-  vi.stubGlobal("fetch", vi.fn(() => response({ project })));
+  vi.stubGlobal("fetch", vi.fn(() => response(project)));
   render(<Projects pathname="/projects/project-1" />);
   expect(await screen.findByText("Sinapse")).toBeTruthy();
   expect(screen.getByText("ativo")).toBeTruthy();
@@ -101,4 +110,17 @@ it("reconhece as rotas de projetos e rejeita caminhos não suportados", () => {
   expect(isProjectPath("/projects/project-1")).toBe(true);
   expect(isProjectPath("/projects/new")).toBe(true);
   expect(isProjectPath("/projects//evil.example")).toBe(false);
+});
+
+it("pagina a lista conforme total e offset do backend", async () => {
+  const request = vi.fn().mockImplementationOnce(() => response({ items: [project], total: 51, limit: 50, offset: 0 }))
+    .mockImplementationOnce(() => response({ items: [{ ...project, nome: "Último projeto", status: "concluido", descricao: null }], total: 51, limit: 50, offset: 50 }));
+  vi.stubGlobal("fetch", request);
+  render(<Projects pathname="/projects" />);
+  await screen.findByText("Sinapse");
+  fireEvent.click(screen.getByText("Próxima"));
+  expect(await screen.findByText("Último projeto")).toBeTruthy();
+  expect(request.mock.calls[1][0]).toBe("/api/v1/projects?limit=50&offset=50");
+  expect((screen.getByText("Próxima") as HTMLButtonElement).disabled).toBe(true);
+  expect((screen.getByText("Anterior") as HTMLButtonElement).disabled).toBe(false);
 });

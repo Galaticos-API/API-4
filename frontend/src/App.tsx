@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
-import { isProjectPath, navigate, routes } from "./projects/navigation";
+import { isProjectPath, navigate, routes } from "./auth/navigation";
+import { useAuth } from "./auth/Auth";
 import { Projects } from "./projects/Projects";
 import {
   Cpu,
@@ -19,6 +20,7 @@ interface ServiceStatus {
 }
 
 export const App: React.FC = () => {
+  const { session, logout } = useAuth();
   const [pathname, setPathname] = useState(window.location.pathname);
   const activeTab = isProjectPath(pathname) ? "projects" : (Object.keys(routes) as Array<keyof typeof routes>).find(key => routes[key] === pathname);
   const setActiveTab = (tab: keyof typeof routes) => navigate(routes[tab]);
@@ -174,6 +176,8 @@ export const App: React.FC = () => {
         </div>
 
         <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+          <span>{session.user?.name}</span>
+          <button className="btn-secondary" onClick={() => void logout()}>Sair</button>
           <span className="badge badge-success">
             <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#10b981" }} />
             Ambiente Local Ativo
@@ -183,7 +187,7 @@ export const App: React.FC = () => {
 
       {/* Main Content Area */}
       <main style={{ flex: 1, padding: "32px", maxWidth: "1280px", margin: "0 auto", width: "100%" }}>
-        {activeTab === "projects" && <Projects key={pathname} pathname={pathname} />}
+        {activeTab === "projects" && <Projects key={pathname} pathname={pathname} canCreate={session.user?.role === "po" || session.user?.role === "admin"} />}
         {!activeTab && <section><h2>Página não encontrada</h2><button className="btn-primary" onClick={() => navigate("/", true)}>Ir para o início</button></section>}
         {activeTab === "architecture" && (
           <div>

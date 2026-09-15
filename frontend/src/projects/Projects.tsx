@@ -4,23 +4,24 @@ import { navigate } from "./navigation";
 import { createProject, getProject, listProjects, type Project, type ProjectInput } from "./api";
 import "./projects.css";
 
-type Result = { state: "loading" } | { state: "error"; message: string } | { state: "ready"; projects: Project[] };
+type Result = { state: "loading" } | { state: "error"; message: string } | { state: "ready"; projects: Project[]; total: number };
 const empty: ProjectInput = { nome: "", cliente: "", descricao: "" };
 
-export function Projects({ pathname }: { pathname: string }) {
+export function Projects({ pathname, canCreate = false }: { pathname: string; canCreate?: boolean }) {
   const id = pathname.slice("/projects/".length);
   const isNew = id === "new";
   const isDetail = pathname !== "/projects" && !isNew;
   const [result, setResult] = useState<Result>({ state: "loading" });
   const [attempt, setAttempt] = useState(0);
+  const [offset, setOffset] = useState(0);
   useEffect(() => {
     if (isNew) return;
     const controller = new AbortController();
     setResult({ state: "loading" });
     const signal = AbortSignal.any([controller.signal, AbortSignal.timeout(15000)]);
-    const request = isDetail ? getProject(id, signal).then(project => [project]) : listProjects(signal);
-    request.then(projects => {
-      if (!controller.signal.aborted) setResult({ state: "ready", projects });
+    const request = isDetail ? getProject(id, signal).then(project => ({ projects: [project], total: 1 })) : listProjects(signal, offset);
+    request.then(page => {
+      if (!controller.signal.aborted) setResult({ state: "ready", ...page });
     }).catch(error => {
       if (controller.signal.aborted) return;
       setResult({ state: "error", message: error instanceof ApiError && error.status === 404 ? "Projeto não encontrado."
@@ -29,26 +30,31 @@ export function Projects({ pathname }: { pathname: string }) {
         : "Não foi possível carregar os projetos. Tente novamente." });
     });
     return () => controller.abort();
-  }, [id, isDetail, isNew, attempt]);
+  }, [id, isDetail, isNew, attempt, offset]);
 
-  if (isNew) return <ProjectForm />;
+  if (isNew) return canCreate ? <ProjectForm /> : <section className="projects-page"><h2>Acesso de leitura</h2><p role="alert">Seu perfil não permite criar projetos.</p><button className="btn-secondary" onClick={() => navigate("/projects")}>Voltar aos projetos</button></section>;
   return <section className="projects-page">
     <div className="projects-heading">
       <div><p className="projects-eyebrow">Organização do trabalho</p><h2>{isDetail ? "Detalhes do projeto" : "Projetos"}</h2>
         <p>Reúna o contexto do cliente e organize os requisitos da sua equipe.</p></div>
-      <button className="btn-primary" onClick={() => navigate(isDetail ? "/projects" : "/projects/new")}>{isDetail ? "Voltar aos projetos" : "Novo projeto"}</button>
+      {(isDetail || canCreate) && <button className="btn-primary" onClick={() => navigate(isDetail ? "/projects" : "/projects/new")}>{isDetail ? "Voltar aos projetos" : "Novo projeto"}</button>}
     </div>
     {result.state === "loading" && <div className="glass-panel projects-state" role="status">Carregando {isDetail ? "projeto" : "projetos"}…</div>}
     {result.state === "error" && <div className="glass-panel projects-state"><p role="alert">{result.message}</p>
       <button className="btn-secondary" onClick={() => setAttempt(value => value + 1)}>Tentar novamente</button></div>}
     {result.state === "ready" && (isDetail ? <ProjectDetail project={result.projects[0]} /> : result.projects.length === 0
       ? <div className="glass-panel projects-state"><h3>Nenhum projeto cadastrado</h3><p>Crie o primeiro projeto para começar a organizar o trabalho.</p>
-        <button className="btn-primary" onClick={() => navigate("/projects/new")}>Criar primeiro projeto</button></div>
+        {canCreate && <button className="btn-primary" onClick={() => navigate("/projects/new")}>Criar primeiro projeto</button>}</div>
       : <div className="projects-grid">{result.projects.map(project => <article className="glass-panel project-card" key={project.id}>
         <span className={`badge ${project.status === "ativo" ? "badge-success" : "badge-warning"}`}>{project.status}</span>
         <h3>{project.nome}</h3><p>{project.cliente}</p><p className="project-excerpt">{project.descricao}</p>
         <button className="btn-secondary" onClick={() => navigate(`/projects/${project.id}`)} aria-label={`Abrir projeto ${project.nome}`}>Ver projeto</button>
       </article>)}</div>)}
+    {!isDetail && !isNew && <nav className="project-actions" aria-label="Paginação de projetos">
+      <button className="btn-secondary" disabled={offset === 0 || result.state === "loading"} onClick={() => setOffset(value => Math.max(0, value - 50))}>Anterior</button>
+      <span>Página {Math.floor(offset / 50) + 1}{result.state === "ready" ? ` · ${result.total} projetos` : ""}</span>
+      <button className="btn-secondary" disabled={result.state !== "ready" || offset + 50 >= result.total} onClick={() => setOffset(value => value + 50)}>Próxima</button>
+    </nav>}
   </section>;
 }
 
@@ -68,7 +74,7 @@ function ProjectForm() {
   const mounted = useRef(true);
   const form = useRef<HTMLFormElement>(null);
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
-  const valid = Object.values(values).every(value => value.trim().length > 0) && Object.keys(errors).length === 0;
+  const valid = values.nome.trim().length > 0 && values.cliente.trim().length > 0 && values.nome.trim().length <= 255 && values.cliente.trim().length <= 255 && Object.keys(errors).length === 0;
   return <section className="projects-page">
     <div className="projects-heading"><div><p className="projects-eyebrow">Projetos / Novo projeto</p><h2>Criar projeto</h2>
       <p>Informe o contexto que acompanhará os requisitos deste projeto.</p></div></div>
@@ -79,7 +85,8 @@ function ProjectForm() {
       const invalid: Partial<ProjectInput> = {};
       if (!input.nome) invalid.nome = "Informe o nome do projeto.";
       if (!input.cliente) invalid.cliente = "Informe o cliente.";
-      if (!input.descricao) invalid.descricao = "Informe a descrição.";
+      if (input.nome.length > 255) invalid.nome = "O nome não pode exceder 255 caracteres.";
+      if (input.cliente.length > 255) invalid.cliente = "O cliente não pode exceder 255 caracteres.";
       setErrors(invalid); setMessage("");
       if (Object.keys(invalid).length) {
         form.current?.querySelector<HTMLElement>(`[name="${Object.keys(invalid)[0]}"]`)?.focus();
@@ -103,9 +110,9 @@ function ProjectForm() {
         if (mounted.current) setBusy(false);
       }
     }}>
-      <p>Todos os campos são obrigatórios.</p>
+      <p>Nome e cliente são obrigatórios. A descrição é opcional.</p>
       {([ ["nome", "Nome do projeto"], ["cliente", "Cliente"], ["descricao", "Descrição"] ] as const).map(([field, label]) => {
-        const props = { id: field, name: field, required: true, disabled: busy, value: values[field], "aria-invalid": Boolean(errors[field]),
+        const props = { id: field, name: field, required: field !== "descricao", disabled: busy, value: values[field], "aria-invalid": Boolean(errors[field]),
           "aria-describedby": errors[field] ? `${field}-error` : undefined,
           onChange: (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
             setValues(previous => ({ ...previous, [field]: event.target.value }));
