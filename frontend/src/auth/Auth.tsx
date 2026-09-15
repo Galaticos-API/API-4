@@ -29,7 +29,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const current = ++revision.current;
     setSession({ status: "loading" });
     try {
-      const user = await readUser(await apiRequest("/auth/session"));
+      const user = await readUser(await apiRequest("/auth/me"));
       if (current === revision.current) {
         hadSession.current = true;
         setNotice("");

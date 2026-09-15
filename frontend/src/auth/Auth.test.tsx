@@ -3,10 +3,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { AuthGate, AuthProvider, useAuth } from "./Auth";
 import { navigate, safeDestination } from "./navigation";
-import { apiRequest } from "./api";
+import { apiRequest, readUser } from "./api";
 import { useLayoutEffect, useRef } from "react";
 
-const user = { id: "1", name: "Pessoa", email: "pessoa@example.com" };
+const user = { id: "1", nome: "Pessoa", role: "po", email: "pessoa@example.com" };
 const reply = (status: number, body: unknown = {}) => Promise.resolve(new Response(JSON.stringify(body), { status }));
 function Content() {
   const { logout } = useAuth();
@@ -18,6 +18,13 @@ function Content() {
 function mount() { render(<AuthProvider><AuthGate><Content /></AuthGate></AuthProvider>); }
 beforeEach(() => { window.history.replaceState(null, "", "/"); });
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
+
+it("adapta o usuário da S1-01 e rejeita um contrato de sessão inválido", async () => {
+  await expect(readUser(new Response(JSON.stringify({ user })))).resolves.toEqual({
+    id: user.id, name: user.nome, email: user.email, role: user.role,
+  });
+  await expect(readUser(new Response(JSON.stringify({ user: { ...user, nome: undefined, name: "Pessoa" } })))).rejects.toThrow("Resposta de sessão inválida");
+});
 
 describe("retorno seguro", () => {
   it.each(["https://evil.example", "//evil.example", "/\\evil.example", "/login", "/logout", "/%2f%2fevil.example", "/unknown", "javascript:alert(1)"])("recusa %s", value => {
@@ -50,6 +57,9 @@ it("protege acesso direto e retorna ao destino após login", async () => {
   await screen.findByText("Conteúdo interno");
   expect(window.location.pathname + window.location.search + window.location.hash).toBe("/requirements?filter=active#list");
   expect(fetchMock.mock.calls[1][1].credentials).toBe("same-origin");
+  expect(fetchMock.mock.calls[0][0]).toBe("/api/v1/auth/me");
+  expect(fetchMock.mock.calls[1][0]).toBe("/api/v1/auth/login");
+  expect(JSON.parse(fetchMock.mock.calls[1][1].body)).toEqual({ email: user.email, password: "secret" });
 });
 
 it("não revela o campo incorreto e limpa a senha após falha", async () => {
@@ -126,7 +136,7 @@ it.each(["focus", "navigation", "history"])("informa expiração detectada por %
   expect(await screen.findByText("Sua sessão expirou. Entre novamente para continuar.")).toBeTruthy();
   expect(screen.queryByText("Conteúdo interno")).toBeNull();
   expect(new URLSearchParams(window.location.search).get("returnTo")).toBe(trigger === "focus" ? "/" : "/requirements?filter=active#list");
-  expect(fetchMock.mock.calls[1][0]).toBe("/api/v1/auth/session");
+  expect(fetchMock.mock.calls[1][0]).toBe("/api/v1/auth/me");
 });
 
 it("oculta conteúdo até a revalidação da navegação terminar", async () => {

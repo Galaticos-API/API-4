@@ -1,4 +1,4 @@
-export interface User { id: string; name: string; email: string }
+export interface User { id: string; name: string; email: string; role: "admin" | "po" | "dev" }
 
 export class ApiError extends Error {
   constructor(public status: number) { super(`HTTP ${status}`); }
@@ -24,8 +24,9 @@ export async function apiRequest(path: string, init: RequestInit = {}) {
 
 export async function readUser(response: Response): Promise<User> {
   const data = await response.json();
-  if (!data?.user || typeof data.user.id !== "string" || typeof data.user.name !== "string" || typeof data.user.email !== "string") {
+  if (!data?.user || typeof data.user.id !== "string" || typeof data.user.nome !== "string" || typeof data.user.email !== "string"
+    || !["admin", "po", "dev"].includes(data.user.role)) {
     throw new Error("Resposta de sessão inválida");
   }
-  return data.user;
+  return { id: data.user.id, name: data.user.nome, email: data.user.email, role: data.user.role };
 }
