@@ -98,6 +98,7 @@ paths:
     post:
       summary: Cadastra um novo projeto (PBI-01.1.1 / S1-03)
       operationId: createProject
+      description: Escrita permitida apenas aos perfis po e admin; dev recebe 403.
       security:
         - cookieAuth: []
       requestBody:
@@ -113,6 +114,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ProjectResponse'
+        '403':
+          description: Perfil sem permissão de escrita
         '400':
           $ref: '#/components/responses/ValidationError'
         '401':
@@ -207,6 +210,7 @@ paths:
     put:
       summary: Atualiza dados de um projeto (S1-03 / S1-08)
       operationId: updateProject
+      description: Escrita permitida apenas aos perfis po e admin; dev recebe 403. PATCH no mesmo caminho é um alias desta operação.
       security:
         - cookieAuth: []
       parameters:
@@ -229,6 +233,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ProjectResponse'
+        '403':
+          description: Perfil sem permissão de escrita
         '400':
           $ref: '#/components/responses/ValidationError'
         '401':
@@ -250,6 +256,7 @@ paths:
     patch:
       summary: Arquiva um projeto (S1-03 / S1-09)
       operationId: archiveProject
+      description: Escrita permitida apenas aos perfis po e admin; dev recebe 403.
       security:
         - cookieAuth: []
       parameters:
@@ -275,6 +282,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ProjectResponse'
+        '403':
+          description: Perfil sem permissão de escrita
         '401':
           $ref: '#/components/responses/Unauthorized'
         '404':
