@@ -1,18 +1,289 @@
 openapi: 3.0.3
+
 info:
   title: Sinapse Service Contracts
   version: 0.1.0
   description: Contratos versionados entre backend, serviço de IA e automações n8n.
+
 servers:
+  - url: http://localhost:3001
+    description: Backend Node.js
   - url: http://localhost:8000
     description: Serviço de IA local
+
 paths:
   /health:
     get:
       summary: Verifica disponibilidade do serviço
+      security: []
       responses:
-        '200': { description: Serviço saudável }
-        '503': { description: Dependência indisponível }
+        '200':
+          description: Serviço saudável
+        '503':
+          description: Dependência indisponível
+
+  /api/v1/auth/login:
+    post:
+      summary: Autentica um usuário e inicia uma sessão
+      operationId: login
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Autenticação realizada com sucesso
+          headers:
+            Set-Cookie:
+              description: Cookie HttpOnly da sessão. Em produção também utiliza Secure.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthUserResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          description: Credenciais inválidas
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Usuário inativo
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          description: Limite de tentativas de autenticação excedido temporariamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/v1/auth/logout:
+    post:
+      summary: Encerra e revoga a sessão atual
+      operationId: logout
+      security:
+        - cookieAuth: []
+      responses:
+        '204':
+          description: Sessão encerrada com sucesso
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v1/auth/me:
+    get:
+      summary: Retorna o usuário autenticado
+      operationId: getAuthenticatedUser
+      security:
+        - cookieAuth: []
+      responses:
+        '200':
+          description: Usuário da sessão atual
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthUserResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v1/projects:
+    post:
+      summary: Cadastra um novo projeto (PBI-01.1.1 / S1-03)
+      operationId: createProject
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateProjectRequest'
+      responses:
+        '201':
+          description: Projeto criado com sucesso com status ativo e auditoria registrada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          description: Conflito de nome duplicado entre projetos ativos
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    get:
+      summary: Lista projetos com paginação e busca (S1-03)
+      operationId: listProjects
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [ativo, em_andamento, concluido, arquivado, todos]
+        - name: busca
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 50
+            minimum: 1
+            maximum: 100
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 0
+            minimum: 0
+        - name: order
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [created_at_desc, created_at_asc, nome_asc, nome_desc]
+            default: created_at_desc
+      responses:
+        '200':
+          description: Lista paginada de projetos
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedProjectsResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v1/projects/{id}:
+    get:
+      summary: Obtém detalhes de um projeto por ID (S1-03)
+      operationId: getProjectById
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Detalhes do projeto com estatísticas
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Projeto não encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    put:
+      summary: Atualiza dados de um projeto (S1-03 / S1-08)
+      operationId: updateProject
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateProjectRequest'
+      responses:
+        '200':
+          description: Projeto atualizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Projeto não encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Conflito de nome duplicado com outro projeto ativo
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/v1/projects/{id}/archive:
+    patch:
+      summary: Arquiva um projeto (S1-03 / S1-09)
+      operationId: archiveProject
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                justificativa:
+                  type: string
+      responses:
+        '200':
+          description: Projeto arquivado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Projeto não encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
   /ingest/document:
     post:
       summary: Solicita ingestão assíncrona de documento
@@ -21,14 +292,18 @@ paths:
         required: true
         content:
           application/json:
-            schema: { $ref: '#/components/schemas/IngestDocumentRequest' }
+            schema:
+              $ref: '#/components/schemas/IngestDocumentRequest'
       responses:
         '200':
           description: Documento fragmentado e embeddings calculados
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/IngestDocumentResponse' }
-        '400': { $ref: '#/components/responses/ValidationError' }
+              schema:
+                $ref: '#/components/schemas/IngestDocumentResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+
   /ingest/entity:
     post:
       summary: Indexa uma entidade estruturada
@@ -37,10 +312,14 @@ paths:
         required: true
         content:
           application/json:
-            schema: { $ref: '#/components/schemas/IngestEntityRequest' }
+            schema:
+              $ref: '#/components/schemas/IngestEntityRequest'
       responses:
-        '200': { description: Entidade processada }
-        '400': { $ref: '#/components/responses/ValidationError' }
+        '200':
+          description: Entidade processada
+        '400':
+          $ref: '#/components/responses/ValidationError'
+
   /embeddings:
     post:
       summary: Gera embedding para um texto
@@ -49,10 +328,14 @@ paths:
         required: true
         content:
           application/json:
-            schema: { $ref: '#/components/schemas/EmbeddingRequest' }
+            schema:
+              $ref: '#/components/schemas/EmbeddingRequest'
       responses:
-        '200': { description: Vetor gerado }
-        '502': { description: Ollama indisponível }
+        '200':
+          description: Vetor gerado
+        '502':
+          description: Ollama indisponível
+
   /rag/query:
     post:
       summary: Responde usando somente os trechos fornecidos
@@ -61,68 +344,269 @@ paths:
         required: true
         content:
           application/json:
-            schema: { $ref: '#/components/schemas/RagQueryRequest' }
+            schema:
+              $ref: '#/components/schemas/RagQueryRequest'
       responses:
-        '200': { description: Resposta fundamentada }
-        '502': { description: Ollama indisponível }
+        '200':
+          description: Resposta fundamentada
+        '502':
+          description: Ollama indisponível
+
 components:
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: sinapse_session
+
   schemas:
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+          example: usuario@exemplo.com
+        password:
+          type: string
+          format: password
+          writeOnly: true
+
+    AuthenticatedUser:
+      type: object
+      required: [id, nome, email, role]
+      properties:
+        id:
+          type: string
+          format: uuid
+        nome:
+          type: string
+        email:
+          type: string
+          format: email
+        role:
+          type: string
+          enum: [admin, po, dev]
+
+    AuthUserResponse:
+      type: object
+      required: [user]
+      properties:
+        user:
+          $ref: '#/components/schemas/AuthenticatedUser'
+
+    CreateProjectRequest:
+      type: object
+      required: [nome, cliente]
+      properties:
+        nome:
+          type: string
+          minLength: 1
+          maxLength: 255
+        cliente:
+          type: string
+          minLength: 1
+          maxLength: 255
+        descricao:
+          type: string
+          nullable: true
+        status:
+          type: string
+          enum: [ativo, em_andamento, concluido, arquivado]
+          default: ativo
+        data_inicio:
+          type: string
+          format: date-time
+          nullable: true
+
+    UpdateProjectRequest:
+      type: object
+      properties:
+        nome:
+          type: string
+          minLength: 1
+          maxLength: 255
+        cliente:
+          type: string
+          minLength: 1
+          maxLength: 255
+        descricao:
+          type: string
+          nullable: true
+        status:
+          type: string
+          enum: [ativo, em_andamento, concluido, arquivado]
+        data_inicio:
+          type: string
+          format: date-time
+          nullable: true
+        justificativa:
+          type: string
+
+    ProjectResponse:
+      type: object
+      required: [id, nome, cliente, status, created_at, updated_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        nome:
+          type: string
+        cliente:
+          type: string
+        descricao:
+          type: string
+          nullable: true
+        status:
+          type: string
+          enum: [ativo, em_andamento, concluido, arquivado]
+        data_inicio:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        epicos_count:
+          type: integer
+        documentos_count:
+          type: integer
+
+    PaginatedProjectsResponse:
+      type: object
+      required: [items, total, limit, offset]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProjectResponse'
+        total:
+          type: integer
+          minimum: 0
+        limit:
+          type: integer
+          minimum: 1
+        offset:
+          type: integer
+          minimum: 0
+
     IngestDocumentRequest:
       type: object
       required: [document_id, text_content]
       properties:
-        document_id: { type: string }
-        text_content: { type: string }
-        project_id: { type: string, format: uuid, nullable: true }
-        metadata: { type: object, additionalProperties: true }
+        document_id:
+          type: string
+        text_content:
+          type: string
+        project_id:
+          type: string
+          format: uuid
+          nullable: true
+        metadata:
+          type: object
+          additionalProperties: true
+
     IngestDocumentResponse:
       type: object
       required: [document_id, total_chunks, status, chunks]
       properties:
-        document_id: { type: string }
-        total_chunks: { type: integer, minimum: 0 }
-        status: { type: string, enum: [chunked_and_indexed] }
+        document_id:
+          type: string
+        total_chunks:
+          type: integer
+          minimum: 0
+        status:
+          type: string
+          enum: [chunked_and_indexed]
         chunks:
           type: array
           items:
             $ref: '#/components/schemas/ProcessedChunk'
+
     ProcessedChunk:
       type: object
       required: [chunk_index, text, vector_dimension]
       properties:
-        chunk_index: { type: integer, minimum: 0 }
-        text: { type: string }
-        vector_dimension: { type: integer, minimum: 0 }
-        project_id: { type: string, format: uuid, nullable: true }
+        chunk_index:
+          type: integer
+          minimum: 0
+        text:
+          type: string
+        vector_dimension:
+          type: integer
+          minimum: 0
+        project_id:
+          type: string
+          format: uuid
+          nullable: true
+
     IngestEntityRequest:
       type: object
       required: [entity_type, data]
       properties:
-        entity_type: { type: string, enum: [epic, feature, pbi, decision] }
-        data: { type: object, additionalProperties: true }
+        entity_type:
+          type: string
+          enum: [epic, feature, pbi, decision]
+        data:
+          type: object
+          additionalProperties: true
+
     EmbeddingRequest:
       type: object
       required: [text]
       properties:
-        text: { type: string, minLength: 1 }
-        model: { type: string, nullable: true }
+        text:
+          type: string
+          minLength: 1
+        model:
+          type: string
+          nullable: true
+
     RagQueryRequest:
       type: object
       required: [query]
       properties:
-        query: { type: string, minLength: 1 }
-        project_id: { type: string, format: uuid, nullable: true }
-        context_chunks: { type: array, items: { type: string } }
+        query:
+          type: string
+          minLength: 1
+        project_id:
+          type: string
+          format: uuid
+          nullable: true
+        context_chunks:
+          type: array
+          items:
+            type: string
+
     Error:
       type: object
-      required: [error, correlation_id]
+      required: [error]
       properties:
-        error: { type: string }
-        correlation_id: { type: string, format: uuid }
-        details: { type: object, additionalProperties: true }
+        error:
+          type: string
+        code:
+          type: string
+        correlation_id:
+          type: string
+          format: uuid
+        details:
+          type: object
+          additionalProperties: true
+
   responses:
     ValidationError:
-      description: Corpo inválido
+      description: Corpo inválido ou campo obrigatório ausente
       content:
         application/json:
-          schema: { $ref: '#/components/schemas/Error' }
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    Unauthorized:
+      description: Autenticação ausente, sessão inválida ou sessão expirada
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
