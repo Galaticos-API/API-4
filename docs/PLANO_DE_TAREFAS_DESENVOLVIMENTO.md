@@ -132,6 +132,8 @@ Estas nove tarefas pertencem à **Sprint 1** e devem receber a etiqueta `Sprint 
 Trello. O prefixo `PRE` apenas sinaliza que são habilitadores a iniciar antes das tarefas
 funcionais dependentes; ele não representa uma quarta sprint nem uma etapa externa ao plano.
 
+> Resumo rápido da mesma informação em [PRE_STATUS.md](PRE_STATUS.md).
+
 | ID | Prioridade | Situação Técnica | Tarefa | Evidência / Resultado verificável | Dependências | Tam. | Etiquetas |
 |---|---|---|---|---|---|:---:|---|
 | PRE-01 | Bloqueante | Concluída | Registrar decisões Q1-Q5 com a PRO4TECH | Decisões registradas no backlog v1.1 e quadro | — | P | Docs, Produto |
