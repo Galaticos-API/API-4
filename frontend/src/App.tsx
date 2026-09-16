@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
-import { navigate, routes } from "./auth/navigation";
+import { isProjectPath, navigate, routes } from "./auth/navigation";
 import { useAuth } from "./auth/Auth";
+import { Projects } from "./projects/Projects";
 import {
   Cpu,
   Layers,
@@ -21,7 +22,7 @@ interface ServiceStatus {
 export const App: React.FC = () => {
   const { session, logout } = useAuth();
   const [pathname, setPathname] = useState(window.location.pathname);
-  const activeTab = (Object.keys(routes) as Array<keyof typeof routes>).find(key => routes[key] === pathname);
+  const activeTab = isProjectPath(pathname) ? "projects" : (Object.keys(routes) as Array<keyof typeof routes>).find(key => routes[key] === pathname);
   const setActiveTab = (tab: keyof typeof routes) => navigate(routes[tab]);
   useEffect(() => {
     const update = () => setPathname(window.location.pathname);
@@ -148,6 +149,9 @@ export const App: React.FC = () => {
             border: "1px solid var(--border-subtle)",
           }}
         >
+          <button onClick={() => setActiveTab("projects")} className={activeTab === "projects" ? "btn-primary" : "btn-secondary"}>
+            <Layers size={16} /> Projetos
+          </button>
           <button
             onClick={() => setActiveTab("architecture")}
             className={activeTab === "architecture" ? "btn-primary" : "btn-secondary"}
@@ -183,6 +187,7 @@ export const App: React.FC = () => {
 
       {/* Main Content Area */}
       <main style={{ flex: 1, padding: "32px", maxWidth: "1280px", margin: "0 auto", width: "100%" }}>
+        {activeTab === "projects" && <Projects key={pathname} pathname={pathname} canCreate={session.user?.role === "po" || session.user?.role === "admin"} />}
         {!activeTab && <section><h2>Página não encontrada</h2><button className="btn-primary" onClick={() => navigate("/", true)}>Ir para o início</button></section>}
         {activeTab === "architecture" && (
           <div>
