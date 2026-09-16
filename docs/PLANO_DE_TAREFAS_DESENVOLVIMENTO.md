@@ -137,7 +137,7 @@ funcionais dependentes; ele não representa uma quarta sprint nem uma etapa exte
 | PRE-01 | Bloqueante | Concluída | Registrar decisões Q1-Q5 com a PRO4TECH | Decisões registradas no backlog v1.1 e quadro | — | P | Docs, Produto |
 | PRE-02 | Bloqueante | Concluída | Adotar migrations versionadas e corrigir o schema | Migrations 001–004 e runner Node executados e registrados no banco ativo | PRE-01 | G | Banco, Backend |
 | PRE-03 | Must | Concluída | Definir contrato HTTP Node-Python-n8n | Contrato OpenAPI versionado em docs/api/openapi.yaml | PRE-01 | M | Backend, IA/RAG, n8n |
-| PRE-04 | Must | Concluída | Criar fundação de testes | Suites de backend, frontend e IA executadas com sucesso; CI e scripts npm test configurados | — | M | QA, CI |
+| PRE-04 | Must | Em revisão | Criar fundação de testes | Suites de backend, frontend e IA existem, mas o comando padrão do backend não descobre testes em subdiretórios; PR #14 corrige a descoberta e precisa ser reconciliado com a main | — | M | QA, CI |
 | PRE-05 | Must | Pendente | Criar design system e protótipo navegável da Sprint 1 | Entrega de UX/protótipo depende do responsável de Design | PRE-01 | G | UX, Frontend |
 | PRE-06 | Must | Concluída | Preparar seed inicial e política de dados | Seed fictício executado duas vezes sem duplicidade; contagens esperadas validadas | — | G | Banco, QA, Docs |
 | PRE-07 | Must | Concluída | Executar spike de embeddings PT-BR | Spike executado; modelo BAAI/bge-m3 (1024 dimensões) validado em docs/Spike Embeddings.md | PRE-06 | M | IA/RAG, QA |
