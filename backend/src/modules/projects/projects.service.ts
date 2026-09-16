@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { ArchiveImpact } from "./archive.types.js";
 import {
   createProjectSchema,
   updateProjectSchema,
@@ -126,10 +127,10 @@ export class ProjectsService {
     return updated;
   }
 
-  async archive(id: string, usuarioId?: string | null, justificativa?: string): Promise<ProjectWithStats> {
+  async archive(id: string, usuarioId?: string | null, justificativa?: string, expected?: ArchiveImpact): Promise<ProjectWithStats> {
     this.validateUuid(id);
 
-    const archived = await this.repository.archive(id, usuarioId, justificativa);
+    const archived = await this.repository.archive(id, usuarioId, justificativa, expected);
     if (!archived) {
       throw new NotFoundError("Projeto não encontrado.");
     }

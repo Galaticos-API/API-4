@@ -136,6 +136,7 @@ paths:
         - name: status
           in: query
           required: false
+          description: Ausente exclui arquivados; arquivado retorna somente arquivados; todos inclui todos os estados.
           schema:
             type: string
             enum: [ativo, em_andamento, concluido, arquivado, todos]
@@ -246,15 +247,45 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
         '409':
-          description: Conflito de nome duplicado com outro projeto ativo
+          description: Nome duplicado ou tentativa de editar projeto arquivado (somente leitura).
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
 
+  /api/v1/projects/{id}/archive-impact:
+    get:
+      summary: Consulta quantidade de novos itens afetados pela cascata (S1-09)
+      operationId: getProjectArchiveImpact
+      description: Disponível para po e admin. Não modifica registros. Itens já arquivados não entram na contagem.
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Contagens para confirmação explícita
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ArchiveImpact'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Perfil sem permissão de escrita
+        '404':
+          description: Projeto não encontrado
+
   /api/v1/projects/{id}/archive:
     patch:
-      summary: Arquiva um projeto (S1-03 / S1-09)
+      summary: Arquiva projeto, épicos, features e PBIs em cascata (S1-09)
       operationId: archiveProject
       description: Escrita permitida apenas aos perfis po e admin; dev recebe 403.
       security:
@@ -267,17 +298,28 @@ paths:
             type: string
             format: uuid
       requestBody:
-        required: false
+        required: true
         content:
           application/json:
             schema:
               type: object
+              required: [confirmado, impacto]
               properties:
+                confirmado:
+                  type: boolean
+                  enum: [true]
+                impacto:
+                  $ref: '#/components/schemas/ArchiveImpact'
                 justificativa:
                   type: string
+                  maxLength: 2000
       responses:
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '409':
+          description: Contagem mudou desde a prévia. Consultar novamente e pedir nova confirmação.
         '200':
-          description: Projeto arquivado
+          description: Cascata e auditoria confirmadas atomicamente. Repetição preserva as datas e não duplica auditoria.
           content:
             application/json:
               schema:
@@ -369,6 +411,25 @@ components:
       name: sinapse_session
 
   schemas:
+    ArchiveImpact:
+      type: object
+      additionalProperties: false
+      required: [projeto, epicos, features, pbis]
+      properties:
+        projeto:
+          type: integer
+          minimum: 0
+          maximum: 1
+        epicos:
+          type: integer
+          minimum: 0
+        features:
+          type: integer
+          minimum: 0
+        pbis:
+          type: integer
+          minimum: 0
+
     LoginRequest:
       type: object
       required: [email, password]
@@ -422,7 +483,7 @@ components:
           nullable: true
         status:
           type: string
-          enum: [ativo, em_andamento, concluido, arquivado]
+          enum: [ativo, em_andamento, concluido]
           default: ativo
         data_inicio:
           type: string
@@ -445,7 +506,7 @@ components:
           nullable: true
         status:
           type: string
-          enum: [ativo, em_andamento, concluido, arquivado]
+          enum: [ativo, em_andamento, concluido]
         data_inicio:
           type: string
           format: date-time
@@ -481,6 +542,11 @@ components:
           format: date-time
         epicos_count:
           type: integer
+        archived_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: Data do arquivamento; nula em registros legados sem data conhecida.
         documentos_count:
           type: integer
 

@@ -9,6 +9,7 @@ import {
   PaginatedProjects,
 } from "./projects.types.js";
 import { auditService } from "../audit/audit.service.js";
+import { ArchiveConflict, type ArchiveImpact } from "./archive.types.js";
 
 export class ProjectsRepository {
   private pool: Pool;
@@ -48,6 +49,7 @@ export class ProjectsRepository {
         p.data_inicio,
         p.created_at,
         p.updated_at,
+        p.archived_at,
         COALESCE((SELECT COUNT(*)::int FROM epico e WHERE e.projeto_id = p.id), 0) AS epicos_count,
         COALESCE((SELECT COUNT(*)::int FROM documento d WHERE d.projeto_id = p.id), 0) AS documentos_count
       FROM projeto p
@@ -58,12 +60,13 @@ export class ProjectsRepository {
     return result.rows[0] ?? null;
   }
 
-  async archiveImpact(id: string): Promise<{ projeto: number; epicos: number; features: number; pbis: number } | null> {
-    const result = await this.pool.query<{ projeto: number; epicos: number; features: number; pbis: number }>(`
-      SELECT 1 AS projeto,
+  async archiveImpact(id: string, connection: Pool | PoolClient = this.pool): Promise<ArchiveImpact | null> {
+    const result = await connection.query<ArchiveImpact>(`
+      SELECT CASE WHEN root.status = 'arquivado' THEN 0 ELSE 1 END AS projeto,
         (SELECT COUNT(*)::int FROM epico WHERE projeto_id = $1 AND status != 'arquivado') AS epicos,
         (SELECT COUNT(*)::int FROM feature f JOIN epico e ON e.id = f.epico_id WHERE e.projeto_id = $1 AND f.status != 'arquivado') AS features,
         (SELECT COUNT(*)::int FROM pbi p JOIN feature f ON f.id = p.feature_id JOIN epico e ON e.id = f.epico_id WHERE e.projeto_id = $1 AND p.status != 'arquivado') AS pbis
+      FROM projeto root WHERE root.id = $1
     `, [id]);
     return result.rows[0] ?? null;
   }
@@ -129,7 +132,7 @@ export class ProjectsRepository {
     const params: unknown[] = [];
     let paramIndex = 1;
 
-    if (!query.status || query.status === "ativo") {
+    if (!query.status) {
       whereConditions.push("p.status != 'arquivado'");
     }
 
@@ -175,6 +178,7 @@ export class ProjectsRepository {
         p.data_inicio,
         p.created_at,
         p.updated_at,
+        p.archived_at,
         COALESCE((SELECT COUNT(*)::int FROM epico e WHERE e.projeto_id = p.id), 0) AS epicos_count,
         COALESCE((SELECT COUNT(*)::int FROM documento d WHERE d.projeto_id = p.id), 0) AS documentos_count
       FROM projeto p
@@ -199,13 +203,15 @@ export class ProjectsRepository {
     try {
       await client.query("BEGIN");
 
-      const existingProject = await this.findById(id);
+      const existingProject = (await client.query<Project>("SELECT * FROM projeto WHERE id = $1 FOR UPDATE", [id])).rows[0];
       if (!existingProject) {
         await client.query("ROLLBACK");
         return null;
       }
 
       const updates: string[] = [];
+      if (existingProject.status === "arquivado") throw new ArchiveConflict("Projeto arquivado está disponível apenas para leitura.");
+      if (String(data.status) === "arquivado") throw new ArchiveConflict("Use a ação de arquivamento com prévia e confirmação.");
       const values: unknown[] = [];
       let valIndex = 1;
 
@@ -285,25 +291,29 @@ export class ProjectsRepository {
     }
   }
 
-  async archive(id: string, usuarioId?: string | null, justificativa?: string): Promise<ProjectWithStats | null> {
+  async archive(id: string, usuarioId?: string | null, justificativa?: string, expected?: ArchiveImpact): Promise<ProjectWithStats | null> {
     const client: PoolClient = await this.pool.connect();
 
     try {
       await client.query("BEGIN");
 
-      const existingProject = await this.findById(id);
+      // Keep preview validation, cascade and audit atomic, including concurrent
+      // child inserts. All hierarchy writers wait until this transaction ends.
+      await client.query("LOCK TABLE projeto, epico, feature, pbi IN SHARE ROW EXCLUSIVE MODE");
+      const existingProject = (await client.query<Project>("SELECT * FROM projeto WHERE id = $1 FOR UPDATE", [id])).rows[0];
       if (!existingProject) {
         await client.query("ROLLBACK");
         return null;
       }
 
-      const impactResult = await client.query<{ epicos: number; features: number; pbis: number }>(`
-        SELECT
-          (SELECT COUNT(*)::int FROM epico WHERE projeto_id = $1) AS epicos,
-          (SELECT COUNT(*)::int FROM feature f JOIN epico e ON e.id = f.epico_id WHERE e.projeto_id = $1) AS features,
-          (SELECT COUNT(*)::int FROM pbi p JOIN feature f ON f.id = p.feature_id JOIN epico e ON e.id = f.epico_id WHERE e.projeto_id = $1) AS pbis
-      `, [id]);
-      const impact = impactResult.rows[0] ?? { epicos: 0, features: 0, pbis: 0 };
+      if (existingProject.status === "arquivado") {
+        await client.query("COMMIT");
+        return existingProject;
+      }
+      const impact = (await this.archiveImpact(id, client))!;
+      if (expected && (Object.keys(impact) as (keyof ArchiveImpact)[]).some(key => impact[key] !== expected[key])) {
+        throw new ArchiveConflict("A quantidade de itens mudou. Consulte a prévia e confirme novamente.");
+      }
 
       const updateQuery = `
         UPDATE projeto
@@ -313,9 +323,9 @@ export class ProjectsRepository {
       `;
 
       await client.query(updateQuery, [id]);
-      await client.query(`UPDATE epico SET status = 'arquivado', archived_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE projeto_id = $1`, [id]);
-      await client.query(`UPDATE feature SET status = 'arquivado', archived_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE epico_id IN (SELECT id FROM epico WHERE projeto_id = $1)`, [id]);
-      await client.query(`UPDATE pbi SET status = 'arquivado', archived_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE feature_id IN (SELECT f.id FROM feature f JOIN epico e ON e.id = f.epico_id WHERE e.projeto_id = $1)`, [id]);
+      await client.query(`UPDATE epico SET status = 'arquivado', archived_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE projeto_id = $1 AND status != 'arquivado'`, [id]);
+      await client.query(`UPDATE feature SET status = 'arquivado', archived_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE epico_id IN (SELECT id FROM epico WHERE projeto_id = $1) AND status != 'arquivado'`, [id]);
+      await client.query(`UPDATE pbi SET status = 'arquivado', archived_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE feature_id IN (SELECT f.id FROM feature f JOIN epico e ON e.id = f.epico_id WHERE e.projeto_id = $1) AND status != 'arquivado'`, [id]);
 
       await auditService.record(
         {
@@ -327,7 +337,7 @@ export class ProjectsRepository {
           dados_json: {
             status_anterior: existingProject.status,
             status_novo: "arquivado",
-            impacto: { projeto: 1, ...impact },
+            impacto: impact,
           },
         },
         client,

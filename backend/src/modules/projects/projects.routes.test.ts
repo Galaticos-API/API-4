@@ -19,6 +19,11 @@ import {
 class MockRepo extends ProjectsRepository {
   public projects: ProjectWithStats[] = [];
 
+  async archiveImpact(id: string) {
+    return this.projects.some(project => project.id === id)
+      ? { projeto: 1, epicos: 2, features: 3, pbis: 4 } : null;
+  }
+
   constructor() {
     super();
   }
@@ -129,6 +134,7 @@ test("Testes de integração HTTP - Rotas de Projetos", async (t) => {
   const router = express.Router();
   router.post("/", controller.create);
   router.get("/", controller.list);
+  router.get("/:id/archive-impact", controller.archiveImpact);
   router.get("/:id", controller.getById);
   router.put("/:id", controller.update);
   router.patch("/:id", controller.update);
@@ -228,11 +234,37 @@ test("Testes de integração HTTP - Rotas de Projetos", async (t) => {
     assert.equal(res.status, 404);
   });
 
+  await t.test("prévia informa contagens e retorna 404 para projeto ausente", async () => {
+    const response = await fetch(`${baseUrl}/a0000000-0000-4000-8000-000000000001/archive-impact`);
+    assert.equal(response.status, 200);
+    assert.deepEqual(await response.json(), { projeto: 1, epicos: 2, features: 3, pbis: 4 });
+    assert.equal((await fetch(`${baseUrl}/ffffffff-ffff-4fff-8fff-ffffffffffff/archive-impact`)).status, 404);
+    assert.equal((await fetch(`${baseUrl}/invalid/archive-impact`)).status, 400);
+  });
+
+  await t.test("arquivamento exige confirmação e contagens válidas", async () => {
+    for (const body of [{}, { confirmado: false }, { confirmado: true }, { confirmado: true, impacto: { projeto: 1, epicos: -1, features: 0, pbis: 0 } }]) {
+      const response = await fetch(`${baseUrl}/a0000000-0000-4000-8000-000000000001/archive`, {
+        method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
+      });
+      assert.equal(response.status, 400);
+      assert.equal(mockRepo.projects[0].status, "ativo");
+    }
+  });
+
+  await t.test("não permite contornar a confirmação via cadastro ou edição", async () => {
+    for (const [path, method] of [["", "POST"], ["/a0000000-0000-4000-8000-000000000001", "PATCH"]]) {
+      const response = await fetch(`${baseUrl}${path}`, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify({ nome: "Outro", cliente: "Teste", status: "arquivado" }) });
+      assert.equal(response.status, 400);
+    }
+    assert.equal((await fetch(`${baseUrl}?status=inexistente`)).status, 400);
+  });
+
   await t.test("PATCH /api/v1/projects/:id/archive - arquiva projeto", async () => {
     const res = await fetch(`${baseUrl}/a0000000-0000-4000-8000-000000000001/archive`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ justificativa: "Projeto concluído" }),
+      body: JSON.stringify({ confirmado: true, impacto: { projeto: 1, epicos: 0, features: 0, pbis: 0 }, justificativa: "Projeto concluído" }),
     });
 
     assert.equal(res.status, 200);

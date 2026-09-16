@@ -15,7 +15,7 @@ export const createProjectSchema = z.object({
     .min(1, "O nome do cliente é obrigatório.")
     .max(255, "O cliente não pode exceder 255 caracteres."),
   descricao: z.string().trim().optional().nullable(),
-  status: z.enum(PROJECT_STATUSES).default("ativo"),
+  status: z.enum(["ativo", "em_andamento", "concluido"]).default("ativo"),
   data_inicio: z
     .string()
     .refine((val) => !isNaN(Date.parse(val)), {
@@ -41,7 +41,7 @@ export const updateProjectSchema = z.object({
     .max(255, "O cliente não pode exceder 255 caracteres.")
     .optional(),
   descricao: z.string().trim().optional().nullable(),
-  status: z.enum(PROJECT_STATUSES).optional(),
+  status: z.enum(["ativo", "em_andamento", "concluido"]).optional(),
   data_inicio: z
     .string()
     .refine((val) => !isNaN(Date.parse(val)), {
@@ -55,7 +55,7 @@ export const updateProjectSchema = z.object({
 export type UpdateProjectDTO = z.infer<typeof updateProjectSchema>;
 
 export const projectQuerySchema = z.object({
-  status: z.string().optional(),
+  status: z.enum([...PROJECT_STATUSES, "todos"]).optional(),
   busca: z.string().trim().optional(),
   limit: z.coerce.number().int().min(1).max(100).default(50),
   offset: z.coerce.number().int().min(0).default(0),
@@ -73,6 +73,7 @@ export interface Project {
   data_inicio: Date | string | null;
   created_at: Date | string;
   updated_at: Date | string;
+  archived_at?: Date | string | null;
 }
 
 export interface ProjectWithStats extends Project {
