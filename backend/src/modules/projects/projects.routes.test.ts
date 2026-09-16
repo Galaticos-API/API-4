@@ -118,7 +118,9 @@ class MockRepo extends ProjectsRepository {
   }
 }
 
-test("Testes de integração HTTP - Rotas de Projetos", async (t) => {
+import { requireAuth, requireRole } from "../../middleware/auth.middleware.js";
+
+test("Testes de integração HTTP - Rotas de Projetos e Autorização de Papéis", async (t) => {
   const mockRepo = new MockRepo();
   const service = new ProjectsService(mockRepo);
   const controller = new ProjectsController(service);
@@ -127,18 +129,31 @@ test("Testes de integração HTTP - Rotas de Projetos", async (t) => {
   testApp.use(express.json());
 
   const router = express.Router();
-  router.post("/", controller.create);
+  router.use(requireAuth);
+  router.post("/", requireRole("po", "admin"), controller.create);
   router.get("/", controller.list);
   router.get("/:id", controller.getById);
-  router.put("/:id", controller.update);
-  router.patch("/:id", controller.update);
-  router.patch("/:id/archive", controller.archive);
+  router.put("/:id", requireRole("po", "admin"), controller.update);
+  router.patch("/:id", requireRole("po", "admin"), controller.update);
+  router.patch("/:id/archive", requireRole("po", "admin"), controller.archive);
 
   testApp.use("/api/v1/projects", router);
   testApp.use(errorHandler);
 
   let server: Server;
   let baseUrl: string;
+
+  const poHeaders = {
+    "Content-Type": "application/json",
+    "x-user-id": "11111111-1111-4111-8111-111111111111",
+    "x-user-role": "po",
+  };
+
+  const devHeaders = {
+    "Content-Type": "application/json",
+    "x-user-id": "22222222-2222-4222-8222-222222222222",
+    "x-user-role": "dev",
+  };
 
   before(async () => {
     await new Promise<void>((resolve) => {
@@ -156,10 +171,103 @@ test("Testes de integração HTTP - Rotas de Projetos", async (t) => {
     });
   });
 
-  await t.test("POST /api/v1/projects - cria projeto com status 201", async () => {
+  // --- Testes de Autenticação (401) ---
+  await t.test("POST /api/v1/projects - retorna 401 para requisição não autenticada", async () => {
     const res = await fetch(baseUrl, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        nome: "Projeto Sem Auth",
+        cliente: "Cliente Anônimo",
+      }),
+    });
+
+    assert.equal(res.status, 401);
+    const body = (await res.json()) as { error: string; code: string };
+    assert.equal(body.code, "UNAUTHORIZED");
+  });
+
+  await t.test("GET /api/v1/projects - retorna 401 para requisição não autenticada", async () => {
+    const res = await fetch(baseUrl);
+    assert.equal(res.status, 401);
+    const body = (await res.json()) as { error: string; code: string };
+    assert.equal(body.code, "UNAUTHORIZED");
+  });
+
+  // --- Testes de Restrição de Perfil Desenvolvedor (403 em escrita) ---
+  await t.test("POST /api/v1/projects - retorna 403 para perfil dev tentando criar projeto", async () => {
+    const res = await fetch(baseUrl, {
+      method: "POST",
+      headers: devHeaders,
+      body: JSON.stringify({
+        nome: "Projeto Criado por Dev",
+        cliente: "Cliente Dev",
+        descricao: "Tentativa de escrita por dev",
+      }),
+    });
+
+    assert.equal(res.status, 403);
+    const body = (await res.json()) as { error: string; code: string };
+    assert.equal(body.code, "FORBIDDEN");
+    assert.match(body.error, /acesso negado/i);
+  });
+
+  await t.test("PUT /api/v1/projects/:id - retorna 403 para perfil dev tentando alterar projeto", async () => {
+    const res = await fetch(`${baseUrl}/a0000000-0000-4000-8000-000000000001`, {
+      method: "PUT",
+      headers: devHeaders,
+      body: JSON.stringify({
+        nome: "Nome Alterado por Dev",
+        cliente: "Cliente Modificado",
+      }),
+    });
+
+    assert.equal(res.status, 403);
+    const body = (await res.json()) as { error: string; code: string };
+    assert.equal(body.code, "FORBIDDEN");
+  });
+
+  await t.test("PATCH /api/v1/projects/:id - retorna 403 para perfil dev tentando atualizar parcialmente", async () => {
+    const res = await fetch(`${baseUrl}/a0000000-0000-4000-8000-000000000001`, {
+      method: "PATCH",
+      headers: devHeaders,
+      body: JSON.stringify({
+        descricao: "Tentativa de patch por dev",
+      }),
+    });
+
+    assert.equal(res.status, 403);
+    const body = (await res.json()) as { error: string; code: string };
+    assert.equal(body.code, "FORBIDDEN");
+  });
+
+  await t.test("PATCH /api/v1/projects/:id/archive - retorna 403 para perfil dev tentando arquivar", async () => {
+    const res = await fetch(`${baseUrl}/a0000000-0000-4000-8000-000000000001/archive`, {
+      method: "PATCH",
+      headers: devHeaders,
+      body: JSON.stringify({ justificativa: "Tentativa de arquivamento por dev" }),
+    });
+
+    assert.equal(res.status, 403);
+    const body = (await res.json()) as { error: string; code: string };
+    assert.equal(body.code, "FORBIDDEN");
+  });
+
+  // --- Testes de Leitura com Perfil Dev (200 OK permitido conforme regra de produto) ---
+  await t.test("GET /api/v1/projects - permite listagem com perfil dev (200 OK)", async () => {
+    const res = await fetch(baseUrl, {
+      headers: { "x-user-id": devHeaders["x-user-id"], "x-user-role": devHeaders["x-user-role"] },
+    });
+    assert.equal(res.status, 200);
+    const body = (await res.json()) as PaginatedProjects;
+    assert.ok(Array.isArray(body.items));
+  });
+
+  // --- Testes de Sucesso com Perfil Product Owner ---
+  await t.test("POST /api/v1/projects - cria projeto com status 201 quando autenticado como PO", async () => {
+    const res = await fetch(baseUrl, {
+      method: "POST",
+      headers: poHeaders,
       body: JSON.stringify({
         nome: "Novo Projeto HTTP",
         cliente: "PRO4TECH",
@@ -176,7 +284,7 @@ test("Testes de integração HTTP - Rotas de Projetos", async (t) => {
   await t.test("POST /api/v1/projects - retorna 400 se nome estiver vazio", async () => {
     const res = await fetch(baseUrl, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: poHeaders,
       body: JSON.stringify({
         nome: "",
         cliente: "PRO4TECH",
@@ -191,7 +299,7 @@ test("Testes de integração HTTP - Rotas de Projetos", async (t) => {
   await t.test("POST /api/v1/projects - retorna 409 se nome já estiver em uso por projeto ativo", async () => {
     const res = await fetch(baseUrl, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: poHeaders,
       body: JSON.stringify({
         nome: "Novo Projeto HTTP",
         cliente: "Outro Cliente",
@@ -203,35 +311,58 @@ test("Testes de integração HTTP - Rotas de Projetos", async (t) => {
     assert.equal(body.error, "Já existe um projeto ativo com este nome.");
   });
 
-  await t.test("GET /api/v1/projects - lista projetos com status 200", async () => {
-    const res = await fetch(baseUrl);
+  await t.test("GET /api/v1/projects - lista projetos com status 200 para PO", async () => {
+    const res = await fetch(baseUrl, {
+      headers: { "x-user-id": poHeaders["x-user-id"], "x-user-role": poHeaders["x-user-role"] },
+    });
     assert.equal(res.status, 200);
     const body = (await res.json()) as PaginatedProjects;
     assert.ok(Array.isArray(body.items));
     assert.equal(body.total, 1);
   });
 
-  await t.test("GET /api/v1/projects/:id - retorna 200 para projeto existente", async () => {
-    const res = await fetch(`${baseUrl}/a0000000-0000-4000-8000-000000000001`);
+  await t.test("GET /api/v1/projects/:id - retorna 200 para dev consultando projeto existente", async () => {
+    const res = await fetch(`${baseUrl}/a0000000-0000-4000-8000-000000000001`, {
+      headers: { "x-user-id": devHeaders["x-user-id"], "x-user-role": devHeaders["x-user-role"] },
+    });
     assert.equal(res.status, 200);
     const body = (await res.json()) as ProjectWithStats;
     assert.equal(body.nome, "Novo Projeto HTTP");
   });
 
   await t.test("GET /api/v1/projects/:id - retorna 400 para UUID inválido", async () => {
-    const res = await fetch(`${baseUrl}/uuid-invalido`);
+    const res = await fetch(`${baseUrl}/uuid-invalido`, {
+      headers: { "x-user-id": poHeaders["x-user-id"], "x-user-role": poHeaders["x-user-role"] },
+    });
     assert.equal(res.status, 400);
   });
 
   await t.test("GET /api/v1/projects/:id - retorna 404 para ID inexistente", async () => {
-    const res = await fetch(`${baseUrl}/ffffffff-ffff-4fff-8fff-ffffffffffff`);
+    const res = await fetch(`${baseUrl}/ffffffff-ffff-4fff-8fff-ffffffffffff`, {
+      headers: { "x-user-id": poHeaders["x-user-id"], "x-user-role": poHeaders["x-user-role"] },
+    });
     assert.equal(res.status, 404);
   });
 
-  await t.test("PATCH /api/v1/projects/:id/archive - arquiva projeto", async () => {
+  await t.test("PUT /api/v1/projects/:id - atualiza projeto com sucesso para PO", async () => {
+    const res = await fetch(`${baseUrl}/a0000000-0000-4000-8000-000000000001`, {
+      method: "PUT",
+      headers: poHeaders,
+      body: JSON.stringify({
+        nome: "Projeto Atualizado HTTP",
+        cliente: "PRO4TECH Atualizado",
+      }),
+    });
+
+    assert.equal(res.status, 200);
+    const body = (await res.json()) as ProjectWithStats;
+    assert.equal(body.nome, "Projeto Atualizado HTTP");
+  });
+
+  await t.test("PATCH /api/v1/projects/:id/archive - arquiva projeto quando autenticado como PO", async () => {
     const res = await fetch(`${baseUrl}/a0000000-0000-4000-8000-000000000001/archive`, {
       method: "PATCH",
-      headers: { "Content-Type": "application/json" },
+      headers: poHeaders,
       body: JSON.stringify({ justificativa: "Projeto concluído" }),
     });
 
