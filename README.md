@@ -63,6 +63,11 @@ Serviços disponíveis:
 - Backend: [http://localhost:3001/health](http://localhost:3001/health)
 - Frontend: [http://localhost:5173](http://localhost:5173)
 
+Para encerrar os serviços sem apagar os dados persistidos:
+```bash
+docker compose down
+```
+
 ### 4. Baixar Modelos Locais no Ollama (opcional)
 ```bash
 docker compose --profile local-ai up -d
@@ -102,9 +107,12 @@ n8n-sync validate   # Valida integridade do JSON e detecta segredos expostos
 | **Workflows n8n** | `n8n-sync validate` | Varre sintaxe e credenciais expostas |
 | **Migrations** | `cd backend && npm run migrate` | Executa migrations pendentes no Postgres |
 | **Testes Backend** | `cd backend && npm test` | Executa suíte de testes unitários/integração |
+| **Validação integrada S1** | `cd backend && npm run test:integration:s1` | Valida os fluxos HTTP com PostgreSQL real da Sprint 1 |
 | **Auditoria de Segurança** | `cd backend && npm run audit:security` | Verifica dependências de produção |
 | **Tipagem Backend** | `cd backend && npm run typecheck` | Checagem estrita de tipos TypeScript |
+| **Testes Frontend** | `cd frontend && npm test` | Executa a suíte Vitest da interface |
 | **Build Frontend** | `cd frontend && npm run build` | Valida bundle de produção da SPA |
+| **Testes do serviço de IA** | `cd ai-service && python -m unittest discover -s tests` | Executa os testes do chunker e metadados |
 
 ---
 
