@@ -71,7 +71,7 @@ Para critérios de aceitação específicos, estimativas de tamanho e dependênc
 
 **Período:** 07/09/2026 a 27/09/2026
 
-**Quantidade:** 32 tarefas
+**Quantidade:** 33 tarefas (9 PRE + 24 S1)
 
 **Meta:** entregar a hierarquia no padrão PRO4TECH, autenticação, validações determinísticas, decisões e anexos sem dependência de IA.
 
