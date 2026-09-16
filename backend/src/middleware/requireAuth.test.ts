@@ -92,6 +92,21 @@ test("requireAuth protege rotas privadas", async (t) => {
   );
 
   await t.test(
+    "não aceita cabeçalhos de identidade ou papel como autenticação",
+    async () => {
+      const response = await fetch(baseUrl, {
+        headers: {
+          "x-user-id": "id-forjado",
+          "x-user-role": "admin",
+        },
+      });
+
+      assert.equal(response.status, 401);
+      assert.equal((await response.json() as { code: string }).code, "UNAUTHORIZED");
+    },
+  );
+
+  await t.test(
     "deve retornar 401 para sessão inválida",
     async () => {
       repository.session = null;
