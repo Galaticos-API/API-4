@@ -94,6 +94,10 @@ jobs:
         working-directory: frontend
         run: npm run build
 
+      - name: Run frontend tests
+        working-directory: frontend
+        run: npm test
+
   validate-ai-service:
     name: Validate AI Service (Python / FastAPI)
     runs-on: ubuntu-latest
