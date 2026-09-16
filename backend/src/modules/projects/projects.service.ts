@@ -44,6 +44,20 @@ export class ValidationError extends AppError {
   }
 }
 
+export class UnauthorizedError extends AppError {
+  constructor(message: string = "Não autenticado. Credenciais ausentes ou inválidas.") {
+    super(message, 401, "UNAUTHORIZED");
+    this.name = "UnauthorizedError";
+  }
+}
+
+export class ForbiddenError extends AppError {
+  constructor(message: string = "Acesso negado. Perfil de usuário não possui permissão para esta operação.") {
+    super(message, 403, "FORBIDDEN");
+    this.name = "ForbiddenError";
+  }
+}
+
 export class ProjectsService {
   constructor(private readonly repository: ProjectsRepository = projectsRepository) {}
 
