@@ -11,7 +11,7 @@ export class ProjectsController {
 
   create = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const usuarioId = (req.headers["x-user-id"] as string) || null;
+      const usuarioId = req.user?.id || (req.headers["x-user-id"] as string) || null;
       const result = await this.service.create(req.body, usuarioId);
       res.status(201).json(result);
     } catch (error) {
@@ -41,7 +41,7 @@ export class ProjectsController {
   update = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const id = getParamId(req.params.id);
-      const usuarioId = (req.headers["x-user-id"] as string) || null;
+      const usuarioId = req.user?.id || (req.headers["x-user-id"] as string) || null;
       const result = await this.service.update(id, req.body, usuarioId);
       res.status(200).json(result);
     } catch (error) {
@@ -52,7 +52,7 @@ export class ProjectsController {
   archive = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const id = getParamId(req.params.id);
-      const usuarioId = (req.headers["x-user-id"] as string) || null;
+      const usuarioId = req.user?.id || (req.headers["x-user-id"] as string) || null;
       const justificativa = (req.body?.justificativa as string) || undefined;
       const result = await this.service.archive(id, usuarioId, justificativa);
       res.status(200).json(result);
