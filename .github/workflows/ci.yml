@@ -14,6 +14,45 @@ on:
       - develop
 
 jobs:
+  validate-seed:
+    name: Validate curated seed on PostgreSQL
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: seed_test
+          POSTGRES_PASSWORD: seed_test_only
+          POSTGRES_DB: sinapse_seed_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U seed_test -d sinapse_seed_test"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      NODE_ENV: test
+      POSTGRES_HOST: localhost
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: seed_test
+      POSTGRES_PASSWORD: seed_test_only
+      POSTGRES_DB: sinapse_seed_test
+      SEED_TEST_DATABASE_URL: postgresql://seed_test:seed_test_only@localhost:5432/sinapse_seed_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - run: npm ci
+        working-directory: backend
+      - run: npm run migrate
+        working-directory: backend
+      - run: npm run seed:validate
+        working-directory: backend
+      - run: npm run test:seed
+        working-directory: backend
+
   validate-environment:
     name: Validate Workflows and Docker Setup
     runs-on: ubuntu-latest

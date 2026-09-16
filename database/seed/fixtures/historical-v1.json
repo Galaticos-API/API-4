@@ -1,0 +1,387 @@
+{
+  "dataset": "pre06-historical-v1",
+  "version": 1,
+  "source_decision": {
+    "selected_by": "Solicitante da PRE-06 nesta tarefa",
+    "decision": "Usar documentação dos projetos API-1, API-2 e API-3, conforme confirmação explícita.",
+    "date": "2026-09-14",
+    "review": "pending_pull_request"
+  },
+  "records": [
+    {
+      "table": "projeto",
+      "values": {
+        "id": "60000000-0000-4000-8000-000000000001",
+        "nome": "PRE06 — Acervo API-1",
+        "cliente": "Organização não identificada",
+        "descricao": "Recorte documental curado do projeto API-1; não é cópia integral nem avaliação de pessoas.",
+        "status": "ativo"
+      },
+      "source": {
+        "repository": "https://github.com/Galaticos-API/API-1",
+        "revision": "1edd3096e46cb1cb9c794dbaec887a83487c0e97",
+        "path": "readme.md",
+        "source_sha256": "a1591b42d9f7c266e6be7cfec43bf0ec06164c56ee8d22933dedb3a4c227a37c",
+        "classification": "curated-public-documentation",
+        "transformation": "Resumo em português; dados pessoais, autores, contatos, clientes e anexos excluídos.",
+        "source_kind": "historical",
+        "locator": "Backlog 23",
+        "url": "https://github.com/Galaticos-API/API-1/blob/1edd3096e46cb1cb9c794dbaec887a83487c0e97/readme.md#L68"
+      }
+    },
+    {
+      "table": "documento",
+      "values": {
+        "id": "60000000-0000-4000-8000-000000000002",
+        "projeto_id": "60000000-0000-4000-8000-000000000001",
+        "nome": "API-1 — Acesso administrativo",
+        "mime": "text/markdown",
+        "caminho": "database/seed/curated/api-1-backlog-23.md",
+        "status_processamento": "pendente"
+      },
+      "source": {
+        "repository": "https://github.com/Galaticos-API/API-1",
+        "revision": "1edd3096e46cb1cb9c794dbaec887a83487c0e97",
+        "path": "readme.md",
+        "source_sha256": "a1591b42d9f7c266e6be7cfec43bf0ec06164c56ee8d22933dedb3a4c227a37c",
+        "classification": "curated-public-documentation",
+        "transformation": "Resumo em português; dados pessoais, autores, contatos, clientes e anexos excluídos.",
+        "source_kind": "historical",
+        "locator": "Backlog 23",
+        "url": "https://github.com/Galaticos-API/API-1/blob/1edd3096e46cb1cb9c794dbaec887a83487c0e97/readme.md#L68"
+      }
+    },
+    {
+      "table": "chunk",
+      "values": {
+        "id": "60000000-0000-4000-8000-000000000003",
+        "projeto_id": "60000000-0000-4000-8000-000000000001",
+        "entidade_tipo": "documento",
+        "entidade_id": "60000000-0000-4000-8000-000000000002",
+        "texto": "O backlog prevê login para administradores, restringindo o acesso às funcionalidades destinadas aos responsáveis.",
+        "metadados_json": {
+          "dataset": "pre06-historical-v1",
+          "source_url": "https://github.com/Galaticos-API/API-1/blob/1edd3096e46cb1cb9c794dbaec887a83487c0e97/readme.md#L68",
+          "source_revision": "1edd3096e46cb1cb9c794dbaec887a83487c0e97",
+          "source_sha256": "a1591b42d9f7c266e6be7cfec43bf0ec06164c56ee8d22933dedb3a4c227a37c",
+          "classification": "curated-public-documentation",
+          "embedding_status": "pending",
+          "individual_experience": "not_evidenced"
+        }
+      },
+      "source": {
+        "repository": "https://github.com/Galaticos-API/API-1",
+        "revision": "1edd3096e46cb1cb9c794dbaec887a83487c0e97",
+        "path": "readme.md",
+        "source_sha256": "a1591b42d9f7c266e6be7cfec43bf0ec06164c56ee8d22933dedb3a4c227a37c",
+        "classification": "curated-public-documentation",
+        "transformation": "Resumo em português; dados pessoais, autores, contatos, clientes e anexos excluídos.",
+        "source_kind": "historical",
+        "locator": "Backlog 23",
+        "url": "https://github.com/Galaticos-API/API-1/blob/1edd3096e46cb1cb9c794dbaec887a83487c0e97/readme.md#L68"
+      }
+    },
+    {
+      "table": "documento",
+      "values": {
+        "id": "60000000-0000-4000-8000-000000000004",
+        "projeto_id": "60000000-0000-4000-8000-000000000001",
+        "nome": "API-1 — Métricas de equipe em gráficos",
+        "mime": "text/markdown",
+        "caminho": "database/seed/curated/api-1-backlog-35.md",
+        "status_processamento": "pendente"
+      },
+      "source": {
+        "repository": "https://github.com/Galaticos-API/API-1",
+        "revision": "1edd3096e46cb1cb9c794dbaec887a83487c0e97",
+        "path": "readme.md",
+        "source_sha256": "a1591b42d9f7c266e6be7cfec43bf0ec06164c56ee8d22933dedb3a4c227a37c",
+        "classification": "curated-public-documentation",
+        "transformation": "Resumo em português; dados pessoais, autores, contatos, clientes e anexos excluídos.",
+        "source_kind": "historical",
+        "locator": "Backlog 35",
+        "url": "https://github.com/Galaticos-API/API-1/blob/1edd3096e46cb1cb9c794dbaec887a83487c0e97/readme.md#L74"
+      }
+    },
+    {
+      "table": "chunk",
+      "values": {
+        "id": "60000000-0000-4000-8000-000000000005",
+        "projeto_id": "60000000-0000-4000-8000-000000000001",
+        "entidade_tipo": "documento",
+        "entidade_id": "60000000-0000-4000-8000-000000000004",
+        "texto": "O backlog prevê gráficos de avaliação para apoiar a análise do desempenho de equipes.",
+        "metadados_json": {
+          "dataset": "pre06-historical-v1",
+          "source_url": "https://github.com/Galaticos-API/API-1/blob/1edd3096e46cb1cb9c794dbaec887a83487c0e97/readme.md#L74",
+          "source_revision": "1edd3096e46cb1cb9c794dbaec887a83487c0e97",
+          "source_sha256": "a1591b42d9f7c266e6be7cfec43bf0ec06164c56ee8d22933dedb3a4c227a37c",
+          "classification": "curated-public-documentation",
+          "embedding_status": "pending",
+          "individual_experience": "not_evidenced"
+        }
+      },
+      "source": {
+        "repository": "https://github.com/Galaticos-API/API-1",
+        "revision": "1edd3096e46cb1cb9c794dbaec887a83487c0e97",
+        "path": "readme.md",
+        "source_sha256": "a1591b42d9f7c266e6be7cfec43bf0ec06164c56ee8d22933dedb3a4c227a37c",
+        "classification": "curated-public-documentation",
+        "transformation": "Resumo em português; dados pessoais, autores, contatos, clientes e anexos excluídos.",
+        "source_kind": "historical",
+        "locator": "Backlog 35",
+        "url": "https://github.com/Galaticos-API/API-1/blob/1edd3096e46cb1cb9c794dbaec887a83487c0e97/readme.md#L74"
+      }
+    },
+    {
+      "table": "projeto",
+      "values": {
+        "id": "60000000-0000-4000-8000-000000000006",
+        "nome": "PRE06 — Acervo API-2",
+        "cliente": "Organização não identificada",
+        "descricao": "Recorte documental curado do projeto API-2; não é cópia integral nem avaliação de pessoas.",
+        "status": "ativo"
+      },
+      "source": {
+        "repository": "https://github.com/Galaticos-API/API-2",
+        "revision": "e568684bc66a8a339a04a1f091d9599754d21cf6",
+        "path": "DOCS/Documentação das Sprints/DocSprint1.md",
+        "source_sha256": "b64e0422210a7799af4519a3a0d21406920ef46169a1b3424888544ba584150c",
+        "classification": "curated-public-documentation",
+        "transformation": "Resumo em português; dados pessoais, autores, contatos, clientes e anexos excluídos.",
+        "source_kind": "historical",
+        "locator": "US-01",
+        "url": "https://github.com/Galaticos-API/API-2/blob/e568684bc66a8a339a04a1f091d9599754d21cf6/DOCS/Documenta%C3%A7%C3%A3o%20das%20Sprints/DocSprint1.md#L43"
+      }
+    },
+    {
+      "table": "documento",
+      "values": {
+        "id": "60000000-0000-4000-8000-000000000007",
+        "projeto_id": "60000000-0000-4000-8000-000000000006",
+        "nome": "API-2 — Administrar acesso de usuários",
+        "mime": "text/markdown",
+        "caminho": "database/seed/curated/api-2-us-01.md",
+        "status_processamento": "pendente"
+      },
+      "source": {
+        "repository": "https://github.com/Galaticos-API/API-2",
+        "revision": "e568684bc66a8a339a04a1f091d9599754d21cf6",
+        "path": "DOCS/Documentação das Sprints/DocSprint1.md",
+        "source_sha256": "b64e0422210a7799af4519a3a0d21406920ef46169a1b3424888544ba584150c",
+        "classification": "curated-public-documentation",
+        "transformation": "Resumo em português; dados pessoais, autores, contatos, clientes e anexos excluídos.",
+        "source_kind": "historical",
+        "locator": "US-01",
+        "url": "https://github.com/Galaticos-API/API-2/blob/e568684bc66a8a339a04a1f091d9599754d21cf6/DOCS/Documenta%C3%A7%C3%A3o%20das%20Sprints/DocSprint1.md#L43"
+      }
+    },
+    {
+      "table": "chunk",
+      "values": {
+        "id": "60000000-0000-4000-8000-000000000008",
+        "projeto_id": "60000000-0000-4000-8000-000000000006",
+        "entidade_tipo": "documento",
+        "entidade_id": "60000000-0000-4000-8000-000000000007",
+        "texto": "A documentação da primeira sprint descreve cadastro, consulta, edição e inativação de usuários pelo RH para administrar o acesso à plataforma.",
+        "metadados_json": {
+          "dataset": "pre06-historical-v1",
+          "source_url": "https://github.com/Galaticos-API/API-2/blob/e568684bc66a8a339a04a1f091d9599754d21cf6/DOCS/Documenta%C3%A7%C3%A3o%20das%20Sprints/DocSprint1.md#L43",
+          "source_revision": "e568684bc66a8a339a04a1f091d9599754d21cf6",
+          "source_sha256": "b64e0422210a7799af4519a3a0d21406920ef46169a1b3424888544ba584150c",
+          "classification": "curated-public-documentation",
+          "embedding_status": "pending",
+          "individual_experience": "not_evidenced"
+        }
+      },
+      "source": {
+        "repository": "https://github.com/Galaticos-API/API-2",
+        "revision": "e568684bc66a8a339a04a1f091d9599754d21cf6",
+        "path": "DOCS/Documentação das Sprints/DocSprint1.md",
+        "source_sha256": "b64e0422210a7799af4519a3a0d21406920ef46169a1b3424888544ba584150c",
+        "classification": "curated-public-documentation",
+        "transformation": "Resumo em português; dados pessoais, autores, contatos, clientes e anexos excluídos.",
+        "source_kind": "historical",
+        "locator": "US-01",
+        "url": "https://github.com/Galaticos-API/API-2/blob/e568684bc66a8a339a04a1f091d9599754d21cf6/DOCS/Documenta%C3%A7%C3%A3o%20das%20Sprints/DocSprint1.md#L43"
+      }
+    },
+    {
+      "table": "documento",
+      "values": {
+        "id": "60000000-0000-4000-8000-000000000009",
+        "projeto_id": "60000000-0000-4000-8000-000000000006",
+        "nome": "API-2 — Registrar plano individual por ano",
+        "mime": "text/markdown",
+        "caminho": "database/seed/curated/api-2-us-02.md",
+        "status_processamento": "pendente"
+      },
+      "source": {
+        "repository": "https://github.com/Galaticos-API/API-2",
+        "revision": "e568684bc66a8a339a04a1f091d9599754d21cf6",
+        "path": "DOCS/Documentação das Sprints/DocSprint1.md",
+        "source_sha256": "b64e0422210a7799af4519a3a0d21406920ef46169a1b3424888544ba584150c",
+        "classification": "curated-public-documentation",
+        "transformation": "Resumo em português; dados pessoais, autores, contatos, clientes e anexos excluídos.",
+        "source_kind": "historical",
+        "locator": "US-02",
+        "url": "https://github.com/Galaticos-API/API-2/blob/e568684bc66a8a339a04a1f091d9599754d21cf6/DOCS/Documenta%C3%A7%C3%A3o%20das%20Sprints/DocSprint1.md#L44"
+      }
+    },
+    {
+      "table": "chunk",
+      "values": {
+        "id": "60000000-0000-4000-8000-000000000010",
+        "projeto_id": "60000000-0000-4000-8000-000000000006",
+        "entidade_tipo": "documento",
+        "entidade_id": "60000000-0000-4000-8000-000000000009",
+        "texto": "A documentação descreve criação de um plano de desenvolvimento individual associado a um colaborador e a um ano, preservando o histórico de planos.",
+        "metadados_json": {
+          "dataset": "pre06-historical-v1",
+          "source_url": "https://github.com/Galaticos-API/API-2/blob/e568684bc66a8a339a04a1f091d9599754d21cf6/DOCS/Documenta%C3%A7%C3%A3o%20das%20Sprints/DocSprint1.md#L44",
+          "source_revision": "e568684bc66a8a339a04a1f091d9599754d21cf6",
+          "source_sha256": "b64e0422210a7799af4519a3a0d21406920ef46169a1b3424888544ba584150c",
+          "classification": "curated-public-documentation",
+          "embedding_status": "pending",
+          "individual_experience": "not_evidenced"
+        }
+      },
+      "source": {
+        "repository": "https://github.com/Galaticos-API/API-2",
+        "revision": "e568684bc66a8a339a04a1f091d9599754d21cf6",
+        "path": "DOCS/Documentação das Sprints/DocSprint1.md",
+        "source_sha256": "b64e0422210a7799af4519a3a0d21406920ef46169a1b3424888544ba584150c",
+        "classification": "curated-public-documentation",
+        "transformation": "Resumo em português; dados pessoais, autores, contatos, clientes e anexos excluídos.",
+        "source_kind": "historical",
+        "locator": "US-02",
+        "url": "https://github.com/Galaticos-API/API-2/blob/e568684bc66a8a339a04a1f091d9599754d21cf6/DOCS/Documenta%C3%A7%C3%A3o%20das%20Sprints/DocSprint1.md#L44"
+      }
+    },
+    {
+      "table": "projeto",
+      "values": {
+        "id": "60000000-0000-4000-8000-000000000011",
+        "nome": "PRE06 — Acervo API-3",
+        "cliente": "Organização não identificada",
+        "descricao": "Recorte documental curado do projeto API-3; não é cópia integral nem avaliação de pessoas.",
+        "status": "ativo"
+      },
+      "source": {
+        "repository": "https://github.com/Galaticos-API/API-3",
+        "revision": "34f1cc21825f9c392dcd776d6567fba2288b2e81",
+        "path": "DOCS/analise_backend/analiseRequisitosBackend.md",
+        "source_sha256": "a608ea5aa562682ae2c236ede3eca07b092622602c03928a726347ffe5c1cf9b",
+        "classification": "curated-public-documentation",
+        "transformation": "Resumo em português; dados pessoais, autores, contatos, clientes e anexos excluídos.",
+        "source_kind": "historical",
+        "locator": "GRF-01",
+        "url": "https://github.com/Galaticos-API/API-3/blob/34f1cc21825f9c392dcd776d6567fba2288b2e81/DOCS/analise_backend/analiseRequisitosBackend.md#L6"
+      }
+    },
+    {
+      "table": "documento",
+      "values": {
+        "id": "60000000-0000-4000-8000-000000000012",
+        "projeto_id": "60000000-0000-4000-8000-000000000011",
+        "nome": "API-3 — Visualizar saldo de crédito nacional",
+        "mime": "text/markdown",
+        "caminho": "database/seed/curated/api-3-grf-01.md",
+        "status_processamento": "pendente"
+      },
+      "source": {
+        "repository": "https://github.com/Galaticos-API/API-3",
+        "revision": "34f1cc21825f9c392dcd776d6567fba2288b2e81",
+        "path": "DOCS/analise_backend/analiseRequisitosBackend.md",
+        "source_sha256": "a608ea5aa562682ae2c236ede3eca07b092622602c03928a726347ffe5c1cf9b",
+        "classification": "curated-public-documentation",
+        "transformation": "Resumo em português; dados pessoais, autores, contatos, clientes e anexos excluídos.",
+        "source_kind": "historical",
+        "locator": "GRF-01",
+        "url": "https://github.com/Galaticos-API/API-3/blob/34f1cc21825f9c392dcd776d6567fba2288b2e81/DOCS/analise_backend/analiseRequisitosBackend.md#L6"
+      }
+    },
+    {
+      "table": "chunk",
+      "values": {
+        "id": "60000000-0000-4000-8000-000000000013",
+        "projeto_id": "60000000-0000-4000-8000-000000000011",
+        "entidade_tipo": "documento",
+        "entidade_id": "60000000-0000-4000-8000-000000000012",
+        "texto": "A análise de requisitos prevê gráfico de linha do saldo nacional de crédito, usando as séries 20539, 20540 e 20541.",
+        "metadados_json": {
+          "dataset": "pre06-historical-v1",
+          "source_url": "https://github.com/Galaticos-API/API-3/blob/34f1cc21825f9c392dcd776d6567fba2288b2e81/DOCS/analise_backend/analiseRequisitosBackend.md#L6",
+          "source_revision": "34f1cc21825f9c392dcd776d6567fba2288b2e81",
+          "source_sha256": "a608ea5aa562682ae2c236ede3eca07b092622602c03928a726347ffe5c1cf9b",
+          "classification": "curated-public-documentation",
+          "embedding_status": "pending",
+          "individual_experience": "not_evidenced"
+        }
+      },
+      "source": {
+        "repository": "https://github.com/Galaticos-API/API-3",
+        "revision": "34f1cc21825f9c392dcd776d6567fba2288b2e81",
+        "path": "DOCS/analise_backend/analiseRequisitosBackend.md",
+        "source_sha256": "a608ea5aa562682ae2c236ede3eca07b092622602c03928a726347ffe5c1cf9b",
+        "classification": "curated-public-documentation",
+        "transformation": "Resumo em português; dados pessoais, autores, contatos, clientes e anexos excluídos.",
+        "source_kind": "historical",
+        "locator": "GRF-01",
+        "url": "https://github.com/Galaticos-API/API-3/blob/34f1cc21825f9c392dcd776d6567fba2288b2e81/DOCS/analise_backend/analiseRequisitosBackend.md#L6"
+      }
+    },
+    {
+      "table": "documento",
+      "values": {
+        "id": "60000000-0000-4000-8000-000000000014",
+        "projeto_id": "60000000-0000-4000-8000-000000000011",
+        "nome": "API-3 — Comparar oportunidades por estado",
+        "mime": "text/markdown",
+        "caminho": "database/seed/curated/api-3-grf-08.md",
+        "status_processamento": "pendente"
+      },
+      "source": {
+        "repository": "https://github.com/Galaticos-API/API-3",
+        "revision": "34f1cc21825f9c392dcd776d6567fba2288b2e81",
+        "path": "DOCS/analise_backend/analiseRequisitosBackend.md",
+        "source_sha256": "a608ea5aa562682ae2c236ede3eca07b092622602c03928a726347ffe5c1cf9b",
+        "classification": "curated-public-documentation",
+        "transformation": "Resumo em português; dados pessoais, autores, contatos, clientes e anexos excluídos.",
+        "source_kind": "historical",
+        "locator": "GRF-08",
+        "url": "https://github.com/Galaticos-API/API-3/blob/34f1cc21825f9c392dcd776d6567fba2288b2e81/DOCS/analise_backend/analiseRequisitosBackend.md#L13"
+      }
+    },
+    {
+      "table": "chunk",
+      "values": {
+        "id": "60000000-0000-4000-8000-000000000015",
+        "projeto_id": "60000000-0000-4000-8000-000000000011",
+        "entidade_tipo": "documento",
+        "entidade_id": "60000000-0000-4000-8000-000000000014",
+        "texto": "A análise de requisitos prevê gráfico de barras do índice de oportunidade, com pontuação entre zero e dez e ordenação por estado.",
+        "metadados_json": {
+          "dataset": "pre06-historical-v1",
+          "source_url": "https://github.com/Galaticos-API/API-3/blob/34f1cc21825f9c392dcd776d6567fba2288b2e81/DOCS/analise_backend/analiseRequisitosBackend.md#L13",
+          "source_revision": "34f1cc21825f9c392dcd776d6567fba2288b2e81",
+          "source_sha256": "a608ea5aa562682ae2c236ede3eca07b092622602c03928a726347ffe5c1cf9b",
+          "classification": "curated-public-documentation",
+          "embedding_status": "pending",
+          "individual_experience": "not_evidenced"
+        }
+      },
+      "source": {
+        "repository": "https://github.com/Galaticos-API/API-3",
+        "revision": "34f1cc21825f9c392dcd776d6567fba2288b2e81",
+        "path": "DOCS/analise_backend/analiseRequisitosBackend.md",
+        "source_sha256": "a608ea5aa562682ae2c236ede3eca07b092622602c03928a726347ffe5c1cf9b",
+        "classification": "curated-public-documentation",
+        "transformation": "Resumo em português; dados pessoais, autores, contatos, clientes e anexos excluídos.",
+        "source_kind": "historical",
+        "locator": "GRF-08",
+        "url": "https://github.com/Galaticos-API/API-3/blob/34f1cc21825f9c392dcd776d6567fba2288b2e81/DOCS/analise_backend/analiseRequisitosBackend.md#L13"
+      }
+    }
+  ]
+}

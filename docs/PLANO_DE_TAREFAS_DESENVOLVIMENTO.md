@@ -8,9 +8,9 @@
 
 **Base funcional:** Backlog de Produto v1.1 (08/09/2026), 6 épicos, 18 features e 66 PBIs
 
-**Estado do código analisado:** `main` no commit `237cd50`
+**Estado do código analisado:** `main` no commit `c776043`
 
-**Distribuição:** exatamente 3 sprints; 67 tarefas técnicas (32 / 18 / 17)
+**Distribuição:** exatamente 3 sprints; 71 tarefas técnicas (33 / 21 / 17)
 
 ## 1. Objetivo deste plano
 
@@ -135,14 +135,14 @@ funcionais dependentes; ele não representa uma quarta sprint nem uma etapa exte
 | ID | Prioridade | Situação Técnica | Tarefa | Evidência / Resultado verificável | Dependências | Tam. | Etiquetas |
 |---|---|---|---|---|---|:---:|---|
 | PRE-01 | Bloqueante | Concluída | Registrar decisões Q1-Q5 com a PRO4TECH | Decisões registradas no backlog v1.1 e quadro | — | P | Docs, Produto |
-| PRE-02 | Bloqueante | Em andamento | Adotar migrations versionadas e corrigir o schema | Migrations e runner Node em backend/src/database/migrate.ts; pendente validação em banco ativo | PRE-01 | G | Banco, Backend |
-| PRE-03 | Must | Em andamento | Definir contrato HTTP Node-Python-n8n | Contrato OpenAPI versionado em docs/api/openapi.yaml | PRE-01 | M | Backend, IA/RAG, n8n |
-| PRE-04 | Must | Em andamento | Criar fundação de testes | Scripts npm test e CI configurados; pendente cobertura de testes de integração | — | M | QA, CI |
+| PRE-02 | Bloqueante | Concluída | Adotar migrations versionadas e corrigir o schema | Migrations 001–004 e runner Node executados e registrados no banco ativo | PRE-01 | G | Banco, Backend |
+| PRE-03 | Must | Concluída | Definir contrato HTTP Node-Python-n8n | Contrato OpenAPI versionado em docs/api/openapi.yaml | PRE-01 | M | Backend, IA/RAG, n8n |
+| PRE-04 | Must | Concluída | Criar fundação de testes | Suites de backend, frontend e IA executadas pela CI; o runner do backend descobre testes recursivamente (47 testes atuais). Revisão independente concluída | — | M | QA, CI |
 | PRE-05 | Must | Pendente | Criar design system e protótipo navegável da Sprint 1 | Entrega de UX/protótipo depende do responsável de Design | PRE-01 | G | UX, Frontend |
-| PRE-06 | Must | Em andamento | Preparar seed inicial e política de dados | Seed fictício idempotente criado em database/seed/dev_seed.sql | — | G | Banco, QA, Docs |
+| PRE-06 | Must | Concluída | Preparar seed inicial e política de dados | Seed fictício executado duas vezes sem duplicidade; contagens esperadas validadas | — | G | Banco, QA, Docs |
 | PRE-07 | Must | Concluída | Executar spike de embeddings PT-BR | Spike executado; modelo BAAI/bge-m3 (1024 dimensões) validado em docs/Spike Embeddings.md | PRE-06 | M | IA/RAG, QA |
 | PRE-08 | Must | Concluída | Triar vulnerabilidades do backend | Auditoria de produção limpa com override de dependências no backend | PRE-04 | P | Backend, Segurança |
-| PRE-09 | Must | Bloqueada | Validar ambiente completo em máquina com Docker | Requer Docker/WSL 2 ativo para validação do ambiente integrado | PRE-02, PRE-03 | M | DevOps, QA |
+| PRE-09 | Must | Concluída | Validar ambiente completo em máquina com Docker | Compose validado; imagens reconstruídas e PostgreSQL, backend, frontend e n8n operacionais | PRE-02, PRE-03 | M | DevOps, QA |
 
 ## 7. Sprint 1 — implementação funcional — 07/09 a 27/09
 
@@ -241,10 +241,10 @@ administração, concluindo o produto para a apresentação final.
 
 | Sprint | PBIs do produto | Tarefas técnicas | Situação neste plano |
 |:---:|:---:|:---:|---|
-| 1 | 28 | 32 | Todos referenciados em PRE-01 a PRE-09 e S1-01 a S1-23 |
-| 2 | 18 | 18 | Todos referenciados em S2-01 a S2-18 |
+| 1 | 28 | 33 | Todos referenciados em PRE-01 a PRE-09 e S1-01 a S1-24 |
+| 2 | 18 | 21 | Todos referenciados em S2-01 a S2-21 |
 | 3 | 17 | 17 | Todos referenciados em S3-01 a S3-17 |
-| **Total** | **63** | **67** | **Cobertura completa, sem atribuição individual** |
+| **Total** | **63** | **71** | **Cobertura completa, sem atribuição individual** |
 
 As tarefas PRE e as tarefas de integração não acrescentam funcionalidades ao produto; são
 habilitadores e controles de qualidade necessários para que os PBIs satisfaçam a Definição de
@@ -265,7 +265,38 @@ Pronto.
 7. **Segurança transversal:** autenticação não basta; autorização por papel e por projeto deve
    existir em cada consulta, busca, documento e chat.
 
-## 12. Próxima etapa — painel Scrum no Trello
+## 12. Operação do Scrum Master no Trello
+
+O Trello é a fonte de verdade do estado operacional; este documento preserva escopo,
+dependências e rastreabilidade. O burndown da Sprint 1 é acompanhado no Power-Up Corrello,
+com a lista `1️⃣ Sprint 1 — Backlog` como origem da sprint e `✅ Concluído` como lista de
+conclusão.
+
+### Rito diário
+
+1. Conferir no burndown a variação entre a linha real e a ideal e registrar a causa de
+   qualquer desvio relevante.
+2. Verificar os cartões em `🏃 Em andamento`, `👀 Revisão de código` e `🧪 Teste e Validação`;
+   priorizar a remoção de bloqueios e a finalização antes de iniciar novo trabalho.
+3. Confirmar que todo cartão em revisão ou teste possui evidência verificável (PR, commit,
+   resultado de teste ou roteiro de validação) e que sua dependência ainda está satisfeita.
+4. Manter itens `Should` e `Could` fora de andamento enquanto houver item `Must` bloqueante
+   da sprint.
+
+### Critérios de movimentação
+
+- `Sprint N — Backlog`: item selecionado para a sprint, ainda não iniciado.
+- `Em andamento`: responsável definido, dependências disponíveis e trabalho iniciado.
+- `Revisão de código`: implementação submetida e verificável; não representa entrega pronta.
+- `Teste e Validação`: revisão concluída e cenário de aceitação disponível para validação.
+- `Concluído`: atende a Definição de Pronto global, tem evidência técnica e não possui
+  impedimento conhecido.
+
+Um bloqueio que impeça avanço deve ser registrado em `Decisões/Bloqueios` (ou como etiqueta e
+comentário no cartão, enquanto a lista não existir), com responsável pela remoção e próxima
+data de revisão. Não mover um cartão para concluído apenas para melhorar o burndown.
+
+## 13. Próxima etapa — painel Scrum no Trello
 
 Quando este plano for levado ao Trello, criar inicialmente as listas:
 

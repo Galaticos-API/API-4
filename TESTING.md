@@ -20,11 +20,11 @@ Ative-o antes de instalar dependências e executar os comandos.
 
 ## Cobertura inicial
 
-- Backend: testes existentes de configuração e de projetos, incluindo regras de
+- Backend: testes de configuração, autenticação, autorização, seed e projetos, incluindo regras de
   negócio e HTTP com repositório em memória. `scripts/test.mjs` descobre arquivos
   `src/**/*.test.ts` recursivamente sem depender da expansão de globs do shell.
   Nenhum arquivo encontrado ou falha em qualquer teste retorna código diferente de zero.
-- Frontend: Vitest, Testing Library e jsdom; ações explícitas sobre sugestões de IA,
+- Frontend: Vitest, Testing Library e jsdom; autenticação, projetos, navegação e ações explícitas sobre sugestões de IA,
   botão desabilitado, erro acessível de formulário e limites do indicador de progresso.
   Novos arquivos `*.test.ts`/`*.test.tsx` são descobertos pelo Vitest. O comando não
   permanece em modo watch e falha se não encontrar testes.
@@ -45,17 +45,19 @@ Os checks existentes de n8n, Docker Compose e auditoria do backend foram mantido
 
 ## Limites e conclusão
 
-Validação local realizada em Windows com Node.js 22 e Python 3.12: 18 testes de
-backend, 6 de frontend e 9 de IA passaram; os builds TypeScript/Vite e a compilação
-de sintaxe Python passaram. A execução Linux com Node.js 20/Python 3.11 configurada
-no workflow ainda precisa ser confirmada no GitHub. Não foi executada uma auditoria
-de segurança completa nesta tarefa.
+Após integrar a main em 16/09/2026, a validação local em Windows passou com
+52 testes de backend (1 teste de PostgreSQL ignorado localmente), 50 de frontend
+e 9 de IA. Os builds TypeScript/Vite e a compilação Python passaram. A auditoria
+das dependências de produção do backend não encontrou vulnerabilidades.
+O teste de banco exige SEED_TEST_DATABASE_URL e é executado no job
+validate-seed com PostgreSQL/pgvector; não deve ser contado como aprovado localmente.
+A CI usa Node.js 20/Python 3.11; a validação local usa Node.js 22/Python 3.12.
 
 Os PBIs referenciados orientam a expansão da suíte: completude, busca semântica,
 respostas fundamentadas e autenticação. A fundação não comprova que esses PBIs estão
 concluídos. Em particular, os testes RAG verificam o transporte do contexto, não a
-qualidade factual de um modelo real. Os testes da S1-02/S1-04 continuam em suas
-branches e serão descobertos após integração, preservando as dependências de teste.
+qualidade factual de um modelo real. Os testes de autenticação e projetos já integrados à main foram preservados,
+assim como os scripts de seed e test:integration:s1.
 
 Nenhum endpoint foi alterado; não há alteração de OpenAPI nesta tarefa.
 Para encerrar a PRE-04, confirmar uma execução remota verde dos três jobs no PR e

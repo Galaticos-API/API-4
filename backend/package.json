@@ -5,13 +5,17 @@
   "private": true,
   "main": "dist/index.js",
   "scripts": {
+    "seed:validate": "tsx src/database/seed.ts --validate",
+    "seed:apply": "tsx src/database/seed.ts --apply",
+    "test:seed": "tsx --test src/database/seed.test.ts",
     "dev": "tsx watch src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js",
     "typecheck": "tsc --noEmit",
     "migrate": "tsx src/database/migrate.ts",
     "audit:security": "npm audit --omit=dev",
-    "test": "node scripts/test.mjs"
+    "test": "node scripts/test.mjs",
+    "test:integration:s1": "tsx scripts/validate-s1.mts"
   },
   "dependencies": {
     "cors": "^2.8.5",

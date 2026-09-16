@@ -35,6 +35,17 @@
   --transition-normal: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+.auth-shell { min-height: 100vh; display: grid; place-items: center; padding: 24px; }
+.auth-card { width: 100%; max-width: 440px; padding: 32px; display: grid; gap: 18px; }
+.auth-card h1 { font-size: 1.6rem; }
+.auth-card p { color: var(--text-secondary); }
+.auth-card form { display: grid; gap: 12px; }
+.auth-card input { width: 100%; padding: 12px; border-radius: var(--radius-sm); border: 1px solid var(--border-subtle); background: var(--bg-secondary); color: var(--text-primary); font: inherit; }
+.auth-card [role="alert"] { color: #fca5a5; }
+button:focus-visible, input:focus-visible { outline: 2px solid var(--accent-secondary); outline-offset: 3px; }
+button:disabled { opacity: .6; cursor: wait; }
+@media (max-width: 900px) { header { flex-wrap: wrap; gap: 16px; } }
+
 * {
   margin: 0;
   padding: 0;

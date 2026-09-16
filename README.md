@@ -18,7 +18,7 @@ Toda a especificação técnica, backlog e decisões arquiteturais estão estrut
 | 🤖 **[Contexto Canônico de IA e Agentes](docs/AGENTS.md)** | Regras não-negociáveis para agentes autônomos e desenvolvedores (assistência estrita, proveniência e isolamento). |
 | 🛠️ **[Guia de Configuração e Ambiente](docs/SETUP_GUIDE.md)** | Passo a passo de instalação local de todas as stacks, variáveis de ambiente e portas padrão. |
 | 📋 **[Backlog de Produto (66 PBIs)](docs/backlog/README.md)** | Especificação completa dos 6 épicos e 18 features no padrão da fábrica. |
-| 📅 **[Plano de Tarefas e Execução Técnica](docs/PLANO_DE_TAREFAS_DESENVOLVIMENTO.md)** | Detalhamento operacional das 67 tarefas técnicas, estimativas, dependências e status real das PREs. |
+| 📅 **[Plano de Tarefas e Execução Técnica](docs/PLANO_DE_TAREFAS_DESENVOLVIMENTO.md)** | Detalhamento operacional das 71 tarefas técnicas, estimativas, dependências e status real das PREs. |
 | 📊 **[Planejamento Scrum por Sprint](docs/PLANEJAMENTO_SCRUM.md)** | Metas executivas de entrega divididas entre Sprint 1, 2 e 3. |
 | 🔬 **[Spike Técnico: Embeddings PT-BR](docs/Spike%20Embeddings.md)** | Relatório de validação do modelo `BAAI/bge-m3` (1024 dimensões) e índice HNSW no `pgvector`. |
 | 🔌 **[Contrato OpenAPI (Serviços)](docs/api/openapi.yaml)** | Especificação dos endpoints e schemas HTTP compartilhados entre backend, IA e n8n. |
@@ -63,6 +63,11 @@ Serviços disponíveis:
 - Backend: [http://localhost:3001/health](http://localhost:3001/health)
 - Frontend: [http://localhost:5173](http://localhost:5173)
 
+Para encerrar os serviços sem apagar os dados persistidos:
+```bash
+docker compose down
+```
+
 ### 4. Baixar Modelos Locais no Ollama (opcional)
 ```bash
 docker compose --profile local-ai up -d
@@ -102,9 +107,12 @@ n8n-sync validate   # Valida integridade do JSON e detecta segredos expostos
 | **Workflows n8n** | `n8n-sync validate` | Varre sintaxe e credenciais expostas |
 | **Migrations** | `cd backend && npm run migrate` | Executa migrations pendentes no Postgres |
 | **Testes Backend** | `cd backend && npm test` | Executa suíte de testes unitários/integração |
+| **Validação integrada S1** | `cd backend && npm run test:integration:s1` | Valida os fluxos HTTP com PostgreSQL real da Sprint 1 |
 | **Auditoria de Segurança** | `cd backend && npm run audit:security` | Verifica dependências de produção |
 | **Tipagem Backend** | `cd backend && npm run typecheck` | Checagem estrita de tipos TypeScript |
+| **Testes Frontend** | `cd frontend && npm test` | Executa a suíte Vitest da interface |
 | **Build Frontend** | `cd frontend && npm run build` | Valida bundle de produção da SPA |
+| **Testes do serviço de IA** | `cd ai-service && python -m unittest discover -s tests` | Executa os testes do chunker e metadados |
 
 ---
 
