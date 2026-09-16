@@ -11,3 +11,4 @@ projectsRouter.get("/:id", projectsController.getById);
 projectsRouter.put("/:id", canWrite, projectsController.update);
 projectsRouter.patch("/:id", canWrite, projectsController.update);
 projectsRouter.patch("/:id/archive", canWrite, projectsController.archive);
+projectsRouter.get("/:id/archive-impact", canWrite, projectsController.archiveImpact);

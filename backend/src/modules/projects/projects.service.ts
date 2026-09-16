@@ -92,6 +92,13 @@ export class ProjectsService {
     return project;
   }
 
+  async archiveImpact(id: string): Promise<{ projeto: number; epicos: number; features: number; pbis: number }> {
+    this.validateUuid(id);
+    const impact = await this.repository.archiveImpact(id);
+    if (!impact) throw new NotFoundError("Projeto não encontrado.");
+    return impact;
+  }
+
   async update(id: string, input: unknown, usuarioId?: string | null): Promise<ProjectWithStats> {
     this.validateUuid(id);
 

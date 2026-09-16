@@ -58,6 +58,16 @@ export class ProjectsRepository {
     return result.rows[0] ?? null;
   }
 
+  async archiveImpact(id: string): Promise<{ projeto: number; epicos: number; features: number; pbis: number } | null> {
+    const result = await this.pool.query<{ projeto: number; epicos: number; features: number; pbis: number }>(`
+      SELECT 1 AS projeto,
+        (SELECT COUNT(*)::int FROM epico WHERE projeto_id = $1 AND status != 'arquivado') AS epicos,
+        (SELECT COUNT(*)::int FROM feature f JOIN epico e ON e.id = f.epico_id WHERE e.projeto_id = $1 AND f.status != 'arquivado') AS features,
+        (SELECT COUNT(*)::int FROM pbi p JOIN feature f ON f.id = p.feature_id JOIN epico e ON e.id = f.epico_id WHERE e.projeto_id = $1 AND p.status != 'arquivado') AS pbis
+    `, [id]);
+    return result.rows[0] ?? null;
+  }
+
   async create(data: CreateProjectDTO, usuarioId?: string | null): Promise<Project> {
     const client: PoolClient = await this.pool.connect();
 
@@ -118,6 +128,10 @@ export class ProjectsRepository {
     const whereConditions: string[] = [];
     const params: unknown[] = [];
     let paramIndex = 1;
+
+    if (!query.status || query.status === "ativo") {
+      whereConditions.push("p.status != 'arquivado'");
+    }
 
     if (query.status && query.status !== "todos") {
       whereConditions.push(`p.status = $${paramIndex}`);
@@ -283,14 +297,25 @@ export class ProjectsRepository {
         return null;
       }
 
+      const impactResult = await client.query<{ epicos: number; features: number; pbis: number }>(`
+        SELECT
+          (SELECT COUNT(*)::int FROM epico WHERE projeto_id = $1) AS epicos,
+          (SELECT COUNT(*)::int FROM feature f JOIN epico e ON e.id = f.epico_id WHERE e.projeto_id = $1) AS features,
+          (SELECT COUNT(*)::int FROM pbi p JOIN feature f ON f.id = p.feature_id JOIN epico e ON e.id = f.epico_id WHERE e.projeto_id = $1) AS pbis
+      `, [id]);
+      const impact = impactResult.rows[0] ?? { epicos: 0, features: 0, pbis: 0 };
+
       const updateQuery = `
         UPDATE projeto
-        SET status = 'arquivado', updated_at = CURRENT_TIMESTAMP
+        SET status = 'arquivado', archived_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
         WHERE id = $1
         RETURNING *
       `;
 
       await client.query(updateQuery, [id]);
+      await client.query(`UPDATE epico SET status = 'arquivado', archived_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE projeto_id = $1`, [id]);
+      await client.query(`UPDATE feature SET status = 'arquivado', archived_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE epico_id IN (SELECT id FROM epico WHERE projeto_id = $1)`, [id]);
+      await client.query(`UPDATE pbi SET status = 'arquivado', archived_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE feature_id IN (SELECT f.id FROM feature f JOIN epico e ON e.id = f.epico_id WHERE e.projeto_id = $1)`, [id]);
 
       await auditService.record(
         {
@@ -302,6 +327,7 @@ export class ProjectsRepository {
           dados_json: {
             status_anterior: existingProject.status,
             status_novo: "arquivado",
+            impacto: { projeto: 1, ...impact },
           },
         },
         client,

@@ -60,6 +60,12 @@ export class ProjectsController {
       next(error);
     }
   };
+
+  archiveImpact = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      res.status(200).json(await this.service.archiveImpact(getParamId(req.params.id)));
+    } catch (error) { next(error); }
+  };
 }
 
 export const projectsController = new ProjectsController();
