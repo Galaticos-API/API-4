@@ -1,116 +1,13 @@
 /* ============================================================
-   Sinapse — tokens de interface
+   Sinapse — base e componentes
    ------------------------------------------------------------
-   Origem: identidade visual da PRO4TECH.
-   Cor, tipografia, raio e sombra foram lidos da folha de estilo
-   do site (assets/css/main.css), não aproximados visualmente.
-
-   As quatro cores semânticas são a única exceção: a marca não
-   publica cores de estado. Foram derivadas do laranja #ED6A32 em
-   oklch — mesma luminosidade (0.676) e croma (0.176), variando só
-   o matiz — para conviverem com o acento sem competir com ele.
-
-   Design system: docs/design/
+   Os tokens vivem em styles/tokens.css, que é a fonte única.
+   Este arquivo só define o reset, a base do documento e as classes
+   de componente. Não redefina cor aqui.
    ============================================================ */
 
-/* As fontes são carregadas em index.html, com preconnect. */
-
-:root {
-  /* --- Tipografia ---------------------------------------- */
-  --font-display: 'Public Sans', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
-
-  /* --- Marca --------------------------------------------- */
-  --laranja: #ED6A32;
-  --laranja-claro: #F1885B;
-  --laranja-300: #F4A684;
-  --laranja-200: #F8C3AD;
-  --laranja-100: #FBE1D6;
-  --gradiente-marca: linear-gradient(135deg, #F1885B 0%, #ED6A32 100%);
-
-  /* --- Superfícies --------------------------------------- */
-  --fundo: #0B0D10;
-  --superficie: #111827;
-  --cartao: #171A21;
-  --cartao-hover: #1D212A;
-
-  /* --- Texto --------------------------------------------- */
-  --texto-forte: #FFFFFF;
-  --texto: #E5E7EB;
-  --texto-fraco: #A6AAB3;
-  --texto-apagado: #6B7280;
-  --texto-desabilitado: #4B4F57;
-
-  /* --- Borda --------------------------------------------- */
-  --borda: rgba(196, 199, 204, 0.14);
-  --borda-forte: rgba(196, 199, 204, 0.22);
-  --borda-ativa: rgba(237, 106, 50, 0.42);
-
-  /* --- Semânticas (derivadas, ver cabeçalho) -------------- */
-  --sucesso: #22B458;
-  --sucesso-fundo: #0D371A;
-  --atencao: #C88B00;
-  --atencao-fundo: #3E2A00;
-  --erro: #F0635D;
-  --erro-fundo: #4B1D1B;
-  --info: #4097FF;
-  --info-fundo: #132E50;
-  --marca-fundo: #4A200F;
-
-  /* --- Forma --------------------------------------------- */
-  /* A marca tem um raio só. Pílula apenas em etiqueta. */
-  --raio: 10px;
-  --raio-pilula: 9999px;
-
-  /* --- Profundidade -------------------------------------- */
-  --sombra: 0px 1px 14px 0px rgba(0, 0, 0, 0.13);
-  --anel-foco: 0 0 0 3px rgba(237, 106, 50, 0.22);
-
-  /* --- Espaçamento (escala de 4) ------------------------- */
-  --e-1: 4px;
-  --e-2: 8px;
-  --e-3: 12px;
-  --e-4: 16px;
-  --e-6: 24px;
-  --e-8: 32px;
-  --e-12: 48px;
-
-  /* --- Altura de controle -------------------------------- */
-  --altura-controle: 40px;
-  --altura-toque: 44px;
-
-  --transition-fast: 0.15s ease;
-  --transition-normal: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-
-  /* ------------------------------------------------------------
-     Compatibilidade — nomes antigos ainda consumidos pelo App.tsx.
-     Novo código deve usar os tokens acima. Remover quando o App.tsx
-     for migrado.
-     ------------------------------------------------------------ */
-  --bg-primary: var(--fundo);
-  --bg-secondary: var(--superficie);
-  --bg-tertiary: var(--cartao);
-  --bg-card: var(--cartao);
-  --bg-card-hover: var(--cartao-hover);
-  --border-subtle: var(--borda);
-  --border-active: var(--borda-ativa);
-  --text-primary: var(--texto);
-  --text-secondary: var(--texto-fraco);
-  --text-muted: var(--texto-apagado);
-  --accent-primary: var(--laranja);
-  --accent-glow: rgba(237, 106, 50, 0.22);
-  --accent-secondary: var(--laranja-claro);
-  --accent-emerald: var(--sucesso);
-  --accent-amber: var(--atencao);
-  --radius-sm: var(--raio);
-  --radius-md: var(--raio);
-  --radius-lg: var(--raio);
-  --radius-full: var(--raio-pilula);
-  --shadow-sm: var(--sombra);
-  --shadow-md: var(--sombra);
-  --shadow-glow: var(--anel-foco);
-}
+@import './styles/tokens.css';
+@import './styles/components.css';
 
 .auth-shell { min-height: 100vh; display: grid; place-items: center; padding: 24px; }
 .auth-card { width: 100%; max-width: 440px; padding: 32px; display: grid; gap: 18px; }
@@ -118,7 +15,7 @@
 .auth-card p { color: var(--text-secondary); }
 .auth-card form { display: grid; gap: 12px; }
 .auth-card input { width: 100%; padding: 12px; border-radius: var(--radius-sm); border: 1px solid var(--border-subtle); background: var(--bg-secondary); color: var(--text-primary); font: inherit; }
-.auth-card [role="alert"] { color: #fca5a5; }
+.auth-card [role="alert"] { color: var(--ds-danger-fg); }
 button:focus-visible, input:focus-visible { outline: 2px solid var(--accent-secondary); outline-offset: 3px; }
 button:disabled { opacity: .6; cursor: wait; }
 @media (max-width: 900px) { header { flex-wrap: wrap; gap: 16px; } }
@@ -131,32 +28,32 @@ button:disabled { opacity: .6; cursor: wait; }
 
 body {
   font-family: var(--font-sans);
-  background-color: var(--fundo);
-  color: var(--texto);
+  background-color: var(--ds-bg-app);
+  color: var(--ds-text);
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
   min-height: 100vh;
   /* Gradiente da PRO4TECH (--gradient1 na folha deles). */
   background-image:
     radial-gradient(circle at 10% 0%, rgba(237, 106, 50, 0.08), transparent 28%),
-    linear-gradient(180deg, #111827 0%, #0B0D10 100%);
+    linear-gradient(180deg, var(--ds-surface-800) 0%, var(--ds-surface-900) 100%);
   background-attachment: fixed;
 }
 
 h1, h2, h3 {
-  font-family: var(--font-display);
+  font-family: var(--ds-font-display);
   letter-spacing: -0.01em;
   line-height: 1.2;
 }
 
 a {
-  color: var(--laranja);
+  color: var(--ds-brand-500);
   text-decoration: none;
   transition: color var(--transition-fast);
 }
 
 a:hover {
-  color: var(--laranja-claro);
+  color: var(--ds-brand-400);
 }
 
 button {
@@ -169,33 +66,35 @@ button {
 /* Foco visível em qualquer elemento navegável por teclado. */
 :focus-visible {
   outline: none;
-  box-shadow: var(--anel-foco);
-  border-radius: var(--raio);
+  box-shadow: var(--ds-ring-focus);
+  border-radius: var(--ds-radius);
 }
 
 /* --- Superfície elevada ---------------------------------- */
 /* Nome mantido por compatibilidade: a PRO4TECH não usa vidro,
    então isto é um cartão opaco. */
 .glass-panel {
-  background: var(--cartao);
-  border: 1px solid var(--borda);
-  border-radius: var(--raio);
-  box-shadow: var(--sombra);
+  background: var(--ds-bg-subtle);
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius);
+  box-shadow: var(--ds-shadow-sm);
   transition: border-color var(--transition-normal), background var(--transition-normal);
 }
 
 .glass-panel:hover {
-  border-color: var(--borda-forte);
+  border-color: var(--ds-border-strong);
 }
 
 /* --- Etiquetas ------------------------------------------- */
 .badge {
   display: inline-flex;
   align-items: center;
+  justify-self: start;
+  width: fit-content;
   gap: 6px;
   height: 24px;
   padding: 0 12px;
-  border-radius: var(--raio-pilula);
+  border-radius: var(--ds-radius-pill);
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.06em;
@@ -203,157 +102,161 @@ button {
 }
 
 .badge-success {
-  background: var(--sucesso-fundo);
-  color: var(--sucesso);
+  background: var(--ds-success-bg);
+  color: var(--ds-success-fg);
   border: 1px solid rgba(34, 180, 88, 0.42);
 }
 
 .badge-info {
-  background: var(--info-fundo);
-  color: var(--info);
+  background: var(--ds-info-bg);
+  color: var(--ds-info-fg);
   border: 1px solid rgba(64, 151, 255, 0.42);
 }
 
 .badge-warning {
-  background: var(--atencao-fundo);
-  color: var(--atencao);
+  background: var(--ds-warning-bg);
+  color: var(--ds-warning-fg);
   border: 1px solid rgba(200, 139, 0, 0.42);
 }
 
 .badge-brand {
-  background: var(--marca-fundo);
-  color: var(--laranja-claro);
-  border: 1px solid var(--borda-ativa);
+  background: var(--ds-ai-bg);
+  color: var(--ds-brand-400);
+  border: 1px solid var(--border-active);
 }
 
 .badge-danger {
-  background: var(--erro-fundo);
-  color: var(--erro);
+  background: var(--ds-danger-bg);
+  color: var(--ds-danger-fg);
   border: 1px solid rgba(240, 99, 93, 0.42);
 }
 
 /* --- Botões ---------------------------------------------- */
 /* Um só primário por tela. O gradiente é exclusivo dele. */
 .btn-primary {
-  background: var(--gradiente-marca);
-  color: #fff;
-  height: var(--altura-controle);
+  background: var(--ds-brand-gradient);
+  color: var(--ds-on-brand);
+  height: var(--ds-control-h);
   padding: 0 18px;
-  border-radius: var(--raio);
+  border-radius: var(--ds-radius);
   font-size: 14px;
   font-weight: 600;
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
   transition: all var(--transition-normal);
 }
 
 .btn-primary:hover {
-  background: linear-gradient(135deg, #F4A684 0%, #F1885B 100%);
-  box-shadow: var(--sombra);
+  background: linear-gradient(135deg, var(--ds-brand-300) 0%, var(--ds-brand-400) 100%);
+  box-shadow: var(--ds-shadow-sm);
 }
 
 .btn-primary:disabled {
-  background: var(--cartao);
-  color: var(--texto-apagado);
-  border: 1px solid var(--borda);
+  background: var(--ds-bg-subtle);
+  color: var(--ds-text-muted);
+  border: 1px solid var(--ds-border);
   cursor: not-allowed;
 }
 
 .btn-secondary {
-  background: var(--cartao);
-  color: var(--texto);
-  border: 1px solid var(--borda-forte);
-  height: var(--altura-controle);
+  background: var(--ds-bg-subtle);
+  color: var(--ds-text);
+  border: 1px solid var(--ds-border-strong);
+  height: var(--ds-control-h);
   padding: 0 18px;
-  border-radius: var(--raio);
+  border-radius: var(--ds-radius);
   font-size: 14px;
   font-weight: 500;
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
   transition: all var(--transition-normal);
 }
 
 .btn-secondary:hover {
-  background: var(--cartao-hover);
-  color: var(--texto-forte);
+  background: var(--ds-bg-hover);
+  color: var(--ds-text-strong);
   border-color: rgba(196, 199, 204, 0.38);
 }
 
 .btn-ghost {
   background: transparent;
-  color: var(--texto-fraco);
-  height: var(--altura-controle);
+  color: var(--ds-text-secondary);
+  height: var(--ds-control-h);
   padding: 0 14px;
-  border-radius: var(--raio);
+  border-radius: var(--ds-radius);
   font-size: 14px;
   font-weight: 500;
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
   transition: all var(--transition-normal);
 }
 
 .btn-ghost:hover {
   background: rgba(196, 199, 204, 0.07);
-  color: var(--texto-forte);
+  color: var(--ds-text-strong);
 }
 
 .btn-danger {
-  background: var(--erro-fundo);
-  color: var(--erro);
+  background: var(--ds-danger-bg);
+  color: var(--ds-danger-fg);
   border: 1px solid rgba(240, 99, 93, 0.42);
-  height: var(--altura-controle);
+  height: var(--ds-control-h);
   padding: 0 18px;
-  border-radius: var(--raio);
+  border-radius: var(--ds-radius);
   font-size: 14px;
   font-weight: 600;
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
   transition: all var(--transition-normal);
 }
 
 .btn-danger:hover {
-  background: #5E2321;
-  color: var(--texto-forte);
+  background: #5E2321; /* danger-bg elevado */
+  color: var(--ds-text-strong);
   border-color: rgba(240, 99, 93, 0.62);
 }
 
 /* --- Campos ---------------------------------------------- */
 .campo {
-  height: var(--altura-controle);
+  height: var(--ds-control-h);
   width: 100%;
   padding: 0 14px;
-  border-radius: var(--raio);
-  background: var(--fundo);
-  border: 1px solid var(--borda-forte);
-  color: var(--texto);
+  border-radius: var(--ds-radius);
+  background: var(--ds-bg-app);
+  border: 1px solid var(--ds-border-strong);
+  color: var(--ds-text);
   font-family: inherit;
   font-size: 14px;
   transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
 }
 
 .campo::placeholder {
-  color: var(--texto-desabilitado);
+  color: var(--ds-text-disabled);
 }
 
 .campo:focus {
   outline: none;
-  border-color: var(--laranja);
-  box-shadow: var(--anel-foco);
-  color: var(--texto-forte);
+  border-color: var(--ds-brand-500);
+  box-shadow: var(--ds-ring-focus);
+  color: var(--ds-text-strong);
 }
 
 .campo[aria-invalid='true'] {
-  border-color: var(--erro);
+  border-color: var(--ds-danger-fg);
 }
 
 .campo:disabled {
-  background: #131620;
+  background: var(--ds-bg-app);
   border-color: rgba(196, 199, 204, 0.09);
-  color: var(--texto-desabilitado);
+  color: var(--ds-text-disabled);
   cursor: not-allowed;
 }
 

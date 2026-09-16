@@ -3,7 +3,7 @@
 .ds-button {
   min-height: 40px;
   padding: 0 var(--ds-space-4);
-  border-radius: var(--ds-radius-sm);
+  border-radius: var(--ds-radius);
   border: 1px solid transparent;
   font: 600 14px/20px var(--ds-font-sans);
   display: inline-flex;
@@ -23,7 +23,7 @@
 
 .ds-button--primary {
   background: var(--ds-action);
-  color: var(--ds-neutral-0);
+  color: var(--ds-on-brand);
 }
 .ds-button--primary:hover { background: var(--ds-action-hover); }
 
@@ -69,7 +69,7 @@
 .ds-textarea {
   width: 100%;
   border: 1px solid var(--ds-border-strong);
-  border-radius: var(--ds-radius-sm);
+  border-radius: var(--ds-radius);
   background: var(--ds-bg-surface);
   color: var(--ds-text);
   padding: 10px 12px;
@@ -84,7 +84,7 @@
   background: var(--ds-bg-surface);
   color: var(--ds-text);
   border: 1px solid var(--ds-border);
-  border-radius: var(--ds-radius-md);
+  border-radius: var(--ds-radius);
   box-shadow: var(--ds-shadow-sm);
 }
 
@@ -111,7 +111,7 @@
   height: 8px;
   overflow: hidden;
   border-radius: var(--ds-radius-pill);
-  background: var(--ds-neutral-200);
+  background: var(--ds-track);
 }
 .ds-progress > span {
   display: block;
@@ -123,9 +123,9 @@
 .ds-ai-suggestion {
   border: 1px solid color-mix(in srgb, var(--ds-ai-fg) 25%, transparent);
   border-left: 4px solid var(--ds-ai-fg);
-  border-radius: var(--ds-radius-md);
+  border-radius: var(--ds-radius);
   background: var(--ds-ai-bg);
-  color: var(--ds-neutral-900);
+  color: var(--ds-text);
   padding: var(--ds-space-4);
 }
 

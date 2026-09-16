@@ -1,52 +1,81 @@
+/* ============================================================
+   Sinapse — tokens de interface
+   ------------------------------------------------------------
+   Origem: identidade visual da PRO4TECH. Cor, tipografia, raio e
+   sombra foram lidos da folha de estilo do site do cliente
+   (assets/css/main.css), não aproximados a partir de captura de tela.
+
+   As quatro cores semânticas são a única exceção: a marca não
+   publica cores de estado. Foram derivadas do laranja #ED6A32 em
+   oklch — mesma luminosidade (0.676) e croma (0.176), variando só o
+   matiz — para conviverem com o acento sem competir com ele.
+
+   Design system e protótipo: docs/design/
+   ============================================================ */
+
 :root {
-  /* PRO4TECH / Sinapse product palette */
-  --ds-brand-950: #07111f;
-  --ds-brand-900: #0b1626;
-  --ds-brand-800: #102238;
-  --ds-brand-700: #173653;
-  --ds-brand-500: #0aa7c8;
-  --ds-brand-400: #24bedb;
-  --ds-brand-300: #71d7e8;
-  --ds-brand-100: #ddf7fb;
+  /* --- Marca ---------------------------------------------- */
+  --ds-brand-600: #D3754D;
+  --ds-brand-500: #ED6A32;   /* o acento; usar com parcimônia */
+  --ds-brand-400: #F1885B;
+  --ds-brand-300: #F4A684;
+  --ds-brand-200: #F8C3AD;
+  --ds-brand-100: #FBE1D6;
+  --ds-brand-gradient: linear-gradient(135deg, #F1885B 0%, #ED6A32 100%);
+  /* Branco sobre o laranja dá 3,13:1 e reprova na WCAG AA. Texto escuro
+     sobre o mesmo laranja dá 5,67:1, então a marca fica intacta. */
+  --ds-on-brand: #16181D;
 
-  --ds-neutral-0: #ffffff;
-  --ds-neutral-50: #f8fafc;
-  --ds-neutral-100: #f1f5f9;
-  --ds-neutral-200: #e2e8f0;
-  --ds-neutral-300: #cbd5e1;
-  --ds-neutral-400: #94a3b8;
-  --ds-neutral-500: #64748b;
-  --ds-neutral-600: #475569;
-  --ds-neutral-700: #334155;
-  --ds-neutral-800: #1e293b;
-  --ds-neutral-900: #0f172a;
+  /* --- Superfícies, do fundo da página ao cartão elevado --- */
+  --ds-surface-900: #0B0D10;
+  --ds-surface-800: #111827;
+  --ds-surface-700: #171A21;
+  --ds-surface-600: #1D212A;
 
-  --ds-success-bg: #e8f7ef;
-  --ds-success-fg: #157347;
-  --ds-info-bg: #e8f6fa;
-  --ds-info-fg: #087e99;
-  --ds-warning-bg: #fff7e6;
-  --ds-warning-fg: #9a6700;
-  --ds-danger-bg: #fdecec;
-  --ds-danger-fg: #b42318;
-  --ds-ai-bg: #eef2ff;
-  --ds-ai-fg: #4f46e5;
+  /* --- Rampa neutra da marca ------------------------------ */
+  --ds-neutral-0: #FFFFFF;
+  --ds-neutral-100: #E5E7EB;
+  --ds-neutral-300: #C4C7CC;
+  --ds-neutral-400: #A6AAB3;
+  --ds-neutral-500: #898E99;
+  --ds-neutral-600: #6B7280;
+  --ds-neutral-700: #4B4F57;
 
-  --ds-bg-app: var(--ds-neutral-50);
-  --ds-bg-surface: var(--ds-neutral-0);
-  --ds-bg-subtle: var(--ds-neutral-100);
-  --ds-border: var(--ds-neutral-200);
-  --ds-border-strong: var(--ds-neutral-300);
-  --ds-text: var(--ds-neutral-900);
-  --ds-text-secondary: var(--ds-neutral-600);
-  --ds-text-muted: var(--ds-neutral-500);
+  /* --- Semânticas (derivadas, ver cabeçalho) --------------- */
+  --ds-success-fg: #22B458;
+  --ds-success-bg: #0D371A;
+  --ds-warning-fg: #C88B00;
+  --ds-warning-bg: #3E2A00;
+  --ds-danger-fg: #F0635D;
+  --ds-danger-bg: #4B1D1B;
+  --ds-info-fg: #4097FF;
+  --ds-info-bg: #132E50;
+  --ds-ai-fg: var(--ds-brand-400);
+  --ds-ai-bg: #4A200F;
+
+  /* --- Papéis --------------------------------------------- */
+  --ds-bg-app: var(--ds-surface-900);
+  --ds-bg-surface: var(--ds-surface-800);
+  --ds-bg-subtle: var(--ds-surface-700);
+  --ds-bg-hover: var(--ds-surface-600);
+  --ds-border: rgba(196, 199, 204, 0.14);
+  --ds-border-strong: rgba(196, 199, 204, 0.22);
+  --ds-track: rgba(196, 199, 204, 0.12);
+  --ds-text-strong: var(--ds-neutral-0);
+  --ds-text: var(--ds-neutral-100);
+  --ds-text-secondary: var(--ds-neutral-400);
+  --ds-text-muted: var(--ds-neutral-600);
+  --ds-text-disabled: var(--ds-neutral-700);
   --ds-action: var(--ds-brand-500);
   --ds-action-hover: var(--ds-brand-400);
-  --ds-focus: var(--ds-brand-300);
+  --ds-focus: rgba(237, 106, 50, 0.22);
 
+  /* --- Tipografia ----------------------------------------- */
+  --ds-font-display: 'Public Sans', Inter, ui-sans-serif, system-ui, sans-serif;
   --ds-font-sans: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --ds-font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
 
+  /* --- Espaçamento ---------------------------------------- */
   --ds-space-1: 4px;
   --ds-space-2: 8px;
   --ds-space-3: 12px;
@@ -58,49 +87,52 @@
   --ds-space-12: 48px;
   --ds-space-16: 64px;
 
-  --ds-radius-sm: 8px;
-  --ds-radius-md: 12px;
-  --ds-radius-lg: 16px;
-  --ds-radius-pill: 999px;
+  /* --- Forma ---------------------------------------------- */
+  /* A marca tem um raio só. Pílula apenas em etiqueta. */
+  --ds-radius: 10px;
+  --ds-radius-pill: 9999px;
 
-  --ds-shadow-sm: 0 1px 2px rgba(15, 23, 42, .06);
-  --ds-shadow-md: 0 8px 24px rgba(15, 23, 42, .08);
+  /* --- Profundidade --------------------------------------- */
+  --ds-shadow-sm: 0px 1px 14px 0px rgba(0, 0, 0, 0.13);
+  --ds-shadow-md: 0px 1px 14px 0px rgba(0, 0, 0, 0.13);
+  --ds-ring-focus: 0 0 0 3px var(--ds-focus);
+
+  /* --- Altura de controle --------------------------------- */
+  --ds-control-h: 40px;
+  --ds-touch-h: 44px;
 
   --ds-transition-fast: 120ms ease;
   --ds-transition-normal: 180ms ease;
 
-  /* aliases for the current frontend */
+  /* ------------------------------------------------------------
+     Compatibilidade — nomes consumidos por Auth.tsx, Projects.tsx e
+     App.tsx. Novo código usa os --ds-* acima. Remover quando as telas
+     forem migradas.
+     ------------------------------------------------------------ */
+  --font-sans: var(--ds-font-sans);
+  --font-mono: var(--ds-font-mono);
   --bg-primary: var(--ds-bg-app);
   --bg-secondary: var(--ds-bg-surface);
   --bg-tertiary: var(--ds-bg-subtle);
-  --bg-card: var(--ds-bg-surface);
-  --bg-card-hover: var(--ds-neutral-50);
+  --bg-card: var(--ds-bg-subtle);
+  --bg-card-hover: var(--ds-bg-hover);
   --border-subtle: var(--ds-border);
-  --border-active: var(--ds-brand-300);
+  --border-active: rgba(237, 106, 50, 0.42);
   --text-primary: var(--ds-text);
   --text-secondary: var(--ds-text-secondary);
   --text-muted: var(--ds-text-muted);
   --accent-primary: var(--ds-action);
-  --accent-secondary: var(--ds-brand-400);
+  --accent-secondary: var(--ds-action-hover);
+  --accent-glow: var(--ds-focus);
   --accent-emerald: var(--ds-success-fg);
   --accent-amber: var(--ds-warning-fg);
-  --radius-sm: var(--ds-radius-sm);
-  --radius-md: var(--ds-radius-md);
-  --radius-lg: var(--ds-radius-lg);
+  --radius-sm: var(--ds-radius);
+  --radius-md: var(--ds-radius);
+  --radius-lg: var(--ds-radius);
   --radius-full: var(--ds-radius-pill);
   --shadow-sm: var(--ds-shadow-sm);
   --shadow-md: var(--ds-shadow-md);
+  --shadow-glow: var(--ds-ring-focus);
   --transition-fast: var(--ds-transition-fast);
   --transition-normal: var(--ds-transition-normal);
-}
-
-[data-theme="dark"] {
-  --ds-bg-app: var(--ds-brand-950);
-  --ds-bg-surface: var(--ds-brand-900);
-  --ds-bg-subtle: var(--ds-brand-800);
-  --ds-border: #22364c;
-  --ds-border-strong: #31506f;
-  --ds-text: var(--ds-neutral-50);
-  --ds-text-secondary: var(--ds-neutral-300);
-  --ds-text-muted: var(--ds-neutral-400);
 }
