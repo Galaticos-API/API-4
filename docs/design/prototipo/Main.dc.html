@@ -1,1009 +1,1338 @@
 <!doctype html>
 <html>
+
 <head>
   <meta charset="utf-8">
   <script src="./support.js"></script>
 </head>
+
 <body>
-<x-dc>
-<helmet>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Public+Sans:wght@600;700;800&display=swap">
-  <style>
-    body { margin: 0; font-family: 'Inter', -apple-system, 'Segoe UI', Roboto, sans-serif; }
-    a { color: #ED6A32; } a:hover { color: #F1885B; }
-    .sn-in { height: 40px; width: 100%; padding: 0 14px; border-radius: 10px; background: #0B0D10; border: 1px solid rgba(196,199,204,0.22); color: #E5E7EB; font-family: inherit; font-size: 14px; outline: none; }
-    .sn-in:focus { border-color: #ED6A32; box-shadow: 0 0 0 3px rgba(237,106,50,0.22); color: #FFFFFF; }
-    .sn-in::placeholder { color: #4B4F57; }
-    .sn-row:hover { background: rgba(196,199,204,0.05); }
-    .sn-card:hover { border-color: rgba(196,199,204,0.38); }
-    .sn-btn:hover { filter: brightness(1.12); }
-    .sn-chip:hover { border-color: rgba(237,106,50,0.5); color: #FFFFFF; }
-  </style>
-</helmet>
+  <x-dc>
+    <helmet>
+      <link rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Public+Sans:wght@600;700;800&display=swap">
+      <style>
+        body {
+          margin: 0;
+          font-family: 'Inter', -apple-system, 'Segoe UI', Roboto, sans-serif;
+        }
 
-<div style="width: 1440px; height: 900px; overflow: hidden; background: #0B0D10; color: #E5E7EB; font-family: 'Inter', -apple-system, 'Segoe UI', Roboto, sans-serif; display: flex; flex-direction: column; box-sizing: border-box;">
+        a {
+          color: #ED6A32;
+        }
 
-  <!-- ================= LOGIN ================= -->
-  <sc-if value="{{ ehLogin }}" hint-placeholder-val="{{ true }}">
-    <div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background-image: radial-gradient(circle at 10% 0%, rgba(237,106,50,0.08), transparent 28%), linear-gradient(180deg, #111827 0%, #0B0D10 100%);">
-      <div style="display: flex; flex-direction: column; gap: 24px; width: 380px; padding: 36px; border-radius: 10px; background: #171A21; border: 1px solid rgba(196,199,204,0.14); box-shadow: 0px 1px 14px 0px rgba(0,0,0,0.13);">
-        <div style="display: flex; flex-direction: column; gap: 10px;">
-          <div style="display: flex; align-items: center; gap: 10px;">
-            <div style="width: 26px; height: 26px; border-radius: 10px; background: linear-gradient(135deg, #F1885B 0%, #ED6A32 100%);"></div>
-            <span style="font-family: 'Public Sans', sans-serif; font-weight: 800; font-size: 19px; color: #FFFFFF;">Sinapse</span>
-          </div>
-          <p style="margin: 0; font-size: 13px; line-height: 1.55; color: #6B7280;">A memória de requisitos da fábrica.</p>
-        </div>
-        <div style="display: flex; flex-direction: column; gap: 14px;">
-          <div style="display: flex; flex-direction: column; gap: 7px;">
-            <span style="font-size: 13px; font-weight: 600; color: #E5E7EB;">E-mail</span>
-            <input class="sn-in" type="text" value="{{ email }}" onChange="{{ mudarEmail }}" onKeyDown="{{ teclarEnterLogin }}" placeholder="voce@pro4tech.com.br" />
-          </div>
-          <div style="display: flex; flex-direction: column; gap: 7px;">
-            <span style="font-size: 13px; font-weight: 600; color: #E5E7EB;">Senha</span>
-            <input class="sn-in" type="password" value="{{ senha }}" onChange="{{ mudarSenha }}" onKeyDown="{{ teclarEnterLogin }}" placeholder="••••••••" />
-          </div>
-        </div>
-        <sc-if value="{{ erroLogin }}" hint-placeholder-val="{{ true }}">
-          <div style="display: flex; align-items: flex-start; gap: 8px; padding: 11px 13px; border-radius: 10px; background: #4B1D1B; border: 1px solid rgba(240,99,93,0.42);">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#F0635D" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0; margin-top: 1px;"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
-            <span style="font-size: 13px; line-height: 1.5; color: #F0635D;">Preencha e-mail e senha para entrar.</span>
-          </div>
-        </sc-if>
-        <button class="sn-btn" style="height: 44px; border-radius: 10px; background: linear-gradient(135deg, #F1885B 0%, #ED6A32 100%); color: #16181D; font-size: 14px; font-weight: 600;" onClick="{{ entrar }}">Entrar</button>
-      </div>
-    </div>
-  </sc-if>
+        a:hover {
+          color: #F1885B;
+        }
 
-  <!-- ================= APP ================= -->
-  <sc-if value="{{ ehApp }}" hint-placeholder-val="{{ true }}">
-  <div style="display: flex; flex-direction: column; width: 100%; height: 100%;">
+        .sn-in {
+          height: 40px;
+          width: 100%;
+          padding: 0 14px;
+          border-radius: 10px;
+          background: #0B0D10;
+          border: 1px solid rgba(196, 199, 204, 0.22);
+          color: #E5E7EB;
+          font-family: inherit;
+          font-size: 14px;
+          outline: none;
+        }
 
-    <div style="height: 56px; flex-shrink: 0; display: flex; align-items: center; gap: 20px; padding: 0 20px; background: #111827; border-bottom: 1px solid rgba(196,199,204,0.14);">
-      <div style="display: flex; align-items: center; gap: 9px; cursor: pointer;" onClick="{{ irProjetos }}">
-        <div style="width: 22px; height: 22px; border-radius: 10px; background: linear-gradient(135deg, #F1885B 0%, #ED6A32 100%);"></div>
-        <span style="font-family: 'Public Sans', sans-serif; font-weight: 800; font-size: 16px; color: #FFFFFF;">Sinapse</span>
-      </div>
-      <sc-if value="{{ dentroProjeto }}" hint-placeholder-val="{{ true }}">
-        <div style="display: flex; align-items: center; gap: 20px;">
-          <div style="display: flex; align-items: center; gap: 9px;">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#4B4F57" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
-            <span style="font-size: 14px; font-weight: 500; color: #E5E7EB;">{{ projetoNome }}</span>
-          </div>
-          <div style="display: flex; gap: 4px;">
-            <sc-for list="{{ secoes }}" as="s" hint-placeholder-count="3">
-              <span class="sn-chip" style="display: inline-flex; align-items: center; height: 32px; padding: 0 14px; border-radius: 10px; cursor: pointer; font-size: 13px; font-weight: {{ s.peso }}; color: {{ s.cor }}; background: {{ s.fundo }};" onClick="{{ s.ir }}">{{ s.rotulo }}</span>
-            </sc-for>
+        .sn-in:focus {
+          border-color: #ED6A32;
+          box-shadow: 0 0 0 3px rgba(237, 106, 50, 0.22);
+          color: #FFFFFF;
+        }
+
+        .sn-in::placeholder {
+          color: #4B4F57;
+        }
+
+        .sn-row:hover {
+          background: rgba(196, 199, 204, 0.05);
+        }
+
+        .sn-card:hover {
+          border-color: rgba(196, 199, 204, 0.38);
+        }
+
+        .sn-btn:hover {
+          filter: brightness(1.12);
+        }
+
+        .sn-chip:hover {
+          border-color: rgba(237, 106, 50, 0.5);
+          color: #FFFFFF;
+        }
+      </style>
+    </helmet>
+
+    <div
+      style="width: 1440px; height: 900px; overflow: hidden; background: #0B0D10; color: #E5E7EB; font-family: 'Inter', -apple-system, 'Segoe UI', Roboto, sans-serif; display: flex; flex-direction: column; box-sizing: border-box;">
+
+      <!-- ================= LOGIN ================= -->
+      <sc-if value="{{ ehLogin }}" hint-placeholder-val="{{ true }}">
+        <div
+          style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background-image: radial-gradient(circle at 10% 0%, rgba(237,106,50,0.08), transparent 28%), linear-gradient(180deg, #111827 0%, #0B0D10 100%);">
+          <div
+            style="display: flex; flex-direction: column; gap: 24px; width: 380px; padding: 36px; border-radius: 10px; background: #171A21; border: 1px solid rgba(196,199,204,0.14); box-shadow: 0px 1px 14px 0px rgba(0,0,0,0.13);">
+            <div style="display: flex; flex-direction: column; gap: 10px;">
+              <div style="display: flex; align-items: center; gap: 10px;">
+                <div
+                  style="width: 26px; height: 26px; border-radius: 10px; background: linear-gradient(135deg, #F1885B 0%, #ED6A32 100%);">
+                </div>
+                <span
+                  style="font-family: 'Public Sans', sans-serif; font-weight: 800; font-size: 19px; color: #FFFFFF;">Sinapse</span>
+              </div>
+              <p style="margin: 0; font-size: 13px; line-height: 1.55; color: #6B7280;">A memória de requisitos da
+                fábrica.</p>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 14px;">
+              <div style="display: flex; flex-direction: column; gap: 7px;">
+                <span style="font-size: 13px; font-weight: 600; color: #E5E7EB;">E-mail</span>
+                <input class="sn-in" type="text" value="{{ email }}" onChange="{{ mudarEmail }}"
+                  onKeyDown="{{ teclarEnterLogin }}" placeholder="voce@pro4tech.com.br" />
+              </div>
+              <div style="display: flex; flex-direction: column; gap: 7px;">
+                <span style="font-size: 13px; font-weight: 600; color: #E5E7EB;">Senha</span>
+                <input class="sn-in" type="password" value="{{ senha }}" onChange="{{ mudarSenha }}"
+                  onKeyDown="{{ teclarEnterLogin }}" placeholder="••••••••" />
+              </div>
+            </div>
+            <sc-if value="{{ erroLogin }}" hint-placeholder-val="{{ true }}">
+              <div
+                style="display: flex; align-items: flex-start; gap: 8px; padding: 11px 13px; border-radius: 10px; background: #4B1D1B; border: 1px solid rgba(240,99,93,0.42);">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#F0635D" stroke-width="2"
+                  stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0; margin-top: 1px;">
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <line x1="12" y1="8" x2="12" y2="12"></line>
+                  <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                </svg>
+                <span style="font-size: 13px; line-height: 1.5; color: #F0635D;">Preencha e-mail e senha para
+                  entrar.</span>
+              </div>
+            </sc-if>
+            <button class="sn-btn"
+              style="height: 44px; border-radius: 10px; background: linear-gradient(135deg, #F1885B 0%, #ED6A32 100%); color: #16181D; font-size: 14px; font-weight: 600;"
+              onClick="{{ entrar }}">Entrar</button>
           </div>
         </div>
       </sc-if>
-      <div style="flex-grow: 1;"></div>
-      <div style="display: flex; align-items: center; gap: 10px;">
-        <span style="font-size: 13px; color: #A6AAB3;">Emmanuel</span>
-        <div style="width: 30px; height: 30px; border-radius: 9999px; background: #4A200F; border: 1px solid rgba(237,106,50,0.42); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: #F1885B;">EG</div>
-        <button class="sn-btn" style="height: 32px; padding: 0 12px; border-radius: 10px; background: transparent; color: #6B7280; font-size: 13px; font-weight: 500;" onClick="{{ sair }}">Sair</button>
-      </div>
-    </div>
 
-    <!-- ---------- PROJETOS ---------- -->
-    <sc-if value="{{ ehProjetos }}" hint-placeholder-val="{{ true }}">
-      <div style="flex-grow: 1; overflow-y: auto; padding: 40px 48px;">
-        <div style="display: flex; flex-direction: column; gap: 8px; padding-bottom: 28px;">
-          <h1 style="font-family: 'Public Sans', sans-serif; font-weight: 800; font-size: 32px; line-height: 1.15; margin: 0; color: #FFFFFF; letter-spacing: -0.02em;">Projetos</h1>
-          <p style="margin: 0; font-size: 14px; color: #6B7280;">Escolha um projeto para abrir o acervo, o backlog e a equipe.</p>
-        </div>
-        <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px;">
-          <sc-for list="{{ projetos }}" as="p" hint-placeholder-count="3">
-            <div class="sn-card" style="display: flex; flex-direction: column; gap: 14px; padding: 22px; border-radius: 10px; background: #171A21; border: 1px solid rgba(196,199,204,0.14); cursor: pointer; transition: border-color 0.25s;" onClick="{{ p.abrir }}">
-              <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;">
-                <span style="font-family: 'Public Sans', sans-serif; font-size: 17px; font-weight: 700; color: #FFFFFF;">{{ p.nome }}</span>
-                <span style="display: inline-flex; align-items: center; height: 22px; padding: 0 10px; border-radius: 9999px; background: rgba(196,199,204,0.09); color: #A6AAB3; border: 1px solid rgba(196,199,204,0.22); font-size: 10px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; flex-shrink: 0;">{{ p.ano }}</span>
+      <!-- ================= APP ================= -->
+      <sc-if value="{{ ehApp }}">
+        <div style="display: flex; flex-direction: column; width: 100%; height: 100%;">
+
+          <div
+            style="height: 56px; flex-shrink: 0; display: flex; align-items: center; gap: 20px; padding: 0 20px; background: #111827; border-bottom: 1px solid rgba(196,199,204,0.14);">
+            <div style="display: flex; align-items: center; gap: 9px; cursor: pointer;" onClick="{{ irProjetos }}">
+              <div
+                style="width: 22px; height: 22px; border-radius: 10px; background: linear-gradient(135deg, #F1885B 0%, #ED6A32 100%);">
               </div>
-              <p style="margin: 0; font-size: 13px; line-height: 1.55; color: #A6AAB3;">{{ p.desc }}</p>
-              <div style="display: flex; gap: 18px; padding-top: 12px; border-top: 1px solid rgba(196,199,204,0.14);">
-                <div style="display: flex; flex-direction: column; gap: 1px;">
-                  <span style="font-family: 'Public Sans', sans-serif; font-size: 17px; font-weight: 700; color: #FFFFFF;">{{ p.itens }}</span>
-                  <span style="font-size: 11px; color: #6B7280;">itens</span>
-                </div>
-                <div style="display: flex; flex-direction: column; gap: 1px;">
-                  <span style="font-family: 'Public Sans', sans-serif; font-size: 17px; font-weight: 700; color: #FFFFFF;">{{ p.fontes }}</span>
-                  <span style="font-size: 11px; color: #6B7280;">fontes</span>
-                </div>
-                <div style="display: flex; flex-direction: column; gap: 1px;">
-                  <span style="font-family: 'Public Sans', sans-serif; font-size: 17px; font-weight: 700; color: #FFFFFF;">{{ p.pessoas }}</span>
-                  <span style="font-size: 11px; color: #6B7280;">pessoas</span>
-                </div>
-              </div>
+              <span
+                style="font-family: 'Public Sans', sans-serif; font-weight: 800; font-size: 16px; color: #FFFFFF;">Sinapse</span>
             </div>
-          </sc-for>
-          <div class="sn-card" style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; min-height: 176px; border-radius: 10px; background: transparent; border: 1px dashed rgba(196,199,204,0.22); cursor: pointer; transition: border-color 0.25s;">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#6B7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-            <span style="font-size: 14px; font-weight: 500; color: #6B7280;">Novo projeto</span>
-          </div>
-        </div>
-      </div>
-    </sc-if>
-
-    <!-- ---------- CONVERSA + ACERVO ---------- -->
-    <sc-if value="{{ ehConversa }}" hint-placeholder-val="{{ true }}">
-      <div style="flex-grow: 1; display: flex; overflow: hidden;">
-
-        <div style="flex-grow: 1; display: flex; flex-direction: column; overflow: hidden;">
-          <div style="flex-grow: 1; overflow-y: auto; padding: 28px 0;">
-            <div style="max-width: 760px; margin: 0 auto; display: flex; flex-direction: column; gap: 26px; padding: 0 24px;">
-
-              <sc-for list="{{ mensagens }}" as="m" hint-placeholder-count="2">
-                <div style="display: flex; flex-direction: column; gap: 12px;">
-
-                  <sc-if value="{{ m.ehUsuario }}" hint-placeholder-val="{{ true }}">
-                    <div style="display: flex; justify-content: flex-end;">
-                      <span style="max-width: 520px; padding: 12px 16px; border-radius: 10px; background: #171A21; border: 1px solid rgba(196,199,204,0.14); font-size: 14px; line-height: 1.6; color: #FFFFFF;">{{ m.texto }}</span>
-                    </div>
-                  </sc-if>
-
-                  <sc-if value="{{ m.ehIA }}" hint-placeholder-val="{{ true }}">
-                    <div style="display: flex; gap: 12px;">
-                      <div style="width: 26px; height: 26px; border-radius: 10px; background: linear-gradient(135deg, #F1885B 0%, #ED6A32 100%); flex-shrink: 0;"></div>
-                      <div style="display: flex; flex-direction: column; gap: 14px; flex-grow: 1;">
-                        <p style="margin: 0; font-size: 14px; line-height: 1.65; color: #E5E7EB; text-wrap: pretty; white-space: pre-line;">{{ m.texto }}</p>
-
-                        <sc-if value="{{ m.temFontes }}" hint-placeholder-val="{{ true }}">
-                          <div style="display: flex; flex-direction: column; gap: 7px; padding: 12px 14px; border-radius: 10px; background: #111827; border: 1px solid rgba(196,199,204,0.14);">
-                            <span style="font-size: 10.5px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #6B7280;">De onde veio</span>
-                            <sc-for list="{{ m.fontes }}" as="f" hint-placeholder-count="2">
-                              <div style="display: flex; align-items: center; gap: 8px;">
-                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#6B7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0;"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"></path></svg>
-                                <span style="font-size: 12.5px; color: #A6AAB3;">{{ f.rotulo }}</span>
-                              </div>
-                            </sc-for>
-                          </div>
-                        </sc-if>
-
-                        <sc-if value="{{ m.temPropostas }}" hint-placeholder-val="{{ true }}">
-                          <div style="display: flex; flex-direction: column; gap: 10px;">
-                            <sc-for list="{{ m.propostas }}" as="pr" hint-placeholder-count="3">
-                              <div style="display: flex; flex-direction: column; gap: 12px; padding: 16px; border-radius: 10px; background: #171A21; border: 1px solid {{ pr.borda }};">
-                                <div style="display: flex; align-items: center; gap: 10px;">
-                                  <span style="font-family: 'JetBrains Mono', ui-monospace, Menlo, monospace; font-size: 11px; color: #6B7280;">{{ pr.nivel }}</span>
-                                  <div style="flex-grow: 1;"></div>
-                                  <span style="display: inline-flex; align-items: center; height: 22px; padding: 0 10px; border-radius: 9999px; background: {{ pr.selo.fundo }}; color: {{ pr.selo.cor }}; border: 1px solid {{ pr.selo.borda }}; font-size: 10px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;">{{ pr.selo.texto }}</span>
-                                </div>
-                                <span style="font-size: 14.5px; font-weight: 600; color: {{ pr.corTitulo }};">{{ pr.titulo }}</span>
-                                <span style="font-size: 12.5px; line-height: 1.55; color: #6B7280;">{{ pr.origem }}</span>
-                                <sc-if value="{{ pr.pendente }}" hint-placeholder-val="{{ true }}">
-                                  <div style="display: flex; gap: 9px;">
-                                    <button class="sn-btn" style="height: 34px; padding: 0 14px; border-radius: 10px; background: linear-gradient(135deg, #F1885B 0%, #ED6A32 100%); color: #16181D; font-size: 13px; font-weight: 600;" onClick="{{ pr.aceitar }}">Aceitar e revisar</button>
-                                    <button class="sn-btn" style="height: 34px; padding: 0 14px; border-radius: 10px; background: transparent; color: #A6AAB3; border: 1px solid rgba(196,199,204,0.22); font-size: 13px; font-weight: 500;" onClick="{{ pr.dispensar }}">Dispensar</button>
-                                  </div>
-                                </sc-if>
-                              </div>
-                            </sc-for>
-                          </div>
-                        </sc-if>
-                      </div>
-                    </div>
-                  </sc-if>
-
+            <sc-if value="{{ dentroProjeto }}" hint-placeholder-val="{{ true }}">
+              <div style="display: flex; align-items: center; gap: 20px;">
+                <div style="display: flex; align-items: center; gap: 9px;">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#4B4F57" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="9 18 15 12 9 6"></polyline>
+                  </svg>
+                  <span style="font-size: 14px; font-weight: 500; color: #E5E7EB;">{{ projetoNome }}</span>
                 </div>
-              </sc-for>
-
-              <sc-if value="{{ mostrarSugestoes }}" hint-placeholder-val="{{ true }}">
-                <div style="display: flex; flex-wrap: wrap; gap: 9px; padding-top: 4px;">
-                  <sc-for list="{{ sugestoes }}" as="sg" hint-placeholder-count="3">
-                    <span class="sn-chip" style="display: inline-flex; align-items: center; height: 34px; padding: 0 14px; border-radius: 10px; background: transparent; border: 1px solid rgba(196,199,204,0.22); color: #A6AAB3; font-size: 13px; cursor: pointer; transition: all 0.2s;" onClick="{{ sg.enviar }}">{{ sg.texto }}</span>
+                <div style="display: flex; gap: 4px;">
+                  <sc-for list="{{ secoes }}" as="s" hint-placeholder-count="3">
+                    <span class="sn-chip"
+                      style="display: inline-flex; align-items: center; height: 32px; padding: 0 14px; border-radius: 10px; cursor: pointer; font-size: 13px; font-weight: {{ s.peso }}; color: {{ s.cor }}; background: {{ s.fundo }};"
+                      onClick="{{ s.ir }}">{{ s.rotulo }}</span>
                   </sc-for>
                 </div>
-              </sc-if>
-
-            </div>
-          </div>
-
-          <div style="flex-shrink: 0; padding: 16px 24px 22px; border-top: 1px solid rgba(196,199,204,0.14); background: #0B0D10;">
-            <div style="max-width: 760px; margin: 0 auto; display: flex; flex-direction: column; gap: 8px;">
-              <div style="display: flex; gap: 10px; align-items: center;">
-                <button class="sn-btn" style="width: 40px; height: 40px; flex-shrink: 0; border-radius: 10px; background: #171A21; border: 1px solid rgba(196,199,204,0.22); display: flex; align-items: center; justify-content: center;" onClick="{{ anexar }}">
-                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#A6AAB3" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"></path></svg>
-                </button>
-                <input class="sn-in" type="text" value="{{ entrada }}" onChange="{{ mudarEntrada }}" onKeyDown="{{ teclarEnterChat }}" placeholder="Pergunte sobre o projeto, ou solte uma transcrição aqui" />
-                <button class="sn-btn" style="width: 40px; height: 40px; flex-shrink: 0; border-radius: 10px; background: linear-gradient(135deg, #F1885B 0%, #ED6A32 100%); display: flex; align-items: center; justify-content: center;" onClick="{{ enviar }}">
-                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
-                </button>
-              </div>
-              <span style="font-size: 11.5px; color: #4B4F57;">Responde só a partir do acervo deste projeto. Não inventa o que não está lá.</span>
-            </div>
-          </div>
-        </div>
-
-        <!-- acervo -->
-        <div style="width: 340px; flex-shrink: 0; display: flex; flex-direction: column; border-left: 1px solid rgba(196,199,204,0.14); background: #0B0D10; overflow: hidden;">
-          <div style="padding: 18px 18px 14px; border-bottom: 1px solid rgba(196,199,204,0.14);">
-            <div style="display: flex; align-items: baseline; justify-content: space-between; padding-bottom: 14px;">
-              <span style="font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #6B7280;">Acervo do projeto</span>
-              <span style="font-size: 12px; color: #6B7280;">{{ totalFontes }}</span>
-            </div>
-            <div class="sn-card" style="display: flex; flex-direction: column; align-items: center; gap: 7px; padding: 18px 14px; border-radius: 10px; border: 1px dashed rgba(196,199,204,0.22); cursor: pointer; transition: border-color 0.25s;" onClick="{{ anexar }}">
-              <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#6B7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
-              <span style="font-size: 13px; font-weight: 500; color: #A6AAB3;">Soltar arquivo ou gravação</span>
-              <span style="font-size: 11.5px; line-height: 1.5; color: #4B4F57; text-align: center;">PDF, DOCX, áudio de reunião, transcrição</span>
-            </div>
-          </div>
-          <div style="flex-grow: 1; overflow-y: auto; padding: 10px;">
-            <sc-for list="{{ acervo }}" as="a" hint-placeholder-count="5">
-              <div class="sn-row" style="display: flex; gap: 10px; padding: 11px 10px; border-radius: 10px; cursor: pointer;">
-                <span style="flex-shrink: 0; margin-top: 2px;">
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="{{ a.corIcone }}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
-                </span>
-                <div style="display: flex; flex-direction: column; gap: 4px; min-width: 0; flex-grow: 1;">
-                  <span style="font-size: 12.5px; line-height: 1.4; color: #E5E7EB;">{{ a.nome }}</span>
-                  <div style="display: flex; align-items: center; gap: 7px;">
-                    <span style="font-size: 11px; color: #6B7280;">{{ a.tipo }}</span>
-                    <span style="width: 3px; height: 3px; border-radius: 9999px; background: #4B4F57;"></span>
-                    <span style="font-size: 11px; color: {{ a.corStatus }};">{{ a.status }}</span>
-                  </div>
-                  <sc-if value="{{ a.processando }}" hint-placeholder-val="{{ true }}">
-                    <div style="height: 4px; border-radius: 9999px; background: rgba(196,199,204,0.12); overflow: hidden; display: flex; margin-top: 2px;">
-                      <div style="width: {{ a.progresso }}; background: linear-gradient(135deg, #F1885B 0%, #ED6A32 100%);"></div>
-                    </div>
-                  </sc-if>
-                </div>
-              </div>
-            </sc-for>
-          </div>
-        </div>
-
-      </div>
-    </sc-if>
-
-    <!-- ---------- BACKLOG ---------- -->
-    <sc-if value="{{ ehBacklog }}" hint-placeholder-val="{{ true }}">
-      <div style="flex-grow: 1; display: flex; overflow: hidden;">
-
-        <div style="width: 340px; flex-shrink: 0; display: flex; flex-direction: column; border-right: 1px solid rgba(196,199,204,0.14); background: #0B0D10;">
-          <div style="padding: 16px; border-bottom: 1px solid rgba(196,199,204,0.14);">
-            <input class="sn-in" type="text" value="{{ filtro }}" onChange="{{ mudarFiltro }}" placeholder="Filtrar por título, código ou pessoa" />
-          </div>
-          <div style="flex-grow: 1; overflow-y: auto; padding: 8px;">
-            <sc-for list="{{ arvore }}" as="n" hint-placeholder-count="6">
-              <div class="sn-row" style="display: flex; align-items: center; gap: 9px; height: 40px; padding: 0 10px; border-radius: 10px; cursor: pointer; background: {{ n.fundo }}; border: 1px solid {{ n.borda }};" onClick="{{ n.clicar }}">
-                <span style="width: {{ n.recuo }}; flex-shrink: 0;"></span>
-                <span style="font-family: 'JetBrains Mono', ui-monospace, Menlo, monospace; font-size: 11px; font-weight: {{ n.peso }}; color: {{ n.corCodigo }}; flex-shrink: 0;">{{ n.codigo }}</span>
-                <span style="font-size: 13px; font-weight: {{ n.pesoTitulo }}; color: {{ n.corTitulo }}; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex-grow: 1;">{{ n.titulo }}</span>
-                <sc-if value="{{ n.temDono }}" hint-placeholder-val="{{ true }}">
-                  <span style="width: 22px; height: 22px; flex-shrink: 0; border-radius: 9999px; background: {{ n.dono.fundo }}; border: 1px solid {{ n.dono.borda }}; display: flex; align-items: center; justify-content: center; font-size: 9.5px; font-weight: 700; color: {{ n.dono.cor }};">{{ n.dono.iniciais }}</span>
-                </sc-if>
-              </div>
-            </sc-for>
-            <sc-if value="{{ semResultado }}" hint-placeholder-val="{{ true }}">
-              <div style="padding: 22px 12px; text-align: center;">
-                <p style="margin: 0; font-size: 13px; line-height: 1.55; color: #6B7280;">Nenhum item para “{{ filtro }}”.</p>
               </div>
             </sc-if>
+            <div style="flex-grow: 1;"></div>
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <span style="font-size: 13px; color: #A6AAB3;">Emmanuel</span>
+              <div
+                style="width: 30px; height: 30px; border-radius: 9999px; background: #4A200F; border: 1px solid rgba(237,106,50,0.42); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: #F1885B;">
+                EG</div>
+              <button class="sn-btn"
+                style="height: 32px; padding: 0 12px; border-radius: 10px; background: transparent; color: #6B7280; font-size: 13px; font-weight: 500;"
+                onClick="{{ sair }}">Sair</button>
+            </div>
           </div>
-        </div>
 
-        <div style="flex-grow: 1; overflow-y: auto; padding: 28px 32px;">
-
-          <!-- ---- editor de ÉPICO ou FEATURE: critérios de aceitação ---- -->
-          <sc-if value="{{ ehNivelAlto }}" hint-placeholder-val="{{ true }}">
-            <div style="display: flex; flex-direction: column; gap: 22px;">
-              <div style="display: flex; flex-direction: column; gap: 6px;">
-                <div style="display: flex; align-items: center; gap: 10px;">
-                  <span style="font-family: 'JetBrains Mono', ui-monospace, Menlo, monospace; font-size: 12px; color: #F1885B;">{{ selCodigo }}</span>
-                  <span style="display: inline-flex; align-items: center; height: 22px; padding: 0 10px; border-radius: 9999px; background: rgba(196,199,204,0.09); color: #A6AAB3; border: 1px solid rgba(196,199,204,0.22); font-size: 10px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;">{{ selNivel }}</span>
+          <!-- ---------- PROJETOS ---------- -->
+          <sc-if value="{{ ehProjetos }}" hint-placeholder-val="{{ true }}">
+            <div style="flex-grow: 1; overflow-y: auto; padding: 40px 48px;">
+              <div style="display: flex; flex-direction: column; gap: 8px; padding-bottom: 28px;">
+                <h1
+                  style="font-family: 'Public Sans', sans-serif; font-weight: 800; font-size: 32px; line-height: 1.15; margin: 0; color: #FFFFFF; letter-spacing: -0.02em;">
+                  Projetos</h1>
+                <p style="margin: 0; font-size: 14px; color: #6B7280;">Escolha um projeto para abrir o acervo, o backlog
+                  e a equipe.</p>
+              </div>
+              <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px;">
+                <sc-for list="{{ projetos }}" as="p" hint-placeholder-count="3">
+                  <div class="sn-card"
+                    style="display: flex; flex-direction: column; gap: 14px; padding: 22px; border-radius: 10px; background: #171A21; border: 1px solid rgba(196,199,204,0.14); cursor: pointer; transition: border-color 0.25s;"
+                    onClick="{{ p.abrir }}">
+                    <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;">
+                      <span
+                        style="font-family: 'Public Sans', sans-serif; font-size: 17px; font-weight: 700; color: #FFFFFF;">{{
+                        p.nome }}</span>
+                      <span
+                        style="display: inline-flex; align-items: center; height: 22px; padding: 0 10px; border-radius: 9999px; background: rgba(196,199,204,0.09); color: #A6AAB3; border: 1px solid rgba(196,199,204,0.22); font-size: 10px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; flex-shrink: 0;">{{
+                        p.ano }}</span>
+                    </div>
+                    <p style="margin: 0; font-size: 13px; line-height: 1.55; color: #A6AAB3;">{{ p.desc }}</p>
+                    <div
+                      style="display: flex; gap: 18px; padding-top: 12px; border-top: 1px solid rgba(196,199,204,0.14);">
+                      <div style="display: flex; flex-direction: column; gap: 1px;">
+                        <span
+                          style="font-family: 'Public Sans', sans-serif; font-size: 17px; font-weight: 700; color: #FFFFFF;">{{
+                          p.itens }}</span>
+                        <span style="font-size: 11px; color: #6B7280;">itens</span>
+                      </div>
+                      <div style="display: flex; flex-direction: column; gap: 1px;">
+                        <span
+                          style="font-family: 'Public Sans', sans-serif; font-size: 17px; font-weight: 700; color: #FFFFFF;">{{
+                          p.fontes }}</span>
+                        <span style="font-size: 11px; color: #6B7280;">fontes</span>
+                      </div>
+                      <div style="display: flex; flex-direction: column; gap: 1px;">
+                        <span
+                          style="font-family: 'Public Sans', sans-serif; font-size: 17px; font-weight: 700; color: #FFFFFF;">{{
+                          p.pessoas }}</span>
+                        <span style="font-size: 11px; color: #6B7280;">pessoas</span>
+                      </div>
+                    </div>
+                  </div>
+                </sc-for>
+                <div class="sn-card"
+                  style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; min-height: 176px; border-radius: 10px; background: transparent; border: 1px dashed rgba(196,199,204,0.22); cursor: pointer; transition: border-color 0.25s;">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#6B7280" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                  </svg>
+                  <span style="font-size: 14px; font-weight: 500; color: #6B7280;">Novo projeto</span>
                 </div>
-                <h2 style="font-family: 'Public Sans', sans-serif; font-weight: 700; font-size: 24px; line-height: 1.2; margin: 0; color: #FFFFFF; letter-spacing: -0.01em;">{{ selTitulo }}</h2>
+              </div>
+            </div>
+          </sc-if>
+
+          <!-- ---------- CONVERSA + ACERVO ---------- -->
+          <sc-if value="{{ ehConversa }}" hint-placeholder-val="{{ true }}">
+            <div style="flex-grow: 1; display: flex; overflow: hidden;">
+
+              <div style="flex-grow: 1; display: flex; flex-direction: column; overflow: hidden;">
+                <div style="flex-grow: 1; overflow-y: auto; padding: 28px 0;">
+                  <div
+                    style="max-width: 760px; margin: 0 auto; display: flex; flex-direction: column; gap: 26px; padding: 0 24px;">
+
+                    <sc-for list="{{ mensagens }}" as="m" hint-placeholder-count="2">
+                      <div style="display: flex; flex-direction: column; gap: 12px;">
+
+                        <sc-if value="{{ m.ehUsuario }}" hint-placeholder-val="{{ true }}">
+                          <div style="display: flex; justify-content: flex-end;">
+                            <span
+                              style="max-width: 520px; padding: 12px 16px; border-radius: 10px; background: #171A21; border: 1px solid rgba(196,199,204,0.14); font-size: 14px; line-height: 1.6; color: #FFFFFF;">{{
+                              m.texto }}</span>
+                          </div>
+                        </sc-if>
+
+                        <sc-if value="{{ m.ehIA }}" hint-placeholder-val="{{ true }}">
+                          <div style="display: flex; gap: 12px;">
+                            <div
+                              style="width: 26px; height: 26px; border-radius: 10px; background: linear-gradient(135deg, #F1885B 0%, #ED6A32 100%); flex-shrink: 0;">
+                            </div>
+                            <div style="display: flex; flex-direction: column; gap: 14px; flex-grow: 1;">
+                              <p
+                                style="margin: 0; font-size: 14px; line-height: 1.65; color: #E5E7EB; text-wrap: pretty; white-space: pre-line;">
+                                {{ m.texto }}</p>
+
+                              <sc-if value="{{ m.temFontes }}" hint-placeholder-val="{{ true }}">
+                                <div
+                                  style="display: flex; flex-direction: column; gap: 7px; padding: 12px 14px; border-radius: 10px; background: #111827; border: 1px solid rgba(196,199,204,0.14);">
+                                  <span
+                                    style="font-size: 10.5px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #6B7280;">De
+                                    onde veio</span>
+                                  <sc-for list="{{ m.fontes }}" as="f" hint-placeholder-count="2">
+                                    <div style="display: flex; align-items: center; gap: 8px;">
+                                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#6B7280"
+                                        stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                                        style="flex-shrink: 0;">
+                                        <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"></path>
+                                      </svg>
+                                      <span style="font-size: 12.5px; color: #A6AAB3;">{{ f.rotulo }}</span>
+                                    </div>
+                                  </sc-for>
+                                </div>
+                              </sc-if>
+
+                              <sc-if value="{{ m.temPropostas }}" hint-placeholder-val="{{ true }}">
+                                <div style="display: flex; flex-direction: column; gap: 10px;">
+                                  <sc-for list="{{ m.propostas }}" as="pr" hint-placeholder-count="3">
+                                    <div
+                                      style="display: flex; flex-direction: column; gap: 12px; padding: 16px; border-radius: 10px; background: #171A21; border: 1px solid {{ pr.borda }};">
+                                      <div style="display: flex; align-items: center; gap: 10px;">
+                                        <span
+                                          style="font-family: 'JetBrains Mono', ui-monospace, Menlo, monospace; font-size: 11px; color: #6B7280;">{{
+                                          pr.nivel }}</span>
+                                        <div style="flex-grow: 1;"></div>
+                                        <span
+                                          style="display: inline-flex; align-items: center; height: 22px; padding: 0 10px; border-radius: 9999px; background: {{ pr.selo.fundo }}; color: {{ pr.selo.cor }}; border: 1px solid {{ pr.selo.borda }}; font-size: 10px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;">{{
+                                          pr.selo.texto }}</span>
+                                      </div>
+                                      <span style="font-size: 14.5px; font-weight: 600; color: {{ pr.corTitulo }};">{{
+                                        pr.titulo }}</span>
+                                      <span style="font-size: 12.5px; line-height: 1.55; color: #6B7280;">{{ pr.origem
+                                        }}</span>
+                                      <sc-if value="{{ pr.pendente }}" hint-placeholder-val="{{ true }}">
+                                        <div style="display: flex; gap: 9px;">
+                                          <button class="sn-btn"
+                                            style="height: 34px; padding: 0 14px; border-radius: 10px; background: linear-gradient(135deg, #F1885B 0%, #ED6A32 100%); color: #16181D; font-size: 13px; font-weight: 600;"
+                                            onClick="{{ pr.aceitar }}">Aceitar e revisar</button>
+                                          <button class="sn-btn"
+                                            style="height: 34px; padding: 0 14px; border-radius: 10px; background: transparent; color: #A6AAB3; border: 1px solid rgba(196,199,204,0.22); font-size: 13px; font-weight: 500;"
+                                            onClick="{{ pr.dispensar }}">Dispensar</button>
+                                        </div>
+                                      </sc-if>
+                                    </div>
+                                  </sc-for>
+                                </div>
+                              </sc-if>
+                            </div>
+                          </div>
+                        </sc-if>
+
+                      </div>
+                    </sc-for>
+
+                    <sc-if value="{{ mostrarSugestoes }}" hint-placeholder-val="{{ true }}">
+                      <div style="display: flex; flex-wrap: wrap; gap: 9px; padding-top: 4px;">
+                        <sc-for list="{{ sugestoes }}" as="sg" hint-placeholder-count="3">
+                          <span class="sn-chip"
+                            style="display: inline-flex; align-items: center; height: 34px; padding: 0 14px; border-radius: 10px; background: transparent; border: 1px solid rgba(196,199,204,0.22); color: #A6AAB3; font-size: 13px; cursor: pointer; transition: all 0.2s;"
+                            onClick="{{ sg.enviar }}">{{ sg.texto }}</span>
+                        </sc-for>
+                      </div>
+                    </sc-if>
+
+                  </div>
+                </div>
+
+                <div
+                  style="flex-shrink: 0; padding: 16px 24px 22px; border-top: 1px solid rgba(196,199,204,0.14); background: #0B0D10;">
+                  <div style="max-width: 760px; margin: 0 auto; display: flex; flex-direction: column; gap: 8px;">
+                    <div style="display: flex; gap: 10px; align-items: center;">
+                      <button class="sn-btn"
+                        style="width: 40px; height: 40px; flex-shrink: 0; border-radius: 10px; background: #171A21; border: 1px solid rgba(196,199,204,0.22); display: flex; align-items: center; justify-content: center;"
+                        onClick="{{ anexar }}">
+                        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#A6AAB3" stroke-width="2"
+                          stroke-linecap="round" stroke-linejoin="round">
+                          <path
+                            d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48">
+                          </path>
+                        </svg>
+                      </button>
+                      <input class="sn-in" type="text" value="{{ entrada }}" onChange="{{ mudarEntrada }}"
+                        onKeyDown="{{ teclarEnterChat }}"
+                        placeholder="Pergunte sobre o projeto, ou solte uma transcrição aqui" />
+                      <button class="sn-btn"
+                        style="width: 40px; height: 40px; flex-shrink: 0; border-radius: 10px; background: linear-gradient(135deg, #F1885B 0%, #ED6A32 100%); display: flex; align-items: center; justify-content: center;"
+                        onClick="{{ enviar }}">
+                        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2"
+                          stroke-linecap="round" stroke-linejoin="round">
+                          <line x1="22" y1="2" x2="11" y2="13"></line>
+                          <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                        </svg>
+                      </button>
+                    </div>
+                    <span style="font-size: 11.5px; color: #4B4F57;">Responde só a partir do acervo deste projeto. Não
+                      inventa o que não está lá.</span>
+                  </div>
+                </div>
               </div>
 
-              <div style="display: flex; flex-direction: column; gap: 14px; padding: 20px; border-radius: 10px; background: #111827; border: 1px solid rgba(196,199,204,0.14);">
-                <div style="display: flex; align-items: center;">
-                  <span style="font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #6B7280;">Critérios de aceitação</span>
-                  <div style="flex-grow: 1;"></div>
-                  <span style="font-size: 12px; color: #6B7280;">{{ textoNivel }}</span>
+              <!-- acervo -->
+              <div
+                style="width: 340px; flex-shrink: 0; display: flex; flex-direction: column; border-left: 1px solid rgba(196,199,204,0.14); background: #0B0D10; overflow: hidden;">
+                <div style="padding: 18px 18px 14px; border-bottom: 1px solid rgba(196,199,204,0.14);">
+                  <div
+                    style="display: flex; align-items: baseline; justify-content: space-between; padding-bottom: 14px;">
+                    <span
+                      style="font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #6B7280;">Acervo
+                      do projeto</span>
+                    <span style="font-size: 12px; color: #6B7280;">{{ totalFontes }}</span>
+                  </div>
+                  <div class="sn-card"
+                    style="display: flex; flex-direction: column; align-items: center; gap: 7px; padding: 18px 14px; border-radius: 10px; border: 1px dashed rgba(196,199,204,0.22); cursor: pointer; transition: border-color 0.25s;"
+                    onClick="{{ anexar }}">
+                    <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#6B7280" stroke-width="2"
+                      stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                      <polyline points="17 8 12 3 7 8"></polyline>
+                      <line x1="12" y1="3" x2="12" y2="15"></line>
+                    </svg>
+                    <span style="font-size: 13px; font-weight: 500; color: #A6AAB3;">Soltar arquivo ou gravação</span>
+                    <span style="font-size: 11.5px; line-height: 1.5; color: #4B4F57; text-align: center;">PDF, DOCX,
+                      áudio de reunião, transcrição</span>
+                  </div>
                 </div>
-
-                <div style="display: flex; flex-direction: column; gap: 8px;">
-                  <sc-for list="{{ criterios }}" as="cr" hint-placeholder-count="3">
-                    <div class="sn-row" style="display: flex; align-items: flex-start; gap: 12px; padding: 12px 14px; border-radius: 10px; background: #0B0D10; border: 1px solid rgba(196,199,204,0.14);">
-                      <span style="font-family: 'JetBrains Mono', ui-monospace, Menlo, monospace; font-size: 11px; color: #6B7280; flex-shrink: 0; margin-top: 2px;">{{ cr.n }}</span>
-                      <span style="font-size: 13.5px; line-height: 1.6; color: #E5E7EB; flex-grow: 1;">{{ cr.texto }}</span>
-                      <div style="display: flex; gap: 4px; flex-shrink: 0;">
-                        <button class="sn-btn" style="width: 26px; height: 26px; border-radius: 10px; background: transparent; border: 1px solid rgba(196,199,204,0.14); display: flex; align-items: center; justify-content: center;" onClick="{{ cr.subir }}">
-                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#6B7280" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"></polyline></svg>
-                        </button>
-                        <button class="sn-btn" style="width: 26px; height: 26px; border-radius: 10px; background: transparent; border: 1px solid rgba(196,199,204,0.14); display: flex; align-items: center; justify-content: center;" onClick="{{ cr.descer }}">
-                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#6B7280" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
-                        </button>
-                        <button class="sn-btn" style="width: 26px; height: 26px; border-radius: 10px; background: transparent; border: 1px solid rgba(196,199,204,0.14); display: flex; align-items: center; justify-content: center;" onClick="{{ cr.remover }}">
-                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#F0635D" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-                        </button>
+                <div style="flex-grow: 1; overflow-y: auto; padding: 10px;">
+                  <sc-for list="{{ acervo }}" as="a" hint-placeholder-count="5">
+                    <div class="sn-row"
+                      style="display: flex; gap: 10px; padding: 11px 10px; border-radius: 10px; cursor: pointer;">
+                      <span style="flex-shrink: 0; margin-top: 2px;">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="{{ a.corIcone }}"
+                          stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"></path>
+                          <polyline points="14 2 14 8 20 8"></polyline>
+                        </svg>
+                      </span>
+                      <div style="display: flex; flex-direction: column; gap: 4px; min-width: 0; flex-grow: 1;">
+                        <span style="font-size: 12.5px; line-height: 1.4; color: #E5E7EB;">{{ a.nome }}</span>
+                        <div style="display: flex; align-items: center; gap: 7px;">
+                          <span style="font-size: 11px; color: #6B7280;">{{ a.tipo }}</span>
+                          <span style="width: 3px; height: 3px; border-radius: 9999px; background: #4B4F57;"></span>
+                          <span style="font-size: 11px; color: {{ a.corStatus }};">{{ a.status }}</span>
+                        </div>
+                        <sc-if value="{{ a.processando }}" hint-placeholder-val="{{ true }}">
+                          <div
+                            style="height: 4px; border-radius: 9999px; background: rgba(196,199,204,0.12); overflow: hidden; display: flex; margin-top: 2px;">
+                            <div
+                              style="width: {{ a.progresso }}; background: linear-gradient(135deg, #F1885B 0%, #ED6A32 100%);">
+                            </div>
+                          </div>
+                        </sc-if>
                       </div>
                     </div>
                   </sc-for>
-                  <sc-if value="{{ semCriterios }}" hint-placeholder-val="{{ true }}">
-                    <div style="padding: 18px 14px; border-radius: 10px; border: 1px dashed rgba(196,199,204,0.14);">
-                      <p style="margin: 0; font-size: 13px; line-height: 1.55; color: #6B7280; text-align: center;">Nenhum critério registrado ainda.</p>
+                </div>
+              </div>
+
+            </div>
+          </sc-if>
+
+          <!-- ---------- BACKLOG ---------- -->
+          <sc-if value="{{ ehBacklog }}" hint-placeholder-val="{{ true }}">
+            <div style="flex-grow: 1; display: flex; overflow: hidden;">
+
+              <div
+                style="width: 340px; flex-shrink: 0; display: flex; flex-direction: column; border-right: 1px solid rgba(196,199,204,0.14); background: #0B0D10;">
+                <div style="padding: 16px; border-bottom: 1px solid rgba(196,199,204,0.14);">
+                  <input class="sn-in" type="text" value="{{ filtro }}" onChange="{{ mudarFiltro }}"
+                    placeholder="Filtrar por título, código ou pessoa" />
+                </div>
+                <div style="flex-grow: 1; overflow-y: auto; padding: 8px;">
+                  <sc-for list="{{ arvore }}" as="n" hint-placeholder-count="6">
+                    <div class="sn-row"
+                      style="display: flex; align-items: center; gap: 9px; height: 40px; padding: 0 10px; border-radius: 10px; cursor: pointer; background: {{ n.fundo }}; border: 1px solid {{ n.borda }};"
+                      onClick="{{ n.clicar }}">
+                      <span style="width: {{ n.recuo }}; flex-shrink: 0;"></span>
+                      <span
+                        style="font-family: 'JetBrains Mono', ui-monospace, Menlo, monospace; font-size: 11px; font-weight: {{ n.peso }}; color: {{ n.corCodigo }}; flex-shrink: 0;">{{
+                        n.codigo }}</span>
+                      <span
+                        style="font-size: 13px; font-weight: {{ n.pesoTitulo }}; color: {{ n.corTitulo }}; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex-grow: 1;">{{
+                        n.titulo }}</span>
+                      <sc-if value="{{ n.temDono }}" hint-placeholder-val="{{ true }}">
+                        <span
+                          style="width: 22px; height: 22px; flex-shrink: 0; border-radius: 9999px; background: {{ n.dono.fundo }}; border: 1px solid {{ n.dono.borda }}; display: flex; align-items: center; justify-content: center; font-size: 9.5px; font-weight: 700; color: {{ n.dono.cor }};">{{
+                          n.dono.iniciais }}</span>
+                      </sc-if>
+                    </div>
+                  </sc-for>
+                  <sc-if value="{{ semResultado }}" hint-placeholder-val="{{ true }}">
+                    <div style="padding: 22px 12px; text-align: center;">
+                      <p style="margin: 0; font-size: 13px; line-height: 1.55; color: #6B7280;">Nenhum item para “{{
+                        filtro }}”.</p>
                     </div>
                   </sc-if>
                 </div>
-
-                <div style="display: flex; gap: 10px;">
-                  <input class="sn-in" type="text" value="{{ novoCriterio }}" onChange="{{ mudarNovoCriterio }}" placeholder="Descreva o que caracteriza a conclusão" />
-                  <button class="sn-btn" style="height: 40px; padding: 0 18px; flex-shrink: 0; border-radius: 10px; background: linear-gradient(135deg, #F1885B 0%, #ED6A32 100%); color: #16181D; font-size: 14px; font-weight: 600;" onClick="{{ adicionarCriterio }}">Adicionar</button>
-                </div>
               </div>
-            </div>
-          </sc-if>
 
-          <!-- ---- editor de PBI ---- -->
-          <sc-if value="{{ ehPBI }}" hint-placeholder-val="{{ true }}">
-          <div style="display: flex; flex-direction: column; gap: 22px;">
+              <div style="flex-grow: 1; overflow-y: auto; padding: 28px 32px;">
 
-            <div style="display: flex; align-items: center; gap: 10px;">
-              <span style="font-family: 'JetBrains Mono', ui-monospace, Menlo, monospace; font-size: 12px; color: #6B7280;">{{ selCaminho }}</span>
-              <span style="font-family: 'JetBrains Mono', ui-monospace, Menlo, monospace; font-size: 12px; color: #F1885B;">{{ selCodigo }}</span>
-              <div style="flex-grow: 1;"></div>
-              <span style="display: inline-flex; align-items: center; height: 24px; padding: 0 12px; border-radius: 9999px; background: #4A200F; color: #F1885B; border: 1px solid rgba(237,106,50,0.42); font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;">Must</span>
-              <span style="display: inline-flex; align-items: center; height: 24px; padding: 0 12px; border-radius: 9999px; background: rgba(196,199,204,0.09); color: #A6AAB3; border: 1px solid rgba(196,199,204,0.22); font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;">Rascunho</span>
-            </div>
+                <!-- ---- editor de ÉPICO ou FEATURE: critérios de aceitação ---- -->
+                <sc-if value="{{ ehNivelAlto }}" hint-placeholder-val="{{ true }}">
+                  <div style="display: flex; flex-direction: column; gap: 22px;">
+                    <div style="display: flex; flex-direction: column; gap: 6px;">
+                      <div style="display: flex; align-items: center; gap: 10px;">
+                        <span
+                          style="font-family: 'JetBrains Mono', ui-monospace, Menlo, monospace; font-size: 12px; color: #F1885B;">{{
+                          selCodigo }}</span>
+                        <span
+                          style="display: inline-flex; align-items: center; height: 22px; padding: 0 10px; border-radius: 9999px; background: rgba(196,199,204,0.09); color: #A6AAB3; border: 1px solid rgba(196,199,204,0.22); font-size: 10px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;">{{
+                          selNivel }}</span>
+                      </div>
+                      <h2
+                        style="font-family: 'Public Sans', sans-serif; font-weight: 700; font-size: 24px; line-height: 1.2; margin: 0; color: #FFFFFF; letter-spacing: -0.01em;">
+                        {{ selTitulo }}</h2>
+                    </div>
 
-            <div style="display: flex; gap: 18px; align-items: flex-end;">
-              <div style="display: flex; flex-direction: column; gap: 7px; flex-grow: 1;">
-                <span style="font-size: 13px; font-weight: 600; color: #E5E7EB;">Título</span>
-                <input class="sn-in" style="font-size: 16px; height: 46px;" type="text" value="{{ titulo }}" onChange="{{ mudarTitulo }}" placeholder="Comece por um verbo no infinitivo" />
-              </div>
-              <div style="display: flex; flex-direction: column; gap: 7px; width: 230px; flex-shrink: 0;">
-                <span style="font-size: 13px; font-weight: 600; color: #E5E7EB;">Responsável</span>
-                <div style="height: 46px; padding: 0 12px; border-radius: 10px; background: #0B0D10; border: 1px solid rgba(196,199,204,0.22); display: flex; align-items: center; gap: 10px;">
-                  <span style="width: 24px; height: 24px; flex-shrink: 0; border-radius: 9999px; background: #132E50; border: 1px solid rgba(64,151,255,0.42); display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; color: #4097FF;">DP</span>
-                  <div style="display: flex; flex-direction: column; min-width: 0;">
-                    <span style="font-size: 13px; color: #E5E7EB; line-height: 1.25;">Daniel</span>
-                    <span style="font-size: 11px; color: #6B7280; line-height: 1.25;">Product Owner</span>
+                    <div
+                      style="display: flex; flex-direction: column; gap: 14px; padding: 20px; border-radius: 10px; background: #111827; border: 1px solid rgba(196,199,204,0.14);">
+                      <div style="display: flex; align-items: center;">
+                        <span
+                          style="font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #6B7280;">Critérios
+                          de aceitação</span>
+                        <div style="flex-grow: 1;"></div>
+                        <span style="font-size: 12px; color: #6B7280;">{{ textoNivel }}</span>
+                      </div>
+
+                      <div style="display: flex; flex-direction: column; gap: 8px;">
+                        <sc-for list="{{ criterios }}" as="cr" hint-placeholder-count="3">
+                          <div class="sn-row"
+                            style="display: flex; align-items: flex-start; gap: 12px; padding: 12px 14px; border-radius: 10px; background: #0B0D10; border: 1px solid rgba(196,199,204,0.14);">
+                            <span
+                              style="font-family: 'JetBrains Mono', ui-monospace, Menlo, monospace; font-size: 11px; color: #6B7280; flex-shrink: 0; margin-top: 2px;">{{
+                              cr.n }}</span>
+                            <span style="font-size: 13.5px; line-height: 1.6; color: #E5E7EB; flex-grow: 1;">{{ cr.texto
+                              }}</span>
+                            <div style="display: flex; gap: 4px; flex-shrink: 0;">
+                              <button class="sn-btn"
+                                style="width: 26px; height: 26px; border-radius: 10px; background: transparent; border: 1px solid rgba(196,199,204,0.14); display: flex; align-items: center; justify-content: center;"
+                                onClick="{{ cr.subir }}">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#6B7280"
+                                  stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                  <polyline points="18 15 12 9 6 15"></polyline>
+                                </svg>
+                              </button>
+                              <button class="sn-btn"
+                                style="width: 26px; height: 26px; border-radius: 10px; background: transparent; border: 1px solid rgba(196,199,204,0.14); display: flex; align-items: center; justify-content: center;"
+                                onClick="{{ cr.descer }}">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#6B7280"
+                                  stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                  <polyline points="6 9 12 15 18 9"></polyline>
+                                </svg>
+                              </button>
+                              <button class="sn-btn"
+                                style="width: 26px; height: 26px; border-radius: 10px; background: transparent; border: 1px solid rgba(196,199,204,0.14); display: flex; align-items: center; justify-content: center;"
+                                onClick="{{ cr.remover }}">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#F0635D"
+                                  stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                  <line x1="18" y1="6" x2="6" y2="18"></line>
+                                  <line x1="6" y1="6" x2="18" y2="18"></line>
+                                </svg>
+                              </button>
+                            </div>
+                          </div>
+                        </sc-for>
+                        <sc-if value="{{ semCriterios }}" hint-placeholder-val="{{ true }}">
+                          <div
+                            style="padding: 18px 14px; border-radius: 10px; border: 1px dashed rgba(196,199,204,0.14);">
+                            <p
+                              style="margin: 0; font-size: 13px; line-height: 1.55; color: #6B7280; text-align: center;">
+                              Nenhum critério registrado ainda.</p>
+                          </div>
+                        </sc-if>
+                      </div>
+
+                      <div style="display: flex; gap: 10px;">
+                        <input class="sn-in" type="text" value="{{ novoCriterio }}" onChange="{{ mudarNovoCriterio }}"
+                          placeholder="Descreva o que caracteriza a conclusão" />
+                        <button class="sn-btn"
+                          style="height: 40px; padding: 0 18px; flex-shrink: 0; border-radius: 10px; background: linear-gradient(135deg, #F1885B 0%, #ED6A32 100%); color: #16181D; font-size: 14px; font-weight: 600;"
+                          onClick="{{ adicionarCriterio }}">Adicionar</button>
+                      </div>
+                    </div>
                   </div>
-                </div>
-              </div>
-            </div>
+                </sc-if>
 
-            <div style="display: flex; flex-direction: column; gap: 12px; padding: 20px; border-radius: 10px; background: #111827; border: 1px solid rgba(196,199,204,0.14);">
-              <span style="font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #6B7280;">História do usuário</span>
-              <div style="display: flex; gap: 14px; align-items: center;">
-                <span style="font-family: 'JetBrains Mono', ui-monospace, Menlo, monospace; font-size: 11px; font-weight: 700; color: #F1885B; width: 74px; flex-shrink: 0;">COMO UM</span>
-                <input class="sn-in" type="text" value="{{ comoUm }}" onChange="{{ mudarComoUm }}" placeholder="papel" />
-              </div>
-              <div style="display: flex; gap: 14px; align-items: center;">
-                <span style="font-family: 'JetBrains Mono', ui-monospace, Menlo, monospace; font-size: 11px; font-weight: 700; color: #F1885B; width: 74px; flex-shrink: 0;">EU QUERO</span>
-                <input class="sn-in" type="text" value="{{ euQuero }}" onChange="{{ mudarEuQuero }}" placeholder="o que deseja fazer" />
-              </div>
-              <div style="display: flex; gap: 14px; align-items: center;">
-                <span style="font-family: 'JetBrains Mono', ui-monospace, Menlo, monospace; font-size: 11px; font-weight: 700; color: #F1885B; width: 74px; flex-shrink: 0;">PARA QUE</span>
-                <input class="sn-in" type="text" value="{{ paraQue }}" onChange="{{ mudarParaQue }}" placeholder="o valor obtido" />
-              </div>
-            </div>
+                <!-- ---- editor de PBI ---- -->
+                <sc-if value="{{ ehPBI }}" hint-placeholder-val="{{ true }}">
+                  <div style="display: flex; flex-direction: column; gap: 22px;">
 
-            <!-- cenários, reordenáveis -->
-            <div style="display: flex; flex-direction: column; gap: 12px;">
-              <sc-for list="{{ cenarios }}" as="ce" hint-placeholder-count="2">
-                <div style="display: flex; flex-direction: column; gap: 12px; padding: 20px; border-radius: 10px; background: #111827; border: 1px solid rgba(196,199,204,0.14);">
-                  <div style="display: flex; align-items: center; gap: 10px;">
-                    <span style="font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #6B7280;">Cenário {{ ce.n }}</span>
-                    <div style="flex-grow: 1;"></div>
-                    <button class="sn-btn" style="width: 26px; height: 26px; border-radius: 10px; background: transparent; border: 1px solid rgba(196,199,204,0.14); display: flex; align-items: center; justify-content: center;" onClick="{{ ce.subir }}">
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#6B7280" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"></polyline></svg>
-                    </button>
-                    <button class="sn-btn" style="width: 26px; height: 26px; border-radius: 10px; background: transparent; border: 1px solid rgba(196,199,204,0.14); display: flex; align-items: center; justify-content: center;" onClick="{{ ce.descer }}">
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#6B7280" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
-                    </button>
-                    <button class="sn-btn" style="width: 26px; height: 26px; border-radius: 10px; background: transparent; border: 1px solid rgba(196,199,204,0.14); display: flex; align-items: center; justify-content: center;" onClick="{{ ce.remover }}">
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#F0635D" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-                    </button>
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                      <span
+                        style="font-family: 'JetBrains Mono', ui-monospace, Menlo, monospace; font-size: 12px; color: #6B7280;">{{
+                        selCaminho }}</span>
+                      <span
+                        style="font-family: 'JetBrains Mono', ui-monospace, Menlo, monospace; font-size: 12px; color: #F1885B;">{{
+                        selCodigo }}</span>
+                      <div style="flex-grow: 1;"></div>
+                      <span
+                        style="display: inline-flex; align-items: center; height: 24px; padding: 0 12px; border-radius: 9999px; background: #4A200F; color: #F1885B; border: 1px solid rgba(237,106,50,0.42); font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;">Must</span>
+                      <span
+                        style="display: inline-flex; align-items: center; height: 24px; padding: 0 12px; border-radius: 9999px; background: rgba(196,199,204,0.09); color: #A6AAB3; border: 1px solid rgba(196,199,204,0.22); font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;">Rascunho</span>
+                    </div>
+
+                    <div style="display: flex; gap: 18px; align-items: flex-end;">
+                      <div style="display: flex; flex-direction: column; gap: 7px; flex-grow: 1;">
+                        <span style="font-size: 13px; font-weight: 600; color: #E5E7EB;">Título</span>
+                        <input class="sn-in" style="font-size: 16px; height: 46px;" type="text" value="{{ titulo }}"
+                          onChange="{{ mudarTitulo }}" placeholder="Comece por um verbo no infinitivo" />
+                      </div>
+                      <div style="display: flex; flex-direction: column; gap: 7px; width: 230px; flex-shrink: 0;">
+                        <span style="font-size: 13px; font-weight: 600; color: #E5E7EB;">Responsável</span>
+                        <div
+                          style="height: 46px; padding: 0 12px; border-radius: 10px; background: #0B0D10; border: 1px solid rgba(196,199,204,0.22); display: flex; align-items: center; gap: 10px;">
+                          <span
+                            style="width: 24px; height: 24px; flex-shrink: 0; border-radius: 9999px; background: #132E50; border: 1px solid rgba(64,151,255,0.42); display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; color: #4097FF;">DP</span>
+                          <div style="display: flex; flex-direction: column; min-width: 0;">
+                            <span style="font-size: 13px; color: #E5E7EB; line-height: 1.25;">Daniel</span>
+                            <span style="font-size: 11px; color: #6B7280; line-height: 1.25;">Product Owner</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div
+                      style="display: flex; flex-direction: column; gap: 12px; padding: 20px; border-radius: 10px; background: #111827; border: 1px solid rgba(196,199,204,0.14);">
+                      <span
+                        style="font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #6B7280;">História
+                        do usuário</span>
+                      <div style="display: flex; gap: 14px; align-items: center;">
+                        <span
+                          style="font-family: 'JetBrains Mono', ui-monospace, Menlo, monospace; font-size: 11px; font-weight: 700; color: #F1885B; width: 74px; flex-shrink: 0;">COMO
+                          UM</span>
+                        <input class="sn-in" type="text" value="{{ comoUm }}" onChange="{{ mudarComoUm }}"
+                          placeholder="papel" />
+                      </div>
+                      <div style="display: flex; gap: 14px; align-items: center;">
+                        <span
+                          style="font-family: 'JetBrains Mono', ui-monospace, Menlo, monospace; font-size: 11px; font-weight: 700; color: #F1885B; width: 74px; flex-shrink: 0;">EU
+                          QUERO</span>
+                        <input class="sn-in" type="text" value="{{ euQuero }}" onChange="{{ mudarEuQuero }}"
+                          placeholder="o que deseja fazer" />
+                      </div>
+                      <div style="display: flex; gap: 14px; align-items: center;">
+                        <span
+                          style="font-family: 'JetBrains Mono', ui-monospace, Menlo, monospace; font-size: 11px; font-weight: 700; color: #F1885B; width: 74px; flex-shrink: 0;">PARA
+                          QUE</span>
+                        <input class="sn-in" type="text" value="{{ paraQue }}" onChange="{{ mudarParaQue }}"
+                          placeholder="o valor obtido" />
+                      </div>
+                    </div>
+
+                    <!-- cenários, reordenáveis -->
+                    <div style="display: flex; flex-direction: column; gap: 12px;">
+                      <sc-for list="{{ cenarios }}" as="ce" hint-placeholder-count="2">
+                        <div
+                          style="display: flex; flex-direction: column; gap: 12px; padding: 20px; border-radius: 10px; background: #111827; border: 1px solid rgba(196,199,204,0.14);">
+                          <div style="display: flex; align-items: center; gap: 10px;">
+                            <span
+                              style="font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #6B7280;">Cenário
+                              {{ ce.n }}</span>
+                            <div style="flex-grow: 1;"></div>
+                            <button class="sn-btn"
+                              style="width: 26px; height: 26px; border-radius: 10px; background: transparent; border: 1px solid rgba(196,199,204,0.14); display: flex; align-items: center; justify-content: center;"
+                              onClick="{{ ce.subir }}">
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#6B7280"
+                                stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="18 15 12 9 6 15"></polyline>
+                              </svg>
+                            </button>
+                            <button class="sn-btn"
+                              style="width: 26px; height: 26px; border-radius: 10px; background: transparent; border: 1px solid rgba(196,199,204,0.14); display: flex; align-items: center; justify-content: center;"
+                              onClick="{{ ce.descer }}">
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#6B7280"
+                                stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="6 9 12 15 18 9"></polyline>
+                              </svg>
+                            </button>
+                            <button class="sn-btn"
+                              style="width: 26px; height: 26px; border-radius: 10px; background: transparent; border: 1px solid rgba(196,199,204,0.14); display: flex; align-items: center; justify-content: center;"
+                              onClick="{{ ce.remover }}">
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#F0635D"
+                                stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                <line x1="18" y1="6" x2="6" y2="18"></line>
+                                <line x1="6" y1="6" x2="18" y2="18"></line>
+                              </svg>
+                            </button>
+                          </div>
+                          <div style="display: flex; gap: 14px; align-items: center;">
+                            <span
+                              style="font-family: 'JetBrains Mono', ui-monospace, Menlo, monospace; font-size: 11px; font-weight: 700; color: #F1885B; width: 74px; flex-shrink: 0;">DADO</span>
+                            <input class="sn-in" type="text" value="{{ ce.dado }}" onChange="{{ ce.mudarDado }}"
+                              placeholder="a condição inicial" />
+                          </div>
+                          <div style="display: flex; gap: 14px; align-items: center;">
+                            <span
+                              style="font-family: 'JetBrains Mono', ui-monospace, Menlo, monospace; font-size: 11px; font-weight: 700; color: #F1885B; width: 74px; flex-shrink: 0;">QUANDO</span>
+                            <input class="sn-in" type="text" value="{{ ce.quando }}" onChange="{{ ce.mudarQuando }}"
+                              placeholder="a ação do usuário" />
+                          </div>
+                          <div style="display: flex; gap: 14px; align-items: center;">
+                            <span
+                              style="font-family: 'JetBrains Mono', ui-monospace, Menlo, monospace; font-size: 11px; font-weight: 700; color: #F1885B; width: 74px; flex-shrink: 0;">ENTÃO</span>
+                            <input class="sn-in" type="text" value="{{ ce.entao }}" onChange="{{ ce.mudarEntao }}"
+                              placeholder="o resultado observável" />
+                          </div>
+                        </div>
+                      </sc-for>
+                      <sc-if value="{{ semCenarios }}" hint-placeholder-val="{{ true }}">
+                        <div style="padding: 20px; border-radius: 10px; border: 1px dashed rgba(196,199,204,0.14);">
+                          <p style="margin: 0; font-size: 13px; line-height: 1.55; color: #6B7280; text-align: center;">
+                            Nenhum cenário de aceitação. Sem eles, não há como demonstrar o item pronto.</p>
+                        </div>
+                      </sc-if>
+                      <button class="sn-btn"
+                        style="height: 40px; align-self: flex-start; padding: 0 16px; border-radius: 10px; background: transparent; color: #A6AAB3; border: 1px dashed rgba(196,199,204,0.22); font-size: 14px; font-weight: 500; display: inline-flex; align-items: center; gap: 8px;"
+                        onClick="{{ adicionarCenario }}">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#A6AAB3" stroke-width="2"
+                          stroke-linecap="round" stroke-linejoin="round">
+                          <line x1="12" y1="5" x2="12" y2="19"></line>
+                          <line x1="5" y1="12" x2="19" y2="12"></line>
+                        </svg>
+                        Adicionar cenário
+                      </button>
+                    </div>
+
+                    <!-- anexos e protótipo -->
+                    <div
+                      style="display: flex; flex-direction: column; gap: 12px; padding: 20px; border-radius: 10px; background: #111827; border: 1px solid rgba(196,199,204,0.14);">
+                      <div style="display: flex; align-items: center;">
+                        <span
+                          style="font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #6B7280;">Protótipo
+                          e referência visual</span>
+                        <div style="flex-grow: 1;"></div>
+                        <span style="font-size: 12px; color: #6B7280;">PNG, JPG ou PDF</span>
+                      </div>
+
+                      <sc-for list="{{ anexos }}" as="an" hint-placeholder-count="1">
+                        <div
+                          style="display: flex; align-items: center; gap: 14px; padding: 12px 14px; border-radius: 10px; background: #0B0D10; border: 1px solid rgba(196,199,204,0.14);">
+                          <div
+                            style="width: 54px; height: 40px; flex-shrink: 0; border-radius: 10px; background: #171A21; border: 1px solid rgba(196,199,204,0.14); display: flex; align-items: center; justify-content: center;">
+                            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#6B7280"
+                              stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                              <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                              <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                              <polyline points="21 15 16 10 5 21"></polyline>
+                            </svg>
+                          </div>
+                          <div style="display: flex; flex-direction: column; gap: 2px; flex-grow: 1; min-width: 0;">
+                            <span style="font-size: 13.5px; color: #E5E7EB;">{{ an.nome }}</span>
+                            <span style="font-size: 12px; color: #6B7280;">{{ an.legenda }}</span>
+                          </div>
+                          <button class="sn-btn"
+                            style="width: 30px; height: 30px; flex-shrink: 0; border-radius: 10px; background: transparent; border: 1px solid rgba(196,199,204,0.14); display: flex; align-items: center; justify-content: center;"
+                            onClick="{{ an.remover }}">
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#F0635D"
+                              stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                              <line x1="18" y1="6" x2="6" y2="18"></line>
+                              <line x1="6" y1="6" x2="18" y2="18"></line>
+                            </svg>
+                          </button>
+                        </div>
+                      </sc-for>
+
+                      <sc-if value="{{ alertaProtitipo }}" hint-placeholder-val="{{ true }}">
+                        <div
+                          style="display: flex; align-items: flex-start; gap: 10px; padding: 12px 14px; border-radius: 10px; background: #3E2A00; border: 1px solid rgba(200,139,0,0.42);">
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#C88B00" stroke-width="2"
+                            stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0; margin-top: 1px;">
+                            <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"></path>
+                            <line x1="12" y1="9" x2="12" y2="13"></line>
+                            <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                          </svg>
+                          <span style="font-size: 12.5px; line-height: 1.55; color: #C88B00;">O protótipo não substitui
+                            os critérios escritos. Ele não registra regra de negócio, exceção nem estado de erro —
+                            escreva ao menos um cenário.</span>
+                        </div>
+                      </sc-if>
+
+                      <sc-if value="{{ semAnexos }}" hint-placeholder-val="{{ true }}">
+                        <button class="sn-btn"
+                          style="height: 40px; align-self: flex-start; padding: 0 16px; border-radius: 10px; background: transparent; color: #A6AAB3; border: 1px dashed rgba(196,199,204,0.22); font-size: 14px; font-weight: 500; display: inline-flex; align-items: center; gap: 8px;"
+                          onClick="{{ anexarProtitipo }}">
+                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#A6AAB3" stroke-width="2"
+                            stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                            <polyline points="17 8 12 3 7 8"></polyline>
+                            <line x1="12" y1="3" x2="12" y2="15"></line>
+                          </svg>
+                          Anexar protótipo
+                        </button>
+                      </sc-if>
+                    </div>
+
+                    <div style="display: flex; gap: 10px; padding-bottom: 12px;">
+                      <button class="sn-btn"
+                        style="height: 40px; padding: 0 18px; border-radius: 10px; background: linear-gradient(135deg, #F1885B 0%, #ED6A32 100%); color: #16181D; font-size: 14px; font-weight: 600;">Salvar
+                        item</button>
+                      <button class="sn-btn"
+                        style="height: 40px; padding: 0 18px; border-radius: 10px; background: #171A21; color: #E5E7EB; border: 1px solid rgba(196,199,204,0.22); font-size: 14px; font-weight: 500;">Descartar</button>
+                    </div>
+
                   </div>
-                  <div style="display: flex; gap: 14px; align-items: center;">
-                    <span style="font-family: 'JetBrains Mono', ui-monospace, Menlo, monospace; font-size: 11px; font-weight: 700; color: #F1885B; width: 74px; flex-shrink: 0;">DADO</span>
-                    <input class="sn-in" type="text" value="{{ ce.dado }}" onChange="{{ ce.mudarDado }}" placeholder="a condição inicial" />
-                  </div>
-                  <div style="display: flex; gap: 14px; align-items: center;">
-                    <span style="font-family: 'JetBrains Mono', ui-monospace, Menlo, monospace; font-size: 11px; font-weight: 700; color: #F1885B; width: 74px; flex-shrink: 0;">QUANDO</span>
-                    <input class="sn-in" type="text" value="{{ ce.quando }}" onChange="{{ ce.mudarQuando }}" placeholder="a ação do usuário" />
-                  </div>
-                  <div style="display: flex; gap: 14px; align-items: center;">
-                    <span style="font-family: 'JetBrains Mono', ui-monospace, Menlo, monospace; font-size: 11px; font-weight: 700; color: #F1885B; width: 74px; flex-shrink: 0;">ENTÃO</span>
-                    <input class="sn-in" type="text" value="{{ ce.entao }}" onChange="{{ ce.mudarEntao }}" placeholder="o resultado observável" />
-                  </div>
-                </div>
-              </sc-for>
-              <sc-if value="{{ semCenarios }}" hint-placeholder-val="{{ true }}">
-                <div style="padding: 20px; border-radius: 10px; border: 1px dashed rgba(196,199,204,0.14);">
-                  <p style="margin: 0; font-size: 13px; line-height: 1.55; color: #6B7280; text-align: center;">Nenhum cenário de aceitação. Sem eles, não há como demonstrar o item pronto.</p>
-                </div>
-              </sc-if>
-              <button class="sn-btn" style="height: 40px; align-self: flex-start; padding: 0 16px; border-radius: 10px; background: transparent; color: #A6AAB3; border: 1px dashed rgba(196,199,204,0.22); font-size: 14px; font-weight: 500; display: inline-flex; align-items: center; gap: 8px;" onClick="{{ adicionarCenario }}">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#A6AAB3" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-                Adicionar cenário
-              </button>
-            </div>
-
-            <!-- anexos e protótipo -->
-            <div style="display: flex; flex-direction: column; gap: 12px; padding: 20px; border-radius: 10px; background: #111827; border: 1px solid rgba(196,199,204,0.14);">
-              <div style="display: flex; align-items: center;">
-                <span style="font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #6B7280;">Protótipo e referência visual</span>
-                <div style="flex-grow: 1;"></div>
-                <span style="font-size: 12px; color: #6B7280;">PNG, JPG ou PDF</span>
+                </sc-if>
               </div>
 
-              <sc-for list="{{ anexos }}" as="an" hint-placeholder-count="1">
-                <div style="display: flex; align-items: center; gap: 14px; padding: 12px 14px; border-radius: 10px; background: #0B0D10; border: 1px solid rgba(196,199,204,0.14);">
-                  <div style="width: 54px; height: 40px; flex-shrink: 0; border-radius: 10px; background: #171A21; border: 1px solid rgba(196,199,204,0.14); display: flex; align-items: center; justify-content: center;">
-                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#6B7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
+              <sc-if value="{{ ehPBI }}" hint-placeholder-val="{{ true }}">
+                <div
+                  style="width: 300px; flex-shrink: 0; display: flex; flex-direction: column; border-left: 1px solid rgba(196,199,204,0.14); background: #0B0D10; overflow-y: auto;">
+                  <div
+                    style="display: flex; flex-direction: column; gap: 13px; padding: 20px; border-bottom: 1px solid rgba(196,199,204,0.14);">
+                    <div style="display: flex; align-items: baseline; justify-content: space-between;">
+                      <span
+                        style="font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #6B7280;">Completude</span>
+                      <span
+                        style="font-family: 'Public Sans', sans-serif; font-size: 22px; font-weight: 800; color: {{ corPercent }};">{{
+                        percent }}</span>
+                    </div>
+                    <div
+                      style="height: 8px; border-radius: 9999px; background: rgba(196,199,204,0.12); overflow: hidden; display: flex;">
+                      <div
+                        style="width: {{ larguraBarra }}; background: linear-gradient(135deg, #F1885B 0%, #ED6A32 100%);">
+                      </div>
+                    </div>
+                    <span style="font-size: 12px; color: #6B7280;">{{ resumo }}</span>
                   </div>
-                  <div style="display: flex; flex-direction: column; gap: 2px; flex-grow: 1; min-width: 0;">
-                    <span style="font-size: 13.5px; color: #E5E7EB;">{{ an.nome }}</span>
-                    <span style="font-size: 12px; color: #6B7280;">{{ an.legenda }}</span>
-                  </div>
-                  <button class="sn-btn" style="width: 30px; height: 30px; flex-shrink: 0; border-radius: 10px; background: transparent; border: 1px solid rgba(196,199,204,0.14); display: flex; align-items: center; justify-content: center;" onClick="{{ an.remover }}">
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#F0635D" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-                  </button>
-                </div>
-              </sc-for>
-
-              <sc-if value="{{ alertaProtitipo }}" hint-placeholder-val="{{ true }}">
-                <div style="display: flex; align-items: flex-start; gap: 10px; padding: 12px 14px; border-radius: 10px; background: #3E2A00; border: 1px solid rgba(200,139,0,0.42);">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#C88B00" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0; margin-top: 1px;"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
-                  <span style="font-size: 12.5px; line-height: 1.55; color: #C88B00;">O protótipo não substitui os critérios escritos. Ele não registra regra de negócio, exceção nem estado de erro — escreva ao menos um cenário.</span>
-                </div>
-              </sc-if>
-
-              <sc-if value="{{ semAnexos }}" hint-placeholder-val="{{ true }}">
-                <button class="sn-btn" style="height: 40px; align-self: flex-start; padding: 0 16px; border-radius: 10px; background: transparent; color: #A6AAB3; border: 1px dashed rgba(196,199,204,0.22); font-size: 14px; font-weight: 500; display: inline-flex; align-items: center; gap: 8px;" onClick="{{ anexarProtitipo }}">
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#A6AAB3" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
-                  Anexar protótipo
-                </button>
-              </sc-if>
-            </div>
-
-            <div style="display: flex; gap: 10px; padding-bottom: 12px;">
-              <button class="sn-btn" style="height: 40px; padding: 0 18px; border-radius: 10px; background: linear-gradient(135deg, #F1885B 0%, #ED6A32 100%); color: #16181D; font-size: 14px; font-weight: 600;">Salvar item</button>
-              <button class="sn-btn" style="height: 40px; padding: 0 18px; border-radius: 10px; background: #171A21; color: #E5E7EB; border: 1px solid rgba(196,199,204,0.22); font-size: 14px; font-weight: 500;">Descartar</button>
-            </div>
-
-          </div>
-          </sc-if>
-        </div>
-
-        <sc-if value="{{ ehPBI }}" hint-placeholder-val="{{ true }}">
-        <div style="width: 300px; flex-shrink: 0; display: flex; flex-direction: column; border-left: 1px solid rgba(196,199,204,0.14); background: #0B0D10; overflow-y: auto;">
-          <div style="display: flex; flex-direction: column; gap: 13px; padding: 20px; border-bottom: 1px solid rgba(196,199,204,0.14);">
-            <div style="display: flex; align-items: baseline; justify-content: space-between;">
-              <span style="font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #6B7280;">Completude</span>
-              <span style="font-family: 'Public Sans', sans-serif; font-size: 22px; font-weight: 800; color: {{ corPercent }};">{{ percent }}</span>
-            </div>
-            <div style="height: 8px; border-radius: 9999px; background: rgba(196,199,204,0.12); overflow: hidden; display: flex;">
-              <div style="width: {{ larguraBarra }}; background: linear-gradient(135deg, #F1885B 0%, #ED6A32 100%);"></div>
-            </div>
-            <span style="font-size: 12px; color: #6B7280;">{{ resumo }}</span>
-          </div>
-          <div style="display: flex; flex-direction: column; gap: 3px; padding: 12px;">
-            <sc-for list="{{ checklist }}" as="c" hint-placeholder-count="8">
-              <div style="display: flex; align-items: flex-start; gap: 9px; padding: 9px 10px; border-radius: 10px; background: {{ c.fundo }};">
-                <span style="flex-shrink: 0; margin-top: 1px;">
-                  <sc-if value="{{ c.ok }}" hint-placeholder-val="{{ true }}">
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#22B458" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
-                  </sc-if>
-                  <sc-if value="{{ c.falhou }}" hint-placeholder-val="{{ true }}">
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#F0635D" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
-                  </sc-if>
-                </span>
-                <div style="display: flex; flex-direction: column; gap: 2px;">
-                  <span style="font-size: 12.5px; line-height: 1.45; color: {{ c.cor }};">{{ c.texto }}</span>
-                  <sc-if value="{{ c.temDica }}" hint-placeholder-val="{{ true }}">
-                    <span style="font-size: 11.5px; line-height: 1.45; color: #F0635D;">{{ c.dica }}</span>
-                  </sc-if>
-                </div>
-              </div>
-            </sc-for>
-          </div>
-        </div>
-        </sc-if>
-
-      </div>
-    </sc-if>
-
-    <!-- ---------- EQUIPE ---------- -->
-    <sc-if value="{{ ehEquipe }}" hint-placeholder-val="{{ true }}">
-      <div style="flex-grow: 1; overflow-y: auto; padding: 36px 48px;">
-        <div style="display: flex; flex-direction: column; gap: 8px; padding-bottom: 26px;">
-          <h1 style="font-family: 'Public Sans', sans-serif; font-weight: 800; font-size: 30px; line-height: 1.15; margin: 0; color: #FFFFFF; letter-spacing: -0.02em;">Equipe do projeto</h1>
-          <p style="margin: 0; font-size: 14px; color: #6B7280; max-width: 640px; text-wrap: pretty;">Quem é cada pessoa neste projeto, o que domina e o que está sob sua responsabilidade. Importado junto com a estrutura e as tarefas.</p>
-        </div>
-        <div style="display: flex; flex-direction: column; gap: 10px;">
-          <sc-for list="{{ equipe }}" as="p" hint-placeholder-count="5">
-            <div class="sn-card" style="display: flex; align-items: center; gap: 20px; padding: 18px 20px; border-radius: 10px; background: #171A21; border: 1px solid rgba(196,199,204,0.14); transition: border-color 0.25s;">
-              <span style="width: 42px; height: 42px; flex-shrink: 0; border-radius: 9999px; background: {{ p.fundo }}; border: 1px solid {{ p.borda }}; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700; color: {{ p.cor }};">{{ p.iniciais }}</span>
-              <div style="display: flex; flex-direction: column; gap: 3px; width: 190px; flex-shrink: 0;">
-                <span style="font-family: 'Public Sans', sans-serif; font-size: 15px; font-weight: 700; color: #FFFFFF;">{{ p.nome }}</span>
-                <span style="font-size: 12.5px; color: #A6AAB3;">{{ p.papel }}</span>
-              </div>
-              <div style="display: flex; flex-direction: column; gap: 6px; width: 280px; flex-shrink: 0;">
-                <span style="font-size: 10.5px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #6B7280;">Competências</span>
-                <div style="display: flex; gap: 6px; flex-wrap: wrap;">
-                  <sc-for list="{{ p.competencias }}" as="c" hint-placeholder-count="2">
-                    <span style="display: inline-flex; align-items: center; height: 22px; padding: 0 10px; border-radius: 9999px; background: rgba(196,199,204,0.09); color: #A6AAB3; border: 1px solid rgba(196,199,204,0.22); font-size: 11px; font-weight: 500;">{{ c.nome }}</span>
-                  </sc-for>
-                </div>
-              </div>
-              <div style="display: flex; flex-direction: column; gap: 6px; flex-grow: 1;">
-                <span style="font-size: 10.5px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #6B7280;">{{ p.rotuloTarefas }}</span>
-                <sc-if value="{{ p.temTarefas }}" hint-placeholder-val="{{ true }}">
-                  <div style="display: flex; gap: 6px; flex-wrap: wrap;">
-                    <sc-for list="{{ p.tarefas }}" as="t" hint-placeholder-count="3">
-                      <span style="display: inline-flex; align-items: center; height: 22px; padding: 0 10px; border-radius: 9999px; background: #4A200F; color: #F1885B; border: 1px solid rgba(237,106,50,0.42); font-family: 'JetBrains Mono', ui-monospace, Menlo, monospace; font-size: 10.5px; font-weight: 500;">{{ t.codigo }}</span>
+                  <div style="display: flex; flex-direction: column; gap: 3px; padding: 12px;">
+                    <sc-for list="{{ checklist }}" as="c" hint-placeholder-count="8">
+                      <div
+                        style="display: flex; align-items: flex-start; gap: 9px; padding: 9px 10px; border-radius: 10px; background: {{ c.fundo }};">
+                        <span style="flex-shrink: 0; margin-top: 1px;">
+                          <sc-if value="{{ c.ok }}" hint-placeholder-val="{{ true }}">
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#22B458"
+                              stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                              <polyline points="20 6 9 17 4 12"></polyline>
+                            </svg>
+                          </sc-if>
+                          <sc-if value="{{ c.falhou }}" hint-placeholder-val="{{ true }}">
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#F0635D"
+                              stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                              <circle cx="12" cy="12" r="10"></circle>
+                              <line x1="12" y1="8" x2="12" y2="12"></line>
+                              <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                            </svg>
+                          </sc-if>
+                        </span>
+                        <div style="display: flex; flex-direction: column; gap: 2px;">
+                          <span style="font-size: 12.5px; line-height: 1.45; color: {{ c.cor }};">{{ c.texto }}</span>
+                          <sc-if value="{{ c.temDica }}" hint-placeholder-val="{{ true }}">
+                            <span style="font-size: 11.5px; line-height: 1.45; color: #F0635D;">{{ c.dica }}</span>
+                          </sc-if>
+                        </div>
+                      </div>
                     </sc-for>
                   </div>
-                </sc-if>
-                <sc-if value="{{ p.semTarefas }}" hint-placeholder-val="{{ true }}">
-                  <span style="font-size: 12.5px; color: #4B4F57;">Nenhuma tarefa atribuída</span>
-                </sc-if>
+                </div>
+              </sc-if>
+
+            </div>
+          </sc-if>
+
+          <!-- ---------- EQUIPE ---------- -->
+          <sc-if value="{{ ehEquipe }}" hint-placeholder-val="{{ true }}">
+            <div style="flex-grow: 1; overflow-y: auto; padding: 36px 48px;">
+              <div style="display: flex; flex-direction: column; gap: 8px; padding-bottom: 26px;">
+                <h1
+                  style="font-family: 'Public Sans', sans-serif; font-weight: 800; font-size: 30px; line-height: 1.15; margin: 0; color: #FFFFFF; letter-spacing: -0.02em;">
+                  Equipe do projeto</h1>
+                <p style="margin: 0; font-size: 14px; color: #6B7280; max-width: 640px; text-wrap: pretty;">Quem é cada
+                  pessoa neste projeto, o que domina e o que está sob sua responsabilidade. Importado junto com a
+                  estrutura e as tarefas.</p>
+              </div>
+              <div style="display: flex; flex-direction: column; gap: 10px;">
+                <sc-for list="{{ equipe }}" as="p" hint-placeholder-count="5">
+                  <div class="sn-card"
+                    style="display: flex; align-items: center; gap: 20px; padding: 18px 20px; border-radius: 10px; background: #171A21; border: 1px solid rgba(196,199,204,0.14); transition: border-color 0.25s;">
+                    <span
+                      style="width: 42px; height: 42px; flex-shrink: 0; border-radius: 9999px; background: {{ p.fundo }}; border: 1px solid {{ p.borda }}; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700; color: {{ p.cor }};">{{
+                      p.iniciais }}</span>
+                    <div style="display: flex; flex-direction: column; gap: 3px; width: 190px; flex-shrink: 0;">
+                      <span
+                        style="font-family: 'Public Sans', sans-serif; font-size: 15px; font-weight: 700; color: #FFFFFF;">{{
+                        p.nome }}</span>
+                      <span style="font-size: 12.5px; color: #A6AAB3;">{{ p.papel }}</span>
+                    </div>
+                    <div style="display: flex; flex-direction: column; gap: 6px; width: 280px; flex-shrink: 0;">
+                      <span
+                        style="font-size: 10.5px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #6B7280;">Competências</span>
+                      <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+                        <sc-for list="{{ p.competencias }}" as="c" hint-placeholder-count="2">
+                          <span
+                            style="display: inline-flex; align-items: center; height: 22px; padding: 0 10px; border-radius: 9999px; background: rgba(196,199,204,0.09); color: #A6AAB3; border: 1px solid rgba(196,199,204,0.22); font-size: 11px; font-weight: 500;">{{
+                            c.nome }}</span>
+                        </sc-for>
+                      </div>
+                    </div>
+                    <div style="display: flex; flex-direction: column; gap: 6px; flex-grow: 1;">
+                      <span
+                        style="font-size: 10.5px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #6B7280;">{{
+                        p.rotuloTarefas }}</span>
+                      <sc-if value="{{ p.temTarefas }}" hint-placeholder-val="{{ true }}">
+                        <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+                          <sc-for list="{{ p.tarefas }}" as="t" hint-placeholder-count="3">
+                            <span
+                              style="display: inline-flex; align-items: center; height: 22px; padding: 0 10px; border-radius: 9999px; background: #4A200F; color: #F1885B; border: 1px solid rgba(237,106,50,0.42); font-family: 'JetBrains Mono', ui-monospace, Menlo, monospace; font-size: 10.5px; font-weight: 500;">{{
+                              t.codigo }}</span>
+                          </sc-for>
+                        </div>
+                      </sc-if>
+                      <sc-if value="{{ p.semTarefas }}" hint-placeholder-val="{{ true }}">
+                        <span style="font-size: 12.5px; color: #4B4F57;">Nenhuma tarefa atribuída</span>
+                      </sc-if>
+                    </div>
+                  </div>
+                </sc-for>
               </div>
             </div>
-          </sc-for>
+          </sc-if>
+
         </div>
-      </div>
-    </sc-if>
+      </sc-if>
 
-  </div>
-  </sc-if>
-
-</div>
-</x-dc>
-<script data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
-class Component extends DCLogic {
-  constructor(props) {
-    super(props);
-    this.state = {
-      tela: 'login',
-      secao: 'conversa',
-      email: '', senha: '', erroLogin: false,
-      projetoNome: '',
-      entrada: '',
-      mensagens: [],
-      filtro: '',
-      abertos: { 'EP-01': true, 'FT-01.1': true },
-      selecionado: 'PBI-01.1.4',
-      titulo: 'Cadastrar PBI',
-      comoUm: 'Product Owner',
-      euQuero: 'cadastrar um PBI dentro de uma feature',
-      paraQue: 'a equipe saiba exatamente o que construir',
-      cenarios: [
-        { dado: 'que a feature esteja selecionada', quando: 'eu confirmar o cadastro do PBI', entao: 'o item aparece na árvore sob aquela feature' },
-        { dado: 'que o título esteja vazio', quando: 'eu tentar confirmar', entao: 'o sistema recusa e indica o campo obrigatório' }
-      ],
-      anexos: [],
-      novoCriterio: '',
-      criterios: {
-        'EP-01': [
-          'Todo item de trabalho da fábrica pode ser criado, editado e arquivado na plataforma.',
-          'A hierarquia Épico, Feature e PBI é respeitada em toda a árvore, sem item órfão.',
-          'Nenhum PBI pode ser aprovado sem passar pelo checklist do guia de especificação.'
-        ],
-        'EP-06': [
-          'Nenhuma tela do produto é acessível sem sessão autenticada.',
-          'Cada ação registrada no histórico identifica quem a executou.'
-        ],
-        'FT-01.1': [
-          'Os quatro níveis podem ser cadastrados e aparecem na árvore imediatamente.',
-          'Arquivar um item preserva o histórico em vez de apagar o registro.'
-        ],
-        'FT-01.2': [
-          'Épico e feature aceitam critérios em lista ordenada.',
-          'PBI aceita cenários no formato DADO, QUANDO e ENTÃO.'
-        ],
-        'FT-01.3': [
-          'O checklist do guia é avaliado a cada alteração, sem ação manual.',
-          'Termo vago no título ou na história é sinalizado com o termo encontrado.'
-        ],
-        'FT-01.4': [
-          'A árvore navega do épico ao PBI sem recarregar a página.',
-          'O filtro localiza por título, código ou pessoa responsável.'
-        ],
-        'FT-06.1': [
-          'Sessão encerrada não permite retorno pelo botão voltar do navegador.'
-        ]
-      }
-    };
-  }
-
-  rotuloNivel(codigo) {
-    if (codigo.indexOf('EP-') === 0) return 'Épico';
-    if (codigo.indexOf('FT-') === 0) return 'Feature';
-    return 'PBI';
-  }
-
-  itens() {
-    return [
-      { codigo: 'EP-01', titulo: 'Especificar itens de trabalho', nivel: 0, id: 'EP-01' },
-      { codigo: 'FT-01.1', titulo: 'Estruturação dos itens', nivel: 1, pai: 'EP-01', id: 'FT-01.1' },
-      { codigo: 'PBI-01.1.1', titulo: 'Cadastrar projeto', nivel: 2, pai: 'FT-01.1', dono: 'Daniel' },
-      { codigo: 'PBI-01.1.2', titulo: 'Cadastrar épico', nivel: 2, pai: 'FT-01.1', dono: 'Daniel' },
-      { codigo: 'PBI-01.1.4', titulo: 'Cadastrar PBI', nivel: 2, pai: 'FT-01.1', dono: 'Daniel' },
-      { codigo: 'PBI-01.1.5', titulo: 'Editar item de trabalho', nivel: 2, pai: 'FT-01.1', dono: 'Giovanni' },
-      { codigo: 'FT-01.2', titulo: 'Critérios de aceitação por nível', nivel: 1, pai: 'EP-01', id: 'FT-01.2' },
-      { codigo: 'FT-01.3', titulo: 'Conformidade com o guia', nivel: 1, pai: 'EP-01', id: 'FT-01.3' },
-      { codigo: 'FT-01.4', titulo: 'Navegação do backlog', nivel: 1, pai: 'EP-01', id: 'FT-01.4' },
-      { codigo: 'EP-06', titulo: 'Acessar a plataforma com segurança', nivel: 0, id: 'EP-06' },
-      { codigo: 'FT-06.1', titulo: 'Acesso à plataforma', nivel: 1, pai: 'EP-06', id: 'FT-06.1' }
-    ];
-  }
-
-  // ---------- regras do Guia de Especificação ----------
-  temVerboInfinitivo(t) {
-    const p = (t || '').trim().split(/\s+/)[0] || '';
-    return /(ar|er|ir|ôr|or)$/i.test(p) && p.length > 2;
-  }
-
-  termoVago(t) {
-    const vagos = ['adequado', 'adequada', 'rápido', 'rápida', 'rapida', 'intuitivo', 'intuitiva', 'correto', 'correta', 'bonito', 'bonita'];
-    const s = (t || '').toLowerCase();
-    return vagos.find((v) => s.includes(v)) || null;
-  }
-
-  montarChecklist() {
-    const s = this.state;
-    const vagoTitulo = this.termoVago(s.titulo);
-    const vagoHistoria = this.termoVago(s.euQuero + ' ' + s.paraQue);
-    const cs = s.cenarios;
-    const completos = cs.filter((c) => (c.dado || '').trim().length > 4 && (c.quando || '').trim().length > 4 && (c.entao || '').trim().length > 4);
-
-    const lista = [
-      { texto: 'Título começa por verbo no infinitivo', ok: this.temVerboInfinitivo(s.titulo), dica: 'Troque a primeira palavra por um verbo terminado em -ar, -er ou -ir.' },
-      { texto: 'Título sem termo vago', ok: !vagoTitulo, dica: vagoTitulo ? 'O termo “' + vagoTitulo + '” não diz o que verificar.' : '' },
-      { texto: 'História informa o papel', ok: (s.comoUm || '').trim().length > 2, dica: 'Diga quem é o usuário da história.' },
-      { texto: 'História informa o desejo', ok: (s.euQuero || '').trim().length > 4, dica: 'Descreva o que a pessoa quer fazer.' },
-      { texto: 'História informa o valor', ok: (s.paraQue || '').trim().length > 4, dica: 'Explique por que isso importa.' },
-      { texto: 'História sem termo vago', ok: !vagoHistoria, dica: vagoHistoria ? 'O termo “' + vagoHistoria + '” não é verificável.' : '' },
-      { texto: 'Tem ao menos um cenário de aceitação', ok: cs.length > 0, dica: 'Sem cenário não há como demonstrar o item pronto.' },
-      { texto: 'Todo cenário tem DADO, QUANDO e ENTÃO', ok: cs.length > 0 && completos.length === cs.length, dica: cs.length === 0 ? 'Adicione um cenário.' : (cs.length - completos.length) + ' cenário(s) com cláusula faltando.' }
-    ];
-
-    // Só se aplica quando existe protótipo anexado (PBI-02.1.3, cenário 2).
-    if (s.anexos.length > 0) {
-      lista.push({
-        texto: 'Protótipo acompanhado de critérios escritos',
-        ok: cs.length > 0,
-        dica: 'O protótipo não registra regra de negócio, exceção nem estado de erro.'
-      });
-    }
-
-    return lista;
-  }
-
-  // ---------- pessoas ----------
-  pessoas() {
-    return [
-      { nome: 'Daniel', iniciais: 'DP', papel: 'Product Owner', tom: 'azul', competencias: ['Produto', 'Documentação'], tarefas: ['S1-03'] },
-      { nome: 'Giovanni', iniciais: 'GI', papel: 'Design e front-end', tom: 'laranja', competencias: ['UX', 'Frontend'], tarefas: ['PRE-05', 'S1-02', 'S1-04'] },
-      { nome: 'Vitor', iniciais: 'VI', papel: 'Back-end e qualidade', tom: 'verde', competencias: ['Backend', 'QA'], tarefas: ['PRE-08', 'S1-10', 'S1-13'] },
-      { nome: 'Gustavo Bueno', iniciais: 'GB', papel: 'Back-end e segurança', tom: 'verde', competencias: ['Backend', 'Segurança'], tarefas: ['PRE-08', 'S1-01'] },
-      { nome: 'Rafael Matesco', iniciais: 'RM', papel: 'Inteligência artificial e busca', tom: 'roxo', competencias: ['IA/RAG', 'QA'], tarefas: ['PRE-07'] },
-      { nome: 'Emmanuel', iniciais: 'EG', papel: 'Sem definição registrada', tom: 'cinza', competencias: [], tarefas: [] }
-    ];
-  }
-
-  tons(t) {
-    const m = {
-      laranja: { fundo: '#4A200F', borda: 'rgba(237,106,50,0.42)', cor: '#F1885B' },
-      azul: { fundo: '#132E50', borda: 'rgba(64,151,255,0.42)', cor: '#4097FF' },
-      verde: { fundo: '#0D371A', borda: 'rgba(34,180,88,0.42)', cor: '#22B458' },
-      roxo: { fundo: '#3E2A00', borda: 'rgba(200,139,0,0.42)', cor: '#C88B00' },
-      cinza: { fundo: 'rgba(196,199,204,0.09)', borda: 'rgba(196,199,204,0.22)', cor: '#A6AAB3' }
-    };
-    return m[t] || m.cinza;
-  }
-
-  // ---------- conversa ----------
-  responder(pergunta) {
-    const p = (pergunta || '').toLowerCase();
-
-    if (p.includes('autentica') || p.includes('login')) {
-      return {
-        tipo: 'ia',
-        texto: 'Autenticação já foi resolvida duas vezes no acervo, com decisões diferentes.\n\nNa API-1 ficou sessão por cookie assinado, com expiração de 8 horas. Na API-2 mudou para token com refresh, porque o app mobile precisava manter sessão longa.\n\nNenhum dos dois documentos registra bloqueio após tentativas repetidas — se isso for requisito agora, é decisão nova.',
-        fontes: [
-          { rotulo: 'API-1 — documentação de sprint 2, seção Acesso' },
-          { rotulo: 'API-2 — decisão técnica 04, autenticação' }
-        ]
-      };
-    }
-
-    if (p.includes('quem') || p.includes('upload') || p.includes('trabalhou')) {
-      return {
-        tipo: 'ia',
-        texto: 'Duas pessoas têm histórico com upload de documentos.\n\nGustavo Bueno implementou o upload com validação de tipo na API-2. Vitor cuidou da parte de armazenamento e limpeza de arquivo órfão no mesmo projeto.\n\nRafael Matesco não trabalhou com upload, mas é quem está com o spike de embeddings agora — se a pergunta for sobre indexar o que foi enviado, é com ele.',
-        fontes: [
-          { rotulo: 'API-2 — atribuições da sprint 3' },
-          { rotulo: 'Perfis da equipe — alocação por projeto' }
-        ]
-      };
-    }
-
-    if (p.includes('reunião') || p.includes('reuniao') || p.includes('09/09') || p.includes('resuma') || p.includes('transcri')) {
-      return {
-        tipo: 'ia',
-        texto: 'A reunião de 09/09 tratou de três assuntos: o parecer da PRO4TECH sobre o backlog, a divisão das tarefas da Sprint 1 e o ambiente com Docker.\n\nDo trecho sobre o parecer, identifiquei três itens candidatos. Nenhum foi criado — cada um precisa da sua decisão.',
-        fontes: [{ rotulo: 'Reunião de planejamento — 09/09.vtt, trecho 12:04–18:30' }],
-        propostas: [
-          { nivel: 'PBI · sob FT-01.6', titulo: 'Configurar as verificações de qualidade da organização', origem: 'Trecho 13:20 — “quem define o checklist tem que ser configurável por organização, não por projeto”', estado: 'pendente' },
-          { nivel: 'PBI · sob FT-01.5', titulo: 'Justificar a alteração de um item', origem: 'Trecho 15:47 — “quando mudar um item aprovado, tem que dizer por quê e ficar no histórico”', estado: 'pendente' },
-          { nivel: 'Impedimento', titulo: 'Ambiente completo depende de Docker nas máquinas', origem: 'Trecho 17:02 — “sem Docker ou WSL 2 não dá pra validar o ambiente inteiro”', estado: 'pendente' }
-        ]
-      };
-    }
-
-    return {
-      tipo: 'ia',
-      texto: 'Não encontrei nada no acervo deste projeto que responda isso.\n\nPrefiro dizer que não sei a inventar um requisito que ninguém escreveu. Se o assunto foi tratado em alguma reunião ou documento, anexe a fonte no painel à direita que eu passo a considerar.',
-      fontes: []
-    };
-  }
-
-  enviarTexto(txt) {
-    const t = (txt || '').trim();
-    if (!t) return;
-    const resposta = this.responder(t);
-    this.setState({ mensagens: this.state.mensagens.concat([{ tipo: 'usuario', texto: t }, resposta]), entrada: '' });
-  }
-
-  decidirProposta(iMsg, iProp, estado) {
-    const msgs = this.state.mensagens.map((m, i) => {
-      if (i !== iMsg || !m.propostas) return m;
-      return Object.assign({}, m, {
-        propostas: m.propostas.map((p, j) => (j === iProp ? Object.assign({}, p, { estado: estado }) : p))
-      });
-    });
-    this.setState({ mensagens: msgs });
-  }
-
-  // ---------- manipulação de listas ----------
-  mover(arr, i, delta) {
-    const j = i + delta;
-    if (j < 0 || j >= arr.length) return arr;
-    const c = arr.slice();
-    const t = c[i]; c[i] = c[j]; c[j] = t;
-    return c;
-  }
-
-  moverCenario(i, d) { this.setState({ cenarios: this.mover(this.state.cenarios, i, d) }); }
-  removerCenario(i) { this.setState({ cenarios: this.state.cenarios.filter((_, j) => j !== i) }); }
-  mudarCenario(i, campo, valor) {
-    this.setState({ cenarios: this.state.cenarios.map((c, j) => (j === i ? Object.assign({}, c, { [campo]: valor }) : c)) });
-  }
-
-  criteriosDo(codigo) { return this.state.criterios[codigo] || []; }
-
-  setCriterios(codigo, lista) {
-    this.setState({ criterios: Object.assign({}, this.state.criterios, { [codigo]: lista }) });
-  }
-
-  renderVals() {
-    const s = this.state;
-    const sel = s.selecionado;
-    const nivelSel = this.rotuloNivel(sel);
-    const ehPBI = nivelSel === 'PBI';
-    const itemSel = this.itens().find((x) => x.codigo === sel) || { titulo: '' };
-
-    const lista = this.montarChecklist();
-    const okCount = lista.filter((c) => c.ok).length;
-    const pct = Math.round((okCount / lista.length) * 100);
-
-    const pes = this.pessoas();
-    const f = (s.filtro || '').trim().toLowerCase();
-    const visiveis = this.itens().filter((n) => {
-      if (f) return (n.codigo + ' ' + n.titulo + ' ' + (n.dono || '')).toLowerCase().includes(f);
-      if (n.nivel === 0) return true;
-      return s.abertos[n.pai];
-    });
-
-    const arvore = visiveis.map((n) => {
-      const dono = n.dono ? pes.find((x) => x.nome === n.dono) : null;
-      const tom = dono ? this.tons(dono.tom) : null;
-      const ativo = n.codigo === sel;
-      return {
-        codigo: n.codigo,
-        titulo: n.titulo,
-        recuo: n.nivel * 14 + 'px',
-        peso: n.nivel === 0 ? '600' : '400',
-        pesoTitulo: n.nivel === 0 ? '600' : n.nivel === 1 ? '500' : '400',
-        corCodigo: n.nivel === 0 ? '#F1885B' : '#6B7280',
-        corTitulo: ativo ? '#FFFFFF' : n.nivel === 2 ? '#A6AAB3' : '#E5E7EB',
-        fundo: ativo ? 'rgba(237,106,50,0.09)' : 'transparent',
-        borda: ativo ? 'rgba(237,106,50,0.32)' : 'transparent',
-        temDono: !!dono,
-        dono: dono ? { iniciais: dono.iniciais, fundo: tom.fundo, borda: tom.borda, cor: tom.cor } : { iniciais: '', fundo: '', borda: '', cor: '' },
-        clicar: () => {
-          const patch = { selecionado: n.codigo };
-          if (n.id) patch.abertos = Object.assign({}, this.state.abertos, { [n.id]: !this.state.abertos[n.id] });
-          this.setState(patch);
-        }
-      };
-    });
-
-    const selos = {
-      pendente: { texto: 'Aguardando decisão', fundo: '#3E2A00', cor: '#C88B00', borda: 'rgba(200,139,0,0.42)' },
-      aceito: { texto: 'Aceito', fundo: '#0D371A', cor: '#22B458', borda: 'rgba(34,180,88,0.42)' },
-      dispensado: { texto: 'Dispensado', fundo: 'rgba(196,199,204,0.09)', cor: '#6B7280', borda: 'rgba(196,199,204,0.22)' }
-    };
-
-    const secoes = [
-      { chave: 'conversa', rotulo: 'Conversa' },
-      { chave: 'backlog', rotulo: 'Backlog' },
-      { chave: 'equipe', rotulo: 'Equipe' }
-    ].map((x) => ({
-      rotulo: x.rotulo,
-      peso: s.secao === x.chave ? '600' : '500',
-      cor: s.secao === x.chave ? '#FFFFFF' : '#6B7280',
-      fundo: s.secao === x.chave ? 'rgba(237,106,50,0.14)' : 'transparent',
-      ir: () => this.setState({ secao: x.chave })
-    }));
-
-    const crits = this.criteriosDo(sel);
-
-    return {
-      ehLogin: s.tela === 'login',
-      ehApp: s.tela !== 'login',
-      ehProjetos: s.tela === 'projetos',
-      dentroProjeto: s.tela === 'projeto',
-      ehConversa: s.tela === 'projeto' && s.secao === 'conversa',
-      ehBacklog: s.tela === 'projeto' && s.secao === 'backlog',
-      ehEquipe: s.tela === 'projeto' && s.secao === 'equipe',
-      secoes: secoes,
-
-      email: s.email, senha: s.senha, erroLogin: s.erroLogin,
-      projetoNome: s.projetoNome,
-      filtro: s.filtro, entrada: s.entrada,
-      titulo: s.titulo, comoUm: s.comoUm, euQuero: s.euQuero, paraQue: s.paraQue,
-
-      // seleção e nível
-      ehPBI: ehPBI,
-      ehNivelAlto: !ehPBI,
-      selCodigo: sel,
-      selNivel: nivelSel,
-      selTitulo: itemSel.titulo,
-      selCaminho: itemSel.pai ? (this.itens().find(x => x.codigo === (this.itens().find(p => p.codigo === itemSel.pai) || {}).pai) ? (this.itens().find(p => p.codigo === itemSel.pai).pai + ' · ') : '') + itemSel.pai + ' · ' : '',
-      textoNivel: nivelSel === 'Épico' ? 'O que caracteriza a iniciativa concluída' : 'O que caracteriza a feature entregue',
-
-      criterios: crits.map((t, i) => ({
-        n: (i + 1) + '.',
-        texto: t,
-        subir: () => this.setCriterios(sel, this.mover(crits, i, -1)),
-        descer: () => this.setCriterios(sel, this.mover(crits, i, 1)),
-        remover: () => this.setCriterios(sel, crits.filter((_, j) => j !== i))
-      })),
-      semCriterios: crits.length === 0,
-      novoCriterio: s.novoCriterio,
-      mudarNovoCriterio: (e) => this.setState({ novoCriterio: e.target.value }),
-      adicionarCriterio: () => {
-        const t = (this.state.novoCriterio || '').trim();
-        if (!t) return;
-        this.setCriterios(sel, this.criteriosDo(sel).concat([t]));
-        this.setState({ novoCriterio: '' });
-      },
-
-      // cenários
-      cenarios: s.cenarios.map((c, i) => ({
-        n: i + 1,
-        dado: c.dado, quando: c.quando, entao: c.entao,
-        subir: () => this.moverCenario(i, -1),
-        descer: () => this.moverCenario(i, 1),
-        remover: () => this.removerCenario(i),
-        mudarDado: (e) => this.mudarCenario(i, 'dado', e.target.value),
-        mudarQuando: (e) => this.mudarCenario(i, 'quando', e.target.value),
-        mudarEntao: (e) => this.mudarCenario(i, 'entao', e.target.value)
-      })),
-      semCenarios: s.cenarios.length === 0,
-      adicionarCenario: () => this.setState({ cenarios: this.state.cenarios.concat([{ dado: '', quando: '', entao: '' }]) }),
-
-      // anexos
-      anexos: s.anexos.map((a, i) => ({
-        nome: a.nome, legenda: a.legenda,
-        remover: () => this.setState({ anexos: this.state.anexos.filter((_, j) => j !== i) })
-      })),
-      semAnexos: s.anexos.length === 0,
-      alertaProtitipo: s.anexos.length > 0 && s.cenarios.length === 0,
-      anexarProtitipo: () => this.setState({ anexos: [{ nome: 'tela-cadastro-pbi.png', legenda: 'Rascunho do formulário, com o checklist à direita' }] }),
-
-      mudarEmail: (e) => this.setState({ email: e.target.value, erroLogin: false }),
-      mudarSenha: (e) => this.setState({ senha: e.target.value, erroLogin: false }),
-      teclarEnterLogin: (e) => {
-        if (e.key === 'Enter') {
-          if (!s.email.trim() || !s.senha.trim()) { this.setState({ erroLogin: true }); return; }
-          this.setState({ tela: 'projetos', erroLogin: false });
-        }
-      },
-      entrar: () => {
-        if (!s.email.trim() || !s.senha.trim()) { this.setState({ erroLogin: true }); return; }
-        this.setState({ tela: 'projetos', erroLogin: false });
-      },
-      sair: () => this.setState({ tela: 'login', email: '', senha: '', mensagens: [] }),
-      irProjetos: () => this.setState({ tela: 'projetos' }),
-      mudarFiltro: (e) => this.setState({ filtro: e.target.value }),
-      mudarEntrada: (e) => this.setState({ entrada: e.target.value }),
-      teclarEnterChat: (e) => {
-        if (e.key === 'Enter') this.enviarTexto(this.state.entrada);
-      },
-      enviar: () => this.enviarTexto(this.state.entrada),
-      anexar: () => this.enviarTexto('Resuma a reunião de 09/09 e proponha itens'),
-
-      mudarTitulo: (e) => this.setState({ titulo: e.target.value }),
-      mudarComoUm: (e) => this.setState({ comoUm: e.target.value }),
-      mudarEuQuero: (e) => this.setState({ euQuero: e.target.value }),
-      mudarParaQue: (e) => this.setState({ paraQue: e.target.value }),
-
-      projetos: [
-        { nome: 'API-1', ano: '2025-1', desc: 'Autenticação, cadastro de usuários e painel administrativo.', itens: 38, fontes: 12, pessoas: 6, abrir: () => this.setState({ tela: 'projeto', secao: 'conversa', projetoNome: 'API-1' }) },
-        { nome: 'API-2', ano: '2025-2', desc: 'Dashboards, upload de documentos e gestão de equipe.', itens: 52, fontes: 21, pessoas: 6, abrir: () => this.setState({ tela: 'projeto', secao: 'conversa', projetoNome: 'API-2' }) },
-        { nome: 'API-3', ano: '2026-1', desc: 'Relatórios, indicadores e integração com serviços externos.', itens: 44, fontes: 17, pessoas: 6, abrir: () => this.setState({ tela: 'projeto', secao: 'conversa', projetoNome: 'API-3' }) }
-      ],
-
-      mensagens: s.mensagens.map((m, i) => ({
-        ehUsuario: m.tipo === 'usuario',
-        ehIA: m.tipo === 'ia',
-        texto: m.texto,
-        temFontes: !!(m.fontes && m.fontes.length),
-        fontes: m.fontes || [],
-        temPropostas: !!(m.propostas && m.propostas.length),
-        propostas: (m.propostas || []).map((p, j) => ({
-          nivel: p.nivel, titulo: p.titulo, origem: p.origem,
-          pendente: p.estado === 'pendente',
-          corTitulo: p.estado === 'dispensado' ? '#6B7280' : '#FFFFFF',
-          borda: p.estado === 'aceito' ? 'rgba(34,180,88,0.42)' : p.estado === 'dispensado' ? 'rgba(196,199,204,0.14)' : 'rgba(237,106,50,0.32)',
-          selo: selos[p.estado],
-          aceitar: () => this.decidirProposta(i, j, 'aceito'),
-          dispensar: () => this.decidirProposta(i, j, 'dispensado')
-        }))
-      })),
-
-      mostrarSugestoes: s.mensagens.length === 0,
-      sugestoes: [
-        { texto: 'O que já decidimos sobre autenticação?', enviar: () => this.enviarTexto('O que já decidimos sobre autenticação?') },
-        { texto: 'Quem já trabalhou com upload de documentos?', enviar: () => this.enviarTexto('Quem já trabalhou com upload de documentos?') },
-        { texto: 'Resuma a reunião de 09/09 e proponha itens', enviar: () => this.enviarTexto('Resuma a reunião de 09/09 e proponha itens') }
-      ],
-
-      totalFontes: '21 fontes',
-      acervo: [
-        { nome: 'Reunião de planejamento — 09/09.vtt', tipo: 'Transcrição', status: 'Indexado', corStatus: '#22B458', corIcone: '#6B7280', processando: false, progresso: '0%' },
-        { nome: 'Kickoff PRO4TECH — 22/08.m4a', tipo: 'Áudio', status: 'Indexado', corStatus: '#22B458', corIcone: '#6B7280', processando: false, progresso: '0%' },
-        { nome: 'Guia de Especificação de Itens de Trabalho.pdf', tipo: 'Documento', status: 'Indexado', corStatus: '#22B458', corIcone: '#6B7280', processando: false, progresso: '0%' },
-        { nome: 'API-2 — documentação de sprint 3.pdf', tipo: 'Documento', status: 'Processando', corStatus: '#C88B00', corIcone: '#C88B00', processando: true, progresso: '62%' },
-        { nome: 'Anexos de teste — API-2.zip', tipo: 'Arquivo', status: 'Fora do acervo', corStatus: '#6B7280', corIcone: '#4B4F57', processando: false, progresso: '0%' }
-      ],
-
-      equipe: pes.map((p) => {
-        const t = this.tons(p.tom);
-        return {
-          nome: p.nome, iniciais: p.iniciais, papel: p.papel,
-          fundo: t.fundo, borda: t.borda, cor: t.cor,
-          competencias: p.competencias.length ? p.competencias.map((c) => ({ nome: c })) : [{ nome: 'Nenhuma registrada' }],
-          rotuloTarefas: 'Responsável por',
-          temTarefas: p.tarefas.length > 0,
-          semTarefas: p.tarefas.length === 0,
-          tarefas: p.tarefas.map((c) => ({ codigo: c }))
+    </div>
+  </x-dc>
+  <script data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+    class Component extends DCLogic {
+      constructor(props) {
+        super(props);
+        this.state = {
+          tela: 'login',
+          secao: 'conversa',
+          email: '', senha: '', erroLogin: false,
+          projetoNome: '',
+          entrada: '',
+          mensagens: [],
+          filtro: '',
+          abertos: { 'EP-01': true, 'FT-01.1': true },
+          selecionado: 'PBI-01.1.4',
+          titulo: 'Cadastrar PBI',
+          comoUm: 'Product Owner',
+          euQuero: 'cadastrar um PBI dentro de uma feature',
+          paraQue: 'a equipe saiba exatamente o que construir',
+          cenarios: [
+            { dado: 'que a feature esteja selecionada', quando: 'eu confirmar o cadastro do PBI', entao: 'o item aparece na árvore sob aquela feature' },
+            { dado: 'que o título esteja vazio', quando: 'eu tentar confirmar', entao: 'o sistema recusa e indica o campo obrigatório' }
+          ],
+          anexos: [],
+          novoCriterio: '',
+          criterios: {
+            'EP-01': [
+              'Todo item de trabalho da fábrica pode ser criado, editado e arquivado na plataforma.',
+              'A hierarquia Épico, Feature e PBI é respeitada em toda a árvore, sem item órfão.',
+              'Nenhum PBI pode ser aprovado sem passar pelo checklist do guia de especificação.'
+            ],
+            'EP-06': [
+              'Nenhuma tela do produto é acessível sem sessão autenticada.',
+              'Cada ação registrada no histórico identifica quem a executou.'
+            ],
+            'FT-01.1': [
+              'Os quatro níveis podem ser cadastrados e aparecem na árvore imediatamente.',
+              'Arquivar um item preserva o histórico em vez de apagar o registro.'
+            ],
+            'FT-01.2': [
+              'Épico e feature aceitam critérios em lista ordenada.',
+              'PBI aceita cenários no formato DADO, QUANDO e ENTÃO.'
+            ],
+            'FT-01.3': [
+              'O checklist do guia é avaliado a cada alteração, sem ação manual.',
+              'Termo vago no título ou na história é sinalizado com o termo encontrado.'
+            ],
+            'FT-01.4': [
+              'A árvore navega do épico ao PBI sem recarregar a página.',
+              'O filtro localiza por título, código ou pessoa responsável.'
+            ],
+            'FT-06.1': [
+              'Sessão encerrada não permite retorno pelo botão voltar do navegador.'
+            ]
+          }
         };
-      }),
+      }
 
-      arvore: arvore,
-      semResultado: arvore.length === 0,
-      percent: pct + '%',
-      corPercent: pct === 100 ? '#22B458' : '#FFFFFF',
-      larguraBarra: pct + '%',
-      resumo: okCount + ' de ' + lista.length + ' verificações aplicáveis',
-      checklist: lista.map((c) => ({
-        texto: c.texto, ok: c.ok, falhou: !c.ok,
-        cor: c.ok ? '#A6AAB3' : '#FFFFFF',
-        fundo: c.ok ? 'transparent' : 'rgba(240,99,93,0.07)',
-        temDica: !c.ok && !!c.dica,
-        dica: c.dica
-      }))
-    };
-  }
-}
-</script>
+      rotuloNivel(codigo) {
+        if (codigo.indexOf('EP-') === 0) return 'Épico';
+        if (codigo.indexOf('FT-') === 0) return 'Feature';
+        return 'PBI';
+      }
+
+      itens() {
+        return [
+          { codigo: 'EP-01', titulo: 'Especificar itens de trabalho', nivel: 0, id: 'EP-01' },
+          { codigo: 'FT-01.1', titulo: 'Estruturação dos itens', nivel: 1, pai: 'EP-01', id: 'FT-01.1' },
+          { codigo: 'PBI-01.1.1', titulo: 'Cadastrar projeto', nivel: 2, pai: 'FT-01.1', dono: 'Daniel' },
+          { codigo: 'PBI-01.1.2', titulo: 'Cadastrar épico', nivel: 2, pai: 'FT-01.1', dono: 'Daniel' },
+          { codigo: 'PBI-01.1.4', titulo: 'Cadastrar PBI', nivel: 2, pai: 'FT-01.1', dono: 'Daniel' },
+          { codigo: 'PBI-01.1.5', titulo: 'Editar item de trabalho', nivel: 2, pai: 'FT-01.1', dono: 'Giovanni' },
+          { codigo: 'FT-01.2', titulo: 'Critérios de aceitação por nível', nivel: 1, pai: 'EP-01', id: 'FT-01.2' },
+          { codigo: 'FT-01.3', titulo: 'Conformidade com o guia', nivel: 1, pai: 'EP-01', id: 'FT-01.3' },
+          { codigo: 'FT-01.4', titulo: 'Navegação do backlog', nivel: 1, pai: 'EP-01', id: 'FT-01.4' },
+          { codigo: 'EP-06', titulo: 'Acessar a plataforma com segurança', nivel: 0, id: 'EP-06' },
+          { codigo: 'FT-06.1', titulo: 'Acesso à plataforma', nivel: 1, pai: 'EP-06', id: 'FT-06.1' }
+        ];
+      }
+
+      // ---------- regras do Guia de Especificação ----------
+      temVerboInfinitivo(t) {
+        const p = (t || '').trim().split(/\s+/)[0] || '';
+        return /(ar|er|ir|ôr|or)$/i.test(p) && p.length > 2;
+      }
+
+      termoVago(t) {
+        const vagos = ['adequado', 'adequada', 'rápido', 'rápida', 'rapida', 'intuitivo', 'intuitiva', 'correto', 'correta', 'bonito', 'bonita'];
+        const s = (t || '').toLowerCase();
+        return vagos.find((v) => s.includes(v)) || null;
+      }
+
+      montarChecklist() {
+        const s = this.state;
+        const vagoTitulo = this.termoVago(s.titulo);
+        const vagoHistoria = this.termoVago(s.euQuero + ' ' + s.paraQue);
+        const cs = s.cenarios;
+        const completos = cs.filter((c) => (c.dado || '').trim().length > 4 && (c.quando || '').trim().length > 4 && (c.entao || '').trim().length > 4);
+
+        const lista = [
+          { texto: 'Título começa por verbo no infinitivo', ok: this.temVerboInfinitivo(s.titulo), dica: 'Troque a primeira palavra por um verbo terminado em -ar, -er ou -ir.' },
+          { texto: 'Título sem termo vago', ok: !vagoTitulo, dica: vagoTitulo ? 'O termo “' + vagoTitulo + '” não diz o que verificar.' : '' },
+          { texto: 'História informa o papel', ok: (s.comoUm || '').trim().length > 2, dica: 'Diga quem é o usuário da história.' },
+          { texto: 'História informa o desejo', ok: (s.euQuero || '').trim().length > 4, dica: 'Descreva o que a pessoa quer fazer.' },
+          { texto: 'História informa o valor', ok: (s.paraQue || '').trim().length > 4, dica: 'Explique por que isso importa.' },
+          { texto: 'História sem termo vago', ok: !vagoHistoria, dica: vagoHistoria ? 'O termo “' + vagoHistoria + '” não é verificável.' : '' },
+          { texto: 'Tem ao menos um cenário de aceitação', ok: cs.length > 0, dica: 'Sem cenário não há como demonstrar o item pronto.' },
+          { texto: 'Todo cenário tem DADO, QUANDO e ENTÃO', ok: cs.length > 0 && completos.length === cs.length, dica: cs.length === 0 ? 'Adicione um cenário.' : (cs.length - completos.length) + ' cenário(s) com cláusula faltando.' }
+        ];
+
+        // Só se aplica quando existe protótipo anexado (PBI-02.1.3, cenário 2).
+        if (s.anexos.length > 0) {
+          lista.push({
+            texto: 'Protótipo acompanhado de critérios escritos',
+            ok: cs.length > 0,
+            dica: 'O protótipo não registra regra de negócio, exceção nem estado de erro.'
+          });
+        }
+
+        return lista;
+      }
+
+      // ---------- pessoas ----------
+      pessoas() {
+        return [
+          { nome: 'Daniel', iniciais: 'DP', papel: 'Product Owner', tom: 'azul', competencias: ['Produto', 'Documentação'], tarefas: ['S1-03'] },
+          { nome: 'Giovanni', iniciais: 'GI', papel: 'Design e front-end', tom: 'laranja', competencias: ['UX', 'Frontend'], tarefas: ['PRE-05', 'S1-02', 'S1-04'] },
+          { nome: 'Vitor', iniciais: 'VI', papel: 'Back-end e qualidade', tom: 'verde', competencias: ['Backend', 'QA'], tarefas: ['PRE-08', 'S1-10', 'S1-13'] },
+          { nome: 'Gustavo Bueno', iniciais: 'GB', papel: 'Back-end e segurança', tom: 'verde', competencias: ['Backend', 'Segurança'], tarefas: ['PRE-08', 'S1-01'] },
+          { nome: 'Rafael Matesco', iniciais: 'RM', papel: 'Inteligência artificial e busca', tom: 'roxo', competencias: ['IA/RAG', 'QA'], tarefas: ['PRE-07'] },
+          { nome: 'Emmanuel', iniciais: 'EG', papel: 'Sem definição registrada', tom: 'cinza', competencias: [], tarefas: [] }
+        ];
+      }
+
+      tons(t) {
+        const m = {
+          laranja: { fundo: '#4A200F', borda: 'rgba(237,106,50,0.42)', cor: '#F1885B' },
+          azul: { fundo: '#132E50', borda: 'rgba(64,151,255,0.42)', cor: '#4097FF' },
+          verde: { fundo: '#0D371A', borda: 'rgba(34,180,88,0.42)', cor: '#22B458' },
+          roxo: { fundo: '#3E2A00', borda: 'rgba(200,139,0,0.42)', cor: '#C88B00' },
+          cinza: { fundo: 'rgba(196,199,204,0.09)', borda: 'rgba(196,199,204,0.22)', cor: '#A6AAB3' }
+        };
+        return m[t] || m.cinza;
+      }
+
+      // ---------- conversa ----------
+      responder(pergunta) {
+        const p = (pergunta || '').toLowerCase();
+
+        if (p.includes('autentica') || p.includes('login')) {
+          return {
+            tipo: 'ia',
+            texto: 'Autenticação já foi resolvida duas vezes no acervo, com decisões diferentes.\n\nNa API-1 ficou sessão por cookie assinado, com expiração de 8 horas. Na API-2 mudou para token com refresh, porque o app mobile precisava manter sessão longa.\n\nNenhum dos dois documentos registra bloqueio após tentativas repetidas — se isso for requisito agora, é decisão nova.',
+            fontes: [
+              { rotulo: 'API-1 — documentação de sprint 2, seção Acesso' },
+              { rotulo: 'API-2 — decisão técnica 04, autenticação' }
+            ]
+          };
+        }
+
+        if (p.includes('quem') || p.includes('upload') || p.includes('trabalhou')) {
+          return {
+            tipo: 'ia',
+            texto: 'Duas pessoas têm histórico com upload de documentos.\n\nGustavo Bueno implementou o upload com validação de tipo na API-2. Vitor cuidou da parte de armazenamento e limpeza de arquivo órfão no mesmo projeto.\n\nRafael Matesco não trabalhou com upload, mas é quem está com o spike de embeddings agora — se a pergunta for sobre indexar o que foi enviado, é com ele.',
+            fontes: [
+              { rotulo: 'API-2 — atribuições da sprint 3' },
+              { rotulo: 'Perfis da equipe — alocação por projeto' }
+            ]
+          };
+        }
+
+        if (p.includes('reunião') || p.includes('reuniao') || p.includes('09/09') || p.includes('resuma') || p.includes('transcri')) {
+          return {
+            tipo: 'ia',
+            texto: 'A reunião de 09/09 tratou de três assuntos: o parecer da PRO4TECH sobre o backlog, a divisão das tarefas da Sprint 1 e o ambiente com Docker.\n\nDo trecho sobre o parecer, identifiquei três itens candidatos. Nenhum foi criado — cada um precisa da sua decisão.',
+            fontes: [{ rotulo: 'Reunião de planejamento — 09/09.vtt, trecho 12:04–18:30' }],
+            propostas: [
+              { nivel: 'PBI · sob FT-01.6', titulo: 'Configurar as verificações de qualidade da organização', origem: 'Trecho 13:20 — “quem define o checklist tem que ser configurável por organização, não por projeto”', estado: 'pendente' },
+              { nivel: 'PBI · sob FT-01.5', titulo: 'Justificar a alteração de um item', origem: 'Trecho 15:47 — “quando mudar um item aprovado, tem que dizer por quê e ficar no histórico”', estado: 'pendente' },
+              { nivel: 'Impedimento', titulo: 'Ambiente completo depende de Docker nas máquinas', origem: 'Trecho 17:02 — “sem Docker ou WSL 2 não dá pra validar o ambiente inteiro”', estado: 'pendente' }
+            ]
+          };
+        }
+
+        return {
+          tipo: 'ia',
+          texto: 'Não encontrei nada no acervo deste projeto que responda isso.\n\nPrefiro dizer que não sei a inventar um requisito que ninguém escreveu. Se o assunto foi tratado em alguma reunião ou documento, anexe a fonte no painel à direita que eu passo a considerar.',
+          fontes: []
+        };
+      }
+
+      enviarTexto(txt) {
+        const t = (txt || '').trim();
+        if (!t) return;
+        const resposta = this.responder(t);
+        this.setState({ mensagens: this.state.mensagens.concat([{ tipo: 'usuario', texto: t }, resposta]), entrada: '' });
+      }
+
+      decidirProposta(iMsg, iProp, estado) {
+        const msgs = this.state.mensagens.map((m, i) => {
+          if (i !== iMsg || !m.propostas) return m;
+          return Object.assign({}, m, {
+            propostas: m.propostas.map((p, j) => (j === iProp ? Object.assign({}, p, { estado: estado }) : p))
+          });
+        });
+        this.setState({ mensagens: msgs });
+      }
+
+      // ---------- manipulação de listas ----------
+      mover(arr, i, delta) {
+        const j = i + delta;
+        if (j < 0 || j >= arr.length) return arr;
+        const c = arr.slice();
+        const t = c[i]; c[i] = c[j]; c[j] = t;
+        return c;
+      }
+
+      moverCenario(i, d) { this.setState({ cenarios: this.mover(this.state.cenarios, i, d) }); }
+      removerCenario(i) { this.setState({ cenarios: this.state.cenarios.filter((_, j) => j !== i) }); }
+      mudarCenario(i, campo, valor) {
+        this.setState({ cenarios: this.state.cenarios.map((c, j) => (j === i ? Object.assign({}, c, { [campo]: valor }) : c)) });
+      }
+
+      criteriosDo(codigo) { return this.state.criterios[codigo] || []; }
+
+      setCriterios(codigo, lista) {
+        this.setState({ criterios: Object.assign({}, this.state.criterios, { [codigo]: lista }) });
+      }
+
+      renderVals() {
+        const s = this.state;
+        const sel = s.selecionado;
+        const nivelSel = this.rotuloNivel(sel);
+        const ehPBI = nivelSel === 'PBI';
+        const itemSel = this.itens().find((x) => x.codigo === sel) || { titulo: '' };
+
+        const lista = this.montarChecklist();
+        const okCount = lista.filter((c) => c.ok).length;
+        const pct = Math.round((okCount / lista.length) * 100);
+
+        const pes = this.pessoas();
+        const f = (s.filtro || '').trim().toLowerCase();
+        const visiveis = this.itens().filter((n) => {
+          if (f) return (n.codigo + ' ' + n.titulo + ' ' + (n.dono || '')).toLowerCase().includes(f);
+          if (n.nivel === 0) return true;
+          return s.abertos[n.pai];
+        });
+
+        const arvore = visiveis.map((n) => {
+          const dono = n.dono ? pes.find((x) => x.nome === n.dono) : null;
+          const tom = dono ? this.tons(dono.tom) : null;
+          const ativo = n.codigo === sel;
+          return {
+            codigo: n.codigo,
+            titulo: n.titulo,
+            recuo: n.nivel * 14 + 'px',
+            peso: n.nivel === 0 ? '600' : '400',
+            pesoTitulo: n.nivel === 0 ? '600' : n.nivel === 1 ? '500' : '400',
+            corCodigo: n.nivel === 0 ? '#F1885B' : '#6B7280',
+            corTitulo: ativo ? '#FFFFFF' : n.nivel === 2 ? '#A6AAB3' : '#E5E7EB',
+            fundo: ativo ? 'rgba(237,106,50,0.09)' : 'transparent',
+            borda: ativo ? 'rgba(237,106,50,0.32)' : 'transparent',
+            temDono: !!dono,
+            dono: dono ? { iniciais: dono.iniciais, fundo: tom.fundo, borda: tom.borda, cor: tom.cor } : { iniciais: '', fundo: '', borda: '', cor: '' },
+            clicar: () => {
+              const patch = { selecionado: n.codigo };
+              if (n.id) patch.abertos = Object.assign({}, this.state.abertos, { [n.id]: !this.state.abertos[n.id] });
+              this.setState(patch);
+            }
+          };
+        });
+
+        const selos = {
+          pendente: { texto: 'Aguardando decisão', fundo: '#3E2A00', cor: '#C88B00', borda: 'rgba(200,139,0,0.42)' },
+          aceito: { texto: 'Aceito', fundo: '#0D371A', cor: '#22B458', borda: 'rgba(34,180,88,0.42)' },
+          dispensado: { texto: 'Dispensado', fundo: 'rgba(196,199,204,0.09)', cor: '#6B7280', borda: 'rgba(196,199,204,0.22)' }
+        };
+
+        const secoes = [
+          { chave: 'conversa', rotulo: 'Conversa' },
+          { chave: 'backlog', rotulo: 'Backlog' },
+          { chave: 'equipe', rotulo: 'Equipe' }
+        ].map((x) => ({
+          rotulo: x.rotulo,
+          peso: s.secao === x.chave ? '600' : '500',
+          cor: s.secao === x.chave ? '#FFFFFF' : '#6B7280',
+          fundo: s.secao === x.chave ? 'rgba(237,106,50,0.14)' : 'transparent',
+          ir: () => this.setState({ secao: x.chave })
+        }));
+
+        const crits = this.criteriosDo(sel);
+
+        return {
+          ehLogin: s.tela === 'login',
+          ehApp: s.tela !== 'login',
+          ehProjetos: s.tela === 'projetos',
+          dentroProjeto: s.tela === 'projeto',
+          ehConversa: s.tela === 'projeto' && s.secao === 'conversa',
+          ehBacklog: s.tela === 'projeto' && s.secao === 'backlog',
+          ehEquipe: s.tela === 'projeto' && s.secao === 'equipe',
+          secoes: secoes,
+
+          email: s.email, senha: s.senha, erroLogin: s.erroLogin,
+          projetoNome: s.projetoNome,
+          filtro: s.filtro, entrada: s.entrada,
+          titulo: s.titulo, comoUm: s.comoUm, euQuero: s.euQuero, paraQue: s.paraQue,
+
+          // seleção e nível
+          ehPBI: ehPBI,
+          ehNivelAlto: !ehPBI,
+          selCodigo: sel,
+          selNivel: nivelSel,
+          selTitulo: itemSel.titulo,
+          selCaminho: itemSel.pai ? (this.itens().find(x => x.codigo === (this.itens().find(p => p.codigo === itemSel.pai) || {}).pai) ? (this.itens().find(p => p.codigo === itemSel.pai).pai + ' · ') : '') + itemSel.pai + ' · ' : '',
+          textoNivel: nivelSel === 'Épico' ? 'O que caracteriza a iniciativa concluída' : 'O que caracteriza a feature entregue',
+
+          criterios: crits.map((t, i) => ({
+            n: (i + 1) + '.',
+            texto: t,
+            subir: () => this.setCriterios(sel, this.mover(crits, i, -1)),
+            descer: () => this.setCriterios(sel, this.mover(crits, i, 1)),
+            remover: () => this.setCriterios(sel, crits.filter((_, j) => j !== i))
+          })),
+          semCriterios: crits.length === 0,
+          novoCriterio: s.novoCriterio,
+          mudarNovoCriterio: (e) => this.setState({ novoCriterio: e.target.value }),
+          adicionarCriterio: () => {
+            const t = (this.state.novoCriterio || '').trim();
+            if (!t) return;
+            this.setCriterios(sel, this.criteriosDo(sel).concat([t]));
+            this.setState({ novoCriterio: '' });
+          },
+
+          // cenários
+          cenarios: s.cenarios.map((c, i) => ({
+            n: i + 1,
+            dado: c.dado, quando: c.quando, entao: c.entao,
+            subir: () => this.moverCenario(i, -1),
+            descer: () => this.moverCenario(i, 1),
+            remover: () => this.removerCenario(i),
+            mudarDado: (e) => this.mudarCenario(i, 'dado', e.target.value),
+            mudarQuando: (e) => this.mudarCenario(i, 'quando', e.target.value),
+            mudarEntao: (e) => this.mudarCenario(i, 'entao', e.target.value)
+          })),
+          semCenarios: s.cenarios.length === 0,
+          adicionarCenario: () => this.setState({ cenarios: this.state.cenarios.concat([{ dado: '', quando: '', entao: '' }]) }),
+
+          // anexos
+          anexos: s.anexos.map((a, i) => ({
+            nome: a.nome, legenda: a.legenda,
+            remover: () => this.setState({ anexos: this.state.anexos.filter((_, j) => j !== i) })
+          })),
+          semAnexos: s.anexos.length === 0,
+          alertaProtitipo: s.anexos.length > 0 && s.cenarios.length === 0,
+          anexarProtitipo: () => this.setState({ anexos: [{ nome: 'tela-cadastro-pbi.png', legenda: 'Rascunho do formulário, com o checklist à direita' }] }),
+
+          mudarEmail: (e) => this.setState({ email: e.target.value, erroLogin: false }),
+          mudarSenha: (e) => this.setState({ senha: e.target.value, erroLogin: false }),
+          teclarEnterLogin: (e) => {
+            if (e.key === 'Enter') {
+              if (!s.email.trim() || !s.senha.trim()) { this.setState({ erroLogin: true }); return; }
+              this.setState({ tela: 'projetos', erroLogin: false });
+            }
+          },
+          entrar: () => {
+            if (!s.email.trim() || !s.senha.trim()) { this.setState({ erroLogin: true }); return; }
+            this.setState({ tela: 'projetos', erroLogin: false });
+          },
+          sair: () => this.setState({ tela: 'login', email: '', senha: '', mensagens: [] }),
+          irProjetos: () => this.setState({ tela: 'projetos' }),
+          mudarFiltro: (e) => this.setState({ filtro: e.target.value }),
+          mudarEntrada: (e) => this.setState({ entrada: e.target.value }),
+          teclarEnterChat: (e) => {
+            if (e.key === 'Enter') this.enviarTexto(this.state.entrada);
+          },
+          enviar: () => this.enviarTexto(this.state.entrada),
+          anexar: () => this.enviarTexto('Resuma a reunião de 09/09 e proponha itens'),
+
+          mudarTitulo: (e) => this.setState({ titulo: e.target.value }),
+          mudarComoUm: (e) => this.setState({ comoUm: e.target.value }),
+          mudarEuQuero: (e) => this.setState({ euQuero: e.target.value }),
+          mudarParaQue: (e) => this.setState({ paraQue: e.target.value }),
+
+          projetos: [
+            { nome: 'API-1', ano: '2025-1', desc: 'Autenticação, cadastro de usuários e painel administrativo.', itens: 38, fontes: 12, pessoas: 6, abrir: () => this.setState({ tela: 'projeto', secao: 'conversa', projetoNome: 'API-1' }) },
+            { nome: 'API-2', ano: '2025-2', desc: 'Dashboards, upload de documentos e gestão de equipe.', itens: 52, fontes: 21, pessoas: 6, abrir: () => this.setState({ tela: 'projeto', secao: 'conversa', projetoNome: 'API-2' }) },
+            { nome: 'API-3', ano: '2026-1', desc: 'Relatórios, indicadores e integração com serviços externos.', itens: 44, fontes: 17, pessoas: 6, abrir: () => this.setState({ tela: 'projeto', secao: 'conversa', projetoNome: 'API-3' }) }
+          ],
+
+          mensagens: s.mensagens.map((m, i) => ({
+            ehUsuario: m.tipo === 'usuario',
+            ehIA: m.tipo === 'ia',
+            texto: m.texto,
+            temFontes: !!(m.fontes && m.fontes.length),
+            fontes: m.fontes || [],
+            temPropostas: !!(m.propostas && m.propostas.length),
+            propostas: (m.propostas || []).map((p, j) => ({
+              nivel: p.nivel, titulo: p.titulo, origem: p.origem,
+              pendente: p.estado === 'pendente',
+              corTitulo: p.estado === 'dispensado' ? '#6B7280' : '#FFFFFF',
+              borda: p.estado === 'aceito' ? 'rgba(34,180,88,0.42)' : p.estado === 'dispensado' ? 'rgba(196,199,204,0.14)' : 'rgba(237,106,50,0.32)',
+              selo: selos[p.estado],
+              aceitar: () => this.decidirProposta(i, j, 'aceito'),
+              dispensar: () => this.decidirProposta(i, j, 'dispensado')
+            }))
+          })),
+
+          mostrarSugestoes: s.mensagens.length === 0,
+          sugestoes: [
+            { texto: 'O que já decidimos sobre autenticação?', enviar: () => this.enviarTexto('O que já decidimos sobre autenticação?') },
+            { texto: 'Quem já trabalhou com upload de documentos?', enviar: () => this.enviarTexto('Quem já trabalhou com upload de documentos?') },
+            { texto: 'Resuma a reunião de 09/09 e proponha itens', enviar: () => this.enviarTexto('Resuma a reunião de 09/09 e proponha itens') }
+          ],
+
+          totalFontes: '21 fontes',
+          acervo: [
+            { nome: 'Reunião de planejamento — 09/09.vtt', tipo: 'Transcrição', status: 'Indexado', corStatus: '#22B458', corIcone: '#6B7280', processando: false, progresso: '0%' },
+            { nome: 'Kickoff PRO4TECH — 22/08.m4a', tipo: 'Áudio', status: 'Indexado', corStatus: '#22B458', corIcone: '#6B7280', processando: false, progresso: '0%' },
+            { nome: 'Guia de Especificação de Itens de Trabalho.pdf', tipo: 'Documento', status: 'Indexado', corStatus: '#22B458', corIcone: '#6B7280', processando: false, progresso: '0%' },
+            { nome: 'API-2 — documentação de sprint 3.pdf', tipo: 'Documento', status: 'Processando', corStatus: '#C88B00', corIcone: '#C88B00', processando: true, progresso: '62%' },
+            { nome: 'Anexos de teste — API-2.zip', tipo: 'Arquivo', status: 'Fora do acervo', corStatus: '#6B7280', corIcone: '#4B4F57', processando: false, progresso: '0%' }
+          ],
+
+          equipe: pes.map((p) => {
+            const t = this.tons(p.tom);
+            return {
+              nome: p.nome, iniciais: p.iniciais, papel: p.papel,
+              fundo: t.fundo, borda: t.borda, cor: t.cor,
+              competencias: p.competencias.length ? p.competencias.map((c) => ({ nome: c })) : [{ nome: 'Nenhuma registrada' }],
+              rotuloTarefas: 'Responsável por',
+              temTarefas: p.tarefas.length > 0,
+              semTarefas: p.tarefas.length === 0,
+              tarefas: p.tarefas.map((c) => ({ codigo: c }))
+            };
+          }),
+
+          arvore: arvore,
+          semResultado: arvore.length === 0,
+          percent: pct + '%',
+          corPercent: pct === 100 ? '#22B458' : '#FFFFFF',
+          larguraBarra: pct + '%',
+          resumo: okCount + ' de ' + lista.length + ' verificações aplicáveis',
+          checklist: lista.map((c) => ({
+            texto: c.texto, ok: c.ok, falhou: !c.ok,
+            cor: c.ok ? '#A6AAB3' : '#FFFFFF',
+            fundo: c.ok ? 'transparent' : 'rgba(240,99,93,0.07)',
+            temDica: !c.ok && !!c.dica,
+            dica: c.dica
+          }))
+        };
+      }
+    }
+  </script>
 </body>
+
 </html>
