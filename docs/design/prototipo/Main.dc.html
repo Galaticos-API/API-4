@@ -37,11 +37,11 @@
         <div style="display: flex; flex-direction: column; gap: 14px;">
           <div style="display: flex; flex-direction: column; gap: 7px;">
             <span style="font-size: 13px; font-weight: 600; color: #E5E7EB;">E-mail</span>
-            <input class="sn-in" type="text" value="{{ email }}" onChange="{{ mudarEmail }}" placeholder="voce@pro4tech.com.br" />
+            <input class="sn-in" type="text" value="{{ email }}" onChange="{{ mudarEmail }}" onKeyDown="{{ teclarEnterLogin }}" placeholder="voce@pro4tech.com.br" />
           </div>
           <div style="display: flex; flex-direction: column; gap: 7px;">
             <span style="font-size: 13px; font-weight: 600; color: #E5E7EB;">Senha</span>
-            <input class="sn-in" type="password" value="{{ senha }}" onChange="{{ mudarSenha }}" placeholder="••••••••" />
+            <input class="sn-in" type="password" value="{{ senha }}" onChange="{{ mudarSenha }}" onKeyDown="{{ teclarEnterLogin }}" placeholder="••••••••" />
           </div>
         </div>
         <sc-if value="{{ erroLogin }}" hint-placeholder-val="{{ true }}">
@@ -204,7 +204,7 @@
                 <button class="sn-btn" style="width: 40px; height: 40px; flex-shrink: 0; border-radius: 10px; background: #171A21; border: 1px solid rgba(196,199,204,0.22); display: flex; align-items: center; justify-content: center;" onClick="{{ anexar }}">
                   <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#A6AAB3" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"></path></svg>
                 </button>
-                <input class="sn-in" type="text" value="{{ entrada }}" onChange="{{ mudarEntrada }}" placeholder="Pergunte sobre o projeto, ou solte uma transcrição aqui" />
+                <input class="sn-in" type="text" value="{{ entrada }}" onChange="{{ mudarEntrada }}" onKeyDown="{{ teclarEnterChat }}" placeholder="Pergunte sobre o projeto, ou solte uma transcrição aqui" />
                 <button class="sn-btn" style="width: 40px; height: 40px; flex-shrink: 0; border-radius: 10px; background: linear-gradient(135deg, #F1885B 0%, #ED6A32 100%); display: flex; align-items: center; justify-content: center;" onClick="{{ enviar }}">
                   <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
                 </button>
@@ -339,8 +339,8 @@
           <div style="display: flex; flex-direction: column; gap: 22px;">
 
             <div style="display: flex; align-items: center; gap: 10px;">
-              <span style="font-family: 'JetBrains Mono', ui-monospace, Menlo, monospace; font-size: 12px; color: #6B7280;">EP-01 · FT-01.1 ·</span>
-              <span style="font-family: 'JetBrains Mono', ui-monospace, Menlo, monospace; font-size: 12px; color: #F1885B;">PBI-01.1.4</span>
+              <span style="font-family: 'JetBrains Mono', ui-monospace, Menlo, monospace; font-size: 12px; color: #6B7280;">{{ selCaminho }}</span>
+              <span style="font-family: 'JetBrains Mono', ui-monospace, Menlo, monospace; font-size: 12px; color: #F1885B;">{{ selCodigo }}</span>
               <div style="flex-grow: 1;"></div>
               <span style="display: inline-flex; align-items: center; height: 24px; padding: 0 12px; border-radius: 9999px; background: #4A200F; color: #F1885B; border: 1px solid rgba(237,106,50,0.42); font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;">Must</span>
               <span style="display: inline-flex; align-items: center; height: 24px; padding: 0 12px; border-radius: 9999px; background: rgba(196,199,204,0.09); color: #A6AAB3; border: 1px solid rgba(196,199,204,0.22); font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;">Rascunho</span>
@@ -865,6 +865,7 @@ class Component extends DCLogic {
       selCodigo: sel,
       selNivel: nivelSel,
       selTitulo: itemSel.titulo,
+      selCaminho: itemSel.pai ? (this.itens().find(x => x.codigo === (this.itens().find(p => p.codigo === itemSel.pai) || {}).pai) ? (this.itens().find(p => p.codigo === itemSel.pai).pai + ' · ') : '') + itemSel.pai + ' · ' : '',
       textoNivel: nivelSel === 'Épico' ? 'O que caracteriza a iniciativa concluída' : 'O que caracteriza a feature entregue',
 
       criterios: crits.map((t, i) => ({
@@ -909,6 +910,12 @@ class Component extends DCLogic {
 
       mudarEmail: (e) => this.setState({ email: e.target.value, erroLogin: false }),
       mudarSenha: (e) => this.setState({ senha: e.target.value, erroLogin: false }),
+      teclarEnterLogin: (e) => {
+        if (e.key === 'Enter') {
+          if (!s.email.trim() || !s.senha.trim()) { this.setState({ erroLogin: true }); return; }
+          this.setState({ tela: 'projetos', erroLogin: false });
+        }
+      },
       entrar: () => {
         if (!s.email.trim() || !s.senha.trim()) { this.setState({ erroLogin: true }); return; }
         this.setState({ tela: 'projetos', erroLogin: false });
@@ -917,6 +924,9 @@ class Component extends DCLogic {
       irProjetos: () => this.setState({ tela: 'projetos' }),
       mudarFiltro: (e) => this.setState({ filtro: e.target.value }),
       mudarEntrada: (e) => this.setState({ entrada: e.target.value }),
+      teclarEnterChat: (e) => {
+        if (e.key === 'Enter') this.enviarTexto(this.state.entrada);
+      },
       enviar: () => this.enviarTexto(this.state.entrada),
       anexar: () => this.enviarTexto('Resuma a reunião de 09/09 e proponha itens'),
 
