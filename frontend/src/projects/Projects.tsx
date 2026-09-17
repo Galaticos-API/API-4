@@ -2,20 +2,24 @@ import { useEffect, useRef, useState } from "react";
 import { ApiError } from "./http";
 import { navigate } from "./navigation";
 import { createProject, getProject, listProjects, type Project, type ProjectInput } from "./api";
+import { parseBacklogRoute } from "../backlog/navigation";
+import { BacklogScreen } from "../backlog/Backlog";
+import { EpicList } from "../backlog/Epics";
 import "./projects.css";
 
 type Result = { state: "loading" } | { state: "error"; message: string } | { state: "ready"; projects: Project[]; total: number };
 const empty: ProjectInput = { nome: "", cliente: "", descricao: "" };
 
 export function Projects({ pathname, canCreate = false }: { pathname: string; canCreate?: boolean }) {
-  const id = pathname.slice("/projects/".length);
-  const isNew = id === "new";
-  const isDetail = pathname !== "/projects" && !isNew;
+  const backlogRoute = parseBacklogRoute(pathname);
+  const id = backlogRoute ? backlogRoute.projectId : pathname.slice("/projects/".length);
+  const isNew = id === "new" && !backlogRoute;
+  const isDetail = pathname !== "/projects" && !isNew && !backlogRoute;
   const [result, setResult] = useState<Result>({ state: "loading" });
   const [attempt, setAttempt] = useState(0);
   const [offset, setOffset] = useState(0);
   useEffect(() => {
-    if (isNew) return;
+    if (isNew || backlogRoute) return;
     const controller = new AbortController();
     setResult({ state: "loading" });
     const signal = AbortSignal.any([controller.signal, AbortSignal.timeout(15000)]);
@@ -30,8 +34,9 @@ export function Projects({ pathname, canCreate = false }: { pathname: string; ca
         : "Não foi possível carregar os projetos. Tente novamente." });
     });
     return () => controller.abort();
-  }, [id, isDetail, isNew, attempt, offset]);
+  }, [id, isDetail, isNew, backlogRoute, attempt, offset]);
 
+  if (backlogRoute) return <BacklogScreen route={backlogRoute} canCreate={canCreate} />;
   if (isNew) return canCreate ? <ProjectForm /> : <section className="projects-page"><h2>Acesso de leitura</h2><p role="alert">Seu perfil não permite criar projetos.</p><button className="btn-secondary" onClick={() => navigate("/projects")}>Voltar aos projetos</button></section>;
   return <section className="projects-page">
     <div className="projects-heading">
@@ -42,7 +47,7 @@ export function Projects({ pathname, canCreate = false }: { pathname: string; ca
     {result.state === "loading" && <div className="glass-panel projects-state" role="status">Carregando {isDetail ? "projeto" : "projetos"}…</div>}
     {result.state === "error" && <div className="glass-panel projects-state"><p role="alert">{result.message}</p>
       <button className="btn-secondary" onClick={() => setAttempt(value => value + 1)}>Tentar novamente</button></div>}
-    {result.state === "ready" && (isDetail ? <ProjectDetail project={result.projects[0]} /> : result.projects.length === 0
+    {result.state === "ready" && (isDetail ? <ProjectDetail project={result.projects[0]} canCreate={canCreate} /> : result.projects.length === 0
       ? <div className="glass-panel projects-state"><h3>Nenhum projeto cadastrado</h3><p>Crie o primeiro projeto para começar a organizar o trabalho.</p>
         {canCreate && <button className="btn-primary" onClick={() => navigate("/projects/new")}>Criar primeiro projeto</button>}</div>
       : <div className="projects-grid">{result.projects.map(project => <article className="glass-panel project-card" key={project.id}>
@@ -58,11 +63,14 @@ export function Projects({ pathname, canCreate = false }: { pathname: string; ca
   </section>;
 }
 
-function ProjectDetail({ project }: { project: Project }) {
-  return <article className="glass-panel project-card">
-    <span className={`badge ${project.status === "ativo" ? "badge-success" : "badge-warning"}`}>{project.status}</span>
-    <h3>{project.nome}</h3><dl><dt>Cliente</dt><dd>{project.cliente}</dd><dt>Descrição</dt><dd className="project-description">{project.descricao}</dd></dl>
-  </article>;
+function ProjectDetail({ project, canCreate }: { project: Project; canCreate: boolean }) {
+  return <>
+    <article className="glass-panel project-card">
+      <span className={`badge ${project.status === "ativo" ? "badge-success" : "badge-warning"}`}>{project.status}</span>
+      <h3>{project.nome}</h3><dl><dt>Cliente</dt><dd>{project.cliente}</dd><dt>Descrição</dt><dd className="project-description">{project.descricao}</dd></dl>
+    </article>
+    <EpicList projetoId={project.id} canCreate={canCreate} />
+  </>;
 }
 
 function ProjectForm() {

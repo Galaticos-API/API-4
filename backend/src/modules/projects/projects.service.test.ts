@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { ProjectsService, ConflictError, ValidationError, NotFoundError } from "./projects.service.js";
+import { ProjectsService } from "./projects.service.js";
+import { ConflictError, ValidationError, NotFoundError } from "../../shared/errors.js";
 import { ProjectsRepository } from "./projects.repository.js";
 import { Project, ProjectWithStats, PaginatedProjects, CreateProjectDTO, UpdateProjectDTO, ProjectQueryDTO } from "./projects.types.js";
 

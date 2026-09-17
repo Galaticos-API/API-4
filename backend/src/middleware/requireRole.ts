@@ -8,7 +8,7 @@ export function requireRole(...roles: UserRole[]) {
       return;
     }
     if (!roles.includes(req.auth.role)) {
-      res.status(403).json({ error: "Seu perfil não permite alterar projetos.", code: "FORBIDDEN" });
+      res.status(403).json({ error: "Seu perfil não permite realizar esta operação.", code: "FORBIDDEN" });
       return;
     }
     next();

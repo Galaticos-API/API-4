@@ -1,0 +1,160 @@
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { ApiError } from "../auth/api";
+import { navigate } from "./navigation";
+import { createEpic, completeEpic, getEpic, listEpics, camposFaltantesDe, type Epic, type EpicInput } from "./api";
+import { descreverCamposFaltantes } from "./fields";
+import "../projects/projects.css";
+
+type ListResult = { state: "loading" } | { state: "error"; message: string } | { state: "ready"; epics: Epic[] };
+const emptyInput: EpicInput = { projeto_id: "", titulo: "", descricao: "", objetivo: "", escopo_macro: "", resultado_esperado: "" };
+
+export function EpicList({ projetoId, canCreate }: { projetoId: string; canCreate: boolean }) {
+  const [result, setResult] = useState<ListResult>({ state: "loading" });
+  const [attempt, setAttempt] = useState(0);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    setResult({ state: "loading" });
+    listEpics(projetoId, controller.signal)
+      .then((epics) => { if (!controller.signal.aborted) setResult({ state: "ready", epics }); })
+      .catch((error) => {
+        if (controller.signal.aborted) return;
+        setResult({ state: "error", message: error instanceof ApiError && error.status === 401 ? "É necessário entrar para acessar os épicos." : "Não foi possível carregar os épicos." });
+      });
+    return () => controller.abort();
+  }, [projetoId, attempt]);
+
+  return (
+    <section className="projects-page">
+      <div className="projects-heading">
+        <div><p className="projects-eyebrow">Épicos do projeto</p><h3>Épicos</h3></div>
+        {canCreate && <button className="btn-primary" onClick={() => navigate(`/projects/${projetoId}/epics/new`)}>Novo épico</button>}
+      </div>
+      {result.state === "loading" && <div className="glass-panel projects-state" role="status">Carregando épicos…</div>}
+      {result.state === "error" && <div className="glass-panel projects-state"><p role="alert">{result.message}</p>
+        <button className="btn-secondary" onClick={() => setAttempt((v) => v + 1)}>Tentar novamente</button></div>}
+      {result.state === "ready" && (result.epics.length === 0
+        ? <div className="glass-panel projects-state"><h4>Nenhum épico cadastrado</h4><p>Crie o primeiro épico para começar a especificar este projeto.</p>
+          {canCreate && <button className="btn-primary" onClick={() => navigate(`/projects/${projetoId}/epics/new`)}>Criar primeiro épico</button>}</div>
+        : <div className="projects-grid">{result.epics.map((epic) => (
+          <article className="glass-panel project-card" key={epic.id}>
+            <span className={`badge ${epic.status === "concluido" ? "badge-success" : "badge-warning"}`}>{epic.status}</span>
+            <h4>{epic.titulo}</h4>
+            <p className="project-excerpt">{epic.objetivo || "Sem objetivo registrado."}</p>
+            <button className="btn-secondary" onClick={() => navigate(`/projects/${projetoId}/epics/${epic.id}`)}>Ver épico</button>
+          </article>
+        ))}</div>)}
+    </section>
+  );
+}
+
+export function EpicForm({ projetoId }: { projetoId: string }) {
+  const [values, setValues] = useState<EpicInput>({ ...emptyInput, projeto_id: projetoId });
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState("");
+  const submitting = useRef(false);
+  const mounted = useRef(true);
+  useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
+
+  return (
+    <section className="projects-page">
+      <div className="projects-heading"><div><p className="projects-eyebrow">Épicos / Novo épico</p><h2>Criar épico</h2>
+        <p>Apenas o título é obrigatório para salvar como rascunho. Os demais campos do guia são exigidos para concluir.</p></div></div>
+      <form className="glass-panel project-form" noValidate aria-busy={busy} onSubmit={async (event) => {
+        event.preventDefault();
+        if (submitting.current) return;
+        if (!values.titulo.trim()) { setMessage("Informe o título do épico."); return; }
+        submitting.current = true; setBusy(true); setMessage("");
+        try {
+          const epic = await createEpic({ ...values, projeto_id: projetoId });
+          if (mounted.current) navigate(`/projects/${projetoId}/epics/${epic.id}`);
+        } catch (error) {
+          if (!mounted.current) return;
+          setMessage(error instanceof ApiError && error.status === 404 ? "Projeto não encontrado." : "Não foi possível criar o épico. Tente novamente.");
+        } finally {
+          submitting.current = false;
+          if (mounted.current) setBusy(false);
+        }
+      }}>
+        {([
+          ["titulo", "Título", "input"], ["objetivo", "Objetivo", "textarea"], ["descricao", "Descrição", "textarea"],
+          ["escopo_macro", "Escopo macro", "textarea"], ["resultado_esperado", "Resultado esperado", "textarea"],
+        ] as const).map(([field, label, kind]) => (
+          <div className="project-field" key={field}>
+            <label htmlFor={field}>{label}{field === "titulo" && " (obrigatório)"}</label>
+            {kind === "textarea"
+              ? <textarea id={field} name={field} rows={3} disabled={busy} value={values[field]} onChange={(e) => setValues((v) => ({ ...v, [field]: e.target.value }))} />
+              : <input id={field} name={field} type="text" disabled={busy} value={values[field]} onChange={(e) => setValues((v) => ({ ...v, [field]: e.target.value }))} />}
+          </div>
+        ))}
+        {message && <p role="alert">{message}</p>}
+        <div className="project-actions">
+          <button type="submit" className="btn-primary" disabled={busy}>{busy ? "Criando…" : "Criar épico"}</button>
+          <button type="button" className="btn-secondary" disabled={busy} onClick={() => navigate(`/projects/${projetoId}`)}>Voltar ao projeto</button>
+        </div>
+      </form>
+    </section>
+  );
+}
+
+export function EpicDetail({ projectId, epicId, children }: { projectId: string; epicId: string; children?: ReactNode }) {
+  const [result, setResult] = useState<{ state: "loading" } | { state: "error"; message: string } | { state: "ready"; epic: Epic }>({ state: "loading" });
+  const [completing, setCompleting] = useState(false);
+  const [completionMessage, setCompletionMessage] = useState("");
+  const [attempt, setAttempt] = useState(0);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    setResult({ state: "loading" });
+    getEpic(epicId, controller.signal)
+      .then((epic) => { if (!controller.signal.aborted) setResult({ state: "ready", epic }); })
+      .catch((error) => {
+        if (controller.signal.aborted) return;
+        setResult({ state: "error", message: error instanceof ApiError && error.status === 404 ? "Épico não encontrado." : "Não foi possível carregar o épico." });
+      });
+    return () => controller.abort();
+  }, [epicId, attempt]);
+
+  if (result.state === "loading") return <div className="glass-panel projects-state" role="status">Carregando épico…</div>;
+  if (result.state === "error") return <div className="glass-panel projects-state"><p role="alert">{result.message}</p>
+    <button className="btn-secondary" onClick={() => setAttempt((v) => v + 1)}>Tentar novamente</button></div>;
+
+  const { epic } = result;
+
+  return (
+    <section className="projects-page">
+      <div className="projects-heading">
+        <div><p className="projects-eyebrow">Épico</p><h2>{epic.titulo}</h2></div>
+        <button className="btn-secondary" onClick={() => navigate(`/projects/${projectId}`)}>Voltar ao projeto</button>
+      </div>
+      <article className="glass-panel project-card">
+        <span className={`badge ${epic.status === "concluido" ? "badge-success" : "badge-warning"}`}>{epic.status}</span>
+        <dl>
+          <dt>Objetivo</dt><dd>{epic.objetivo || "Não informado."}</dd>
+          <dt>Descrição</dt><dd className="project-description">{epic.descricao || "Não informada."}</dd>
+          <dt>Escopo macro</dt><dd>{epic.escopo_macro || "Não informado."}</dd>
+          <dt>Resultado esperado</dt><dd>{epic.resultado_esperado || "Não informado."}</dd>
+          <dt>Critérios de aceitação registrados</dt><dd>{epic.criterios_count}</dd>
+        </dl>
+        {epic.status === "rascunho" && (
+          <div className="project-actions">
+            <button className="btn-primary" disabled={completing} onClick={async () => {
+              setCompleting(true); setCompletionMessage("");
+              try {
+                const completed = await completeEpic(epic.id);
+                setResult({ state: "ready", epic: completed });
+              } catch (error) {
+                const campos = camposFaltantesDe(error);
+                setCompletionMessage(campos ? `Faltam preencher: ${descreverCamposFaltantes(campos)}.` : "Não foi possível concluir o épico.");
+              } finally {
+                setCompleting(false);
+              }
+            }}>{completing ? "Concluindo…" : "Marcar como concluído"}</button>
+          </div>
+        )}
+        {completionMessage && <p role="alert">{completionMessage}</p>}
+      </article>
+      {children}
+    </section>
+  );
+}
