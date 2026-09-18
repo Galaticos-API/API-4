@@ -9,6 +9,17 @@ export class EpicsService {
     private readonly projectsRepo: ProjectsRepository = projectsRepository,
   ) {}
 
+  private async ensureWritable(epic: Epic): Promise<void> {
+    if (epic.status === "ativo" || epic.status === "arquivado") {
+      throw new ValidationError("Épico com estado legado disponível somente para leitura.");
+    }
+    const project = await this.projectsRepo.findById(epic.projeto_id);
+    if (!project) throw new NotFoundError("Projeto não encontrado.");
+    if (project.status === "arquivado") {
+      throw new ValidationError("Não é possível alterar épicos de um projeto arquivado.");
+    }
+  }
+
   async create(input: unknown, usuarioId?: string | null): Promise<Epic> {
     const parseResult = createEpicSchema.safeParse(input);
     if (!parseResult.success) {
@@ -58,12 +69,20 @@ export class EpicsService {
       throw new NotFoundError("Épico não encontrado.");
     }
 
+    await this.ensureWritable(existing);
+
     const parseResult = updateEpicSchema.safeParse(input);
     if (!parseResult.success) {
       const issue = parseResult.error.issues[0];
       throw new ValidationError(issue.message, parseResult.error.format());
     }
 
+    if (existing.status === "concluido") {
+      const merged = { ...existing, ...parseResult.data };
+      if (EPIC_REQUIRED_FIELDS.some((field) => !String(merged[field] ?? "").trim())) {
+        throw new ValidationError("Não é possível remover campos obrigatórios de um épico concluído.");
+      }
+    }
     const updated = await this.repository.update(id, parseResult.data, usuarioId);
     if (!updated) {
       throw new NotFoundError("Épico não encontrado.");
@@ -79,6 +98,7 @@ export class EpicsService {
     if (!existing) {
       throw new NotFoundError("Épico não encontrado.");
     }
+    await this.ensureWritable(existing);
     if (existing.status === "concluido") {
       return existing;
     }

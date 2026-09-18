@@ -11,7 +11,7 @@ export function BacklogScreen({ route, canCreate }: { route: Exclude<BacklogRout
 
   if (route.screen === "epic-detail") {
     return (
-      <EpicDetail projectId={route.projectId} epicId={route.epicId}>
+      <EpicDetail projectId={route.projectId} epicId={route.epicId} canCreate={canCreate}>
         <FeatureList projectId={route.projectId} epicoId={route.epicId} canCreate={canCreate} />
       </EpicDetail>
     );

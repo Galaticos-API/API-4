@@ -15,7 +15,7 @@ export interface EpicInput {
 export interface Epic extends EpicInput {
   id: string;
   prioridade: Priority;
-  status: BacklogStatus;
+  status: BacklogStatus | "ativo" | "arquivado";
   features_count: number;
   criterios_count: number;
 }

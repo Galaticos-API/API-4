@@ -15,7 +15,8 @@
     "migrate": "tsx src/database/migrate.ts",
     "audit:security": "npm audit --omit=dev",
     "test": "node scripts/test.mjs",
-    "test:integration:s1": "tsx scripts/validate-s1.mts"
+    "test:integration:s1": "tsx scripts/validate-s1.mts",
+    "test:integration:s105": "tsx scripts/validate-s105.mts"
   },
   "dependencies": {
     "cors": "^2.8.5",

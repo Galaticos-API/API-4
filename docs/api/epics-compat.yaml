@@ -1,0 +1,124 @@
+# Path items referenced by openapi.yaml. The aliases delegate to the canonical EpicsService.
+collection:
+  parameters:
+    - name: projectId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+  get:
+    deprecated: true
+    summary: Listar épicos pelo contrato legado
+    description: Use GET /api/v1/epics?projeto_id=UUID. Este alias mantém array completo, sem paginação, e os campos priorizacao e missing_fields.
+    responses:
+      '200':
+        description: Array de épicos
+        content:
+          application/json:
+            schema:
+              type: array
+              items: { $ref: '#/schemas/LegacyEpic' }
+      '400': { description: UUID inválido }
+      '401': { description: Sessão ausente ou inválida }
+  post:
+    deprecated: true
+    summary: Criar épico em rascunho pelo contrato legado
+    description: PO/admin. Projeto vem da URL. priorizacao é alias de prioridade; status aceita apenas rascunho. Todas as regras e a auditoria usam o módulo canônico.
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [titulo]
+            properties:
+              titulo: { type: string, minLength: 1, maxLength: 255 }
+              descricao: { type: string, nullable: true }
+              objetivo: { type: string, nullable: true }
+              escopo_macro: { type: string, nullable: true }
+              resultado_esperado: { type: string, nullable: true }
+              prioridade: { type: string, enum: [Must, Should, Could] }
+              priorizacao: { type: string, enum: [Must, Should, Could] }
+              status: { type: string, enum: [rascunho] }
+    responses:
+      '201':
+        description: Épico criado
+        content:
+          application/json:
+            schema: { $ref: '#/schemas/LegacyEpic' }
+      '400': { description: Dados inválidos ou projeto arquivado }
+      '401': { description: Sessão ausente ou inválida }
+      '403': { description: Papel sem permissão }
+      '404': { description: Projeto inexistente }
+item:
+  parameters:
+    - name: id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+  get:
+    deprecated: true
+    summary: Consultar épico pelo contrato legado
+    responses:
+      '200':
+        description: Épico, incluindo estados legados somente leitura
+        content:
+          application/json:
+            schema: { $ref: '#/schemas/LegacyEpic' }
+      '400': { description: UUID inválido }
+      '401': { description: Sessão ausente ou inválida }
+      '404': { description: Épico inexistente }
+  patch:
+    deprecated: true
+    summary: Atualizar campos pelo contrato legado
+    description: PO/admin. priorizacao é alias de prioridade. O campo status é recusado; usar /complete para concluir. Campos obrigatórios de um épico concluído não podem ser apagados.
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: './openapi.yaml#/components/schemas/UpdateEpicRequest'
+              - type: object
+                properties:
+                  priorizacao: { type: string, enum: [Must, Should, Could] }
+    responses:
+      '200':
+        description: Épico atualizado
+        content:
+          application/json:
+            schema: { $ref: '#/schemas/LegacyEpic' }
+      '400': { description: Dados inválidos, estado legado ou projeto arquivado }
+      '401': { description: Sessão ausente ou inválida }
+      '403': { description: Papel sem permissão }
+      '404': { description: Épico inexistente }
+complete:
+  parameters:
+    - name: id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+  patch:
+    deprecated: true
+    summary: Concluir épico usando a regra canônica
+    description: PO/admin. Exige os campos do guia e ao menos um critério. Falta de campos retorna details.campos_faltantes e o alias traduzido details.missing. Não permite concluir registros legados ou de projeto arquivado.
+    responses:
+      '200':
+        description: Épico concluído
+        content:
+          application/json:
+            schema: { $ref: '#/schemas/LegacyEpic' }
+      '400': { description: Campos ou critérios faltantes, estado legado ou projeto arquivado }
+      '401': { description: Sessão ausente ou inválida }
+      '403': { description: Papel sem permissão }
+      '404': { description: Épico inexistente }
+schemas:
+  LegacyEpic:
+    allOf:
+      - $ref: './openapi.yaml#/components/schemas/EpicResponse'
+      - type: object
+        properties:
+          priorizacao: { type: string, enum: [Must, Should, Could] }
+          missing_fields:
+            type: array
+            description: Campos textuais do guia faltantes; a conclusão também exige critérios, validados pelo servidor.
+            items: { type: string }

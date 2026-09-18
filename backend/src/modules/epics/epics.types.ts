@@ -1,6 +1,7 @@
 import { z } from "zod";
 
-export const EPIC_STATUSES = ["rascunho", "concluido"] as const;
+// Legacy states remain readable; only the dedicated completion operation changes status.
+export const EPIC_STATUSES = ["rascunho", "concluido", "ativo", "arquivado"] as const;
 export type EpicStatus = (typeof EPIC_STATUSES)[number];
 
 export const EPIC_PRIORITIES = ["Must", "Should", "Could"] as const;
@@ -22,6 +23,7 @@ export const createEpicSchema = z.object({
   escopo_macro: z.string().trim().optional().nullable(),
   resultado_esperado: z.string().trim().optional().nullable(),
   prioridade: z.enum(EPIC_PRIORITIES).default("Must"),
+  status: z.literal("rascunho").optional(),
 });
 
 export type CreateEpicDTO = z.infer<typeof createEpicSchema>;
@@ -34,6 +36,7 @@ export const updateEpicSchema = z.object({
   resultado_esperado: z.string().trim().optional().nullable(),
   prioridade: z.enum(EPIC_PRIORITIES).optional(),
   justificativa: z.string().trim().optional().nullable(),
+  status: z.never().optional(),
 });
 
 export type UpdateEpicDTO = z.infer<typeof updateEpicSchema>;

@@ -24,3 +24,17 @@ docker compose exec postgres psql -U sinapse -d sinapse -c '\dt'
 
 Para ambientes existentes, a aplicação das migrations deve ser feita em uma
 transação e registrada no controle de versão do ambiente antes do deploy.
+
+## Consolidação S1-05
+
+As duas migrations 005 são histórico publicado e não devem ser renomeadas.
+O runner registra o nome completo. `004_z_prepare_criteria_order.sql` precisa
+ordenar antes de `005_backlog_hierarchy_domain.sql` para preparar critérios
+legados antes da criação do índice único. `006_reconcile_epic_status.sql`
+uniformiza a constraint preservando os estados legados como somente leitura
+na API de épicos. Veja [execução e recuperação](../CONSOLIDACAO_S1_05.md).
+
+`npm run test:integration:s105` no backend valida banco vazio, histórico antigo,
+histórico backlog e ambas as migrations, com repetição e rollback de auditoria.
+Exige `S105_TEST_DATABASE_URL` apontando para PostgreSQL local descartável cujo
+nome termina em `_s105_test`. O teste cria/remove somente schemas próprios.
