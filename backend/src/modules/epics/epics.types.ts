@@ -64,6 +64,7 @@ export interface Epic {
 export interface EpicWithStats extends Epic {
   features_count?: number;
   criterios_count?: number;
+  projeto_status?: string;
 }
 
 export interface PaginatedEpics {

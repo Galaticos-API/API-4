@@ -78,6 +78,7 @@ export interface PbiWithContext extends Pbi {
   epico_id?: string;
   epico_titulo?: string;
   projeto_id?: string;
+  projeto_status?: string;
 }
 
 export interface PaginatedPbis {

@@ -419,6 +419,8 @@ paths:
           description: Perfil sem permissão de escrita
         '404':
           description: Épico não encontrado
+        '409':
+          $ref: '#/components/responses/ArchivedProjectConflict'
 
   /api/v1/epics/{id}/complete:
     patch:
@@ -452,6 +454,8 @@ paths:
           description: Perfil sem permissão de escrita
         '404':
           description: Épico não encontrado
+        '409':
+          $ref: '#/components/responses/ArchivedProjectConflict'
 
   /api/v1/features:
     post:
@@ -559,6 +563,8 @@ paths:
                 $ref: '#/components/schemas/FeatureResponse'
         '404':
           description: Feature não encontrada
+        '409':
+          $ref: '#/components/responses/ArchivedProjectConflict'
 
   /api/v1/features/{id}/complete:
     patch:
@@ -588,6 +594,8 @@ paths:
                 $ref: '#/components/schemas/Error'
         '404':
           description: Feature não encontrada
+        '409':
+          $ref: '#/components/responses/ArchivedProjectConflict'
 
   /api/v1/pbis:
     post:
@@ -695,10 +703,12 @@ paths:
                 $ref: '#/components/schemas/PbiResponse'
         '404':
           description: PBI não encontrado
+        '409':
+          $ref: '#/components/responses/ArchivedProjectConflict'
 
   /api/v1/pbis/{id}/complete:
     patch:
-      summary: Marca um PBI como concluído quando ao menos um cenário DADO/QUANDO/ENTÃO existir (PBI-01.1.4 / S1-07)
+      summary: Marca um PBI como concluído quando ao menos um cenário DADO/QUANDO/ENTÃO existir e o título estiver no infinitivo (PBI-01.1.4, PBI-01.3.1 / S1-07, S1-13)
       operationId: completePbi
       security:
         - cookieAuth: []
@@ -717,11 +727,44 @@ paths:
               schema:
                 $ref: '#/components/schemas/PbiResponse'
         '400':
-          description: Nenhum cenário de aceitação registrado
+          description: >-
+            Nenhum cenário de aceitação registrado e/ou título fora do padrão de verbo no
+            infinitivo. O campo `details.campos_faltantes` pode conter `cenarios_aceitacao`
+            e/ou `titulo_infinitivo`.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+        '404':
+          description: PBI não encontrado
+        '409':
+          $ref: '#/components/responses/ArchivedProjectConflict'
+
+  /api/v1/pbis/{id}/quality:
+    get:
+      summary: Executa o motor determinístico de qualidade do PBI (título infinitivo, história e cenários, termos vagos) (PBI-01.3.1 a PBI-01.3.4 / S1-13)
+      operationId: getPbiQuality
+      description: >-
+        Não bloqueia nada por si só — apenas relata. O bloqueio de conclusão real acontece em
+        PATCH /pbis/{id}/complete.
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Relatório de qualidade do PBI
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PbiQualityReport'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '404':
           description: PBI não encontrado
 
@@ -810,6 +853,55 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/CriterionResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Perfil sem permissão de escrita
+        '404':
+          description: Critério não encontrado
+
+  /api/v1/criteria/{id}/move:
+    patch:
+      summary: Reordena um critério em relação aos demais da mesma entidade (PBI-01.2.4 / S1-12)
+      operationId: moveCriterion
+      description: >-
+        Operação idempotente: mover o primeiro item para cima (ou o último para baixo) não
+        retorna erro, apenas devolve a lista sem alteração.
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [direction]
+              properties:
+                direction:
+                  type: string
+                  enum: [up, down]
+      responses:
+        '200':
+          description: Lista ordenada da entidade após a movimentação
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/CriterionResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -1415,6 +1507,66 @@ components:
           type: string
           format: date-time
 
+    ValidationResultResponse:
+      type: object
+      required: [aprovado]
+      properties:
+        aprovado:
+          type: boolean
+        motivo:
+          type: string
+
+    ScenarioQualityResult:
+      type: object
+      required: [id, aprovado]
+      properties:
+        id:
+          type: string
+          format: uuid
+        nome:
+          type: string
+          nullable: true
+        aprovado:
+          type: boolean
+        motivo:
+          type: string
+
+    VagueTermOccurrence:
+      type: object
+      required: [campo, termos]
+      properties:
+        campo:
+          type: string
+        termos:
+          type: array
+          items:
+            type: string
+
+    PbiQualityReport:
+      type: object
+      required: [titulo, historia, cenarios, termos_vagos]
+      properties:
+        titulo:
+          $ref: '#/components/schemas/ValidationResultResponse'
+        historia:
+          type: object
+          required: [aprovado, alertas]
+          properties:
+            aprovado:
+              type: boolean
+            alertas:
+              type: array
+              items:
+                type: string
+        cenarios:
+          type: array
+          items:
+            $ref: '#/components/schemas/ScenarioQualityResult'
+        termos_vagos:
+          type: array
+          items:
+            $ref: '#/components/schemas/VagueTermOccurrence'
+
     IngestDocumentRequest:
       type: object
       required: [document_id, text_content]
@@ -1528,6 +1680,15 @@ components:
 
     Unauthorized:
       description: Autenticação ausente, sessão inválida ou sessão expirada
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    ArchivedProjectConflict:
+      description: >-
+        O épico, feature ou PBI pertence a um projeto arquivado (PBI-01.1.5 / S1-08) — o item
+        segue disponível para leitura, mas edição e conclusão são bloqueadas.
       content:
         application/json:
           schema:

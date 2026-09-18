@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { FeaturesService } from "./features.service.js";
 import { FeaturesRepository } from "./features.repository.js";
 import { EpicsRepository } from "../epics/epics.repository.js";
-import { ValidationError, NotFoundError } from "../../shared/errors.js";
+import { ValidationError, NotFoundError, ConflictError } from "../../shared/errors.js";
 import { CreateFeatureDTO, UpdateFeatureDTO, Feature, FeatureWithStats, PaginatedFeatures, FeatureQueryDTO } from "./features.types.js";
 import { EpicWithStats } from "../epics/epics.types.js";
 
@@ -11,12 +11,14 @@ const EPICO_ID = "c0000000-0000-4000-8000-000000000001";
 
 class InMemoryFeaturesRepository extends FeaturesRepository {
   private features: FeatureWithStats[] = [];
+  public statusProjeto = "ativo";
   private seq = 0;
 
   constructor() { super(); }
 
   async findById(id: string): Promise<FeatureWithStats | null> {
-    return this.features.find((f) => f.id === id) ?? null;
+    const found = this.features.find((f) => f.id === id);
+    return found ? { ...found, projeto_status: this.statusProjeto } : null;
   }
 
   async create(data: CreateFeatureDTO): Promise<Feature> {
@@ -130,5 +132,22 @@ test("impede conclusão de feature sem descrição ou objetivo", async () => {
       assert.deepEqual(details.campos_faltantes.sort(), ["descricao", "objetivo"]);
       return true;
     },
+  );
+});
+
+test("PBI-01.1.5 Cenário 3: impede edição e conclusão de feature cujo projeto foi arquivado", async () => {
+  const { service, featuresRepo } = setup();
+
+  const created = await service.create({ epico_id: EPICO_ID, titulo: "Feature a ser arquivada", descricao: "d", objetivo: "o" });
+  featuresRepo.statusProjeto = "arquivado";
+
+  await assert.rejects(
+    async () => await service.update(created.id, { titulo: "Tentativa de edição" }),
+    (err: Error) => { assert.ok(err instanceof ConflictError); return true; },
+  );
+
+  await assert.rejects(
+    async () => await service.complete(created.id),
+    (err: Error) => { assert.ok(err instanceof ConflictError); return true; },
   );
 });
