@@ -1,4 +1,4 @@
-import { createCriterionSchema, criterionQuerySchema, Criterion } from "./criteria.types.js";
+import { createCriterionSchema, criterionQuerySchema, moveCriterionSchema, Criterion } from "./criteria.types.js";
 import { CriteriaRepository, criteriaRepository } from "./criteria.repository.js";
 import { NotFoundError, ValidationError, validateUuid } from "../../shared/errors.js";
 
@@ -42,6 +42,23 @@ export class CriteriaService {
     }
 
     return removed;
+  }
+
+  async move(id: string, input: unknown, usuarioId?: string | null): Promise<Criterion[]> {
+    validateUuid(id, "ID do critério");
+
+    const parseResult = moveCriterionSchema.safeParse(input);
+    if (!parseResult.success) {
+      const issue = parseResult.error.issues[0];
+      throw new ValidationError(issue.message, parseResult.error.format());
+    }
+
+    const lista = await this.repository.move(id, parseResult.data.direction, usuarioId);
+    if (!lista) {
+      throw new NotFoundError("Critério não encontrado.");
+    }
+
+    return lista;
   }
 
   private entityLabel(tipo: "epico" | "feature" | "pbi"): string {

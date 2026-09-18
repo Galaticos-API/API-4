@@ -67,6 +67,28 @@ class InMemoryCriteriaRepository extends CriteriaRepository {
     }
     return removed;
   }
+
+  async move(id: string, direction: "up" | "down"): Promise<Criterion[] | null> {
+    const current = this.criteria.find((c) => c.id === id);
+    if (!current) return null;
+
+    const irmaos = this.criteria
+      .filter((c) => c.entidade_tipo === current.entidade_tipo && c.entidade_id === current.entidade_id)
+      .sort((a, b) => a.ordem - b.ordem);
+    const indiceAtual = irmaos.findIndex((c) => c.id === id);
+    const indiceVizinho = direction === "up" ? indiceAtual - 1 : indiceAtual + 1;
+
+    if (indiceVizinho < 0 || indiceVizinho >= irmaos.length) {
+      return irmaos;
+    }
+
+    const vizinho = irmaos[indiceVizinho];
+    const ordemTemp = current.ordem;
+    current.ordem = vizinho.ordem;
+    vizinho.ordem = ordemTemp;
+
+    return [...irmaos].sort((a, b) => a.ordem - b.ordem);
+  }
 }
 
 function setup() {
@@ -164,6 +186,43 @@ test("impede registrar critério para entidade inexistente", async () => {
 
   await assert.rejects(
     async () => await service.create({ entidade_tipo: "epico", entidade_id: UNKNOWN_ID, texto: "Critério órfão" }),
+    (err: Error) => {
+      assert.ok(err instanceof NotFoundError);
+      return true;
+    },
+  );
+});
+
+test("PBI-01.2.4 Cenário 1: mover um cenário para cima persiste a nova ordem", async () => {
+  const { service } = setup();
+
+  const primeiro = await service.create({ entidade_tipo: "pbi", entidade_id: PBI_ID, nome: "Primeiro", dado: "d", quando: "q", entao: "e" });
+  const segundo = await service.create({ entidade_tipo: "pbi", entidade_id: PBI_ID, nome: "Segundo", dado: "d", quando: "q", entao: "e" });
+
+  const lista = await service.move(segundo.id, { direction: "up" });
+
+  assert.deepEqual(lista.map((c) => c.nome), ["Segundo", "Primeiro"]);
+  assert.equal(lista[0].id, segundo.id);
+  assert.equal(lista[0].ordem, 1);
+  assert.equal(lista[1].id, primeiro.id);
+  assert.equal(lista[1].ordem, 2);
+});
+
+test("PBI-01.2.4: mover o primeiro item para cima é uma operação sem efeito, não um erro", async () => {
+  const { service } = setup();
+
+  const primeiro = await service.create({ entidade_tipo: "epico", entidade_id: EPICO_ID, texto: "Único critério" });
+
+  const lista = await service.move(primeiro.id, { direction: "up" });
+
+  assert.deepEqual(lista.map((c) => c.id), [primeiro.id]);
+});
+
+test("move() retorna NotFound para um critério inexistente", async () => {
+  const { service } = setup();
+
+  await assert.rejects(
+    async () => await service.move("d9000000-0000-4000-8000-000000009999", { direction: "down" }),
     (err: Error) => {
       assert.ok(err instanceof NotFoundError);
       return true;
