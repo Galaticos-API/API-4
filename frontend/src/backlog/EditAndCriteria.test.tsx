@@ -139,3 +139,21 @@ it("PBI-01.2.4: reordena cenários de um PBI com botões acessíveis por teclado
     expect(nomes.indexOf("Segundo")).toBeLessThan(nomes.indexOf("Primeiro"));
   });
 });
+
+it("PBI-01.1.5 Cenário 2: avisa sobre alterações não salvas também no formulário de criação", async () => {
+  vi.stubGlobal("fetch", vi.fn());
+  window.history.replaceState(null, "", "/projects/project-1/epics/new");
+  render(<Projects pathname="/projects/project-1/epics/new" />);
+
+  fireEvent.change(screen.getByLabelText("Título (obrigatório)"), { target: { value: "Rascunho não salvo" } });
+
+  const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(false);
+  fireEvent.click(screen.getByText("Voltar ao projeto"));
+  expect(confirmSpy).toHaveBeenCalled();
+  expect(window.location.pathname).toBe("/projects/project-1/epics/new");
+  expect(screen.getByLabelText("Título (obrigatório)")).toBeTruthy();
+
+  confirmSpy.mockReturnValue(true);
+  fireEvent.click(screen.getByText("Voltar ao projeto"));
+  expect(window.location.pathname).toBe("/projects/project-1");
+});

@@ -59,6 +59,8 @@ export function PbiForm({ projectId, epicoId, featureId }: { projectId: string; 
   const submitting = useRef(false);
   const mounted = useRef(true);
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
+  const isDirty = [values.titulo, values.historia_como_um, values.historia_eu_quero, values.historia_para_que].some((value) => value.trim().length > 0);
+  const { confirmLeave } = useUnsavedChangesGuard(isDirty);
 
   const featurePath = `/projects/${projectId}/epics/${epicoId}/features/${featureId}`;
 
@@ -102,7 +104,7 @@ export function PbiForm({ projectId, epicoId, featureId }: { projectId: string; 
         {message && <p role="alert">{message}</p>}
         <div className="project-actions">
           <button type="submit" className="btn-primary" disabled={busy}>{busy ? "Criando…" : "Criar PBI"}</button>
-          <button type="button" className="btn-secondary" disabled={busy} onClick={() => navigate(featurePath)}>Voltar à feature</button>
+          <button type="button" className="btn-secondary" disabled={busy} onClick={() => { if (confirmLeave()) navigate(featurePath); }}>Voltar à feature</button>
         </div>
       </form>
     </section>

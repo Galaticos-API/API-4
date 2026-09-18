@@ -57,6 +57,8 @@ export function FeatureForm({ projectId, epicoId }: { projectId: string; epicoId
   const submitting = useRef(false);
   const mounted = useRef(true);
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
+  const isDirty = [values.titulo, values.descricao, values.objetivo].some((value) => value.trim().length > 0);
+  const { confirmLeave } = useUnsavedChangesGuard(isDirty);
 
   return (
     <section className="projects-page">
@@ -89,7 +91,7 @@ export function FeatureForm({ projectId, epicoId }: { projectId: string; epicoId
         {message && <p role="alert">{message}</p>}
         <div className="project-actions">
           <button type="submit" className="btn-primary" disabled={busy}>{busy ? "Criando…" : "Criar feature"}</button>
-          <button type="button" className="btn-secondary" disabled={busy} onClick={() => navigate(`/projects/${projectId}/epics/${epicoId}`)}>Voltar ao épico</button>
+          <button type="button" className="btn-secondary" disabled={busy} onClick={() => { if (confirmLeave()) navigate(`/projects/${projectId}/epics/${epicoId}`); }}>Voltar ao épico</button>
         </div>
       </form>
     </section>

@@ -57,6 +57,8 @@ export function EpicForm({ projetoId }: { projetoId: string }) {
   const submitting = useRef(false);
   const mounted = useRef(true);
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
+  const isDirty = [values.titulo, values.descricao, values.objetivo, values.escopo_macro, values.resultado_esperado].some((value) => value.trim().length > 0);
+  const { confirmLeave } = useUnsavedChangesGuard(isDirty);
 
   return (
     <section className="projects-page">
@@ -92,7 +94,7 @@ export function EpicForm({ projetoId }: { projetoId: string }) {
         {message && <p role="alert">{message}</p>}
         <div className="project-actions">
           <button type="submit" className="btn-primary" disabled={busy}>{busy ? "Criando…" : "Criar épico"}</button>
-          <button type="button" className="btn-secondary" disabled={busy} onClick={() => navigate(`/projects/${projetoId}`)}>Voltar ao projeto</button>
+          <button type="button" className="btn-secondary" disabled={busy} onClick={() => { if (confirmLeave()) navigate(`/projects/${projetoId}`); }}>Voltar ao projeto</button>
         </div>
       </form>
     </section>
