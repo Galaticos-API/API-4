@@ -97,7 +97,7 @@ export function EpicForm({ projetoId }: { projetoId: string }) {
   );
 }
 
-export function EpicDetail({ projectId, epicId, children }: { projectId: string; epicId: string; children?: ReactNode }) {
+export function EpicDetail({ projectId, epicId, canCreate, children }: { projectId: string; epicId: string; canCreate: boolean; children?: ReactNode }) {
   const [result, setResult] = useState<{ state: "loading" } | { state: "error"; message: string } | { state: "ready"; epic: Epic }>({ state: "loading" });
   const [completing, setCompleting] = useState(false);
   const [completionMessage, setCompletionMessage] = useState("");
@@ -136,7 +136,7 @@ export function EpicDetail({ projectId, epicId, children }: { projectId: string;
           <dt>Resultado esperado</dt><dd>{epic.resultado_esperado || "Não informado."}</dd>
           <dt>Critérios de aceitação registrados</dt><dd>{epic.criterios_count}</dd>
         </dl>
-        {epic.status === "rascunho" && (
+        {canCreate && epic.status === "rascunho" && (
           <div className="project-actions">
             <button className="btn-primary" disabled={completing} onClick={async () => {
               setCompleting(true); setCompletionMessage("");

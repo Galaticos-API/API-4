@@ -12,6 +12,18 @@ servers:
     description: Serviço de IA local
 
 paths:
+  /api/v1/projects/{projectId}/epicos:
+    $ref: './epics-compat.yaml#/collection'
+  /api/projects/{projectId}/epicos:
+    $ref: './epics-compat.yaml#/collection'
+  /api/v1/epicos/{id}:
+    $ref: './epics-compat.yaml#/item'
+  /api/epicos/{id}:
+    $ref: './epics-compat.yaml#/item'
+  /api/v1/epicos/{id}/complete:
+    $ref: './epics-compat.yaml#/complete'
+  /api/epicos/{id}/complete:
+    $ref: './epics-compat.yaml#/complete'
   /health:
     get:
       summary: Verifica disponibilidade do serviço
@@ -337,7 +349,7 @@ paths:
           in: query
           schema:
             type: string
-            enum: [rascunho, concluido]
+            enum: [rascunho, concluido, ativo, arquivado]
         - name: limit
           in: query
           schema:
@@ -1028,6 +1040,7 @@ components:
 
     CreateEpicRequest:
       type: object
+      description: Criação sempre em rascunho. Outros valores de status são recusados.
       required: [projeto_id, titulo]
       properties:
         projeto_id:
@@ -1056,6 +1069,7 @@ components:
 
     UpdateEpicRequest:
       type: object
+      description: Não aceita status. Use o endpoint complete; estados legados e projetos arquivados são somente leitura.
       properties:
         titulo:
           type: string
@@ -1081,6 +1095,7 @@ components:
 
     EpicResponse:
       type: object
+      description: Estados ativo e arquivado são legados, preservados apenas para leitura.
       required: [id, projeto_id, titulo, status, created_at, updated_at]
       properties:
         id:
@@ -1108,7 +1123,7 @@ components:
           enum: [Must, Should, Could]
         status:
           type: string
-          enum: [rascunho, concluido]
+          enum: [rascunho, concluido, ativo, arquivado]
         created_at:
           type: string
           format: date-time
