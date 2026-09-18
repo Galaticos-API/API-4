@@ -99,10 +99,14 @@ it("PBI-01.2.1: adiciona e remove um critério de texto do épico", async () => 
   fireEvent.change(screen.getByLabelText("Texto do critério"), { target: { value: "Critério novo" } });
   fireEvent.click(screen.getByText("Adicionar"));
 
-  await screen.findByText("Critério novo");
+  // Aguarda especificamente o botão "Remover" do item salvo, não o texto em si: o
+  // <textarea> ainda aberto contém o mesmo texto digitado, então esperar por
+  // screen.findByText("Critério novo") também dá "match" ali antes da resposta do
+  // POST chegar, mascarando o caso em que o salvamento ainda está em andamento.
+  const removerBtn = await screen.findByRole("button", { name: "Remover" });
 
   const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
-  fireEvent.click(screen.getByText("Remover"));
+  fireEvent.click(removerBtn);
   await waitFor(() => expect(screen.queryByText("Critério novo")).toBeNull());
   expect(confirmSpy).toHaveBeenCalled();
 });
