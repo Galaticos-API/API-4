@@ -11,7 +11,7 @@ export function BacklogScreen({ route, canCreate }: { route: Exclude<BacklogRout
 
   if (route.screen === "epic-detail") {
     return (
-      <EpicDetail projectId={route.projectId} epicId={route.epicId}>
+      <EpicDetail projectId={route.projectId} epicId={route.epicId} canEdit={canCreate}>
         <FeatureList projectId={route.projectId} epicoId={route.epicId} canCreate={canCreate} />
       </EpicDetail>
     );
@@ -25,7 +25,7 @@ export function BacklogScreen({ route, canCreate }: { route: Exclude<BacklogRout
 
   if (route.screen === "feature-detail") {
     return (
-      <FeatureDetail projectId={route.projectId} epicoId={route.epicId} featureId={route.featureId}>
+      <FeatureDetail projectId={route.projectId} epicoId={route.epicId} featureId={route.featureId} canEdit={canCreate}>
         <PbiList projectId={route.projectId} epicoId={route.epicId} featureId={route.featureId} canCreate={canCreate} />
       </FeatureDetail>
     );
@@ -37,7 +37,7 @@ export function BacklogScreen({ route, canCreate }: { route: Exclude<BacklogRout
       : <SomenteLeitura voltar={`/projects/${route.projectId}/epics/${route.epicId}/features/${route.featureId}`} />;
   }
 
-  return <PbiDetail projectId={route.projectId} epicoId={route.epicId} featureId={route.featureId} pbiId={route.pbiId} />;
+  return <PbiDetail projectId={route.projectId} epicoId={route.epicId} featureId={route.featureId} pbiId={route.pbiId} canEdit={canCreate} />;
 }
 
 function SomenteLeitura({ voltar }: { voltar: string }) {

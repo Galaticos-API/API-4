@@ -1,12 +1,15 @@
 import { createPbiSchema, updatePbiSchema, pbiQuerySchema, Pbi, PbiWithContext, PaginatedPbis } from "./pbis.types.js";
 import { PbisRepository, pbisRepository } from "./pbis.repository.js";
 import { FeaturesRepository, featuresRepository } from "../features/features.repository.js";
-import { NotFoundError, ValidationError, validateUuid } from "../../shared/errors.js";
+import { QualityService, qualityService, RelatorioQualidadePbi } from "../quality/quality.service.js";
+import { validarTituloInfinitivo } from "../quality/quality.rules.js";
+import { ConflictError, NotFoundError, ValidationError, validateUuid } from "../../shared/errors.js";
 
 export class PbisService {
   constructor(
     private readonly repository: PbisRepository = pbisRepository,
     private readonly featuresRepo: FeaturesRepository = featuresRepository,
+    private readonly qualityChecker: QualityService = qualityService,
   ) {}
 
   async create(input: unknown, usuarioId?: string | null): Promise<Pbi> {
@@ -54,6 +57,7 @@ export class PbisService {
     if (!existing) {
       throw new NotFoundError("PBI não encontrado.");
     }
+    this.assertProjetoAtivo(existing);
 
     const parseResult = updatePbiSchema.safeParse(input);
     if (!parseResult.success) {
@@ -79,11 +83,20 @@ export class PbisService {
     if (existing.status === "concluido") {
       return existing;
     }
+    this.assertProjetoAtivo(existing);
 
+    const camposFaltantes: string[] = [];
     if ((existing.criterios_count ?? 0) === 0) {
+      camposFaltantes.push("cenarios_aceitacao");
+    }
+    if (!validarTituloInfinitivo(existing.titulo).aprovado) {
+      camposFaltantes.push("titulo_infinitivo");
+    }
+
+    if (camposFaltantes.length > 0) {
       throw new ValidationError(
-        "Não é possível concluir o PBI: é necessário ao menos um cenário de aceitação DADO/QUANDO/ENTÃO.",
-        { campos_faltantes: ["cenarios_aceitacao"] },
+        "Não é possível concluir o PBI: corrija os itens de conformidade com o guia antes de concluir.",
+        { campos_faltantes: camposFaltantes },
       );
     }
 
@@ -93,6 +106,23 @@ export class PbisService {
     }
 
     return completed;
+  }
+
+  async quality(id: string): Promise<RelatorioQualidadePbi> {
+    validateUuid(id, "ID do PBI");
+
+    const pbi = await this.repository.findById(id);
+    if (!pbi) {
+      throw new NotFoundError("PBI não encontrado.");
+    }
+
+    return await this.qualityChecker.avaliarPbi(pbi);
+  }
+
+  private assertProjetoAtivo(pbi: PbiWithContext): void {
+    if (pbi.projeto_status === "arquivado") {
+      throw new ConflictError("Este PBI pertence a um projeto arquivado e está disponível apenas para leitura.");
+    }
   }
 }
 

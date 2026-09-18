@@ -1,7 +1,7 @@
 import { createFeatureSchema, updateFeatureSchema, featureQuerySchema, Feature, FeatureWithStats, PaginatedFeatures, FEATURE_REQUIRED_FIELDS } from "./features.types.js";
 import { FeaturesRepository, featuresRepository } from "./features.repository.js";
 import { EpicsRepository, epicsRepository } from "../epics/epics.repository.js";
-import { NotFoundError, ValidationError, validateUuid } from "../../shared/errors.js";
+import { ConflictError, NotFoundError, ValidationError, validateUuid } from "../../shared/errors.js";
 
 export class FeaturesService {
   constructor(
@@ -54,6 +54,7 @@ export class FeaturesService {
     if (!existing) {
       throw new NotFoundError("Feature não encontrada.");
     }
+    this.assertProjetoAtivo(existing);
 
     const parseResult = updateFeatureSchema.safeParse(input);
     if (!parseResult.success) {
@@ -79,6 +80,7 @@ export class FeaturesService {
     if (existing.status === "concluido") {
       return existing;
     }
+    this.assertProjetoAtivo(existing);
 
     const camposFaltantes: string[] = FEATURE_REQUIRED_FIELDS.filter(
       (field) => !existing[field] || String(existing[field]).trim().length === 0,
@@ -97,6 +99,12 @@ export class FeaturesService {
     }
 
     return completed;
+  }
+
+  private assertProjetoAtivo(feature: FeatureWithStats): void {
+    if (feature.projeto_status === "arquivado") {
+      throw new ConflictError("Esta feature pertence a um projeto arquivado e está disponível apenas para leitura.");
+    }
   }
 }
 
