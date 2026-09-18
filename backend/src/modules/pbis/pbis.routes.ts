@@ -11,3 +11,4 @@ pbisRouter.get("/:id", pbisController.getById);
 pbisRouter.put("/:id", canWrite, pbisController.update);
 pbisRouter.patch("/:id", canWrite, pbisController.update);
 pbisRouter.patch("/:id/complete", canWrite, pbisController.complete);
+pbisRouter.get("/:id/quality", pbisController.getQuality);

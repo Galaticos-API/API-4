@@ -2,6 +2,7 @@ import { createPbiSchema, updatePbiSchema, pbiQuerySchema, Pbi, PbiWithContext, 
 import { PbisRepository, pbisRepository } from "./pbis.repository.js";
 import { FeaturesRepository, featuresRepository } from "../features/features.repository.js";
 import { NotFoundError, ValidationError, validateUuid } from "../../shared/errors.js";
+import { qualityService } from "../quality/quality.service.js";
 
 export class PbisService {
   constructor(
@@ -23,7 +24,21 @@ export class PbisService {
       throw new NotFoundError("Feature não encontrada.");
     }
 
-    return await this.repository.create(dto, usuarioId);
+    const created = await this.repository.create(dto, usuarioId);
+    
+    // Calculate and update completeness score
+    try {
+      const qualityReport = await qualityService.validatePbi(created.id);
+      if (qualityReport.score_completude !== null) {
+        await this.repository.updateScoreCompletude(created.id, qualityReport.score_completude);
+        created.score_completude = qualityReport.score_completude;
+      }
+    } catch (error) {
+      // Log error but don't fail the creation if quality check fails
+      console.error(`Failed to calculate completeness for PBI ${created.id}:`, error);
+    }
+    
+    return created;
   }
 
   async list(queryInput: unknown): Promise<PaginatedPbis> {
@@ -64,6 +79,18 @@ export class PbisService {
     const updated = await this.repository.update(id, parseResult.data, usuarioId);
     if (!updated) {
       throw new NotFoundError("PBI não encontrado.");
+    }
+
+    // Recalculate completeness score after update
+    try {
+      const qualityReport = await qualityService.validatePbi(id);
+      if (qualityReport.score_completude !== null) {
+        await this.repository.updateScoreCompletude(id, qualityReport.score_completude);
+        updated.score_completude = qualityReport.score_completude;
+      }
+    } catch (error) {
+      // Log error but don't fail the update if quality check fails
+      console.error(`Failed to recalculate completeness for PBI ${id}:`, error);
     }
 
     return updated;
