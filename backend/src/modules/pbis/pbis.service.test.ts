@@ -1,0 +1,167 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { PbisService } from "./pbis.service.js";
+import { PbisRepository } from "./pbis.repository.js";
+import { FeaturesRepository } from "../features/features.repository.js";
+import { ValidationError, NotFoundError } from "../../shared/errors.js";
+import { CreatePbiDTO, Pbi, PbiWithContext, PaginatedPbis, PbiQueryDTO } from "./pbis.types.js";
+import { FeatureWithStats } from "../features/features.types.js";
+
+const FEATURE_ID = "b0000000-0000-4000-8000-000000000001";
+
+class InMemoryPbisRepository extends PbisRepository {
+  private pbis: PbiWithContext[] = [];
+  public criteriosPorPbi = new Map<string, number>();
+  private seq = 0;
+
+  constructor() { super(); }
+
+  async findById(id: string): Promise<PbiWithContext | null> {
+    const found = this.pbis.find((p) => p.id === id);
+    if (!found) return null;
+    return { ...found, criterios_count: this.criteriosPorPbi.get(id) ?? 0 };
+  }
+
+  async create(data: CreatePbiDTO): Promise<Pbi> {
+    this.seq += 1;
+    const created: PbiWithContext = {
+      id: `c9000000-0000-4000-8000-00000000000${this.seq}`,
+      feature_id: data.feature_id,
+      codigo: `PBI-${String(this.seq).padStart(3, "0")}`,
+      titulo: data.titulo.trim(),
+      historia_como_um: data.historia_como_um.trim(),
+      historia_eu_quero: data.historia_eu_quero.trim(),
+      historia_para_que: data.historia_para_que.trim(),
+      regras_observacoes: data.regras_observacoes?.trim() ?? null,
+      tipo: data.tipo,
+      prioridade: data.prioridade,
+      status: "rascunho",
+      score_completude: 0,
+      provenance: "human-authored",
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      criterios_count: 0,
+      feature_titulo: "Feature de teste",
+    };
+    this.pbis.push(created);
+    return created;
+  }
+
+  async findAll(query: PbiQueryDTO): Promise<PaginatedPbis> {
+    const items = this.pbis.filter((p) => !query.feature_id || p.feature_id === query.feature_id);
+    return { items, total: items.length, limit: query.limit, offset: query.offset };
+  }
+
+  async markConcluded(id: string): Promise<PbiWithContext | null> {
+    const index = this.pbis.findIndex((p) => p.id === id);
+    if (index === -1) return null;
+    this.pbis[index] = { ...this.pbis[index], status: "concluido" };
+    return { ...this.pbis[index], criterios_count: this.criteriosPorPbi.get(id) ?? 0 };
+  }
+}
+
+class StubFeaturesRepository extends FeaturesRepository {
+  public features: FeatureWithStats[] = [];
+  constructor() { super(); }
+  async findById(id: string): Promise<FeatureWithStats | null> {
+    return this.features.find((f) => f.id === id) ?? null;
+  }
+}
+
+function setup() {
+  const pbisRepo = new InMemoryPbisRepository();
+  const featuresRepo = new StubFeaturesRepository();
+  featuresRepo.features.push({
+    id: FEATURE_ID, epico_id: "c0000000-0000-4000-8000-000000000001", titulo: "Feature base", descricao: null, objetivo: null,
+    prioridade: "Must", status: "rascunho", created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
+  });
+  const service = new PbisService(pbisRepo, featuresRepo);
+  return { service, pbisRepo, featuresRepo };
+}
+
+test("PBI-01.1.4 Cenário 1: cria PBI com história completa vinculado à feature com status rascunho", async () => {
+  const { service } = setup();
+
+  const result = await service.create({
+    feature_id: FEATURE_ID,
+    titulo: "Cadastrar item",
+    historia_como_um: "Product Owner",
+    historia_eu_quero: "cadastrar um item",
+    historia_para_que: "eu organize o backlog",
+  });
+
+  assert.equal(result.status, "rascunho");
+  assert.match(result.codigo, /^PBI-\d{3}$/);
+});
+
+test("PBI-01.1.4 Cenário 3: impede conclusão sem nenhum cenário de aceitação", async () => {
+  const { service } = setup();
+
+  const created = await service.create({
+    feature_id: FEATURE_ID,
+    titulo: "Cadastrar item",
+    historia_como_um: "Product Owner",
+    historia_eu_quero: "cadastrar um item",
+    historia_para_que: "eu organize o backlog",
+  });
+
+  await assert.rejects(
+    async () => await service.complete(created.id),
+    (err: Error) => {
+      assert.ok(err instanceof ValidationError);
+      return true;
+    },
+  );
+});
+
+test("permite concluir PBI após registrar ao menos um cenário de aceitação", async () => {
+  const { service, pbisRepo } = setup();
+
+  const created = await service.create({
+    feature_id: FEATURE_ID,
+    titulo: "Cadastrar item",
+    historia_como_um: "Product Owner",
+    historia_eu_quero: "cadastrar um item",
+    historia_para_que: "eu organize o backlog",
+  });
+
+  pbisRepo.criteriosPorPbi.set(created.id, 1);
+  const completed = await service.complete(created.id);
+  assert.equal(completed.status, "concluido");
+});
+
+test("impede cadastro de PBI em feature inexistente", async () => {
+  const { service } = setup();
+
+  await assert.rejects(
+    async () => await service.create({
+      feature_id: "99999999-9999-4999-8999-999999999999",
+      titulo: "PBI órfão",
+      historia_como_um: "PO",
+      historia_eu_quero: "algo",
+      historia_para_que: "algo",
+    }),
+    (err: Error) => {
+      assert.ok(err instanceof NotFoundError);
+      return true;
+    },
+  );
+});
+
+test("PBI-01.1.4 Cenário 2: exige os três blocos da história separadamente", async () => {
+  const { service } = setup();
+
+  await assert.rejects(
+    async () => await service.create({
+      feature_id: FEATURE_ID,
+      titulo: "PBI incompleto",
+      historia_como_um: "",
+      historia_eu_quero: "",
+      historia_para_que: "",
+    }),
+    (err: Error) => {
+      assert.ok(err instanceof ValidationError);
+      return true;
+    },
+  );
+});

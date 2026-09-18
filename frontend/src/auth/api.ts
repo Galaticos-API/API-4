@@ -1,7 +1,7 @@
 export interface User { id: string; name: string; email: string; role: "admin" | "po" | "dev" }
 
 export class ApiError extends Error {
-  constructor(public status: number) { super(`HTTP ${status}`); }
+  constructor(public status: number, public details?: unknown) { super(`HTTP ${status}`); }
 }
 
 // Session credentials stay in a server-managed HttpOnly cookie.
@@ -17,7 +17,8 @@ export async function apiRequest(path: string, init: RequestInit = {}) {
     if (response.status === 401 && !path.startsWith("/auth/")) {
       window.dispatchEvent(new Event("session-expired"));
     }
-    throw new ApiError(response.status);
+    const details = await response.clone().json().catch(() => undefined);
+    throw new ApiError(response.status, details);
   }
   return response;
 }

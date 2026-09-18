@@ -3,6 +3,10 @@ import cors from "cors";
 import { env } from "./config/env.js";
 import { checkDatabaseConnection } from "./database/db.js";
 import { projectsRouter } from "./modules/projects/projects.routes.js";
+import { epicsRouter } from "./modules/epics/epics.routes.js";
+import { featuresRouter } from "./modules/features/features.routes.js";
+import { pbisRouter } from "./modules/pbis/pbis.routes.js";
+import { criteriaRouter } from "./modules/criteria/criteria.routes.js";
 import { epicosRouter } from "./modules/epicos/epicos.routes.js";
 import { authRouter } from "./modules/auth/auth.routes.js";
 import { errorHandler } from "./middleware/errorHandler.js";
@@ -37,6 +41,16 @@ app.use("/api/projects", requireAuth, projectsRouter);
 app.use("/api/v1", requireAuth, epicosRouter);
 app.use("/api", requireAuth, epicosRouter);
 
+// Compatibilidade das rotas de épicos da implementação anterior
+app.use("/api/v1", requireAuth, epicosRouter);
+app.use("/api", requireAuth, epicosRouter);
+
+// Hierarquia do backlog: épicos, features, PBIs e critérios de aceitação (S1-05/06/07/10)
+app.use("/api/v1/epics", requireAuth, epicsRouter);
+app.use("/api/v1/features", requireAuth, featuresRouter);
+app.use("/api/v1/pbis", requireAuth, pbisRouter);
+app.use("/api/v1/criteria", requireAuth, criteriaRouter);
+
 // Root Information Endpoint
 app.get("/api/v1", (_req: Request, res: Response) => {
   res.json({
@@ -46,7 +60,10 @@ app.get("/api/v1", (_req: Request, res: Response) => {
     documentation: "/docs",
     modules: [
       { name: "projects", status: "ready" },
-      { name: "requirements", status: "in_development" },
+      { name: "epics", status: "ready" },
+      { name: "features", status: "ready" },
+      { name: "pbis", status: "ready" },
+      { name: "criteria", status: "ready" },
       { name: "decisions", status: "in_development" },
       { name: "ai-bridge", status: "ready" },
     ],
