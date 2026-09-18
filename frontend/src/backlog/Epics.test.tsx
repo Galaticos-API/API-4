@@ -33,7 +33,7 @@ it("formulário recusa título vazio antes da chamada", () => {
 
 it("detalhe canônico conclui quando a API aceita os campos e critérios", async () => {
   vi.stubGlobal("fetch", vi.fn((_url, init) => response(init?.method === "PATCH" ? { ...epic, status: "concluido" } : epic)));
-  render(<EpicDetail projectId="project-1" epicId={epic.id} canCreate />);
+  render(<EpicDetail projectId="project-1" epicId={epic.id} canEdit />);
   fireEvent.click(await screen.findByText("Marcar como concluído"));
   await screen.findByText("concluido");
   expect(screen.queryByText("Marcar como concluído")).toBeNull();
@@ -41,7 +41,7 @@ it("detalhe canônico conclui quando a API aceita os campos e critérios", async
 
 it("perfil de leitura não vê criação nem conclusão", async () => {
   vi.stubGlobal("fetch", vi.fn((url) => response(String(url).includes("?") ? { items: [epic], total: 1 } : epic)));
-  render(<><EpicList projetoId="project-1" canCreate={false} /><EpicDetail projectId="project-1" epicId={epic.id} canCreate={false} /></>);
+  render(<><EpicList projetoId="project-1" canCreate={false} /><EpicDetail projectId="project-1" epicId={epic.id} canEdit={false} /></>);
   await screen.findByText("Critérios de aceitação registrados");
   expect(screen.queryByText("Novo épico")).toBeNull();
   expect(screen.queryByText("Marcar como concluído")).toBeNull();
@@ -49,7 +49,7 @@ it("perfil de leitura não vê criação nem conclusão", async () => {
 
 it("estado legado permanece visível sem ação de conclusão", async () => {
   vi.stubGlobal("fetch", vi.fn(() => response({ ...epic, status: "arquivado" })));
-  render(<EpicDetail projectId="project-1" epicId={epic.id} canCreate />);
+  render(<EpicDetail projectId="project-1" epicId={epic.id} canEdit />);
   await screen.findByText("arquivado");
   expect(screen.queryByText("Marcar como concluído")).toBeNull();
 });

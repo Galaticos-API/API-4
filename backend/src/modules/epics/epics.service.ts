@@ -1,7 +1,7 @@
 import { createEpicSchema, updateEpicSchema, epicQuerySchema, Epic, EpicWithStats, PaginatedEpics, EPIC_REQUIRED_FIELDS } from "./epics.types.js";
 import { EpicsRepository, epicsRepository } from "./epics.repository.js";
 import { ProjectsRepository, projectsRepository } from "../projects/projects.repository.js";
-import { ConflictError, NotFoundError, ValidationError, validateUuid } from "../../shared/errors.js";
+import { NotFoundError, ValidationError, validateUuid } from "../../shared/errors.js";
 
 export class EpicsService {
   constructor(
@@ -68,8 +68,6 @@ export class EpicsService {
     if (!existing) {
       throw new NotFoundError("Épico não encontrado.");
     }
-    this.assertProjetoAtivo(existing);
-
     await this.ensureWritable(existing);
 
     const parseResult = updateEpicSchema.safeParse(input);
@@ -103,7 +101,6 @@ export class EpicsService {
     if (existing.status === "concluido") {
       return existing;
     }
-    this.assertProjetoAtivo(existing);
 
     const camposFaltantes: string[] = EPIC_REQUIRED_FIELDS.filter(
       (field) => !existing[field] || String(existing[field]).trim().length === 0,
@@ -125,12 +122,6 @@ export class EpicsService {
     }
 
     return completed;
-  }
-
-  private assertProjetoAtivo(epic: EpicWithStats): void {
-    if (epic.projeto_status === "arquivado") {
-      throw new ConflictError("Este épico pertence a um projeto arquivado e está disponível apenas para leitura.");
-    }
   }
 }
 

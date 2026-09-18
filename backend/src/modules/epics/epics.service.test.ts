@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { EpicsService } from "./epics.service.js";
 import { EpicsRepository } from "./epics.repository.js";
 import { ProjectsRepository } from "../projects/projects.repository.js";
-import { ValidationError, NotFoundError, ConflictError } from "../../shared/errors.js";
+import { ValidationError, NotFoundError } from "../../shared/errors.js";
 import { CreateEpicDTO, UpdateEpicDTO, Epic, EpicWithStats, PaginatedEpics, EpicQueryDTO } from "./epics.types.js";
 import { Project, ProjectWithStats, CreateProjectDTO, UpdateProjectDTO, PaginatedProjects, ProjectQueryDTO } from "../projects/projects.types.js";
 
@@ -204,15 +204,17 @@ test("impede cadastro de épico em projeto arquivado", async () => {
 });
 
 test("PBI-01.1.5 Cenário 3: impede edição e conclusão de épico cujo projeto foi arquivado", async () => {
-  const { service, epicsRepo } = setup();
+  const { service, epicsRepo, projectsRepo } = setup();
 
   const created = await service.create({ projeto_id: PROJETO_ID, titulo: "Épico a ser arquivado" });
   epicsRepo.statusPorProjeto.set(PROJETO_ID, "arquivado");
+  const projeto = projectsRepo.projects.find((p) => p.id === PROJETO_ID);
+  if (projeto) projeto.status = "arquivado";
 
   await assert.rejects(
     async () => await service.update(created.id, { titulo: "Tentativa de edição" }),
     (err: Error) => {
-      assert.ok(err instanceof ConflictError);
+      assert.ok(err instanceof ValidationError);
       return true;
     },
   );
@@ -220,7 +222,7 @@ test("PBI-01.1.5 Cenário 3: impede edição e conclusão de épico cujo projeto
   await assert.rejects(
     async () => await service.complete(created.id),
     (err: Error) => {
-      assert.ok(err instanceof ConflictError);
+      assert.ok(err instanceof ValidationError);
       return true;
     },
   );
