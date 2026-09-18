@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { FeaturesService } from "./features.service.js";
 import { FeaturesRepository } from "./features.repository.js";
 import { EpicsRepository } from "../epics/epics.repository.js";
-import { ValidationError, NotFoundError, ConflictError } from "../../shared/errors.js";
+import { ValidationError, NotFoundError } from "../../shared/errors.js";
 import { CreateFeatureDTO, UpdateFeatureDTO, Feature, FeatureWithStats, PaginatedFeatures, FeatureQueryDTO } from "./features.types.js";
 import { EpicWithStats } from "../epics/epics.types.js";
 
@@ -143,11 +143,41 @@ test("PBI-01.1.5 Cenário 3: impede edição e conclusão de feature cujo projet
 
   await assert.rejects(
     async () => await service.update(created.id, { titulo: "Tentativa de edição" }),
-    (err: Error) => { assert.ok(err instanceof ConflictError); return true; },
+    (err: Error) => { assert.ok(err instanceof ValidationError); return true; },
   );
 
   await assert.rejects(
     async () => await service.complete(created.id),
-    (err: Error) => { assert.ok(err instanceof ConflictError); return true; },
+    (err: Error) => { assert.ok(err instanceof ValidationError); return true; },
+  );
+});
+
+test("impede cadastrar feature em épico com estado legado", async () => {
+  const { service, epicsRepo } = setup();
+  const LEGACY_EPICO_ID = "c0000000-0000-4000-8000-000000000099";
+  epicsRepo.epics.push({
+    id: LEGACY_EPICO_ID, projeto_id: "d0000000-0000-4000-8000-000000000001", titulo: "Épico legado", descricao: null, objetivo: null,
+    escopo_macro: null, resultado_esperado: null, prioridade: "Must", status: "ativo",
+    created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
+  });
+
+  await assert.rejects(
+    async () => await service.create({ epico_id: LEGACY_EPICO_ID, titulo: "Feature nova" }),
+    (err: Error) => { assert.ok(err instanceof ValidationError); return true; },
+  );
+});
+
+test("impede cadastrar feature em épico de projeto arquivado", async () => {
+  const { service, epicsRepo } = setup();
+  const EPICO_PROJETO_ARQUIVADO = "c0000000-0000-4000-8000-000000000098";
+  epicsRepo.epics.push({
+    id: EPICO_PROJETO_ARQUIVADO, projeto_id: "d0000000-0000-4000-8000-000000000001", titulo: "Épico órfão", descricao: null, objetivo: null,
+    escopo_macro: null, resultado_esperado: null, prioridade: "Must", status: "rascunho", projeto_status: "arquivado",
+    created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
+  });
+
+  await assert.rejects(
+    async () => await service.create({ epico_id: EPICO_PROJETO_ARQUIVADO, titulo: "Feature nova" }),
+    (err: Error) => { assert.ok(err instanceof ValidationError); return true; },
   );
 });

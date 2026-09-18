@@ -431,8 +431,6 @@ paths:
           description: Perfil sem permissão de escrita
         '404':
           description: Épico não encontrado
-        '409':
-          $ref: '#/components/responses/ArchivedProjectConflict'
 
   /api/v1/epics/{id}/complete:
     patch:
@@ -466,8 +464,6 @@ paths:
           description: Perfil sem permissão de escrita
         '404':
           description: Épico não encontrado
-        '409':
-          $ref: '#/components/responses/ArchivedProjectConflict'
 
   /api/v1/features:
     post:
@@ -575,8 +571,6 @@ paths:
                 $ref: '#/components/schemas/FeatureResponse'
         '404':
           description: Feature não encontrada
-        '409':
-          $ref: '#/components/responses/ArchivedProjectConflict'
 
   /api/v1/features/{id}/complete:
     patch:
@@ -606,8 +600,6 @@ paths:
                 $ref: '#/components/schemas/Error'
         '404':
           description: Feature não encontrada
-        '409':
-          $ref: '#/components/responses/ArchivedProjectConflict'
 
   /api/v1/pbis:
     post:
@@ -715,8 +707,6 @@ paths:
                 $ref: '#/components/schemas/PbiResponse'
         '404':
           description: PBI não encontrado
-        '409':
-          $ref: '#/components/responses/ArchivedProjectConflict'
 
   /api/v1/pbis/{id}/complete:
     patch:
@@ -749,8 +739,6 @@ paths:
                 $ref: '#/components/schemas/Error'
         '404':
           description: PBI não encontrado
-        '409':
-          $ref: '#/components/responses/ArchivedProjectConflict'
 
   /api/v1/pbis/{id}/quality:
     get:
@@ -1695,15 +1683,6 @@ components:
 
     Unauthorized:
       description: Autenticação ausente, sessão inválida ou sessão expirada
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-
-    ArchivedProjectConflict:
-      description: >-
-        O épico, feature ou PBI pertence a um projeto arquivado (PBI-01.1.5 / S1-08) — o item
-        segue disponível para leitura, mas edição e conclusão são bloqueadas.
       content:
         application/json:
           schema:

@@ -18,6 +18,9 @@ export class CriteriaService {
     if (!entityExists) {
       throw new NotFoundError(`${this.entityLabel(dto.entidade_tipo)} não encontrado.`);
     }
+    if (!(await this.repository.entityIsWritable(dto.entidade_tipo, dto.entidade_id))) {
+      throw new ValidationError(`Não é possível alterar critérios de um(a) ${this.entityLabel(dto.entidade_tipo).toLowerCase()} arquivado(a) ou em estado legado.`);
+    }
 
     return await this.repository.create(dto, usuarioId);
   }
@@ -36,6 +39,19 @@ export class CriteriaService {
   async delete(id: string, usuarioId?: string | null): Promise<Criterion> {
     validateUuid(id, "ID do critério");
 
+    const existing = await this.repository.findById(id);
+    if (!existing) {
+      throw new NotFoundError("Critério não encontrado.");
+    }
+    if (!(await this.repository.entityIsWritable(existing.entidade_tipo, existing.entidade_id))) {
+      throw new ValidationError(`Não é possível alterar critérios de um(a) ${this.entityLabel(existing.entidade_tipo).toLowerCase()} arquivado(a) ou em estado legado.`);
+    }
+    if (await this.repository.removalBreaksCompletion(existing.entidade_tipo, existing.entidade_id)) {
+      throw new ValidationError(
+        `Não é possível remover o último critério de um(a) ${this.entityLabel(existing.entidade_tipo).toLowerCase()} já concluído(a). Reabra o item antes de remover.`,
+      );
+    }
+
     const removed = await this.repository.delete(id, usuarioId);
     if (!removed) {
       throw new NotFoundError("Critério não encontrado.");
@@ -51,6 +67,14 @@ export class CriteriaService {
     if (!parseResult.success) {
       const issue = parseResult.error.issues[0];
       throw new ValidationError(issue.message, parseResult.error.format());
+    }
+
+    const existing = await this.repository.findById(id);
+    if (!existing) {
+      throw new NotFoundError("Critério não encontrado.");
+    }
+    if (!(await this.repository.entityIsWritable(existing.entidade_tipo, existing.entidade_id))) {
+      throw new ValidationError(`Não é possível alterar critérios de um(a) ${this.entityLabel(existing.entidade_tipo).toLowerCase()} arquivado(a) ou em estado legado.`);
     }
 
     const lista = await this.repository.move(id, parseResult.data.direction, usuarioId);

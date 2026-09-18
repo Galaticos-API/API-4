@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { PbisService } from "./pbis.service.js";
 import { PbisRepository } from "./pbis.repository.js";
 import { FeaturesRepository } from "../features/features.repository.js";
-import { ValidationError, NotFoundError, ConflictError } from "../../shared/errors.js";
+import { ValidationError, NotFoundError } from "../../shared/errors.js";
 import { CreatePbiDTO, Pbi, PbiWithContext, PaginatedPbis, PbiQueryDTO } from "./pbis.types.js";
 import { FeatureWithStats } from "../features/features.types.js";
 import { CriteriaRepository } from "../criteria/criteria.repository.js";
@@ -216,12 +216,12 @@ test("PBI-01.1.5 Cenário 3: impede edição e conclusão de PBI cujo projeto fo
 
   await assert.rejects(
     async () => await service.update(created.id, { titulo: "Tentar renomear" }),
-    (err: Error) => { assert.ok(err instanceof ConflictError); return true; },
+    (err: Error) => { assert.ok(err instanceof ValidationError); return true; },
   );
 
   await assert.rejects(
     async () => await service.complete(created.id),
-    (err: Error) => { assert.ok(err instanceof ConflictError); return true; },
+    (err: Error) => { assert.ok(err instanceof ValidationError); return true; },
   );
 });
 
@@ -244,4 +244,25 @@ test("quality() retorna o relatório determinístico combinando título, histór
   assert.equal(relatorio.titulo.aprovado, false);
   assert.equal(relatorio.cenarios[0].aprovado, true);
   assert.ok(relatorio.termos_vagos.some((o) => o.termos.includes("rápido")));
+});
+
+test("impede cadastrar PBI em feature de projeto arquivado", async () => {
+  const { service, featuresRepo } = setup();
+  const FEATURE_PROJETO_ARQUIVADO = "b0000000-0000-4000-8000-000000000099";
+  featuresRepo.features.push({
+    id: FEATURE_PROJETO_ARQUIVADO, epico_id: "c0000000-0000-4000-8000-000000000001", titulo: "Feature órfã", descricao: "d", objetivo: "o",
+    prioridade: "Must", status: "rascunho", projeto_status: "arquivado",
+    created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
+  });
+
+  await assert.rejects(
+    async () => await service.create({
+      feature_id: FEATURE_PROJETO_ARQUIVADO,
+      titulo: "Cadastrar item",
+      historia_como_um: "PO",
+      historia_eu_quero: "algo",
+      historia_para_que: "algo",
+    }),
+    (err: Error) => { assert.ok(err instanceof ValidationError); return true; },
+  );
 });

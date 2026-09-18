@@ -14,11 +14,24 @@ class InMemoryCriteriaRepository extends CriteriaRepository {
   private criteria: Criterion[] = [];
   private seq = 0;
   public knownEntities = new Set<string>([EPICO_ID, FEATURE_ID, PBI_ID]);
+  public unwritableEntities = new Set<string>();
+  public concludedEntities = new Set<string>();
 
   constructor() { super(); }
 
   async entityExists(_tipo: CriterionEntityType, id: string): Promise<boolean> {
     return this.knownEntities.has(id);
+  }
+
+  async entityIsWritable(_tipo: CriterionEntityType, id: string): Promise<boolean> {
+    return !this.unwritableEntities.has(id);
+  }
+
+  async removalBreaksCompletion(tipo: CriterionEntityType, entidadeId: string): Promise<boolean> {
+    if (tipo === "feature") return false;
+    if (!this.concludedEntities.has(entidadeId)) return false;
+    const total = await this.countByEntity(tipo, entidadeId);
+    return total <= 1;
   }
 
   async findById(id: string): Promise<Criterion | null> {
@@ -228,4 +241,47 @@ test("move() retorna NotFound para um critério inexistente", async () => {
       return true;
     },
   );
+});
+
+test("impede adicionar, remover ou mover critério de entidade arquivada ou em estado legado", async () => {
+  const { service, repository } = setup();
+
+  const criterio = await service.create({ entidade_tipo: "epico", entidade_id: EPICO_ID, texto: "Critério" });
+  repository.unwritableEntities.add(EPICO_ID);
+
+  await assert.rejects(
+    async () => await service.create({ entidade_tipo: "epico", entidade_id: EPICO_ID, texto: "Outro" }),
+    (err: Error) => { assert.ok(err instanceof ValidationError); return true; },
+  );
+  await assert.rejects(
+    async () => await service.delete(criterio.id),
+    (err: Error) => { assert.ok(err instanceof ValidationError); return true; },
+  );
+  await assert.rejects(
+    async () => await service.move(criterio.id, { direction: "up" }),
+    (err: Error) => { assert.ok(err instanceof ValidationError); return true; },
+  );
+});
+
+test("impede remover o último cenário de um PBI já concluído", async () => {
+  const { service, repository } = setup();
+
+  const cenario = await service.create({ entidade_tipo: "pbi", entidade_id: PBI_ID, nome: "Único cenário", dado: "d", quando: "q", entao: "e" });
+  repository.concludedEntities.add(PBI_ID);
+
+  await assert.rejects(
+    async () => await service.delete(cenario.id),
+    (err: Error) => { assert.ok(err instanceof ValidationError); return true; },
+  );
+});
+
+test("permite remover um cenário de PBI concluído quando não é o último", async () => {
+  const { service, repository } = setup();
+
+  const primeiro = await service.create({ entidade_tipo: "pbi", entidade_id: PBI_ID, nome: "Primeiro", dado: "d", quando: "q", entao: "e" });
+  await service.create({ entidade_tipo: "pbi", entidade_id: PBI_ID, nome: "Segundo", dado: "d", quando: "q", entao: "e" });
+  repository.concludedEntities.add(PBI_ID);
+
+  const removed = await service.delete(primeiro.id);
+  assert.equal(removed.id, primeiro.id);
 });

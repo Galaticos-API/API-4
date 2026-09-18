@@ -21,6 +21,14 @@ class MockCriteriaRepo extends CriteriaRepository {
     return id === PBI_ID;
   }
 
+  async entityIsWritable(): Promise<boolean> {
+    return true;
+  }
+
+  async removalBreaksCompletion(): Promise<boolean> {
+    return false;
+  }
+
   async findById(id: string): Promise<Criterion | null> {
     return this.criteria.find((c) => c.id === id) ?? null;
   }

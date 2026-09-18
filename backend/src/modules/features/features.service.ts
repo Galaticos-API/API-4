@@ -1,7 +1,7 @@
 import { createFeatureSchema, updateFeatureSchema, featureQuerySchema, Feature, FeatureWithStats, PaginatedFeatures, FEATURE_REQUIRED_FIELDS } from "./features.types.js";
 import { FeaturesRepository, featuresRepository } from "./features.repository.js";
 import { EpicsRepository, epicsRepository } from "../epics/epics.repository.js";
-import { ConflictError, NotFoundError, ValidationError, validateUuid } from "../../shared/errors.js";
+import { NotFoundError, ValidationError, validateUuid } from "../../shared/errors.js";
 
 export class FeaturesService {
   constructor(
@@ -21,6 +21,12 @@ export class FeaturesService {
     const epico = await this.epicsRepo.findById(dto.epico_id);
     if (!epico) {
       throw new NotFoundError("Épico não encontrado.");
+    }
+    if (epico.status === "ativo" || epico.status === "arquivado") {
+      throw new ValidationError("Não é possível cadastrar features em um épico com estado legado.");
+    }
+    if (epico.projeto_status === "arquivado") {
+      throw new ValidationError("Não é possível cadastrar features em um projeto arquivado.");
     }
 
     return await this.repository.create(dto, usuarioId);
@@ -77,10 +83,10 @@ export class FeaturesService {
     if (!existing) {
       throw new NotFoundError("Feature não encontrada.");
     }
+    this.assertProjetoAtivo(existing);
     if (existing.status === "concluido") {
       return existing;
     }
-    this.assertProjetoAtivo(existing);
 
     const camposFaltantes: string[] = FEATURE_REQUIRED_FIELDS.filter(
       (field) => !existing[field] || String(existing[field]).trim().length === 0,
@@ -103,7 +109,7 @@ export class FeaturesService {
 
   private assertProjetoAtivo(feature: FeatureWithStats): void {
     if (feature.projeto_status === "arquivado") {
-      throw new ConflictError("Esta feature pertence a um projeto arquivado e está disponível apenas para leitura.");
+      throw new ValidationError("Não é possível alterar features de um projeto arquivado.");
     }
   }
 }

@@ -3,7 +3,7 @@ import { PbisRepository, pbisRepository } from "./pbis.repository.js";
 import { FeaturesRepository, featuresRepository } from "../features/features.repository.js";
 import { QualityService, qualityService, RelatorioQualidadePbi } from "../quality/quality.service.js";
 import { validarTituloInfinitivo } from "../quality/quality.rules.js";
-import { ConflictError, NotFoundError, ValidationError, validateUuid } from "../../shared/errors.js";
+import { NotFoundError, ValidationError, validateUuid } from "../../shared/errors.js";
 
 export class PbisService {
   constructor(
@@ -24,6 +24,9 @@ export class PbisService {
     const feature = await this.featuresRepo.findById(dto.feature_id);
     if (!feature) {
       throw new NotFoundError("Feature não encontrada.");
+    }
+    if (feature.projeto_status === "arquivado") {
+      throw new ValidationError("Não é possível cadastrar PBIs em um projeto arquivado.");
     }
 
     return await this.repository.create(dto, usuarioId);
@@ -80,10 +83,10 @@ export class PbisService {
     if (!existing) {
       throw new NotFoundError("PBI não encontrado.");
     }
+    this.assertProjetoAtivo(existing);
     if (existing.status === "concluido") {
       return existing;
     }
-    this.assertProjetoAtivo(existing);
 
     const camposFaltantes: string[] = [];
     if ((existing.criterios_count ?? 0) === 0) {
@@ -121,7 +124,7 @@ export class PbisService {
 
   private assertProjetoAtivo(pbi: PbiWithContext): void {
     if (pbi.projeto_status === "arquivado") {
-      throw new ConflictError("Este PBI pertence a um projeto arquivado e está disponível apenas para leitura.");
+      throw new ValidationError("Não é possível alterar PBIs de um projeto arquivado.");
     }
   }
 }
