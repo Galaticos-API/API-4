@@ -19,9 +19,9 @@ Base: main da59fcc. Branch: codex/consolidate-s105. Início: 18/09/2026.
 - [x] 2. Criar regressões de contrato: URLs antigas e novas, autenticação, autoria, erros, conclusão e listagem completa.
 - [x] 3. Unificar backend e remover implementação duplicada; proteger escritas de épicos em registros legados e projetos arquivados.
 - [x] 4. Consolidar frontend, transferir testes e remover arquivos órfãos.
-- [ ] 5. Reconciliar migrations e validar trajetórias em PostgreSQL isolado.
+- [x] 5. Reconciliar migrations e validar trajetórias em PostgreSQL isolado.
 - [x] 6. Documentar contrato/compatibilidade e orientação de integração do #22.
-- [ ] 7. Executar testes, build, revisão do diff e registrar resultados finais.
+- [x] 7. Executar testes, build, revisão do diff e registrar resultados finais.
 
 ## Critérios de conclusão
 
@@ -35,7 +35,9 @@ Um módulo de negócio de épicos; nenhuma referência à implementação removi
 - Criação aceita somente status ausente/rascunho. Atualização não aceita status. Épico concluído não pode perder os campos textuais obrigatórios. Projetos arquivados e estados legados impedem edição/conclusão de épicos.
 - Transferidos cenários de vazio, carregamento, erro, título obrigatório, conclusão e leitura para a tela canônica. Corrigida a exposição do botão de conclusão para perfil de leitura.
 - Backend: typecheck aprovado; 100 testes aprovados, um teste de seed ignorado. Frontend: 55 testes aprovados e build de produção aprovado.
-- Docker local indisponível. O workflow validate-s105 executa quatro trajetórias em PostgreSQL 16 com pgvector e verifica rollback de auditoria em criação, edição e conclusão. Resultado será registrado após execução no CI.
+- Docker local indisponível. A validação foi executada no CI em PostgreSQL 16 com pgvector: quatro trajetórias aprovadas (empty, legacy, backlog, both), repetição de migrations, preservação de IDs/estado legado e rollback de auditoria em criação, edição e conclusão. [Execução aprovada](https://github.com/Galaticos-API/API-4/actions/runs/35361555426).
+- Todos os cinco checks do [CI geral](https://github.com/Galaticos-API/API-4/actions/runs/35361555294) passaram, incluindo seed em PostgreSQL, build/testes de backend e frontend, serviço de IA e configuração Docker.
+- Revisão local concluída: YAML válido, diff sem erros de whitespace, nenhuma referência de código à implementação removida, checkout original preservado. A main continuava ancestral desta branch na conferência final. [PR #23](https://github.com/Galaticos-API/API-4/pull/23) contém a correção; revisão humana e merge ainda não realizados.
 
 ## Migrations: aplicação e recuperação
 
@@ -50,3 +52,9 @@ Base observada: bd1cfbd → 31ea49c na branch atual do #22. Para reaproveitar o 
 Pontos de reconciliação manual: manter canCreate de EpicDetail, estados legados de EpicResponse/Epic, validação explícita de status e ensureWritable de EpicsService; adicionar a edição, critérios e qualidade do #22 sobre isso. Manter o adaptador e seus testes. A declaração de create/update do #22 deve preservar os campos de segurança adicionados aqui. Resolver OpenAPI pela combinação dos endpoints novos com os aliases depreciados; não substituir o arquivo inteiro.
 
 Esta correção não incorpora S1-11/12/13. A proteção geral de arquivamento para features/PBIs/critérios e a regra de remoção do último critério de item concluído devem ser verificadas no PR de hierarquia/S1-08; não são declaradas corrigidas por esta consolidação de épicos. A branch de Vitor não foi reescrita.
+
+### Ensaio executado
+
+Sobre e1e222d, em checkout descartável e sem publicar mudanças, `git cherry-pick --no-commit 31ea49c` deixou conflitos textuais somente em `frontend/src/backlog/Backlog.tsx` e `frontend/src/backlog/Epics.tsx`. São duas reconciliações em vez dos 29 conflitos de um merge direto da branch antiga. O ensaio foi desfeito depois da inspeção.
+
+Resolução indicada: adotar a prop canEdit do #22, preservando a checagem de permissão no botão concluir e atualizando Epics.test.tsx; manter formulários/CriteriaEditor novos, estendendo readOnly para estados legados. O auto-merge do backend acrescenta assertProjetoAtivo além de ensureWritable: unificar a checagem de projeto arquivado e escolher um único código HTTP, preservando a proteção de estados legados. Os testes do #22 esperam 409 para arquivado, enquanto esta compatibilidade documenta 400; decidir e atualizar contratos/testes juntos. Ausência de conflito textual não dispensa essa revisão semântica. A versão combinada do #22 não foi validada nem declarada pronta.
