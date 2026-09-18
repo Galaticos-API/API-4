@@ -38,6 +38,17 @@ export class CriteriaController {
       next(error);
     }
   };
+
+  move = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const id = getParamId(req.params.id);
+      const usuarioId = req.auth?.id ?? null;
+      const result = await this.service.move(id, req.body, usuarioId);
+      res.status(200).json({ items: result });
+    } catch (error) {
+      next(error);
+    }
+  };
 }
 
 export const criteriaController = new CriteriaController();

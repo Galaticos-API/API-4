@@ -22,6 +22,12 @@ export class FeaturesService {
     if (!epico) {
       throw new NotFoundError("Épico não encontrado.");
     }
+    if (epico.status === "ativo" || epico.status === "arquivado") {
+      throw new ValidationError("Não é possível cadastrar features em um épico com estado legado.");
+    }
+    if (epico.projeto_status === "arquivado") {
+      throw new ValidationError("Não é possível cadastrar features em um projeto arquivado.");
+    }
 
     return await this.repository.create(dto, usuarioId);
   }
@@ -54,6 +60,7 @@ export class FeaturesService {
     if (!existing) {
       throw new NotFoundError("Feature não encontrada.");
     }
+    this.assertProjetoAtivo(existing);
 
     const parseResult = updateFeatureSchema.safeParse(input);
     if (!parseResult.success) {
@@ -76,6 +83,7 @@ export class FeaturesService {
     if (!existing) {
       throw new NotFoundError("Feature não encontrada.");
     }
+    this.assertProjetoAtivo(existing);
     if (existing.status === "concluido") {
       return existing;
     }
@@ -97,6 +105,12 @@ export class FeaturesService {
     }
 
     return completed;
+  }
+
+  private assertProjetoAtivo(feature: FeatureWithStats): void {
+    if (feature.projeto_status === "arquivado") {
+      throw new ValidationError("Não é possível alterar features de um projeto arquivado.");
+    }
   }
 }
 

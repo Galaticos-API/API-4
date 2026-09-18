@@ -11,12 +11,14 @@ const EPICO_ID = "c0000000-0000-4000-8000-000000000001";
 
 class InMemoryFeaturesRepository extends FeaturesRepository {
   private features: FeatureWithStats[] = [];
+  public statusProjeto = "ativo";
   private seq = 0;
 
   constructor() { super(); }
 
   async findById(id: string): Promise<FeatureWithStats | null> {
-    return this.features.find((f) => f.id === id) ?? null;
+    const found = this.features.find((f) => f.id === id);
+    return found ? { ...found, projeto_status: this.statusProjeto } : null;
   }
 
   async create(data: CreateFeatureDTO): Promise<Feature> {
@@ -130,5 +132,52 @@ test("impede conclusão de feature sem descrição ou objetivo", async () => {
       assert.deepEqual(details.campos_faltantes.sort(), ["descricao", "objetivo"]);
       return true;
     },
+  );
+});
+
+test("PBI-01.1.5 Cenário 3: impede edição e conclusão de feature cujo projeto foi arquivado", async () => {
+  const { service, featuresRepo } = setup();
+
+  const created = await service.create({ epico_id: EPICO_ID, titulo: "Feature a ser arquivada", descricao: "d", objetivo: "o" });
+  featuresRepo.statusProjeto = "arquivado";
+
+  await assert.rejects(
+    async () => await service.update(created.id, { titulo: "Tentativa de edição" }),
+    (err: Error) => { assert.ok(err instanceof ValidationError); return true; },
+  );
+
+  await assert.rejects(
+    async () => await service.complete(created.id),
+    (err: Error) => { assert.ok(err instanceof ValidationError); return true; },
+  );
+});
+
+test("impede cadastrar feature em épico com estado legado", async () => {
+  const { service, epicsRepo } = setup();
+  const LEGACY_EPICO_ID = "c0000000-0000-4000-8000-000000000099";
+  epicsRepo.epics.push({
+    id: LEGACY_EPICO_ID, projeto_id: "d0000000-0000-4000-8000-000000000001", titulo: "Épico legado", descricao: null, objetivo: null,
+    escopo_macro: null, resultado_esperado: null, prioridade: "Must", status: "ativo",
+    created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
+  });
+
+  await assert.rejects(
+    async () => await service.create({ epico_id: LEGACY_EPICO_ID, titulo: "Feature nova" }),
+    (err: Error) => { assert.ok(err instanceof ValidationError); return true; },
+  );
+});
+
+test("impede cadastrar feature em épico de projeto arquivado", async () => {
+  const { service, epicsRepo } = setup();
+  const EPICO_PROJETO_ARQUIVADO = "c0000000-0000-4000-8000-000000000098";
+  epicsRepo.epics.push({
+    id: EPICO_PROJETO_ARQUIVADO, projeto_id: "d0000000-0000-4000-8000-000000000001", titulo: "Épico órfão", descricao: null, objetivo: null,
+    escopo_macro: null, resultado_esperado: null, prioridade: "Must", status: "rascunho", projeto_status: "arquivado",
+    created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
+  });
+
+  await assert.rejects(
+    async () => await service.create({ epico_id: EPICO_PROJETO_ARQUIVADO, titulo: "Feature nova" }),
+    (err: Error) => { assert.ok(err instanceof ValidationError); return true; },
   );
 });

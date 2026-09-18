@@ -14,9 +14,11 @@ export class EpicsRepository {
     const query = `
       SELECT
         e.*,
+        p.status AS projeto_status,
         COALESCE((SELECT COUNT(*)::int FROM feature f WHERE f.epico_id = e.id), 0) AS features_count,
         COALESCE((SELECT COUNT(*)::int FROM criterio_aceitacao c WHERE c.entidade_tipo = 'epico' AND c.entidade_id = e.id), 0) AS criterios_count
       FROM epico e
+      JOIN projeto p ON p.id = e.projeto_id
       WHERE e.id = $1
     `;
     const result = await this.pool.query<EpicWithStats>(query, [id]);
@@ -94,9 +96,11 @@ export class EpicsRepository {
     const dataQuery = `
       SELECT
         e.*,
+        p.status AS projeto_status,
         COALESCE((SELECT COUNT(*)::int FROM feature f WHERE f.epico_id = e.id), 0) AS features_count,
         COALESCE((SELECT COUNT(*)::int FROM criterio_aceitacao c WHERE c.entidade_tipo = 'epico' AND c.entidade_id = e.id), 0) AS criterios_count
       FROM epico e
+      JOIN projeto p ON p.id = e.projeto_id
       ${whereClause}
       ORDER BY e.created_at DESC
       LIMIT $${paramIndex} OFFSET $${paramIndex + 1}

@@ -68,7 +68,6 @@ export class EpicsService {
     if (!existing) {
       throw new NotFoundError("Épico não encontrado.");
     }
-
     await this.ensureWritable(existing);
 
     const parseResult = updateEpicSchema.safeParse(input);
