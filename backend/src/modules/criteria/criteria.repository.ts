@@ -136,6 +136,69 @@ export class CriteriaRepository {
       client.release();
     }
   }
+
+  async move(id: string, direction: "up" | "down", usuarioId?: string | null): Promise<Criterion[] | null> {
+    const client: PoolClient = await this.pool.connect();
+
+    try {
+      await client.query("BEGIN");
+
+      const currentResult = await client.query<Criterion>(`SELECT * FROM criterio_aceitacao WHERE id = $1 FOR UPDATE`, [id]);
+      const current = currentResult.rows[0];
+      if (!current) {
+        await client.query("ROLLBACK");
+        return null;
+      }
+
+      const comparator = direction === "up" ? "<" : ">";
+      const ordemVizinho = direction === "up" ? "DESC" : "ASC";
+      const siblingResult = await client.query<Criterion>(
+        `SELECT * FROM criterio_aceitacao
+         WHERE entidade_tipo = $1 AND entidade_id = $2 AND ordem ${comparator} $3
+         ORDER BY ordem ${ordemVizinho} LIMIT 1 FOR UPDATE`,
+        [current.entidade_tipo, current.entidade_id, current.ordem],
+      );
+      const sibling = siblingResult.rows[0];
+      if (!sibling) {
+        // Já está no limite da lista: operação idempotente, sem alteração.
+        const listaSemAlteracao = await client.query<Criterion>(
+          `SELECT * FROM criterio_aceitacao WHERE entidade_tipo = $1 AND entidade_id = $2 ORDER BY ordem ASC`,
+          [current.entidade_tipo, current.entidade_id],
+        );
+        await client.query("COMMIT");
+        return listaSemAlteracao.rows;
+      }
+
+      // Passa por uma ordem sentinela negativa para não colidir com o índice único durante a troca.
+      await client.query(`UPDATE criterio_aceitacao SET ordem = -1 WHERE id = $1`, [current.id]);
+      await client.query(`UPDATE criterio_aceitacao SET ordem = $1 WHERE id = $2`, [current.ordem, sibling.id]);
+      await client.query(`UPDATE criterio_aceitacao SET ordem = $1 WHERE id = $2`, [sibling.ordem, current.id]);
+
+      await auditService.record(
+        {
+          usuario_id: usuarioId ?? null,
+          entidade_tipo: current.entidade_tipo,
+          entidade_id: current.entidade_id,
+          acao: "REORDENAR_CRITERIO",
+          dados_json: { criterio_id: current.id, direcao: direction, ordem_anterior: current.ordem, ordem_novo: sibling.ordem },
+        },
+        client,
+      );
+
+      const listaAtualizada = await client.query<Criterion>(
+        `SELECT * FROM criterio_aceitacao WHERE entidade_tipo = $1 AND entidade_id = $2 ORDER BY ordem ASC`,
+        [current.entidade_tipo, current.entidade_id],
+      );
+
+      await client.query("COMMIT");
+      return listaAtualizada.rows;
+    } catch (error) {
+      await client.query("ROLLBACK");
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
 }
 
 export const criteriaRepository = new CriteriaRepository();

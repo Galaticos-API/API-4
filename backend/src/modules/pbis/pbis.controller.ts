@@ -59,6 +59,16 @@ export class PbisController {
       next(error);
     }
   };
+
+  quality = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const id = getParamId(req.params.id);
+      const result = await this.service.quality(id);
+      res.status(200).json(result);
+    } catch (error) {
+      next(error);
+    }
+  };
 }
 
 export const pbisController = new PbisController();
