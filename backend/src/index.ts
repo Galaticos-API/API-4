@@ -7,6 +7,7 @@ import { epicsRouter } from "./modules/epics/epics.routes.js";
 import { featuresRouter } from "./modules/features/features.routes.js";
 import { pbisRouter } from "./modules/pbis/pbis.routes.js";
 import { criteriaRouter } from "./modules/criteria/criteria.routes.js";
+import { epicosRouter } from "./modules/epicos/epicos.routes.js";
 import { authRouter } from "./modules/auth/auth.routes.js";
 import { errorHandler } from "./middleware/errorHandler.js";
 import { requireAuth } from "./middleware/requireAuth.js";
@@ -37,6 +38,12 @@ app.get("/health", async (_req: Request, res: Response) => {
 // Projects API Endpoints (v1 e alias)
 app.use("/api/v1/projects", requireAuth, projectsRouter);
 app.use("/api/projects", requireAuth, projectsRouter);
+app.use("/api/v1", requireAuth, epicosRouter);
+app.use("/api", requireAuth, epicosRouter);
+
+// Compatibilidade das rotas de épicos da implementação anterior
+app.use("/api/v1", requireAuth, epicosRouter);
+app.use("/api", requireAuth, epicosRouter);
 
 // Hierarquia do backlog: épicos, features, PBIs e critérios de aceitação (S1-05/06/07/10)
 app.use("/api/v1/epics", requireAuth, epicsRouter);
