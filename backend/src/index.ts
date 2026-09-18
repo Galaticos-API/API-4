@@ -3,6 +3,7 @@ import cors from "cors";
 import { env } from "./config/env.js";
 import { checkDatabaseConnection } from "./database/db.js";
 import { projectsRouter } from "./modules/projects/projects.routes.js";
+import { epicosRouter } from "./modules/epicos/epicos.routes.js";
 import { authRouter } from "./modules/auth/auth.routes.js";
 import { errorHandler } from "./middleware/errorHandler.js";
 import { requireAuth } from "./middleware/requireAuth.js";
@@ -33,6 +34,8 @@ app.get("/health", async (_req: Request, res: Response) => {
 // Projects API Endpoints (v1 e alias)
 app.use("/api/v1/projects", requireAuth, projectsRouter);
 app.use("/api/projects", requireAuth, projectsRouter);
+app.use("/api/v1", requireAuth, epicosRouter);
+app.use("/api", requireAuth, epicosRouter);
 
 // Root Information Endpoint
 app.get("/api/v1", (_req: Request, res: Response) => {

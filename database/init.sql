@@ -25,8 +25,11 @@ CREATE TABLE IF NOT EXISTS epico (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     projeto_id UUID NOT NULL REFERENCES projeto(id) ON DELETE CASCADE,
     titulo VARCHAR(255) NOT NULL,
+    descricao TEXT,
     objetivo TEXT,
     escopo_macro TEXT,
+    resultado_esperado TEXT,
+    status VARCHAR(50) DEFAULT 'rascunho',
     prioridade VARCHAR(50) DEFAULT 'Must',
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP

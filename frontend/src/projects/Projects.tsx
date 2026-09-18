@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { ApiError } from "./http";
 import { navigate } from "./navigation";
 import { createProject, getProject, listProjects, type Project, type ProjectInput } from "./api";
+import { EpicPanel } from "./EpicPanel";
 import "./projects.css";
 
 type Result = { state: "loading" } | { state: "error"; message: string } | { state: "ready"; projects: Project[]; total: number };
@@ -42,7 +43,7 @@ export function Projects({ pathname, canCreate = false }: { pathname: string; ca
     {result.state === "loading" && <div className="glass-panel projects-state" role="status">Carregando {isDetail ? "projeto" : "projetos"}…</div>}
     {result.state === "error" && <div className="glass-panel projects-state"><p role="alert">{result.message}</p>
       <button className="btn-secondary" onClick={() => setAttempt(value => value + 1)}>Tentar novamente</button></div>}
-    {result.state === "ready" && (isDetail ? <ProjectDetail project={result.projects[0]} /> : result.projects.length === 0
+    {result.state === "ready" && (isDetail ? <ProjectDetail project={result.projects[0]} canCreate={canCreate} /> : result.projects.length === 0
       ? <div className="glass-panel projects-state"><h3>Nenhum projeto cadastrado</h3><p>Crie o primeiro projeto para começar a organizar o trabalho.</p>
         {canCreate && <button className="btn-primary" onClick={() => navigate("/projects/new")}>Criar primeiro projeto</button>}</div>
       : <div className="projects-grid">{result.projects.map(project => <article className="glass-panel project-card" key={project.id}>
@@ -58,11 +59,14 @@ export function Projects({ pathname, canCreate = false }: { pathname: string; ca
   </section>;
 }
 
-function ProjectDetail({ project }: { project: Project }) {
-  return <article className="glass-panel project-card">
-    <span className={`badge ${project.status === "ativo" ? "badge-success" : "badge-warning"}`}>{project.status}</span>
-    <h3>{project.nome}</h3><dl><dt>Cliente</dt><dd>{project.cliente}</dd><dt>Descrição</dt><dd className="project-description">{project.descricao}</dd></dl>
-  </article>;
+function ProjectDetail({ project, canCreate }: { project: Project; canCreate?: boolean }) {
+  return <>
+    <article className="glass-panel project-card">
+      <span className={`badge ${project.status === "ativo" ? "badge-success" : "badge-warning"}`}>{project.status}</span>
+      <h3>{project.nome}</h3><dl><dt>Cliente</dt><dd>{project.cliente}</dd><dt>Descrição</dt><dd className="project-description">{project.descricao}</dd></dl>
+    </article>
+    <EpicPanel projectId={project.id} canCreate={canCreate} />
+  </>;
 }
 
 function ProjectForm() {
