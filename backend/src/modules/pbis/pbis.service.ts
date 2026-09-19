@@ -35,7 +35,10 @@ export class PbisService {
       }
     } catch (error) {
       // Log error but don't fail the creation if quality check fails
-      console.error(`Failed to calculate completeness for PBI ${created.id}:`, error);
+      // This can happen during tests with in-memory repositories
+      if (process.env.NODE_ENV !== "test") {
+        console.error(`Failed to calculate completeness for PBI ${created.id}:`, error);
+      }
     }
     
     return created;
@@ -90,7 +93,10 @@ export class PbisService {
       }
     } catch (error) {
       // Log error but don't fail the update if quality check fails
-      console.error(`Failed to recalculate completeness for PBI ${id}:`, error);
+      // This can happen during tests with in-memory repositories
+      if (process.env.NODE_ENV !== "test") {
+        console.error(`Failed to recalculate completeness for PBI ${id}:`, error);
+      }
     }
 
     return updated;
