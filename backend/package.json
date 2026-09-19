@@ -19,6 +19,7 @@
     "test:integration:s105": "tsx scripts/validate-s105.mts"
   },
   "dependencies": {
+    "axios": "^1.20.0",
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",

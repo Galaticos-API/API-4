@@ -1,15 +1,29 @@
+from contextlib import asynccontextmanager
+from typing import Any
 from fastapi import FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import PlainTextResponse
 from pydantic import BaseModel, Field
-from typing import Any
+
 from config import settings
 from services.ollama_client import ollama_client
 from services.chunker import chunk_document_text, create_structured_chunk
+from analyzer import Analyzer, AnalysisError, AnalyzerSettings
+
+analyzer = Analyzer(AnalyzerSettings())
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    yield
+    analyzer.client.close()
+
 
 app = FastAPI(
     title="Sinapse AI Service",
-    description="Serviço de IA, RAG, Chunking e Integração com Ollama para o Sinapse",
-    version="0.1.0",
+    description="Serviço de IA, RAG, Chunking, RepoAnalyzer e Integração com Ollama para o Sinapse",
+    version="0.2.0",
+    lifespan=lifespan,
 )
 
 app.add_middleware(
@@ -17,6 +31,7 @@ app.add_middleware(
     allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
+
     allow_headers=["*"],
 )
 
@@ -161,6 +176,51 @@ async def query_rag(req: RagQueryRequest):
         )
 
 
+# ==============================================================================
+# Endpoints do RepoAnalyzer (Integração Protótipo DanielDPereira/RepoAnalyzer)
+# ==============================================================================
+
+class AnalyzeRequest(BaseModel):
+    url: str = Field(..., description="URL pública do repositório GitHub")
+
+
+@app.post("/api/analyze", status_code=status.HTTP_200_OK)
+def analyze_repository(req: AnalyzeRequest):
+    """Inicia a análise assíncrona de um repositório GitHub."""
+    try:
+        run_id = analyzer.start(str(req.url))
+        return {"run_id": run_id, "status": "started"}
+    except AnalysisError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
+    except Exception as exc:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc))
+
+
+@app.get("/api/runs")
+def list_analysis_runs():
+    """Lista as execuções de análise ativas e persistidas."""
+    return analyzer.list_runs()
+
+
+@app.get("/api/runs/{run_id}")
+def get_analysis_run_status(run_id: str):
+    """Consulta o status detalhado, etapa atual e métricas de uma execução."""
+    try:
+        return analyzer.status(run_id)
+    except AnalysisError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc))
+
+
+@app.get("/api/runs/{run_id}/report", response_class=PlainTextResponse)
+def get_analysis_report(run_id: str):
+    """Recupera o relatório consolidado em formato Markdown."""
+    try:
+        return analyzer.report(run_id)
+    except AnalysisError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc))
+
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("main:app", host=settings.AI_SERVICE_HOST, port=settings.AI_SERVICE_PORT, reload=True)
+
