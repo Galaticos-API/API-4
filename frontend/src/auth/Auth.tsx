@@ -129,7 +129,7 @@ function Login() {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   return <main className="auth-shell"><section className="glass-panel auth-card">
-    <span className="badge badge-info">Sinapse</span>
+    <span className="badge badge-brand">Sinapse</span>
     <h1>Entre na sua conta</h1>
     <p>Acesse a memória institucional da sua equipe.</p>
     {notice && <p role="status">{notice}</p>}

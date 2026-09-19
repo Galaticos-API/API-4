@@ -1,39 +1,13 @@
-:root {
-  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  --font-mono: 'JetBrains Mono', monospace;
+/* ============================================================
+   Sinapse — base e componentes
+   ------------------------------------------------------------
+   Os tokens vivem em styles/tokens.css, que é a fonte única.
+   Este arquivo só define o reset, a base do documento e as classes
+   de componente. Não redefina cor aqui.
+   ============================================================ */
 
-  /* Color Palette - Deep Slate / Indigo Cyber */
-  --bg-primary: #0a0d14;
-  --bg-secondary: #111622;
-  --bg-tertiary: #182030;
-  --bg-card: rgba(19, 26, 42, 0.7);
-  --bg-card-hover: rgba(26, 35, 58, 0.85);
-
-  --border-subtle: rgba(255, 255, 255, 0.08);
-  --border-active: rgba(99, 102, 241, 0.4);
-
-  --text-primary: #f8fafc;
-  --text-secondary: #94a3b8;
-  --text-muted: #64748b;
-
-  --accent-primary: #6366f1;
-  --accent-glow: rgba(99, 102, 241, 0.25);
-  --accent-secondary: #06b6d4;
-  --accent-emerald: #10b981;
-  --accent-amber: #f59e0b;
-
-  --radius-sm: 8px;
-  --radius-md: 12px;
-  --radius-lg: 16px;
-  --radius-full: 9999px;
-
-  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.2);
-  --shadow-md: 0 4px 20px rgba(0, 0, 0, 0.35);
-  --shadow-glow: 0 0 24px var(--accent-glow);
-
-  --transition-fast: 0.15s ease;
-  --transition-normal: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-}
+@import './styles/tokens.css';
+@import './styles/components.css';
 
 .auth-shell { min-height: 100vh; display: grid; place-items: center; padding: 24px; }
 .auth-card { width: 100%; max-width: 440px; padding: 32px; display: grid; gap: 18px; }
@@ -41,7 +15,7 @@
 .auth-card p { color: var(--text-secondary); }
 .auth-card form { display: grid; gap: 12px; }
 .auth-card input { width: 100%; padding: 12px; border-radius: var(--radius-sm); border: 1px solid var(--border-subtle); background: var(--bg-secondary); color: var(--text-primary); font: inherit; }
-.auth-card [role="alert"] { color: #fca5a5; }
+.auth-card [role="alert"] { color: var(--ds-danger-fg); }
 button:focus-visible, input:focus-visible { outline: 2px solid var(--accent-secondary); outline-offset: 3px; }
 button:disabled { opacity: .6; cursor: wait; }
 @media (max-width: 900px) { header { flex-wrap: wrap; gap: 16px; } }
@@ -54,20 +28,32 @@ button:disabled { opacity: .6; cursor: wait; }
 
 body {
   font-family: var(--font-sans);
-  background-color: var(--bg-primary);
-  color: var(--text-primary);
+  background-color: var(--ds-bg-app);
+  color: var(--ds-text);
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
   min-height: 100vh;
+  /* Gradiente da PRO4TECH (--gradient1 na folha deles). */
   background-image:
-    radial-gradient(circle at 15% 15%, rgba(99, 102, 241, 0.12) 0%, transparent 40%),
-    radial-gradient(circle at 85% 85%, rgba(6, 182, 212, 0.08) 0%, transparent 45%);
+    radial-gradient(circle at 10% 0%, rgba(237, 106, 50, 0.08), transparent 28%),
+    linear-gradient(180deg, var(--ds-surface-800) 0%, var(--ds-surface-900) 100%);
   background-attachment: fixed;
 }
 
+h1, h2, h3 {
+  font-family: var(--ds-font-display);
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+}
+
 a {
-  color: inherit;
+  color: var(--ds-brand-500);
   text-decoration: none;
+  transition: color var(--transition-fast);
+}
+
+a:hover {
+  color: var(--ds-brand-400);
 }
 
 button {
@@ -77,87 +63,206 @@ button {
   outline: none;
 }
 
-/* Glassmorphic Container */
+/* Foco visível em qualquer elemento navegável por teclado. */
+:focus-visible {
+  outline: none;
+  box-shadow: var(--ds-ring-focus);
+  border-radius: var(--ds-radius);
+}
+
+/* --- Superfície elevada ---------------------------------- */
+/* Nome mantido por compatibilidade: a PRO4TECH não usa vidro,
+   então isto é um cartão opaco. */
 .glass-panel {
-  background: var(--bg-card);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-md);
-  transition: transform var(--transition-normal), border-color var(--transition-normal);
+  background: var(--ds-bg-subtle);
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius);
+  box-shadow: var(--ds-shadow-sm);
+  transition: border-color var(--transition-normal), background var(--transition-normal);
 }
 
 .glass-panel:hover {
-  border-color: var(--border-active);
+  border-color: var(--ds-border-strong);
 }
 
-/* Badges */
+/* --- Etiquetas ------------------------------------------- */
 .badge {
   display: inline-flex;
   align-items: center;
+  justify-self: start;
+  width: fit-content;
   gap: 6px;
-  padding: 4px 10px;
-  border-radius: var(--radius-full);
-  font-size: 0.75rem;
-  font-weight: 600;
+  height: 24px;
+  padding: 0 12px;
+  border-radius: var(--ds-radius-pill);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
 }
 
 .badge-success {
-  background: rgba(16, 185, 129, 0.15);
-  color: #34d399;
-  border: 1px solid rgba(16, 185, 129, 0.3);
+  background: var(--ds-success-bg);
+  color: var(--ds-success-fg);
+  border: 1px solid rgba(34, 180, 88, 0.42);
 }
 
 .badge-info {
-  background: rgba(99, 102, 241, 0.15);
-  color: #818cf8;
-  border: 1px solid rgba(99, 102, 241, 0.3);
+  background: var(--ds-info-bg);
+  color: var(--ds-info-fg);
+  border: 1px solid rgba(64, 151, 255, 0.42);
 }
 
 .badge-warning {
-  background: rgba(245, 158, 11, 0.15);
-  color: #fbbf24;
-  border: 1px solid rgba(245, 158, 11, 0.3);
+  background: var(--ds-warning-bg);
+  color: var(--ds-warning-fg);
+  border: 1px solid rgba(200, 139, 0, 0.42);
 }
 
-/* Buttons */
+.badge-brand {
+  background: var(--ds-ai-bg);
+  color: var(--ds-brand-400);
+  border: 1px solid var(--border-active);
+}
+
+.badge-danger {
+  background: var(--ds-danger-bg);
+  color: var(--ds-danger-fg);
+  border: 1px solid rgba(240, 99, 93, 0.42);
+}
+
+/* --- Botões ---------------------------------------------- */
+/* Um só primário por tela. O gradiente é exclusivo dele. */
 .btn-primary {
-  background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
-  color: #fff;
-  padding: 10px 20px;
-  border-radius: var(--radius-sm);
-  font-weight: 500;
+  background: var(--ds-brand-gradient);
+  color: var(--ds-on-brand);
+  height: var(--ds-control-h);
+  padding: 0 18px;
+  border-radius: var(--ds-radius);
+  font-size: 14px;
+  font-weight: 600;
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
-  box-shadow: var(--shadow-sm);
   transition: all var(--transition-normal);
 }
 
 .btn-primary:hover {
-  background: linear-gradient(135deg, #818cf8 0%, #6366f1 100%);
-  box-shadow: var(--shadow-glow);
-  transform: translateY(-1px);
+  background: linear-gradient(135deg, var(--ds-brand-300) 0%, var(--ds-brand-400) 100%);
+  box-shadow: var(--ds-shadow-sm);
+}
+
+.btn-primary:disabled {
+  background: var(--ds-bg-subtle);
+  color: var(--ds-text-muted);
+  border: 1px solid var(--ds-border);
+  cursor: not-allowed;
 }
 
 .btn-secondary {
-  background: var(--bg-tertiary);
-  color: var(--text-secondary);
-  border: 1px solid var(--border-subtle);
-  padding: 10px 18px;
-  border-radius: var(--radius-sm);
+  background: var(--ds-bg-subtle);
+  color: var(--ds-text);
+  border: 1px solid var(--ds-border-strong);
+  height: var(--ds-control-h);
+  padding: 0 18px;
+  border-radius: var(--ds-radius);
+  font-size: 14px;
   font-weight: 500;
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
   transition: all var(--transition-normal);
 }
 
 .btn-secondary:hover {
-  background: var(--bg-card-hover);
-  color: var(--text-primary);
-  border-color: var(--border-active);
+  background: var(--ds-bg-hover);
+  color: var(--ds-text-strong);
+  border-color: rgba(196, 199, 204, 0.38);
+}
+
+.btn-ghost {
+  background: transparent;
+  color: var(--ds-text-secondary);
+  height: var(--ds-control-h);
+  padding: 0 14px;
+  border-radius: var(--ds-radius);
+  font-size: 14px;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all var(--transition-normal);
+}
+
+.btn-ghost:hover {
+  background: rgba(196, 199, 204, 0.07);
+  color: var(--ds-text-strong);
+}
+
+.btn-danger {
+  background: var(--ds-danger-bg);
+  color: var(--ds-danger-fg);
+  border: 1px solid rgba(240, 99, 93, 0.42);
+  height: var(--ds-control-h);
+  padding: 0 18px;
+  border-radius: var(--ds-radius);
+  font-size: 14px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all var(--transition-normal);
+}
+
+.btn-danger:hover {
+  background: #5E2321; /* danger-bg elevado */
+  color: var(--ds-text-strong);
+  border-color: rgba(240, 99, 93, 0.62);
+}
+
+/* --- Campos ---------------------------------------------- */
+.campo {
+  height: var(--ds-control-h);
+  width: 100%;
+  padding: 0 14px;
+  border-radius: var(--ds-radius);
+  background: var(--ds-bg-app);
+  border: 1px solid var(--ds-border-strong);
+  color: var(--ds-text);
+  font-family: inherit;
+  font-size: 14px;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.campo::placeholder {
+  color: var(--ds-text-disabled);
+}
+
+.campo:focus {
+  outline: none;
+  border-color: var(--ds-brand-500);
+  box-shadow: var(--ds-ring-focus);
+  color: var(--ds-text-strong);
+}
+
+.campo[aria-invalid='true'] {
+  border-color: var(--ds-danger-fg);
+}
+
+.campo:disabled {
+  background: var(--ds-bg-app);
+  border-color: rgba(196, 199, 204, 0.09);
+  color: var(--ds-text-disabled);
+  cursor: not-allowed;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
 }

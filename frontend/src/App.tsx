@@ -130,7 +130,7 @@ export const App: React.FC = () => {
           <div>
             <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
               <h1 style={{ fontSize: "1.25rem", fontWeight: 700, letterSpacing: "-0.02em" }}>Sinapse</h1>
-              <span className="badge badge-info">PRO4TECH API-4</span>
+              <span className="badge badge-brand">PRO4TECH API-4</span>
             </div>
             <p style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>
               Memória Institucional da Fábrica de Software

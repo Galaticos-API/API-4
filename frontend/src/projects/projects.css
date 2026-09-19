@@ -2,7 +2,7 @@
 .projects-heading { display: flex; align-items: center; justify-content: space-between; gap: 20px; }
 .projects-heading h2 { font-size: 1.8rem; }
 .projects-heading p, .project-card p, .projects-state p, .project-form > p { color: var(--text-secondary); }
-.projects-eyebrow { color: var(--accent-secondary) !important; font-size: .8rem; }
+.projects-eyebrow { color: var(--ds-text-muted) !important; font-size: .8rem; letter-spacing: .06em; text-transform: uppercase; }
 .projects-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 290px), 1fr)); gap: 20px; }
 .project-card { padding: 24px; display: grid; gap: 12px; align-content: start; overflow-wrap: anywhere; }
 .project-card .badge, .project-card button { justify-self: start; }
@@ -16,7 +16,7 @@
 .project-field input, .project-field textarea { width: 100%; background: var(--bg-secondary); color: var(--text-primary); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); padding: 12px; font: inherit; }
 .project-field textarea { resize: vertical; }
 .project-field textarea:focus-visible { outline: 2px solid var(--accent-secondary); outline-offset: 3px; }
-.project-field [aria-invalid="true"] { border-color: #fca5a5; }
-.projects-page [role="alert"] { color: #fca5a5; }
+.project-field [aria-invalid="true"] { border-color: var(--ds-danger-fg); }
+.projects-page [role="alert"] { color: var(--ds-danger-fg); }
 .project-actions { display: flex; flex-wrap: wrap; gap: 12px; }
 @media (max-width: 900px) { .projects-heading { align-items: flex-start; flex-direction: column; } header > div { flex-wrap: wrap; } }
