@@ -144,7 +144,7 @@ export function PbiDetail({ projectId, epicoId, featureId, pbiId }: { projectId:
     setQualityResult({ state: "loading" });
     getPbiQuality(pbiId, controller.signal)
       .then((quality) => { if (!controller.signal.aborted) setQualityResult({ state: "ready", quality }); })
-      .catch((error) => {
+      .catch(() => {
         if (controller.signal.aborted) return;
         setQualityResult({ state: "error", message: "Não foi possível carregar o relatório de qualidade." });
       });
