@@ -13,7 +13,8 @@ Toda a especificação técnica, backlog e decisões arquiteturais estão estrut
 
 | Documento | Descrição e Conteúdo |
 |---|---|
-| 📄 **[PRD — Product Requirements Document](docs/PRD-PRO4TECH.md)** | Requisitos funcionais (RF), não-funcionais (RNF), regras de negócio e governança de IA. |
+| 📄 **[PRD — versão do cliente](docs/PRD-PRO4TECH.md)** | Requisitos funcionais (RF), não-funcionais (RNF), regras de negócio e governança de IA. É o documento que vai para a PRO4TECH. |
+| 🔒 **[PRD — versão interna](docs/PRD.md)** | Tudo o que está na versão do cliente, mais o que não vai para ela: modelo de domínio e de dados, riscos, dependências do cliente e pendências internas. |
 | 🏛️ **[Arquitetura e Modelagem de Dados](docs/Architecture/README.md)** | Diagramas de componentes, fluxo de RAG, diagrama ERD e fronteiras entre camadas. |
 | 🤖 **[Contexto Canônico de IA e Agentes](docs/AGENTS.md)** | Regras não-negociáveis para agentes autônomos e desenvolvedores (assistência estrita, proveniência e isolamento). |
 | 🛠️ **[Guia de Configuração e Ambiente](docs/SETUP_GUIDE.md)** | Passo a passo de instalação local de todas as stacks, variáveis de ambiente e portas padrão. |
