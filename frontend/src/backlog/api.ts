@@ -54,10 +54,26 @@ export interface Pbi extends PbiInput {
   epico_id: string;
   epico_titulo: string;
   projeto_id: string;
+  score_completude: number;
 }
 
 export interface CompletionError {
   campos_faltantes: string[];
+}
+
+export interface QualityCheckResult {
+  check_id: string;
+  check_name: string;
+  passed: boolean;
+  message: string;
+  applicable: boolean;
+}
+
+export interface QualityReport {
+  entity_type: string;
+  entity_id: string;
+  checks: QualityCheckResult[];
+  score_completude: number | null;
 }
 
 export function camposFaltantesDe(error: unknown): string[] | null {
@@ -121,6 +137,7 @@ function parsePbi(value: unknown): Pbi {
     criterios_count: Number(pbi.criterios_count ?? 0),
     feature_titulo: asText(pbi.feature_titulo), epico_id: asText(pbi.epico_id),
     epico_titulo: asText(pbi.epico_titulo), projeto_id: asText(pbi.projeto_id),
+    score_completude: Number(pbi.score_completude ?? 0),
   };
 }
 
@@ -176,4 +193,26 @@ export async function createPbi(input: PbiInput): Promise<Pbi> {
 
 export async function completePbi(id: string): Promise<Pbi> {
   return parsePbi(await (await apiRequest(`/pbis/${encodeURIComponent(id)}/complete`, { method: "PATCH" })).json());
+}
+
+export async function getPbiQuality(id: string, signal: AbortSignal): Promise<QualityReport> {
+  const data = await (await apiRequest(`/pbis/${encodeURIComponent(id)}/quality`, { signal })).json();
+  if (!data || typeof data !== "object") {
+    throw new Error("Resposta de qualidade inválida");
+  }
+  return {
+    entity_type: asText(data.entity_type),
+    entity_id: asText(data.entity_id),
+    checks: Array.isArray(data.checks) ? data.checks.map((check: unknown) => {
+      const c = check as Record<string, unknown>;
+      return {
+        check_id: asText(c.check_id),
+        check_name: asText(c.check_name),
+        passed: Boolean(c.passed),
+        message: asText(c.message),
+        applicable: Boolean(c.applicable),
+      };
+    }) : [],
+    score_completude: data.score_completude === null ? null : Number(data.score_completude),
+  };
 }

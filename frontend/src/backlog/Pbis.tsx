@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { ApiError } from "../auth/api";
 import { navigate } from "./navigation";
-import { createPbi, completePbi, getPbi, listPbis, camposFaltantesDe, type Pbi, type PbiInput } from "./api";
+import { createPbi, completePbi, getPbi, listPbis, camposFaltantesDe, getPbiQuality, type Pbi, type PbiInput, type QualityReport } from "./api";
 import { descreverCamposFaltantes } from "./fields";
 import "../projects/projects.css";
 
@@ -26,6 +26,12 @@ export function PbiList({ projectId, epicoId, featureId, canCreate }: { projectI
 
   const newPath = `/projects/${projectId}/epics/${epicoId}/features/${featureId}/pbis/new`;
 
+  const getCompletudeColor = (score: number) => {
+    if (score >= 80) return "badge-success";
+    if (score >= 50) return "badge-warning";
+    return "badge-error";
+  };
+
   return (
     <section className="projects-page">
       <div className="projects-heading">
@@ -40,7 +46,14 @@ export function PbiList({ projectId, epicoId, featureId, canCreate }: { projectI
           {canCreate && <button className="btn-primary" onClick={() => navigate(newPath)}>Criar primeiro PBI</button>}</div>
         : <div className="projects-grid">{result.pbis.map((pbi) => (
           <article className="glass-panel project-card" key={pbi.id}>
-            <span className={`badge ${pbi.status === "concluido" ? "badge-success" : "badge-warning"}`}>{pbi.status}</span>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "8px" }}>
+              <span className={`badge ${pbi.status === "concluido" ? "badge-success" : "badge-warning"}`}>{pbi.status}</span>
+              {pbi.score_completude > 0 && (
+                <span className={`badge ${getCompletudeColor(pbi.score_completude)}`}>
+                  {pbi.score_completude}% completo
+                </span>
+              )}
+            </div>
             <h4>{pbi.codigo} — {pbi.titulo}</h4>
             <p className="project-excerpt">{pbi.historia_eu_quero || "Sem intenção registrada."}</p>
             <button className="btn-secondary" onClick={() => navigate(`/projects/${projectId}/epics/${epicoId}/features/${featureId}/pbis/${pbi.id}`)}>Ver PBI</button>
@@ -109,6 +122,7 @@ export function PbiForm({ projectId, epicoId, featureId }: { projectId: string; 
 
 export function PbiDetail({ projectId, epicoId, featureId, pbiId }: { projectId: string; epicoId: string; featureId: string; pbiId: string }) {
   const [result, setResult] = useState<{ state: "loading" } | { state: "error"; message: string } | { state: "ready"; pbi: Pbi }>({ state: "loading" });
+  const [qualityResult, setQualityResult] = useState<{ state: "loading" } | { state: "error"; message: string } | { state: "ready"; quality: QualityReport }>({ state: "loading" });
   const [completing, setCompleting] = useState(false);
   const [completionMessage, setCompletionMessage] = useState("");
   const [attempt, setAttempt] = useState(0);
@@ -125,11 +139,29 @@ export function PbiDetail({ projectId, epicoId, featureId, pbiId }: { projectId:
     return () => controller.abort();
   }, [pbiId, attempt]);
 
+  useEffect(() => {
+    const controller = new AbortController();
+    setQualityResult({ state: "loading" });
+    getPbiQuality(pbiId, controller.signal)
+      .then((quality) => { if (!controller.signal.aborted) setQualityResult({ state: "ready", quality }); })
+      .catch(() => {
+        if (controller.signal.aborted) return;
+        setQualityResult({ state: "error", message: "Não foi possível carregar o relatório de qualidade." });
+      });
+    return () => controller.abort();
+  }, [pbiId, attempt]);
+
   if (result.state === "loading") return <div className="glass-panel projects-state" role="status">Carregando PBI…</div>;
   if (result.state === "error") return <div className="glass-panel projects-state"><p role="alert">{result.message}</p>
     <button className="btn-secondary" onClick={() => setAttempt((v) => v + 1)}>Tentar novamente</button></div>;
 
   const { pbi } = result;
+
+  const getCompletudeColor = (score: number) => {
+    if (score >= 80) return "badge-success";
+    if (score >= 50) return "badge-warning";
+    return "badge-error";
+  };
 
   return (
     <section className="projects-page">
@@ -138,13 +170,46 @@ export function PbiDetail({ projectId, epicoId, featureId, pbiId }: { projectId:
         <button className="btn-secondary" onClick={() => navigate(`/projects/${projectId}/epics/${epicoId}/features/${featureId}`)}>Voltar à feature de origem</button>
       </div>
       <article className="glass-panel project-card">
-        <span className={`badge ${pbi.status === "concluido" ? "badge-success" : "badge-warning"}`}>{pbi.status}</span>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "8px", marginBottom: "16px" }}>
+          <span className={`badge ${pbi.status === "concluido" ? "badge-success" : "badge-warning"}`}>{pbi.status}</span>
+          {pbi.score_completude > 0 && (
+            <span className={`badge ${getCompletudeColor(pbi.score_completude)}`}>
+              {pbi.score_completude}% completo
+            </span>
+          )}
+        </div>
         <dl>
           <dt>COMO UM</dt><dd>{pbi.historia_como_um}</dd>
           <dt>EU QUERO</dt><dd>{pbi.historia_eu_quero}</dd>
           <dt>PARA QUE</dt><dd>{pbi.historia_para_que}</dd>
           <dt>Cenários de aceitação registrados</dt><dd>{pbi.criterios_count}</dd>
         </dl>
+        {qualityResult.state === "ready" && qualityResult.quality.score_completude !== null && (
+          <div style={{ marginTop: "20px", padding: "16px", background: "rgba(0, 0, 0, 0.2)", borderRadius: "8px" }}>
+            <h4 style={{ marginBottom: "12px", fontSize: "0.9rem", fontWeight: 600 }}>Relatório de Qualidade</h4>
+            <div style={{ marginBottom: "12px" }}>
+              <strong>Completude: {qualityResult.quality.score_completude}%</strong>
+            </div>
+            <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
+              {qualityResult.quality.checks.map((check) => (
+                <li key={check.check_id} style={{ 
+                  padding: "8px", 
+                  marginBottom: "8px", 
+                  background: check.passed ? "rgba(76, 175, 80, 0.1)" : "rgba(244, 67, 54, 0.1)",
+                  borderRadius: "4px",
+                  borderLeft: `3px solid ${check.passed ? "#4CAF50" : "#F44336"}`
+                }}>
+                  <div style={{ fontWeight: 500, marginBottom: "4px" }}>
+                    {check.passed ? "✓" : "✗"} {check.check_name}
+                  </div>
+                  <div style={{ fontSize: "0.85rem", color: "var(--text-secondary)" }}>
+                    {check.message}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
         {pbi.status === "rascunho" && (
           <div className="project-actions">
             <button className="btn-primary" disabled={completing} onClick={async () => {
@@ -152,6 +217,7 @@ export function PbiDetail({ projectId, epicoId, featureId, pbiId }: { projectId:
               try {
                 const completed = await completePbi(pbi.id);
                 setResult({ state: "ready", pbi: completed });
+                setAttempt((v) => v + 1); // Reload quality report
               } catch (error) {
                 const campos = camposFaltantesDe(error);
                 setCompletionMessage(campos ? `Faltam preencher: ${descreverCamposFaltantes(campos)}.` : "Não foi possível concluir o PBI.");

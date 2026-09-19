@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import { pbisService, PbisService } from "./pbis.service.js";
+import { qualityService } from "../quality/quality.service.js";
 
 function getParamId(param: string | string[] | undefined): string {
   if (Array.isArray(param)) return param[0] ?? "";
@@ -54,6 +55,16 @@ export class PbisController {
       const id = getParamId(req.params.id);
       const usuarioId = req.auth?.id ?? null;
       const result = await this.service.complete(id, usuarioId);
+      res.status(200).json(result);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  getQuality = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const id = getParamId(req.params.id);
+      const result = await qualityService.validatePbi(id);
       res.status(200).json(result);
     } catch (error) {
       next(error);

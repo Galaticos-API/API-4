@@ -19,4 +19,5 @@
 .project-field [aria-invalid="true"] { border-color: #fca5a5; }
 .projects-page [role="alert"] { color: #fca5a5; }
 .project-actions { display: flex; flex-wrap: wrap; gap: 12px; }
+.badge-error { background: rgba(244, 67, 54, 0.2); color: #fca5a5; }
 @media (max-width: 900px) { .projects-heading { align-items: flex-start; flex-direction: column; } header > div { flex-wrap: wrap; } }

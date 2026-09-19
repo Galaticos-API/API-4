@@ -205,6 +205,10 @@ export class PbisRepository {
       client.release();
     }
   }
+
+  async updateScoreCompletude(id: string, score: number): Promise<void> {
+    await this.pool.query(`UPDATE pbi SET score_completude = $1 WHERE id = $2`, [score, id]);
+  }
 }
 
 export const pbisRepository = new PbisRepository();
