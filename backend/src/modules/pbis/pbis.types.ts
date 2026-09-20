@@ -66,7 +66,7 @@ export interface Pbi {
   tipo: string;
   prioridade: PbiPriority;
   status: PbiStatus;
-  score_completude: number;
+  score_completude: number | null;
   provenance: string;
   created_at: Date | string;
   updated_at: Date | string;

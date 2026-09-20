@@ -54,11 +54,15 @@ export interface Pbi extends PbiInput {
   epico_id: string;
   epico_titulo: string;
   projeto_id: string;
-  score_completude: number;
+  score_completude: number | null;
 }
 
 export interface CompletionError {
   campos_faltantes: string[];
+}
+
+export function hasCompletudeIndicator(score: number | null): boolean {
+  return score !== null;
 }
 
 export interface QualityCheckResult {
@@ -137,7 +141,9 @@ function parsePbi(value: unknown): Pbi {
     criterios_count: Number(pbi.criterios_count ?? 0),
     feature_titulo: asText(pbi.feature_titulo), epico_id: asText(pbi.epico_id),
     epico_titulo: asText(pbi.epico_titulo), projeto_id: asText(pbi.projeto_id),
-    score_completude: Number(pbi.score_completude ?? 0),
+    score_completude: pbi.score_completude === null || pbi.score_completude === undefined
+      ? null
+      : Number(pbi.score_completude),
   };
 }
 

@@ -29,10 +29,8 @@ export class PbisService {
     // Calculate and update completeness score
     try {
       const qualityReport = await qualityService.validatePbi(created.id);
-      if (qualityReport.score_completude !== null) {
-        await this.repository.updateScoreCompletude(created.id, qualityReport.score_completude);
-        created.score_completude = qualityReport.score_completude;
-      }
+      await this.repository.updateScoreCompletude(created.id, qualityReport.score_completude);
+      created.score_completude = qualityReport.score_completude;
     } catch (error) {
       // Log error but don't fail the creation if quality check fails
       // This can happen during tests with in-memory repositories
@@ -87,10 +85,8 @@ export class PbisService {
     // Recalculate completeness score after update
     try {
       const qualityReport = await qualityService.validatePbi(id);
-      if (qualityReport.score_completude !== null) {
-        await this.repository.updateScoreCompletude(id, qualityReport.score_completude);
-        updated.score_completude = qualityReport.score_completude;
-      }
+      await this.repository.updateScoreCompletude(id, qualityReport.score_completude);
+      updated.score_completude = qualityReport.score_completude;
     } catch (error) {
       // Log error but don't fail the update if quality check fails
       // This can happen during tests with in-memory repositories

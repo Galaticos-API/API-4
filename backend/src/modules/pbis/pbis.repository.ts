@@ -206,7 +206,7 @@ export class PbisRepository {
     }
   }
 
-  async updateScoreCompletude(id: string, score: number): Promise<void> {
+  async updateScoreCompletude(id: string, score: number | null): Promise<void> {
     await this.pool.query(`UPDATE pbi SET score_completude = $1 WHERE id = $2`, [score, id]);
   }
 }

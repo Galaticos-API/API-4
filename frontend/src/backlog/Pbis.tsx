@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { ApiError } from "../auth/api";
 import { navigate } from "./navigation";
-import { createPbi, completePbi, getPbi, listPbis, camposFaltantesDe, getPbiQuality, type Pbi, type PbiInput, type QualityReport } from "./api";
+import { createPbi, completePbi, getPbi, listPbis, camposFaltantesDe, getPbiQuality, hasCompletudeIndicator, type Pbi, type PbiInput, type QualityReport } from "./api";
 import { descreverCamposFaltantes } from "./fields";
 import "../projects/projects.css";
 
@@ -48,8 +48,8 @@ export function PbiList({ projectId, epicoId, featureId, canCreate }: { projectI
           <article className="glass-panel project-card" key={pbi.id}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "8px" }}>
               <span className={`badge ${pbi.status === "concluido" ? "badge-success" : "badge-warning"}`}>{pbi.status}</span>
-              {pbi.score_completude > 0 && (
-                <span className={`badge ${getCompletudeColor(pbi.score_completude)}`}>
+              {hasCompletudeIndicator(pbi.score_completude) && (
+                <span className={`badge ${getCompletudeColor(pbi.score_completude ?? 0)}`}>
                   {pbi.score_completude}% completo
                 </span>
               )}
@@ -172,8 +172,8 @@ export function PbiDetail({ projectId, epicoId, featureId, pbiId }: { projectId:
       <article className="glass-panel project-card">
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "8px", marginBottom: "16px" }}>
           <span className={`badge ${pbi.status === "concluido" ? "badge-success" : "badge-warning"}`}>{pbi.status}</span>
-          {pbi.score_completude > 0 && (
-            <span className={`badge ${getCompletudeColor(pbi.score_completude)}`}>
+          {hasCompletudeIndicator(pbi.score_completude) && (
+            <span className={`badge ${getCompletudeColor(pbi.score_completude ?? 0)}`}>
               {pbi.score_completude}% completo
             </span>
           )}
