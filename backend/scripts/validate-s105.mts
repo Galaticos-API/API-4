@@ -94,7 +94,8 @@ try {
       );
       assert.equal(concurrentDeletes.filter((result) => result.status === "fulfilled").length, 1);
       const rejected = concurrentDeletes.find((result) => result.status === "rejected");
-      assert.ok(rejected && rejected.status === "rejected" && rejected.reason instanceof ValidationError);
+      assert.ok(rejected && rejected.status === "rejected");
+      assert.ok(rejected.reason instanceof ValidationError, `Expected ValidationError, received: ${String(rejected.reason)}`);
       assert.equal(
         (await pool.query("SELECT COUNT(*)::int AS total FROM criterio_aceitacao WHERE entidade_tipo='epico' AND entidade_id=$1", [completedEpic.id])).rows[0].total,
         1,
