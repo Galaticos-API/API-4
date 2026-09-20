@@ -85,7 +85,7 @@ try {
       const completedEpic = await repo.create({ ...data, titulo: "Concorrência" }, null);
       await pool.query("UPDATE epico SET status='concluido' WHERE id=$1", [completedEpic.id]);
       const insertedCriteria = await pool.query(
-        "INSERT INTO criterio_aceitacao (entidade_tipo,entidade_id,texto) VALUES ('epico',$1,'Um'),('epico',$1,'Dois') RETURNING id",
+        "INSERT INTO criterio_aceitacao (entidade_tipo,entidade_id,texto,ordem) VALUES ('epico',$1,'Um',1),('epico',$1,'Dois',2) RETURNING id",
         [completedEpic.id],
       );
       const criteriaRepo = new CriteriaRepository(pool);
