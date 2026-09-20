@@ -38,3 +38,12 @@ na API de épicos. Veja [execução e recuperação](../CONSOLIDACAO_S1_05.md).
 histórico backlog e ambas as migrations, com repetição e rollback de auditoria.
 Exige `S105_TEST_DATABASE_URL` apontando para PostgreSQL local descartável cujo
 nome termina em `_s105_test`. O teste cria/remove somente schemas próprios.
+
+## Retomada do #22 após o #23
+
+`007_criteria_polymorphic_format.sql` torna `criterio_aceitacao.texto` opcional e
+acrescenta a constraint polimórfica (texto obrigatório para épico/feature; nome,
+dado, quando e então obrigatórios para PBI). O `init.sql` ainda declara `texto`
+como `NOT NULL` — corrigir isso é responsabilidade desta migration, não do
+baseline. Se alguma linha existente violar a constraint, o `ALTER TABLE` falha e
+interrompe a migration sem apagar dados; não há saneamento automático aqui.

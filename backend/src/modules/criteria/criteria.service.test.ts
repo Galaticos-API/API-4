@@ -14,11 +14,24 @@ class InMemoryCriteriaRepository extends CriteriaRepository {
   private criteria: Criterion[] = [];
   private seq = 0;
   public knownEntities = new Set<string>([EPICO_ID, FEATURE_ID, PBI_ID]);
+  public unwritableEntities = new Set<string>();
+  public concludedEntities = new Set<string>();
 
   constructor() { super(); }
 
   async entityExists(_tipo: CriterionEntityType, id: string): Promise<boolean> {
     return this.knownEntities.has(id);
+  }
+
+  async entityIsWritable(_tipo: CriterionEntityType, id: string): Promise<boolean> {
+    return !this.unwritableEntities.has(id);
+  }
+
+  async removalBreaksCompletion(tipo: CriterionEntityType, entidadeId: string): Promise<boolean> {
+    if (tipo === "feature") return false;
+    if (!this.concludedEntities.has(entidadeId)) return false;
+    const total = await this.countByEntity(tipo, entidadeId);
+    return total <= 1;
   }
 
   async findById(id: string): Promise<Criterion | null> {
@@ -66,6 +79,28 @@ class InMemoryCriteriaRepository extends CriteriaRepository {
       }
     }
     return removed;
+  }
+
+  async move(id: string, direction: "up" | "down"): Promise<Criterion[] | null> {
+    const current = this.criteria.find((c) => c.id === id);
+    if (!current) return null;
+
+    const irmaos = this.criteria
+      .filter((c) => c.entidade_tipo === current.entidade_tipo && c.entidade_id === current.entidade_id)
+      .sort((a, b) => a.ordem - b.ordem);
+    const indiceAtual = irmaos.findIndex((c) => c.id === id);
+    const indiceVizinho = direction === "up" ? indiceAtual - 1 : indiceAtual + 1;
+
+    if (indiceVizinho < 0 || indiceVizinho >= irmaos.length) {
+      return irmaos;
+    }
+
+    const vizinho = irmaos[indiceVizinho];
+    const ordemTemp = current.ordem;
+    current.ordem = vizinho.ordem;
+    vizinho.ordem = ordemTemp;
+
+    return [...irmaos].sort((a, b) => a.ordem - b.ordem);
   }
 }
 
@@ -169,4 +204,84 @@ test("impede registrar critério para entidade inexistente", async () => {
       return true;
     },
   );
+});
+
+test("PBI-01.2.4 Cenário 1: mover um cenário para cima persiste a nova ordem", async () => {
+  const { service } = setup();
+
+  const primeiro = await service.create({ entidade_tipo: "pbi", entidade_id: PBI_ID, nome: "Primeiro", dado: "d", quando: "q", entao: "e" });
+  const segundo = await service.create({ entidade_tipo: "pbi", entidade_id: PBI_ID, nome: "Segundo", dado: "d", quando: "q", entao: "e" });
+
+  const lista = await service.move(segundo.id, { direction: "up" });
+
+  assert.deepEqual(lista.map((c) => c.nome), ["Segundo", "Primeiro"]);
+  assert.equal(lista[0].id, segundo.id);
+  assert.equal(lista[0].ordem, 1);
+  assert.equal(lista[1].id, primeiro.id);
+  assert.equal(lista[1].ordem, 2);
+});
+
+test("PBI-01.2.4: mover o primeiro item para cima é uma operação sem efeito, não um erro", async () => {
+  const { service } = setup();
+
+  const primeiro = await service.create({ entidade_tipo: "epico", entidade_id: EPICO_ID, texto: "Único critério" });
+
+  const lista = await service.move(primeiro.id, { direction: "up" });
+
+  assert.deepEqual(lista.map((c) => c.id), [primeiro.id]);
+});
+
+test("move() retorna NotFound para um critério inexistente", async () => {
+  const { service } = setup();
+
+  await assert.rejects(
+    async () => await service.move("d9000000-0000-4000-8000-000000009999", { direction: "down" }),
+    (err: Error) => {
+      assert.ok(err instanceof NotFoundError);
+      return true;
+    },
+  );
+});
+
+test("impede adicionar, remover ou mover critério de entidade arquivada ou em estado legado", async () => {
+  const { service, repository } = setup();
+
+  const criterio = await service.create({ entidade_tipo: "epico", entidade_id: EPICO_ID, texto: "Critério" });
+  repository.unwritableEntities.add(EPICO_ID);
+
+  await assert.rejects(
+    async () => await service.create({ entidade_tipo: "epico", entidade_id: EPICO_ID, texto: "Outro" }),
+    (err: Error) => { assert.ok(err instanceof ValidationError); return true; },
+  );
+  await assert.rejects(
+    async () => await service.delete(criterio.id),
+    (err: Error) => { assert.ok(err instanceof ValidationError); return true; },
+  );
+  await assert.rejects(
+    async () => await service.move(criterio.id, { direction: "up" }),
+    (err: Error) => { assert.ok(err instanceof ValidationError); return true; },
+  );
+});
+
+test("impede remover o último cenário de um PBI já concluído", async () => {
+  const { service, repository } = setup();
+
+  const cenario = await service.create({ entidade_tipo: "pbi", entidade_id: PBI_ID, nome: "Único cenário", dado: "d", quando: "q", entao: "e" });
+  repository.concludedEntities.add(PBI_ID);
+
+  await assert.rejects(
+    async () => await service.delete(cenario.id),
+    (err: Error) => { assert.ok(err instanceof ValidationError); return true; },
+  );
+});
+
+test("permite remover um cenário de PBI concluído quando não é o último", async () => {
+  const { service, repository } = setup();
+
+  const primeiro = await service.create({ entidade_tipo: "pbi", entidade_id: PBI_ID, nome: "Primeiro", dado: "d", quando: "q", entao: "e" });
+  await service.create({ entidade_tipo: "pbi", entidade_id: PBI_ID, nome: "Segundo", dado: "d", quando: "q", entao: "e" });
+  repository.concludedEntities.add(PBI_ID);
+
+  const removed = await service.delete(primeiro.id);
+  assert.equal(removed.id, primeiro.id);
 });

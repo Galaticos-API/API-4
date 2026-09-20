@@ -18,6 +18,7 @@ export interface Epic extends EpicInput {
   status: BacklogStatus | "ativo" | "arquivado";
   features_count: number;
   criterios_count: number;
+  projeto_status: string;
 }
 
 export interface FeatureInput {
@@ -35,6 +36,7 @@ export interface Feature extends FeatureInput {
   criterios_count: number;
   epico_titulo: string;
   projeto_id: string;
+  projeto_status: string;
 }
 
 export interface PbiInput {
@@ -54,6 +56,7 @@ export interface Pbi extends PbiInput {
   epico_id: string;
   epico_titulo: string;
   projeto_id: string;
+  projeto_status: string;
   score_completude: number | null;
 }
 
@@ -61,7 +64,7 @@ export interface CompletionError {
   campos_faltantes: string[];
 }
 
-export function hasCompletudeIndicator(score: number | null): boolean {
+export function hasCompletudeIndicator(score: number | null): score is number {
   return score !== null;
 }
 
@@ -108,6 +111,7 @@ function parseEpic(value: unknown): Epic {
     status: (epic.status as BacklogStatus) ?? "rascunho",
     features_count: Number(epic.features_count ?? 0),
     criterios_count: Number(epic.criterios_count ?? 0),
+    projeto_status: asText(epic.projeto_status),
   };
 }
 
@@ -125,6 +129,7 @@ function parseFeature(value: unknown): Feature {
     criterios_count: Number(feature.criterios_count ?? 0),
     epico_titulo: asText(feature.epico_titulo),
     projeto_id: asText(feature.projeto_id),
+    projeto_status: asText(feature.projeto_status),
   };
 }
 
@@ -141,9 +146,8 @@ function parsePbi(value: unknown): Pbi {
     criterios_count: Number(pbi.criterios_count ?? 0),
     feature_titulo: asText(pbi.feature_titulo), epico_id: asText(pbi.epico_id),
     epico_titulo: asText(pbi.epico_titulo), projeto_id: asText(pbi.projeto_id),
-    score_completude: pbi.score_completude === null || pbi.score_completude === undefined
-      ? null
-      : Number(pbi.score_completude),
+    score_completude: pbi.score_completude === null || pbi.score_completude === undefined ? null : Number(pbi.score_completude),
+    projeto_status: asText(pbi.projeto_status),
   };
 }
 
@@ -165,6 +169,10 @@ export async function completeEpic(id: string): Promise<Epic> {
   return parseEpic(await (await apiRequest(`/epics/${encodeURIComponent(id)}/complete`, { method: "PATCH" })).json());
 }
 
+export async function updateEpic(id: string, input: Partial<EpicInput>): Promise<Epic> {
+  return parseEpic(await (await apiRequest(`/epics/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify(input) })).json());
+}
+
 export async function listFeatures(epicoId: string, signal: AbortSignal): Promise<Feature[]> {
   const data = await (await apiRequest(`/features?epico_id=${encodeURIComponent(epicoId)}&limit=100`, { signal })).json();
   if (!Array.isArray(data.items)) throw new Error("Lista de features inválida");
@@ -181,6 +189,10 @@ export async function createFeature(input: FeatureInput): Promise<Feature> {
 
 export async function completeFeature(id: string): Promise<Feature> {
   return parseFeature(await (await apiRequest(`/features/${encodeURIComponent(id)}/complete`, { method: "PATCH" })).json());
+}
+
+export async function updateFeature(id: string, input: Partial<FeatureInput>): Promise<Feature> {
+  return parseFeature(await (await apiRequest(`/features/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify(input) })).json());
 }
 
 export async function listPbis(featureId: string, signal: AbortSignal): Promise<Pbi[]> {
@@ -201,24 +213,99 @@ export async function completePbi(id: string): Promise<Pbi> {
   return parsePbi(await (await apiRequest(`/pbis/${encodeURIComponent(id)}/complete`, { method: "PATCH" })).json());
 }
 
-export async function getPbiQuality(id: string, signal: AbortSignal): Promise<QualityReport> {
-  const data = await (await apiRequest(`/pbis/${encodeURIComponent(id)}/quality`, { signal })).json();
-  if (!data || typeof data !== "object") {
-    throw new Error("Resposta de qualidade inválida");
-  }
+export async function updatePbi(id: string, input: Partial<PbiInput>): Promise<Pbi> {
+  return parsePbi(await (await apiRequest(`/pbis/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify(input) })).json());
+}
+
+export interface ValidationResult { aprovado: boolean; motivo?: string }
+export interface ScenarioQualityResult { id: string; nome: string | null; aprovado: boolean; motivo?: string }
+export interface VagueTermOccurrence { campo: string; termos: string[] }
+export interface PbiQualityReport {
+  titulo: ValidationResult;
+  historia: { aprovado: boolean; alertas: string[] };
+  cenarios: ScenarioQualityResult[];
+  termos_vagos: VagueTermOccurrence[];
+}
+
+export async function getPbiQuality(id: string, signal: AbortSignal): Promise<PbiQualityReport> {
+  return await (await apiRequest(`/pbis/${encodeURIComponent(id)}/quality`, { signal })).json();
+}
+
+export async function getPbiCompleteness(id: string, signal: AbortSignal): Promise<QualityReport> {
+  const data = await (await apiRequest(`/quality/pbis/${encodeURIComponent(id)}/quality`, { signal })).json();
+  if (!data || typeof data !== "object" || !Array.isArray(data.checks)) throw new Error("Resposta de completude inválida");
   return {
     entity_type: asText(data.entity_type),
     entity_id: asText(data.entity_id),
-    checks: Array.isArray(data.checks) ? data.checks.map((check: unknown) => {
-      const c = check as Record<string, unknown>;
+    checks: data.checks.map((check: unknown) => {
+      const value = check as Record<string, unknown>;
       return {
-        check_id: asText(c.check_id),
-        check_name: asText(c.check_name),
-        passed: Boolean(c.passed),
-        message: asText(c.message),
-        applicable: Boolean(c.applicable),
+        check_id: asText(value.check_id),
+        check_name: asText(value.check_name),
+        passed: value.passed === true,
+        message: asText(value.message),
+        applicable: value.applicable === true,
       };
-    }) : [],
+    }),
     score_completude: data.score_completude === null ? null : Number(data.score_completude),
   };
+}
+
+// =======================================
+// CRITÉRIOS DE ACEITAÇÃO POLIMÓRFICOS (S1-10/S1-11/S1-12)
+// =======================================
+
+export type CriterionEntityType = "epico" | "feature" | "pbi";
+
+export interface Criterion {
+  id: string;
+  entidade_tipo: CriterionEntityType;
+  entidade_id: string;
+  texto: string | null;
+  nome: string | null;
+  dado: string | null;
+  quando: string | null;
+  entao: string | null;
+  ordem: number;
+}
+
+export interface TextCriterionInput { entidade_tipo: "epico" | "feature"; entidade_id: string; texto: string }
+export interface ScenarioCriterionInput { entidade_tipo: "pbi"; entidade_id: string; nome: string; dado: string; quando: string; entao: string }
+
+function parseCriterion(value: unknown): Criterion {
+  const criterion = value as Record<string, unknown>;
+  if (!criterion || typeof criterion !== "object" || !isNonEmptyId(criterion.id)) {
+    throw new Error("Resposta de critério inválida");
+  }
+  return {
+    id: criterion.id,
+    entidade_tipo: criterion.entidade_tipo as CriterionEntityType,
+    entidade_id: asText(criterion.entidade_id),
+    texto: typeof criterion.texto === "string" ? criterion.texto : null,
+    nome: typeof criterion.nome === "string" ? criterion.nome : null,
+    dado: typeof criterion.dado === "string" ? criterion.dado : null,
+    quando: typeof criterion.quando === "string" ? criterion.quando : null,
+    entao: typeof criterion.entao === "string" ? criterion.entao : null,
+    ordem: Number(criterion.ordem ?? 0),
+  };
+}
+
+export async function listCriteria(entidadeTipo: CriterionEntityType, entidadeId: string, signal: AbortSignal): Promise<Criterion[]> {
+  const data = await (await apiRequest(`/criteria?entidade_tipo=${entidadeTipo}&entidade_id=${encodeURIComponent(entidadeId)}`, { signal })).json();
+  if (!Array.isArray(data.items)) throw new Error("Lista de critérios inválida");
+  return data.items.map(parseCriterion);
+}
+
+export async function createCriterion(input: TextCriterionInput | ScenarioCriterionInput): Promise<Criterion> {
+  return parseCriterion(await (await apiRequest("/criteria", { method: "POST", body: JSON.stringify(input) })).json());
+}
+
+export async function deleteCriterion(id: string): Promise<void> {
+  await apiRequest(`/criteria/${encodeURIComponent(id)}`, { method: "DELETE" });
+}
+
+export async function moveCriterion(id: string, direction: "up" | "down"): Promise<Criterion[]> {
+  const data = await (await apiRequest(`/criteria/${encodeURIComponent(id)}/move`, { method: "PATCH", body: JSON.stringify({ direction }) })).json();
+  if (!Array.isArray(data.items)) throw new Error("Lista de critérios inválida");
+  return data.items.map(parseCriterion);
 }

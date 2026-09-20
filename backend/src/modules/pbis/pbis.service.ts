@@ -1,13 +1,15 @@
 import { createPbiSchema, updatePbiSchema, pbiQuerySchema, Pbi, PbiWithContext, PaginatedPbis } from "./pbis.types.js";
 import { PbisRepository, pbisRepository } from "./pbis.repository.js";
 import { FeaturesRepository, featuresRepository } from "../features/features.repository.js";
+import { QualityService, qualityService, RelatorioQualidadePbi } from "../quality/quality.service.js";
+import { validarTituloInfinitivo } from "../quality/quality.rules.js";
 import { NotFoundError, ValidationError, validateUuid } from "../../shared/errors.js";
-import { qualityService } from "../quality/quality.service.js";
 
 export class PbisService {
   constructor(
     private readonly repository: PbisRepository = pbisRepository,
     private readonly featuresRepo: FeaturesRepository = featuresRepository,
+    private readonly qualityChecker: QualityService = qualityService,
   ) {}
 
   async create(input: unknown, usuarioId?: string | null): Promise<Pbi> {
@@ -23,21 +25,14 @@ export class PbisService {
     if (!feature) {
       throw new NotFoundError("Feature não encontrada.");
     }
+    if (feature.projeto_status === "arquivado") {
+      throw new ValidationError("Não é possível cadastrar PBIs em um projeto arquivado.");
+    }
 
     const created = await this.repository.create(dto, usuarioId);
     
-    // Calculate and update completeness score
-    try {
-      const qualityReport = await qualityService.validatePbi(created.id);
-      await this.repository.updateScoreCompletude(created.id, qualityReport.score_completude);
-      created.score_completude = qualityReport.score_completude;
-    } catch (error) {
-      // Log error but don't fail the creation if quality check fails
-      // This can happen during tests with in-memory repositories
-      if (process.env.NODE_ENV !== "test") {
-        console.error(`Failed to calculate completeness for PBI ${created.id}:`, error);
-      }
-    }
+    const qualityReport = await this.qualityChecker.validatePbi(created.id);
+    created.score_completude = qualityReport.score_completude;
     
     return created;
   }
@@ -49,7 +44,13 @@ export class PbisService {
       throw new ValidationError(issue.message, parseResult.error.format());
     }
 
-    return await this.repository.findAll(parseResult.data);
+    const page = await this.repository.findAll(parseResult.data);
+    const reports = await this.qualityChecker.validatePbis(page.items);
+    const items = page.items.map((pbi) => ({
+      ...pbi,
+      score_completude: reports.get(pbi.id)?.score_completude ?? null,
+    }));
+    return { ...page, items };
   }
 
   async getById(id: string): Promise<PbiWithContext> {
@@ -60,7 +61,8 @@ export class PbisService {
       throw new NotFoundError("PBI não encontrado.");
     }
 
-    return pbi;
+    const report = await this.qualityChecker.validatePbi(id);
+    return { ...pbi, score_completude: report.score_completude };
   }
 
   async update(id: string, input: unknown, usuarioId?: string | null): Promise<PbiWithContext> {
@@ -70,6 +72,7 @@ export class PbisService {
     if (!existing) {
       throw new NotFoundError("PBI não encontrado.");
     }
+    this.assertProjetoAtivo(existing);
 
     const parseResult = updatePbiSchema.safeParse(input);
     if (!parseResult.success) {
@@ -82,18 +85,8 @@ export class PbisService {
       throw new NotFoundError("PBI não encontrado.");
     }
 
-    // Recalculate completeness score after update
-    try {
-      const qualityReport = await qualityService.validatePbi(id);
-      await this.repository.updateScoreCompletude(id, qualityReport.score_completude);
-      updated.score_completude = qualityReport.score_completude;
-    } catch (error) {
-      // Log error but don't fail the update if quality check fails
-      // This can happen during tests with in-memory repositories
-      if (process.env.NODE_ENV !== "test") {
-        console.error(`Failed to recalculate completeness for PBI ${id}:`, error);
-      }
-    }
+    const qualityReport = await this.qualityChecker.validatePbi(id);
+    updated.score_completude = qualityReport.score_completude;
 
     return updated;
   }
@@ -105,14 +98,23 @@ export class PbisService {
     if (!existing) {
       throw new NotFoundError("PBI não encontrado.");
     }
+    this.assertProjetoAtivo(existing);
     if (existing.status === "concluido") {
       return existing;
     }
 
+    const camposFaltantes: string[] = [];
     if ((existing.criterios_count ?? 0) === 0) {
+      camposFaltantes.push("cenarios_aceitacao");
+    }
+    if (!validarTituloInfinitivo(existing.titulo).aprovado) {
+      camposFaltantes.push("titulo_infinitivo");
+    }
+
+    if (camposFaltantes.length > 0) {
       throw new ValidationError(
-        "Não é possível concluir o PBI: é necessário ao menos um cenário de aceitação DADO/QUANDO/ENTÃO.",
-        { campos_faltantes: ["cenarios_aceitacao"] },
+        "Não é possível concluir o PBI: corrija os itens de conformidade com o guia antes de concluir.",
+        { campos_faltantes: camposFaltantes },
       );
     }
 
@@ -122,6 +124,23 @@ export class PbisService {
     }
 
     return completed;
+  }
+
+  async quality(id: string): Promise<RelatorioQualidadePbi> {
+    validateUuid(id, "ID do PBI");
+
+    const pbi = await this.repository.findById(id);
+    if (!pbi) {
+      throw new NotFoundError("PBI não encontrado.");
+    }
+
+    return await this.qualityChecker.avaliarPbi(pbi);
+  }
+
+  private assertProjetoAtivo(pbi: PbiWithContext): void {
+    if (pbi.projeto_status === "arquivado") {
+      throw new ValidationError("Não é possível alterar PBIs de um projeto arquivado.");
+    }
   }
 }
 

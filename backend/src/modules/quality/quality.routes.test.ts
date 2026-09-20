@@ -38,7 +38,7 @@ class MockCriteriaRepository extends CriteriaRepository {
 test("QualityController - validatePbi calls service and returns result", async () => {
   const mockPbisRepo = new MockPbisRepository();
   const mockCriteriaRepo = new MockCriteriaRepository();
-  const qualityService = new QualityService(mockPbisRepo, mockCriteriaRepo);
+  const qualityService = new QualityService(mockCriteriaRepo, mockPbisRepo);
   const qualityController = new QualityController(qualityService);
 
   const mockPbi = {
@@ -77,7 +77,7 @@ test("QualityController - validatePbi calls service and returns result", async (
 test("QualityController - validatePbi calls next with error when service fails", async () => {
   const mockPbisRepo = new MockPbisRepository();
   const mockCriteriaRepo = new MockCriteriaRepository();
-  const qualityService = new QualityService(mockPbisRepo, mockCriteriaRepo);
+  const qualityService = new QualityService(mockCriteriaRepo, mockPbisRepo);
   const qualityController = new QualityController(qualityService);
 
   const mockReq = { params: { id: "non-existent" } } as any;

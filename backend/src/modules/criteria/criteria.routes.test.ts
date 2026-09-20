@@ -21,6 +21,14 @@ class MockCriteriaRepo extends CriteriaRepository {
     return id === PBI_ID;
   }
 
+  async entityIsWritable(): Promise<boolean> {
+    return true;
+  }
+
+  async removalBreaksCompletion(): Promise<boolean> {
+    return false;
+  }
+
   async findById(id: string): Promise<Criterion | null> {
     return this.criteria.find((c) => c.id === id) ?? null;
   }
@@ -55,6 +63,23 @@ class MockCriteriaRepo extends CriteriaRepository {
     const [removed] = this.criteria.splice(index, 1);
     return removed;
   }
+
+  async move(id: string, direction: "up" | "down"): Promise<Criterion[] | null> {
+    const current = this.criteria.find((c) => c.id === id);
+    if (!current) return null;
+
+    const irmaos = (await this.listByEntity(current.entidade_tipo, current.entidade_id)).sort((a, b) => a.ordem - b.ordem);
+    const indiceAtual = irmaos.findIndex((c) => c.id === id);
+    const indiceVizinho = direction === "up" ? indiceAtual - 1 : indiceAtual + 1;
+    if (indiceVizinho < 0 || indiceVizinho >= irmaos.length) return irmaos;
+
+    const vizinho = irmaos[indiceVizinho];
+    const ordemTemp = current.ordem;
+    current.ordem = vizinho.ordem;
+    vizinho.ordem = ordemTemp;
+
+    return [...irmaos].sort((a, b) => a.ordem - b.ordem);
+  }
 }
 
 test("Testes de integração HTTP - Rotas de Critérios de Aceitação", async (t) => {
@@ -69,6 +94,7 @@ test("Testes de integração HTTP - Rotas de Critérios de Aceitação", async (
   router.post("/", controller.create);
   router.get("/", controller.list);
   router.delete("/:id", controller.delete);
+  router.patch("/:id/move", controller.move);
 
   testApp.use("/api/v1/criteria", router);
   testApp.use(errorHandler);
@@ -150,5 +176,39 @@ test("Testes de integração HTTP - Rotas de Critérios de Aceitação", async (
   await t.test("DELETE /api/v1/criteria/:id - retorna 404 para critério inexistente", async () => {
     const res = await fetch(`${baseUrl}/ffffffff-ffff-4fff-8fff-ffffffffffff`, { method: "DELETE" });
     assert.equal(res.status, 404);
+  });
+
+  await t.test("PATCH /api/v1/criteria/:id/move - reordena os cenários e persiste a nova ordem", async () => {
+    const primeiro = await fetch(baseUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ entidade_tipo: "pbi", entidade_id: PBI_ID, nome: "Vai ficar em segundo", dado: "d", quando: "q", entao: "e" }),
+    }).then((r) => r.json()) as Criterion;
+    const segundo = await fetch(baseUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ entidade_tipo: "pbi", entidade_id: PBI_ID, nome: "Vai ficar em primeiro", dado: "d", quando: "q", entao: "e" }),
+    }).then((r) => r.json()) as Criterion;
+
+    const res = await fetch(`${baseUrl}/${segundo.id}/move`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ direction: "up" }),
+    });
+
+    assert.equal(res.status, 200);
+    const body = (await res.json()) as { items: Criterion[] };
+    const posicaoSegundo = body.items.findIndex((c) => c.id === segundo.id);
+    const posicaoPrimeiro = body.items.findIndex((c) => c.id === primeiro.id);
+    assert.ok(posicaoSegundo < posicaoPrimeiro);
+  });
+
+  await t.test("PATCH /api/v1/criteria/:id/move - retorna 400 para direção inválida", async () => {
+    const res = await fetch(`${baseUrl}/qualquer-id/move`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ direction: "sideways" }),
+    });
+    assert.equal(res.status, 400);
   });
 });

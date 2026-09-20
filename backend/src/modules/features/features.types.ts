@@ -58,6 +58,7 @@ export interface FeatureWithStats extends Feature {
   criterios_count?: number;
   epico_titulo?: string;
   projeto_id?: string;
+  projeto_status?: string;
 }
 
 export interface PaginatedFeatures {

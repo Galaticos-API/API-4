@@ -1,5 +1,3 @@
-import { z } from "zod";
-
 export const ENTITY_TYPES = ["epico", "feature", "pbi"] as const;
 export type EntityType = (typeof ENTITY_TYPES)[number];
 

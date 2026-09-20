@@ -10,6 +10,8 @@ import { FeaturesRepository } from "../features/features.repository.js";
 import { errorHandler } from "../../middleware/errorHandler.js";
 import { CreatePbiDTO, Pbi, PbiWithContext, PaginatedPbis, PbiQueryDTO } from "./pbis.types.js";
 import { FeatureWithStats } from "../features/features.types.js";
+import { QualityService } from "../quality/quality.service.js";
+import { CriteriaRepository } from "../criteria/criteria.repository.js";
 
 const FEATURE_ID = "f0000000-0000-4000-8000-000000000001";
 
@@ -66,7 +68,10 @@ class MockFeaturesRepo extends FeaturesRepository {
 test("Testes de integração HTTP - Rotas de PBIs", async (t) => {
   const pbisRepo = new MockPbisRepo();
   const featuresRepo = new MockFeaturesRepo();
-  const service = new PbisService(pbisRepo, featuresRepo);
+  class EmptyCriteriaRepo extends CriteriaRepository {
+    async listByEntity() { return []; }
+  }
+  const service = new PbisService(pbisRepo, featuresRepo, new QualityService(new EmptyCriteriaRepo(), pbisRepo));
   const controller = new PbisController(service);
 
   const testApp = express();
