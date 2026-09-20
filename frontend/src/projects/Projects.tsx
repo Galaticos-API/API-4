@@ -5,6 +5,7 @@ import { createProject, getProject, listProjects, type Project, type ProjectInpu
 import { parseBacklogRoute } from "../backlog/navigation";
 import { BacklogScreen } from "../backlog/Backlog";
 import { EpicList } from "../backlog/Epics";
+import { RepoAnalyzerTab } from "./RepoAnalyzerTab";
 import "./projects.css";
 
 type Result = { state: "loading" } | { state: "error"; message: string } | { state: "ready"; projects: Project[]; total: number };
@@ -18,6 +19,7 @@ export function Projects({ pathname, canCreate = false }: { pathname: string; ca
   const [result, setResult] = useState<Result>({ state: "loading" });
   const [attempt, setAttempt] = useState(0);
   const [offset, setOffset] = useState(0);
+
   useEffect(() => {
     if (isNew || backlogRoute) return;
     const controller = new AbortController();
@@ -28,10 +30,12 @@ export function Projects({ pathname, canCreate = false }: { pathname: string; ca
       if (!controller.signal.aborted) setResult({ state: "ready", ...page });
     }).catch(error => {
       if (controller.signal.aborted) return;
-      setResult({ state: "error", message: error instanceof ApiError && error.status === 404 ? "Projeto não encontrado."
-        : error instanceof ApiError && error.status === 401 ? "É necessário entrar para acessar os projetos."
-        : error instanceof ApiError && error.status === 403 ? "Você não tem permissão para acessar estes projetos."
-        : "Não foi possível carregar os projetos. Tente novamente." });
+      setResult({
+        state: "error", message: error instanceof ApiError && error.status === 404 ? "Projeto não encontrado."
+          : error instanceof ApiError && error.status === 401 ? "É necessário entrar para acessar os projetos."
+            : error instanceof ApiError && error.status === 403 ? "Você não tem permissão para acessar estes projetos."
+              : "Não foi possível carregar os projetos. Tente novamente."
+      });
     });
     return () => controller.abort();
   }, [id, isDetail, isNew, backlogRoute, attempt, offset]);
@@ -64,12 +68,48 @@ export function Projects({ pathname, canCreate = false }: { pathname: string; ca
 }
 
 function ProjectDetail({ project, canCreate }: { project: Project; canCreate: boolean }) {
+  const [activeTab, setActiveTab] = useState<"backlog" | "repo-analyzer">("backlog");
+
   return <>
     <article className="glass-panel project-card">
       <span className={`badge ${project.status === "ativo" ? "badge-success" : "badge-warning"}`}>{project.status}</span>
       <h3>{project.nome}</h3><dl><dt>Cliente</dt><dd>{project.cliente}</dd><dt>Descrição</dt><dd className="project-description">{project.descricao}</dd></dl>
     </article>
-    <EpicList projetoId={project.id} canCreate={canCreate} />
+
+    {/* Abas de Contexto do Projeto */}
+    <div className="flex border-b border-gray-200 mb-4" style={{ display: "flex", gap: "1rem", borderBottom: "1px solid #e5e7eb", marginBottom: "1.5rem" }}>
+      <button
+        onClick={() => setActiveTab("backlog")}
+        style={{
+          padding: "0.5rem 1rem",
+          fontWeight: 500,
+          fontSize: "0.875rem",
+          borderBottom: activeTab === "backlog" ? "2px solid #4f46e5" : "2px solid transparent",
+          color: activeTab === "backlog" ? "#4f46e5" : "#6b7280",
+          background: "none",
+          cursor: "pointer"
+        }}
+      >
+        📋 Backlog & Épicos
+      </button>
+      <button
+        onClick={() => setActiveTab("repo-analyzer")}
+        style={{
+          padding: "0.5rem 1rem",
+          fontWeight: 500,
+          fontSize: "0.875rem",
+          borderBottom: activeTab === "repo-analyzer" ? "2px solid #4f46e5" : "2px solid transparent",
+          color: activeTab === "repo-analyzer" ? "#4f46e5" : "#6b7280",
+          background: "none",
+          cursor: "pointer"
+        }}
+      >
+        🔬 RepoAnalyzer (Análise de Repositório)
+      </button>
+    </div>
+
+    {activeTab === "backlog" && <EpicList projetoId={project.id} canCreate={canCreate} />}
+    {activeTab === "repo-analyzer" && <RepoAnalyzerTab projectId={project.id} />}
   </>;
 }
 
@@ -110,23 +150,25 @@ function ProjectForm() {
           setErrors({ nome: "Este nome já está em uso por um projeto ativo." });
         } else setMessage(error instanceof ApiError && error.status === 401 ? "É necessário entrar para criar projetos."
           : error instanceof ApiError && error.status === 403
-          ? "Você não tem permissão para criar projetos. Entre em contato com o administrador."
-          : error instanceof ApiError && [400, 422].includes(error.status) ? "Revise os dados informados. O servidor recusou o cadastro."
-          : "Não foi possível confirmar a criação. Consulte a lista de projetos antes de tentar novamente.");
+            ? "Você não tem permissão para criar projetos. Entre em contato com o administrador."
+            : error instanceof ApiError && [400, 422].includes(error.status) ? "Revise os dados informados. O servidor recusou o cadastro."
+              : "Não foi possível confirmar a criação. Consulte a lista de projetos antes de tentar novamente.");
       } finally {
         submitting.current = false;
         if (mounted.current) setBusy(false);
       }
     }}>
       <p>Nome e cliente são obrigatórios. A descrição é opcional.</p>
-      {([ ["nome", "Nome do projeto"], ["cliente", "Cliente"], ["descricao", "Descrição"] ] as const).map(([field, label]) => {
-        const props = { id: field, name: field, required: field !== "descricao", disabled: busy, value: values[field], "aria-invalid": Boolean(errors[field]),
+      {([["nome", "Nome do projeto"], ["cliente", "Cliente"], ["descricao", "Descrição"]] as const).map(([field, label]) => {
+        const props = {
+          id: field, name: field, required: field !== "descricao", disabled: busy, value: values[field], "aria-invalid": Boolean(errors[field]),
           "aria-describedby": errors[field] ? `${field}-error` : undefined,
           onChange: (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
             setValues(previous => ({ ...previous, [field]: event.target.value }));
             setErrors(previous => { const next = { ...previous }; delete next[field]; return next; });
             setMessage("");
-          } };
+          }
+        };
         return <div className="project-field" key={field}><label htmlFor={field}>{label}</label>
           {field === "descricao" ? <textarea {...props} rows={5} /> : <input {...props} type="text" />}
           {errors[field] && <p id={`${field}-error`} role="alert">{errors[field]}</p>}</div>;

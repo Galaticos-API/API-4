@@ -68,6 +68,11 @@ Para encerrar os serviços sem apagar os dados persistidos:
 docker compose down
 ```
 
+Para remover o container e todos seus dados:
+```bash
+docker compose down -r
+```
+
 ### 4. Baixar Modelos Locais no Ollama (opcional)
 ```bash
 docker compose --profile local-ai up -d

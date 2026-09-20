@@ -8,6 +8,7 @@ import { featuresRouter } from "./modules/features/features.routes.js";
 import { pbisRouter } from "./modules/pbis/pbis.routes.js";
 import { criteriaRouter } from "./modules/criteria/criteria.routes.js";
 import { epicsCompatRouter } from "./modules/epics/epics.compat.routes.js";
+import { repoAnalysesRouter } from './modules/repo-analyses/repo-analyses.routes';
 import { authRouter } from "./modules/auth/auth.routes.js";
 import { errorHandler } from "./middleware/errorHandler.js";
 import { requireAuth } from "./middleware/requireAuth.js";
@@ -47,6 +48,9 @@ app.use("/api/v1/epics", requireAuth, epicsRouter);
 app.use("/api/v1/features", requireAuth, featuresRouter);
 app.use("/api/v1/pbis", requireAuth, pbisRouter);
 app.use("/api/v1/criteria", requireAuth, criteriaRouter);
+
+//Repo analyzer
+app.use('/api/v1/projects/:projectId/repo-analyses', repoAnalysesRouter);
 
 // Root Information Endpoint
 app.get("/api/v1", (_req: Request, res: Response) => {
