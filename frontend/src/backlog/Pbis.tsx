@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { ApiError } from "../auth/api";
 import { navigate } from "./navigation";
-import { createPbi, completePbi, getPbi, listPbis, camposFaltantesDe, type Pbi, type PbiInput } from "./api";
+import { createPbi, completePbi, updatePbi, getPbi, listPbis, camposFaltantesDe, type Pbi, type PbiInput } from "./api";
 import { descreverCamposFaltantes } from "./fields";
+import { useUnsavedChangesGuard } from "./useUnsavedChangesGuard";
+import { CriteriaEditor } from "./Criteria";
 import "../projects/projects.css";
 
 type ListResult = { state: "loading" } | { state: "error"; message: string } | { state: "ready"; pbis: Pbi[] };
@@ -57,6 +59,8 @@ export function PbiForm({ projectId, epicoId, featureId }: { projectId: string; 
   const submitting = useRef(false);
   const mounted = useRef(true);
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
+  const isDirty = [values.titulo, values.historia_como_um, values.historia_eu_quero, values.historia_para_que].some((value) => value.trim().length > 0);
+  const { confirmLeave } = useUnsavedChangesGuard(isDirty);
 
   const featurePath = `/projects/${projectId}/epics/${epicoId}/features/${featureId}`;
 
@@ -100,18 +104,28 @@ export function PbiForm({ projectId, epicoId, featureId }: { projectId: string; 
         {message && <p role="alert">{message}</p>}
         <div className="project-actions">
           <button type="submit" className="btn-primary" disabled={busy}>{busy ? "Criando…" : "Criar PBI"}</button>
-          <button type="button" className="btn-secondary" disabled={busy} onClick={() => navigate(featurePath)}>Voltar à feature</button>
+          <button type="button" className="btn-secondary" disabled={busy} onClick={() => { if (confirmLeave()) navigate(featurePath); }}>Voltar à feature</button>
         </div>
       </form>
     </section>
   );
 }
 
-export function PbiDetail({ projectId, epicoId, featureId, pbiId }: { projectId: string; epicoId: string; featureId: string; pbiId: string }) {
+type PbiFields = Pick<PbiInput, "titulo" | "historia_como_um" | "historia_eu_quero" | "historia_para_que">;
+
+function toFields(pbi: Pbi): PbiFields {
+  return { titulo: pbi.titulo, historia_como_um: pbi.historia_como_um, historia_eu_quero: pbi.historia_eu_quero, historia_para_que: pbi.historia_para_que };
+}
+
+export function PbiDetail({ projectId, epicoId, featureId, pbiId, canEdit }: { projectId: string; epicoId: string; featureId: string; pbiId: string; canEdit: boolean }) {
   const [result, setResult] = useState<{ state: "loading" } | { state: "error"; message: string } | { state: "ready"; pbi: Pbi }>({ state: "loading" });
   const [completing, setCompleting] = useState(false);
   const [completionMessage, setCompletionMessage] = useState("");
   const [attempt, setAttempt] = useState(0);
+  const [editing, setEditing] = useState(false);
+  const [formValues, setFormValues] = useState<PbiFields | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [editMessage, setEditMessage] = useState("");
 
   useEffect(() => {
     const controller = new AbortController();
@@ -125,44 +139,86 @@ export function PbiDetail({ projectId, epicoId, featureId, pbiId }: { projectId:
     return () => controller.abort();
   }, [pbiId, attempt]);
 
+  const pbi = result.state === "ready" ? result.pbi : null;
+  const isDirty = editing && pbi !== null && formValues !== null && JSON.stringify(formValues) !== JSON.stringify(toFields(pbi));
+  const { confirmLeave } = useUnsavedChangesGuard(isDirty);
+
   if (result.state === "loading") return <div className="glass-panel projects-state" role="status">Carregando PBI…</div>;
   if (result.state === "error") return <div className="glass-panel projects-state"><p role="alert">{result.message}</p>
     <button className="btn-secondary" onClick={() => setAttempt((v) => v + 1)}>Tentar novamente</button></div>;
 
-  const { pbi } = result;
+  const readOnly = pbi!.projeto_status === "arquivado";
 
   return (
     <section className="projects-page">
       <div className="projects-heading">
-        <div><p className="projects-eyebrow">Feature: {pbi.feature_titulo}</p><h2>{pbi.codigo} — {pbi.titulo}</h2></div>
-        <button className="btn-secondary" onClick={() => navigate(`/projects/${projectId}/epics/${epicoId}/features/${featureId}`)}>Voltar à feature de origem</button>
+        <div><p className="projects-eyebrow">Feature: {pbi!.feature_titulo}</p><h2>{pbi!.codigo} — {pbi!.titulo}</h2></div>
+        <button className="btn-secondary" onClick={() => { if (confirmLeave()) navigate(`/projects/${projectId}/epics/${epicoId}/features/${featureId}`); }}>Voltar à feature de origem</button>
       </div>
+      {readOnly && <div className="glass-panel projects-state"><p role="status">Este PBI pertence a um projeto arquivado e está disponível apenas para leitura.</p></div>}
       <article className="glass-panel project-card">
-        <span className={`badge ${pbi.status === "concluido" ? "badge-success" : "badge-warning"}`}>{pbi.status}</span>
-        <dl>
-          <dt>COMO UM</dt><dd>{pbi.historia_como_um}</dd>
-          <dt>EU QUERO</dt><dd>{pbi.historia_eu_quero}</dd>
-          <dt>PARA QUE</dt><dd>{pbi.historia_para_que}</dd>
-          <dt>Cenários de aceitação registrados</dt><dd>{pbi.criterios_count}</dd>
-        </dl>
-        {pbi.status === "rascunho" && (
-          <div className="project-actions">
-            <button className="btn-primary" disabled={completing} onClick={async () => {
-              setCompleting(true); setCompletionMessage("");
-              try {
-                const completed = await completePbi(pbi.id);
-                setResult({ state: "ready", pbi: completed });
-              } catch (error) {
-                const campos = camposFaltantesDe(error);
-                setCompletionMessage(campos ? `Faltam preencher: ${descreverCamposFaltantes(campos)}.` : "Não foi possível concluir o PBI.");
-              } finally {
-                setCompleting(false);
-              }
-            }}>{completing ? "Concluindo…" : "Marcar como concluído"}</button>
-          </div>
+        <span className={`badge ${pbi!.status === "concluido" ? "badge-success" : "badge-warning"}`}>{pbi!.status}</span>
+        {editing && formValues ? (
+          <>
+            <div className="project-field"><label htmlFor="edit-titulo">Título</label>
+              <input id="edit-titulo" type="text" disabled={saving} value={formValues.titulo} onChange={(e) => setFormValues((v) => v && { ...v, titulo: e.target.value })} /></div>
+            <div className="project-field"><label htmlFor="edit-como-um">COMO UM</label>
+              <input id="edit-como-um" type="text" disabled={saving} value={formValues.historia_como_um} onChange={(e) => setFormValues((v) => v && { ...v, historia_como_um: e.target.value })} /></div>
+            <div className="project-field"><label htmlFor="edit-eu-quero">EU QUERO</label>
+              <input id="edit-eu-quero" type="text" disabled={saving} value={formValues.historia_eu_quero} onChange={(e) => setFormValues((v) => v && { ...v, historia_eu_quero: e.target.value })} /></div>
+            <div className="project-field"><label htmlFor="edit-para-que">PARA QUE</label>
+              <input id="edit-para-que" type="text" disabled={saving} value={formValues.historia_para_que} onChange={(e) => setFormValues((v) => v && { ...v, historia_para_que: e.target.value })} /></div>
+            {editMessage && <p role="alert">{editMessage}</p>}
+            <div className="project-actions">
+              <button className="btn-primary" disabled={saving} onClick={async () => {
+                if (Object.values(formValues).some((v) => !v.trim())) { setEditMessage("Nenhum campo pode ficar vazio."); return; }
+                setSaving(true); setEditMessage("");
+                try {
+                  const updated = await updatePbi(pbi!.id, formValues);
+                  setResult({ state: "ready", pbi: updated });
+                  setEditing(false);
+                } catch {
+                  setEditMessage("Não foi possível salvar as alterações. Tente novamente.");
+                } finally {
+                  setSaving(false);
+                }
+              }}>{saving ? "Salvando…" : "Salvar alterações"}</button>
+              <button className="btn-secondary" disabled={saving} onClick={() => { if (confirmLeave()) { setEditing(false); setEditMessage(""); } }}>Cancelar</button>
+            </div>
+          </>
+        ) : (
+          <>
+            <dl>
+              <dt>COMO UM</dt><dd>{pbi!.historia_como_um}</dd>
+              <dt>EU QUERO</dt><dd>{pbi!.historia_eu_quero}</dd>
+              <dt>PARA QUE</dt><dd>{pbi!.historia_para_que}</dd>
+              <dt>Cenários de aceitação registrados</dt><dd>{pbi!.criterios_count}</dd>
+            </dl>
+            {!readOnly && canEdit && (
+              <div className="project-actions">
+                <button className="btn-secondary" onClick={() => { setFormValues(toFields(pbi!)); setEditing(true); }}>Editar</button>
+                {pbi!.status === "rascunho" && (
+                  <button className="btn-primary" disabled={completing} onClick={async () => {
+                    setCompleting(true); setCompletionMessage("");
+                    try {
+                      const completed = await completePbi(pbi!.id);
+                      setResult({ state: "ready", pbi: completed });
+                    } catch (error) {
+                      const campos = camposFaltantesDe(error);
+                      setCompletionMessage(campos ? `Faltam preencher: ${descreverCamposFaltantes(campos)}.` : "Não foi possível concluir o PBI.");
+                    } finally {
+                      setCompleting(false);
+                    }
+                  }}>{completing ? "Concluindo…" : "Marcar como concluído"}</button>
+                )}
+              </div>
+            )}
+            {completionMessage && <p role="alert">{completionMessage}</p>}
+          </>
         )}
-        {completionMessage && <p role="alert">{completionMessage}</p>}
       </article>
+      <CriteriaEditor entidadeTipo="pbi" entidadeId={pbi!.id} canEdit={canEdit && !readOnly} titulo="Cenários do PBI" />
+      <CriteriaEditor entidadeTipo="feature" entidadeId={featureId} canEdit={false} titulo="Critérios da feature (consulta)" />
     </section>
   );
 }

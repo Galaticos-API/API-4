@@ -13,6 +13,7 @@ const PROJETO_ARQUIVADO_ID = "d0000000-0000-4000-8000-000000000002";
 class InMemoryEpicsRepository extends EpicsRepository {
   private epics: EpicWithStats[] = [];
   public criteriosPorEpico = new Map<string, number>();
+  public statusPorProjeto = new Map<string, string>([[PROJETO_ID, "ativo"]]);
   private seq = 0;
 
   constructor() { super(); }
@@ -20,7 +21,7 @@ class InMemoryEpicsRepository extends EpicsRepository {
   async findById(id: string): Promise<EpicWithStats | null> {
     const found = this.epics.find((e) => e.id === id);
     if (!found) return null;
-    return { ...found, criterios_count: this.criteriosPorEpico.get(id) ?? 0 };
+    return { ...found, criterios_count: this.criteriosPorEpico.get(id) ?? 0, projeto_status: this.statusPorProjeto.get(found.projeto_id) ?? "ativo" };
   }
 
   async create(data: CreateEpicDTO): Promise<Epic> {
@@ -39,6 +40,7 @@ class InMemoryEpicsRepository extends EpicsRepository {
       updated_at: new Date().toISOString(),
       features_count: 0,
       criterios_count: 0,
+      projeto_status: this.statusPorProjeto.get(data.projeto_id) ?? "ativo",
     };
     this.epics.push(created);
     return created;
@@ -194,6 +196,31 @@ test("impede cadastro de épico em projeto arquivado", async () => {
 
   await assert.rejects(
     async () => await service.create({ projeto_id: PROJETO_ARQUIVADO_ID, titulo: "Épico em projeto arquivado" }),
+    (err: Error) => {
+      assert.ok(err instanceof ValidationError);
+      return true;
+    },
+  );
+});
+
+test("PBI-01.1.5 Cenário 3: impede edição e conclusão de épico cujo projeto foi arquivado", async () => {
+  const { service, epicsRepo, projectsRepo } = setup();
+
+  const created = await service.create({ projeto_id: PROJETO_ID, titulo: "Épico a ser arquivado" });
+  epicsRepo.statusPorProjeto.set(PROJETO_ID, "arquivado");
+  const projeto = projectsRepo.projects.find((p) => p.id === PROJETO_ID);
+  if (projeto) projeto.status = "arquivado";
+
+  await assert.rejects(
+    async () => await service.update(created.id, { titulo: "Tentativa de edição" }),
+    (err: Error) => {
+      assert.ok(err instanceof ValidationError);
+      return true;
+    },
+  );
+
+  await assert.rejects(
+    async () => await service.complete(created.id),
     (err: Error) => {
       assert.ok(err instanceof ValidationError);
       return true;

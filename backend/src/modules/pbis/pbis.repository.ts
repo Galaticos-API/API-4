@@ -10,10 +10,12 @@ const SELECT_WITH_CONTEXT = `
     e.id AS epico_id,
     e.titulo AS epico_titulo,
     e.projeto_id AS projeto_id,
+    pr.status AS projeto_status,
     COALESCE((SELECT COUNT(*)::int FROM criterio_aceitacao c WHERE c.entidade_tipo = 'pbi' AND c.entidade_id = p.id), 0) AS criterios_count
   FROM pbi p
   JOIN feature f ON f.id = p.feature_id
   JOIN epico e ON e.id = f.epico_id
+  JOIN projeto pr ON pr.id = e.projeto_id
 `;
 
 export class PbisRepository {

@@ -8,3 +8,4 @@ const canWrite = requireRole("admin", "po");
 criteriaRouter.post("/", canWrite, criteriaController.create);
 criteriaRouter.get("/", criteriaController.list);
 criteriaRouter.delete("/:id", canWrite, criteriaController.delete);
+criteriaRouter.patch("/:id/move", canWrite, criteriaController.move);

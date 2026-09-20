@@ -51,6 +51,12 @@ export const criterionQuerySchema = z.object({
 
 export type CriterionQueryDTO = z.infer<typeof criterionQuerySchema>;
 
+export const moveCriterionSchema = z.object({
+  direction: z.enum(["up", "down"], { required_error: "A direção do movimento é obrigatória." }),
+});
+
+export type MoveCriterionDTO = z.infer<typeof moveCriterionSchema>;
+
 export interface Criterion {
   id: string;
   entidade_tipo: CriterionEntityType;

@@ -8,10 +8,12 @@ const SELECT_WITH_STATS = `
     f.*,
     e.titulo AS epico_titulo,
     e.projeto_id AS projeto_id,
-    COALESCE((SELECT COUNT(*)::int FROM pbi p WHERE p.feature_id = f.id), 0) AS pbis_count,
+    p.status AS projeto_status,
+    COALESCE((SELECT COUNT(*)::int FROM pbi p2 WHERE p2.feature_id = f.id), 0) AS pbis_count,
     COALESCE((SELECT COUNT(*)::int FROM criterio_aceitacao c WHERE c.entidade_tipo = 'feature' AND c.entidade_id = f.id), 0) AS criterios_count
   FROM feature f
   JOIN epico e ON e.id = f.epico_id
+  JOIN projeto p ON p.id = e.projeto_id
 `;
 
 export class FeaturesRepository {

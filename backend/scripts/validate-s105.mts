@@ -5,6 +5,8 @@ import { join } from "node:path";
 import { randomUUID } from "node:crypto";
 import pg from "pg";
 import { EpicsRepository } from "../src/modules/epics/epics.repository.js";
+import { CriteriaRepository } from "../src/modules/criteria/criteria.repository.js";
+import { ValidationError } from "../src/shared/errors.js";
 
 // Never run fixtures on an application database, even if this variable was set accidentally.
 const connectionString = process.env.S105_TEST_DATABASE_URL;
@@ -77,6 +79,27 @@ try {
       assert.equal((await repo.findById(created.id))?.titulo, "Rollback");
       await assert.rejects(repo.markConcluded(created.id, randomUUID()));
       assert.equal((await repo.findById(created.id))?.status, "rascunho");
+
+      // Two concurrent requests must not both remove the last two criteria from a
+      // completed epic. The repository rechecks the invariant after taking its lock.
+      const completedEpic = await repo.create({ ...data, titulo: "Concorrência" }, null);
+      await pool.query("UPDATE epico SET status='concluido' WHERE id=$1", [completedEpic.id]);
+      const insertedCriteria = await pool.query(
+        "INSERT INTO criterio_aceitacao (entidade_tipo,entidade_id,texto,ordem) VALUES ('epico',$1,'Um',1),('epico',$1,'Dois',2) RETURNING id",
+        [completedEpic.id],
+      );
+      const criteriaRepo = new CriteriaRepository(pool);
+      const concurrentDeletes = await Promise.allSettled(
+        insertedCriteria.rows.map(({ id }) => criteriaRepo.delete(id)),
+      );
+      assert.equal(concurrentDeletes.filter((result) => result.status === "fulfilled").length, 1);
+      const rejected = concurrentDeletes.find((result) => result.status === "rejected");
+      assert.ok(rejected && rejected.status === "rejected");
+      assert.equal((rejected.reason as Error).name, "ValidationError", `Expected ValidationError, received: ${String(rejected.reason)}`);
+      assert.equal(
+        (await pool.query("SELECT COUNT(*)::int AS total FROM criterio_aceitacao WHERE entidade_tipo='epico' AND entidade_id=$1", [completedEpic.id])).rows[0].total,
+        1,
+      );
       console.log(`OK ${scenario}: migrations, repetição, dados preservados e rollback de auditoria`);
     } finally {
       await pool.end();
