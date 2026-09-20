@@ -33,8 +33,8 @@ repoAnalysesRouter.get('/', requireAuth, async (req: any, res) => {
 // Obter detalhes de uma análise específica
 repoAnalysesRouter.get('/:id', requireAuth, async (req: any, res) => {
     try {
-        const { id } = req.params;
-        const analysis = await service.getById(id);
+        const { id, projectId } = req.params;
+        const analysis = await service.getById(projectId, id);
         if (!analysis) {
             return res.status(404).json({ error: 'Análise não encontrada' });
         }

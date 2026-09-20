@@ -20,10 +20,10 @@ export interface RepoAnalysis {
     autor_email?: string;
 }
 
-export async function startRepoAnalysis(projectId: string, input: string, signal?: AbortSignal): Promise<RepoAnalysis> {
+export async function startRepoAnalysis(projectId: string, repositoryUrl: string, signal?: AbortSignal): Promise<RepoAnalysis> {
     const response = await apiRequest(`/projects/${encodeURIComponent(projectId)}/repo-analyses`, {
         method: "POST",
-        body: JSON.stringify(input),
+        body: JSON.stringify({ repositorio_url: repositoryUrl }),
         signal,
     });
     return await response.json();

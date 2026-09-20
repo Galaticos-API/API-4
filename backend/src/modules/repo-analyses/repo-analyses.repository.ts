@@ -18,14 +18,14 @@ export class RepoAnalysesRepository {
         return result.rows[0];
     }
 
-    async findById(id: string): Promise<RepoAnalysisRecord | null> {
+    async findById(id: string, projetoId: string): Promise<RepoAnalysisRecord | null> {
         const query = `
       SELECT ar.*, u.nome as autor_nome, u.email as autor_email
       FROM analise_repositorio ar
       LEFT JOIN usuario u ON ar.usuario_id = u.id
-      WHERE ar.id = $1;
+      WHERE ar.id = $1 AND ar.projeto_id = $2;
     `;
-        const result = await pool.query(query, [id]);
+        const result = await pool.query(query, [id, projetoId]);
         return result.rows[0] || null;
     }
 

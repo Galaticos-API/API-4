@@ -1,5 +1,5 @@
 export type RepoAnalysisStatus = 'iniciado' | 'em_execucao' | 'concluido' | 'falha';
-export type RepoAnalysisStep = 'ollama' | 'clone' | 'scan' | 'files' | 'synthesis' | 'done' | 'error';
+export type RepoAnalysisStep = 'ollama' | 'clone' | 'scan' | 'files' | 'synthesis' | 'done' | 'error' | 'queued';
 
 export interface RepoAnalysisRecord {
     id: string;
@@ -14,7 +14,7 @@ export interface RepoAnalysisRecord {
     mensagem?: string;
     erro?: string;
     relatorio_markdown?: string;
-    metadados?: Record<string, any>;
+    metadados?: Record<string, unknown>;
     created_at: string;
     updated_at: string;
     concluido_em?: string;

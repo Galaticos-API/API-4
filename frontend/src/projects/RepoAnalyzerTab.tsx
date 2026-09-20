@@ -45,7 +45,7 @@ export const RepoAnalyzerTab: React.FC<RepoAnalyzerTabProps> = ({ projectId }) =
             await fetchAnalyses();
             setSelectedAnalysis(newAnalysis);
         } catch (err: any) {
-            setError(err.response?.data?.error || 'Erro ao iniciar análise');
+            setError(err instanceof Error ? err.message : 'Erro ao iniciar análise');
         } finally {
             setLoading(false);
         }
