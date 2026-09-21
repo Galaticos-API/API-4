@@ -20,6 +20,28 @@ class MockAuthRepository {
   public failedLoginCalls = 0;
   public resetCalls = 0;
 
+  async createUser(data: {
+    nome: string;
+    email: string;
+    senha_hash: string;
+    role?: UserRecord["role"];
+  }): Promise<UserRecord> {
+    this.user = {
+      id: "new-user-id",
+      nome: data.nome,
+      email: data.email,
+      senha_hash: data.senha_hash,
+      role: data.role ?? "po",
+      ativo: true,
+      tentativas_login: 0,
+      bloqueado_ate: null,
+      created_at: new Date(),
+      updated_at: new Date(),
+    };
+
+    return this.user;
+  }
+
   async findUserByEmail(
     _email: string,
   ): Promise<UserRecord | null> {
@@ -482,6 +504,8 @@ test("Testes HTTP - Autenticação e sessão", async (t) => {
         };
         return authRepository.user;
       };
+
+      authRepository.user = null;
 
       const registerResponse = await fetch(
         `${baseUrl}/api/v1/auth/register`,

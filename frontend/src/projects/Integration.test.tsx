@@ -8,7 +8,7 @@ import { App } from "../App";
 const user = { id: "user-1", nome: "Pessoa PO", email: "po@example.com", role: "po" };
 const project = { id: "d4b15820-91c0-4bc2-a2d8-21151c9fa385", nome: "Projeto integrado", cliente: "Cliente", descricao: null, status: "em_andamento" };
 const reply = (value: unknown, status = 200) => new Response(JSON.stringify(value), { status });
-afterEach(() => { cleanup(); vi.unstubAllGlobals(); window.history.replaceState(null, "", "/"); });
+afterEach(() => { cleanup(); vi.unstubAllGlobals(); window.history.replaceState(null, "", "/"); window.localStorage.clear(); });
 function mount() { render(<AuthProvider><AuthGate><App /></AuthGate></AuthProvider>); }
 
 it("faz login no destino de projetos, cria e consulta usando o contrato real das APIs", async () => {

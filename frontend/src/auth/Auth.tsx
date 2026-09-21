@@ -9,7 +9,7 @@ const USER_STORAGE_KEY = "app_auth_user";
 const AuthContext = createContext<{
   session: Session;
   notice: string;
-  restore: () => Promise<void>;
+  restore: (hideDuringValidation?: boolean) => Promise<void>;
   login: (email: string, password: string) => Promise<void>;
   register: (nome: string, email: string, password: string, role?: "admin" | "po" | "dev") => Promise<void>;
   logout: () => Promise<void>;
@@ -59,14 +59,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setSession({ status: "anonymous" });
   }, [setSession]);
 
-  const restore = useCallback(async () => {
+  const restore = useCallback(async (hideDuringValidation = false) => {
     const current = ++revision.current;
-    // Só mostra o loading se já não tivermos um usuário em cache para evitar o flash visual no F5
-    if (sessionStatus.current !== "authenticated") {
+
+    if (
+      hideDuringValidation ||
+      sessionStatus.current !== "authenticated"
+    ) {
       setSession({ status: "loading" });
     }
+
     try {
       const user = await readUser(await apiRequest("/auth/me"));
+
       if (current === revision.current) {
         hadSession.current = true;
         setNotice("");
@@ -74,19 +79,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     } catch (error) {
       if (current !== revision.current) return;
+
       if (error instanceof ApiError && error.status === 401) {
-        if (hadSession.current) expire();
-        else setSession({ status: "anonymous" });
-      } else {
-        // Se já temos o usuário em cache, não derrubamos a sessão por instabilidades de rede temporárias
-        if (sessionStatus.current !== "authenticated") {
-          setSession({ status: "error" });
+        if (hadSession.current) {
+          expire();
+        } else {
+          setSession({ status: "anonymous" });
         }
+      } else if (sessionStatus.current !== "authenticated") {
+        setSession({ status: "error" });
       }
     }
   }, [expire, setSession]);
 
-  useEffect(() => { void restore(); return () => { revision.current++; }; }, [restore]);
+  useEffect(() => {
+    void restore();
+    return () => {
+      revision.current++;
+    };
+  }, [restore]);
 
   useEffect(() => {
     window.addEventListener("session-expired", expire);
@@ -94,9 +105,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [expire]);
 
   useEffect(() => {
-    const revalidate = () => { if (sessionStatus.current === "authenticated") void restore(); };
+    const revalidate = () => {
+      if (sessionStatus.current === "authenticated") {
+        void restore(true);
+      }
+    };
+
     window.addEventListener("focus", revalidate);
     window.addEventListener("popstate", revalidate);
+
     return () => {
       window.removeEventListener("focus", revalidate);
       window.removeEventListener("popstate", revalidate);
@@ -169,7 +186,6 @@ export function AuthGate({ children }: { children: ReactNode }) {
 
   const url = new URL(location);
   const isAuthRoute = url.pathname === "/login" || url.pathname === "/register";
-  console.log(url.pathname);
 
 
   useEffect(() => {
@@ -208,24 +224,28 @@ function AuthScreen({ initialMode }: { initialMode: "login" | "register" }) {
   return (
     <main className="auth-shell">
       <section className="glass-panel auth-card">
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <span className="badge badge-info">Sinapse</span>
-          <div style={{ display: "flex", gap: "6px" }}>
+        <div style={{ display: "flex", gap: "6px" }}>
+          {mode === "register" && (
             <button
-              className={mode === "login" ? "btn-primary" : "btn-secondary"}
+              type="button"
+              className="btn-secondary"
               style={{ padding: "4px 12px", fontSize: "0.8rem" }}
               onClick={() => switchMode("login")}
             >
               Entrar
             </button>
+          )}
+
+          {mode === "login" && (
             <button
-              className={mode === "register" ? "btn-primary" : "btn-secondary"}
+              type="button"
+              className="btn-secondary"
               style={{ padding: "4px 12px", fontSize: "0.8rem" }}
               onClick={() => switchMode("register")}
             >
               Cadastrar
             </button>
-          </div>
+          )}
         </div>
 
         {mode === "login" ? <LoginOnCard onSwitch={() => switchMode("register")} /> : <RegisterOnCard onSwitch={() => switchMode("login")} />}
@@ -276,7 +296,9 @@ function LoginOnCard({ onSwitch }: { onSwitch: () => void }) {
         <input id="login-password" type="password" autoComplete="current-password" required value={password} onChange={e => setPassword(e.target.value)} disabled={busy} placeholder="••••••••" />
 
         {error && <p role="alert">{error}</p>}
-        <button className="btn-primary" disabled={busy} type="submit">{busy ? "Entrando…" : "Entrar"}</button>
+        <button className="btn-primary" disabled={busy} type="submit">
+          {busy ? "Entrando…" : "Entrar"}
+        </button>
       </form>
 
       <div style={{ textAlign: "center", marginTop: "8px", fontSize: "0.85rem", color: "var(--text-muted)" }}>

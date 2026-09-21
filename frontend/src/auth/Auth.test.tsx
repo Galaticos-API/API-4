@@ -16,9 +16,16 @@ function Content() {
   </div>;
 }
 function mount() { render(<AuthProvider><AuthGate><Content /></AuthGate></AuthProvider>); }
-beforeEach(() => { window.history.replaceState(null, "", "/"); });
-afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
+beforeEach(() => {
+  window.history.replaceState(null, "", "/");
+  window.localStorage.clear();
+});
 
+afterEach(() => {
+  cleanup();
+  vi.unstubAllGlobals();
+  window.localStorage.clear();
+});
 it("adapta o usuário da S1-01 e rejeita um contrato de sessão inválido", async () => {
   await expect(readUser(new Response(JSON.stringify({ user })))).resolves.toEqual({
     id: user.id, name: user.nome, email: user.email, role: user.role,
