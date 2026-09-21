@@ -29,7 +29,12 @@ export class PbisService {
       throw new ValidationError("Não é possível cadastrar PBIs em um projeto arquivado.");
     }
 
-    return await this.repository.create(dto, usuarioId);
+    const created = await this.repository.create(dto, usuarioId);
+    
+    const qualityReport = await this.qualityChecker.validatePbi(created.id);
+    created.score_completude = qualityReport.score_completude;
+    
+    return created;
   }
 
   async list(queryInput: unknown): Promise<PaginatedPbis> {
@@ -39,7 +44,13 @@ export class PbisService {
       throw new ValidationError(issue.message, parseResult.error.format());
     }
 
-    return await this.repository.findAll(parseResult.data);
+    const page = await this.repository.findAll(parseResult.data);
+    const reports = await this.qualityChecker.validatePbis(page.items);
+    const items = page.items.map((pbi) => ({
+      ...pbi,
+      score_completude: reports.get(pbi.id)?.score_completude ?? null,
+    }));
+    return { ...page, items };
   }
 
   async getById(id: string): Promise<PbiWithContext> {
@@ -50,7 +61,8 @@ export class PbisService {
       throw new NotFoundError("PBI não encontrado.");
     }
 
-    return pbi;
+    const report = await this.qualityChecker.validatePbi(id);
+    return { ...pbi, score_completude: report.score_completude };
   }
 
   async update(id: string, input: unknown, usuarioId?: string | null): Promise<PbiWithContext> {
@@ -72,6 +84,9 @@ export class PbisService {
     if (!updated) {
       throw new NotFoundError("PBI não encontrado.");
     }
+
+    const qualityReport = await this.qualityChecker.validatePbi(id);
+    updated.score_completude = qualityReport.score_completude;
 
     return updated;
   }

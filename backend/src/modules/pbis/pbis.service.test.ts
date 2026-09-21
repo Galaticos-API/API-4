@@ -39,6 +39,7 @@ class InMemoryPbisRepository extends PbisRepository {
       regras_observacoes: data.regras_observacoes?.trim() ?? null,
       tipo: data.tipo,
       prioridade: data.prioridade,
+      requer_interface: data.requer_interface,
       status: "rascunho",
       score_completude: 0,
       provenance: "human-authored",
@@ -54,6 +55,11 @@ class InMemoryPbisRepository extends PbisRepository {
   async findAll(query: PbiQueryDTO): Promise<PaginatedPbis> {
     const items = this.pbis.filter((p) => !query.feature_id || p.feature_id === query.feature_id);
     return { items, total: items.length, limit: query.limit, offset: query.offset };
+  }
+
+  setCachedScore(id: string, score: number): void {
+    const pbi = this.pbis.find((item) => item.id === id);
+    if (pbi) pbi.score_completude = score;
   }
 
   async markConcluded(id: string): Promise<PbiWithContext | null> {
@@ -78,6 +84,10 @@ class StubCriteriaRepository extends CriteriaRepository {
   async listByEntity(_tipo: CriterionEntityType, id: string): Promise<Criterion[]> {
     return this.cenariosPorPbi.get(id) ?? [];
   }
+
+  async listByEntities(_tipo: CriterionEntityType, ids: string[]): Promise<Criterion[]> {
+    return ids.flatMap((id) => this.cenariosPorPbi.get(id) ?? []);
+  }
 }
 
 function setup() {
@@ -88,7 +98,7 @@ function setup() {
     id: FEATURE_ID, epico_id: "c0000000-0000-4000-8000-000000000001", titulo: "Feature base", descricao: null, objetivo: null,
     prioridade: "Must", status: "rascunho", created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
   });
-  const service = new PbisService(pbisRepo, featuresRepo, new QualityService(criteriaRepo));
+  const service = new PbisService(pbisRepo, featuresRepo, new QualityService(criteriaRepo, pbisRepo));
   return { service, pbisRepo, featuresRepo, criteriaRepo };
 }
 
@@ -105,6 +115,32 @@ test("PBI-01.1.4 Cenário 1: cria PBI com história completa vinculado à featur
 
   assert.equal(result.status, "rascunho");
   assert.match(result.codigo, /^PBI-\d{3}$/);
+  assert.equal(result.requer_interface, false);
+});
+
+test("listagem recalcula completude quando os cenários mudam sem confiar no valor persistido", async () => {
+  const { service, pbisRepo, criteriaRepo } = setup();
+  const created = await service.create({
+    feature_id: FEATURE_ID,
+    titulo: "Cadastrar item",
+    historia_como_um: "Product Owner",
+    historia_eu_quero: "cadastrar item",
+    historia_para_que: "organizar backlog",
+  });
+
+  pbisRepo.setCachedScore(created.id, 0);
+  criteriaRepo.cenariosPorPbi.set(created.id, [{
+    id: "criterion-1", entidade_tipo: "pbi", entidade_id: created.id, texto: null,
+    nome: "Cenário", dado: "usuário autenticado", quando: "confirmar", entao: "item criado",
+    ordem: 1, created_at: new Date().toISOString(),
+  }]);
+  const withScenario = await service.list({ feature_id: FEATURE_ID });
+  assert.equal(withScenario.items[0].score_completude, 100);
+
+  pbisRepo.setCachedScore(created.id, 100);
+  criteriaRepo.cenariosPorPbi.set(created.id, []);
+  const withoutScenario = await service.list({ feature_id: FEATURE_ID });
+  assert.equal(withoutScenario.items[0].score_completude, 75);
 });
 
 test("PBI-01.1.4 Cenário 3: impede conclusão sem nenhum cenário de aceitação", async () => {

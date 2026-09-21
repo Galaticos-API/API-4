@@ -14,9 +14,11 @@
 .project-form { max-width: 720px; padding: 28px; display: grid; gap: 20px; }
 .project-field { display: grid; gap: 8px; }
 .project-field input, .project-field textarea { width: 100%; background: var(--bg-secondary); color: var(--text-primary); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); padding: 12px; font: inherit; }
+.project-field input[type="checkbox"] { width: auto; padding: 0; accent-color: var(--accent-primary); }
 .project-field textarea { resize: vertical; }
 .project-field textarea:focus-visible { outline: 2px solid var(--accent-secondary); outline-offset: 3px; }
 .project-field [aria-invalid="true"] { border-color: #fca5a5; }
 .projects-page [role="alert"] { color: #fca5a5; }
 .project-actions { display: flex; flex-wrap: wrap; gap: 12px; }
+.badge-error { background: rgba(244, 67, 54, 0.2); color: #fca5a5; }
 @media (max-width: 900px) { .projects-heading { align-items: flex-start; flex-direction: column; } header > div { flex-wrap: wrap; } }

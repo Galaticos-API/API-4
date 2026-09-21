@@ -38,6 +38,26 @@ O ecossistema é distribuído em microsserviços conteinerizados e locais:
 | **Frontend** | React 19 / Vite / TS | `5173` | SPA para Product Owners (gestão hierárquica de PBIs, acervo e chat fundamentado). |
 | **Serviço de IA** | Python 3.11+ / FastAPI | `8000` | Chunking unificado, cálculo de vetores, Harness PRO4TECH e montagem de contexto RAG. |
 
+### Qualidade e completude de PBIs
+
+O backend calcula o indicador de completude a partir das regras determinísticas
+ativas para PBIs (título, história, cenários, termos vagos e protótipo); ele não
+depende do valor em cache da coluna de score. No cadastro do PBI, o PO informa
+explicitamente se ele exige interface/protótipo. A verificação de protótipo só
+entra no cálculo quando esse campo está ativo e consulta a tabela `prototipo`.
+A política atual é persistida no PostgreSQL e pode ser consultada ou alterada por administradores em
+`GET /api/v1/quality/configuration/pbi` e `PUT /api/v1/quality/configuration/pbi`.
+As alterações são versionadas e auditadas. A migration correspondente é a
+`008_quality_organization_configuration.sql` e a regra por interface é
+introduzida por `009_pbi_interface_quality.sql`; veja o [guia de migrations](database/migrations/README.md)
+e o [contrato OpenAPI](docs/api/openapi.yaml).
+
+**Escopo restante:** configuração de qualidade para épicos/features e regras de
+Definition of Ready/Done ainda não estão incluídas nesta entrega. A migration
+009 adiciona o campo explícito ao PBI e a verificação de protótipo à configuração
+versionada. Consulte a [revisão QA da PR #26](docs/qa/revisao-pr-26.md) para
+verificações, limites e status de aceite.
+
 ---
 
 ## 🚀 Inicialização Rápida

@@ -84,3 +84,26 @@ it("PBI-01.1.4 Cenário 2: apresenta os três blocos da história como campos di
   expect(screen.getByLabelText("EU QUERO (obrigatório)")).toBeTruthy();
   expect(screen.getByLabelText("PARA QUE (obrigatório)")).toBeTruthy();
 });
+
+it("registra se um PBI exige interface para aplicar a regra de protótipo", async () => {
+  const request = vi.fn(async (url: string, init?: RequestInit) => {
+    if (url === "/api/v1/pbis" && init?.method === "POST") return response({
+      id: "pbi-ui", feature_id: "feature-1", codigo: "PBI-001", titulo: "Exibir painel",
+      historia_como_um: "PO", historia_eu_quero: "exibir painel", historia_para_que: "acompanhar dados",
+      requer_interface: true, status: "rascunho",
+    }, 201);
+    throw new Error(`Requisição inesperada: ${url}`);
+  });
+  vi.stubGlobal("fetch", request);
+  render(<Projects pathname="/projects/project-1/epics/epic-1/features/feature-1/pbis/new" />);
+  fireEvent.change(screen.getByLabelText("Título (obrigatório, verbo no infinitivo)"), { target: { value: "Exibir painel" } });
+  fireEvent.change(screen.getByLabelText("COMO UM (obrigatório)"), { target: { value: "PO" } });
+  fireEvent.change(screen.getByLabelText("EU QUERO (obrigatório)"), { target: { value: "exibir painel" } });
+  fireEvent.change(screen.getByLabelText("PARA QUE (obrigatório)"), { target: { value: "acompanhar dados" } });
+  fireEvent.click(screen.getByLabelText("Este PBI exige interface ou protótipo visual"));
+  fireEvent.click(screen.getByRole("button", { name: "Criar PBI" }));
+
+  await waitFor(() => expect(window.location.pathname).toBe("/projects/project-1/epics/epic-1/features/feature-1/pbis/pbi-ui"));
+  const body = JSON.parse(request.mock.calls[0][1]?.body as string);
+  expect(body.requer_interface).toBe(true);
+});

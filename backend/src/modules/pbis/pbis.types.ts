@@ -28,6 +28,7 @@ export const createPbiSchema = z.object({
   regras_observacoes: z.string().trim().optional().nullable(),
   tipo: z.string().trim().min(1).max(50).default("Funcional"),
   prioridade: z.enum(PBI_PRIORITIES).default("Must"),
+  requer_interface: z.boolean().default(false),
 });
 
 export type CreatePbiDTO = z.infer<typeof createPbiSchema>;
@@ -40,6 +41,7 @@ export const updatePbiSchema = z.object({
   regras_observacoes: z.string().trim().optional().nullable(),
   tipo: z.string().trim().min(1).max(50).optional(),
   prioridade: z.enum(PBI_PRIORITIES).optional(),
+  requer_interface: z.boolean().optional(),
   justificativa: z.string().trim().optional().nullable(),
 });
 
@@ -65,8 +67,10 @@ export interface Pbi {
   regras_observacoes: string | null;
   tipo: string;
   prioridade: PbiPriority;
+  requer_interface: boolean;
+  prototipo_vinculado?: boolean;
   status: PbiStatus;
-  score_completude: number;
+  score_completude: number | null;
   provenance: string;
   created_at: Date | string;
   updated_at: Date | string;

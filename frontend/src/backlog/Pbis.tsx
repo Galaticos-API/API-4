@@ -1,14 +1,14 @@
 import { useEffect, useRef, useState } from "react";
 import { ApiError } from "../auth/api";
 import { navigate } from "./navigation";
-import { createPbi, completePbi, updatePbi, getPbi, listPbis, camposFaltantesDe, type Pbi, type PbiInput } from "./api";
+import { createPbi, completePbi, updatePbi, getPbi, listPbis, getPbiCompleteness, hasCompletudeIndicator, camposFaltantesDe, type Pbi, type PbiInput, type QualityReport } from "./api";
 import { descreverCamposFaltantes } from "./fields";
 import { useUnsavedChangesGuard } from "./useUnsavedChangesGuard";
 import { CriteriaEditor } from "./Criteria";
 import "../projects/projects.css";
 
 type ListResult = { state: "loading" } | { state: "error"; message: string } | { state: "ready"; pbis: Pbi[] };
-const emptyInput: PbiInput = { feature_id: "", titulo: "", historia_como_um: "", historia_eu_quero: "", historia_para_que: "" };
+const emptyInput: PbiInput = { feature_id: "", titulo: "", historia_como_um: "", historia_eu_quero: "", historia_para_que: "", requer_interface: false };
 
 export function PbiList({ projectId, epicoId, featureId, canCreate }: { projectId: string; epicoId: string; featureId: string; canCreate: boolean }) {
   const [result, setResult] = useState<ListResult>({ state: "loading" });
@@ -27,6 +27,7 @@ export function PbiList({ projectId, epicoId, featureId, canCreate }: { projectI
   }, [featureId, attempt]);
 
   const newPath = `/projects/${projectId}/epics/${epicoId}/features/${featureId}/pbis/new`;
+  const getCompletudeColor = (score: number) => score >= 80 ? "badge-success" : score >= 50 ? "badge-warning" : "badge-error";
 
   return (
     <section className="projects-page">
@@ -42,7 +43,10 @@ export function PbiList({ projectId, epicoId, featureId, canCreate }: { projectI
           {canCreate && <button className="btn-primary" onClick={() => navigate(newPath)}>Criar primeiro PBI</button>}</div>
         : <div className="projects-grid">{result.pbis.map((pbi) => (
           <article className="glass-panel project-card" key={pbi.id}>
-            <span className={`badge ${pbi.status === "concluido" ? "badge-success" : "badge-warning"}`}>{pbi.status}</span>
+            <div style={{ display: "flex", justifyContent: "space-between", gap: "8px" }}>
+              <span className={`badge ${pbi.status === "concluido" ? "badge-success" : "badge-warning"}`}>{pbi.status}</span>
+              {hasCompletudeIndicator(pbi.score_completude) && <span className={`badge ${getCompletudeColor(pbi.score_completude ?? 0)}`}>{pbi.score_completude}% completo</span>}
+            </div>
             <h4>{pbi.codigo} — {pbi.titulo}</h4>
             <p className="project-excerpt">{pbi.historia_eu_quero || "Sem intenção registrada."}</p>
             <button className="btn-secondary" onClick={() => navigate(`/projects/${projectId}/epics/${epicoId}/features/${featureId}/pbis/${pbi.id}`)}>Ver PBI</button>
@@ -59,7 +63,7 @@ export function PbiForm({ projectId, epicoId, featureId }: { projectId: string; 
   const submitting = useRef(false);
   const mounted = useRef(true);
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
-  const isDirty = [values.titulo, values.historia_como_um, values.historia_eu_quero, values.historia_para_que].some((value) => value.trim().length > 0);
+  const isDirty = values.requer_interface || [values.titulo, values.historia_como_um, values.historia_eu_quero, values.historia_para_que].some((value) => value.trim().length > 0);
   const { confirmLeave } = useUnsavedChangesGuard(isDirty);
 
   const featurePath = `/projects/${projectId}/epics/${epicoId}/features/${featureId}`;
@@ -101,6 +105,9 @@ export function PbiForm({ projectId, epicoId, featureId }: { projectId: string; 
           <label htmlFor="historia_para_que">PARA QUE (obrigatório)</label>
           <input id="historia_para_que" name="historia_para_que" type="text" disabled={busy} value={values.historia_para_que} onChange={(e) => setValues((v) => ({ ...v, historia_para_que: e.target.value }))} />
         </div>
+        <div className="project-field">
+          <label><input type="checkbox" checked={values.requer_interface} disabled={busy} onChange={(e) => setValues((v) => ({ ...v, requer_interface: e.target.checked }))} /> Este PBI exige interface ou protótipo visual</label>
+        </div>
         {message && <p role="alert">{message}</p>}
         <div className="project-actions">
           <button type="submit" className="btn-primary" disabled={busy}>{busy ? "Criando…" : "Criar PBI"}</button>
@@ -111,10 +118,10 @@ export function PbiForm({ projectId, epicoId, featureId }: { projectId: string; 
   );
 }
 
-type PbiFields = Pick<PbiInput, "titulo" | "historia_como_um" | "historia_eu_quero" | "historia_para_que">;
+type PbiFields = Pick<PbiInput, "titulo" | "historia_como_um" | "historia_eu_quero" | "historia_para_que" | "requer_interface">;
 
 function toFields(pbi: Pbi): PbiFields {
-  return { titulo: pbi.titulo, historia_como_um: pbi.historia_como_um, historia_eu_quero: pbi.historia_eu_quero, historia_para_que: pbi.historia_para_que };
+  return { titulo: pbi.titulo, historia_como_um: pbi.historia_como_um, historia_eu_quero: pbi.historia_eu_quero, historia_para_que: pbi.historia_para_que, requer_interface: pbi.requer_interface };
 }
 
 export function PbiDetail({ projectId, epicoId, featureId, pbiId, canEdit }: { projectId: string; epicoId: string; featureId: string; pbiId: string; canEdit: boolean }) {
@@ -126,6 +133,7 @@ export function PbiDetail({ projectId, epicoId, featureId, pbiId, canEdit }: { p
   const [formValues, setFormValues] = useState<PbiFields | null>(null);
   const [saving, setSaving] = useState(false);
   const [editMessage, setEditMessage] = useState("");
+  const [qualityResult, setQualityResult] = useState<{ state: "loading" } | { state: "error" } | { state: "ready"; quality: QualityReport }>({ state: "loading" });
 
   useEffect(() => {
     const controller = new AbortController();
@@ -136,6 +144,15 @@ export function PbiDetail({ projectId, epicoId, featureId, pbiId, canEdit }: { p
         if (controller.signal.aborted) return;
         setResult({ state: "error", message: error instanceof ApiError && error.status === 404 ? "PBI não encontrado." : "Não foi possível carregar o PBI." });
       });
+    return () => controller.abort();
+  }, [pbiId, attempt]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    setQualityResult({ state: "loading" });
+    getPbiCompleteness(pbiId, controller.signal)
+      .then((quality) => { if (!controller.signal.aborted) setQualityResult({ state: "ready", quality }); })
+      .catch(() => { if (!controller.signal.aborted) setQualityResult({ state: "error" }); });
     return () => controller.abort();
   }, [pbiId, attempt]);
 
@@ -157,7 +174,10 @@ export function PbiDetail({ projectId, epicoId, featureId, pbiId, canEdit }: { p
       </div>
       {readOnly && <div className="glass-panel projects-state"><p role="status">Este PBI pertence a um projeto arquivado e está disponível apenas para leitura.</p></div>}
       <article className="glass-panel project-card">
-        <span className={`badge ${pbi!.status === "concluido" ? "badge-success" : "badge-warning"}`}>{pbi!.status}</span>
+        <div style={{ display: "flex", justifyContent: "space-between", gap: "8px", marginBottom: "16px" }}>
+          <span className={`badge ${pbi!.status === "concluido" ? "badge-success" : "badge-warning"}`}>{pbi!.status}</span>
+          {hasCompletudeIndicator(pbi!.score_completude) && <span className={`badge ${pbi!.score_completude! >= 80 ? "badge-success" : pbi!.score_completude! >= 50 ? "badge-warning" : "badge-error"}`}>{pbi!.score_completude}% completo</span>}
+        </div>
         {editing && formValues ? (
           <>
             <div className="project-field"><label htmlFor="edit-titulo">Título</label>
@@ -168,15 +188,17 @@ export function PbiDetail({ projectId, epicoId, featureId, pbiId, canEdit }: { p
               <input id="edit-eu-quero" type="text" disabled={saving} value={formValues.historia_eu_quero} onChange={(e) => setFormValues((v) => v && { ...v, historia_eu_quero: e.target.value })} /></div>
             <div className="project-field"><label htmlFor="edit-para-que">PARA QUE</label>
               <input id="edit-para-que" type="text" disabled={saving} value={formValues.historia_para_que} onChange={(e) => setFormValues((v) => v && { ...v, historia_para_que: e.target.value })} /></div>
+            <div className="project-field"><label><input type="checkbox" checked={formValues.requer_interface} disabled={saving} onChange={(e) => setFormValues((v) => v && { ...v, requer_interface: e.target.checked })} /> Este PBI exige interface ou protótipo visual</label></div>
             {editMessage && <p role="alert">{editMessage}</p>}
             <div className="project-actions">
               <button className="btn-primary" disabled={saving} onClick={async () => {
-                if (Object.values(formValues).some((v) => !v.trim())) { setEditMessage("Nenhum campo pode ficar vazio."); return; }
+                if ([formValues.titulo, formValues.historia_como_um, formValues.historia_eu_quero, formValues.historia_para_que].some((v) => !v.trim())) { setEditMessage("Nenhum campo pode ficar vazio."); return; }
                 setSaving(true); setEditMessage("");
                 try {
                   const updated = await updatePbi(pbi!.id, formValues);
                   setResult({ state: "ready", pbi: updated });
                   setEditing(false);
+                  setAttempt((value) => value + 1);
                 } catch {
                   setEditMessage("Não foi possível salvar as alterações. Tente novamente.");
                 } finally {
@@ -192,8 +214,19 @@ export function PbiDetail({ projectId, epicoId, featureId, pbiId, canEdit }: { p
               <dt>COMO UM</dt><dd>{pbi!.historia_como_um}</dd>
               <dt>EU QUERO</dt><dd>{pbi!.historia_eu_quero}</dd>
               <dt>PARA QUE</dt><dd>{pbi!.historia_para_que}</dd>
+              <dt>Exige interface/protótipo</dt><dd>{pbi!.requer_interface ? "Sim" : "Não"}</dd>
               <dt>Cenários de aceitação registrados</dt><dd>{pbi!.criterios_count}</dd>
             </dl>
+            {qualityResult.state === "ready" && qualityResult.quality.score_completude !== null && (
+              <section aria-label="Relatório de qualidade" style={{ marginTop: "20px" }}>
+                <h4>Relatório de qualidade</h4>
+                <ul>
+                  {qualityResult.quality.checks.map((check) => <li key={check.check_id}>
+                    {check.passed ? "✓" : "✗"} {check.check_name}: {check.message}
+                  </li>)}
+                </ul>
+              </section>
+            )}
             {!readOnly && canEdit && (
               <div className="project-actions">
                 <button className="btn-secondary" onClick={() => { setFormValues(toFields(pbi!)); setEditing(true); }}>Editar</button>
@@ -203,6 +236,7 @@ export function PbiDetail({ projectId, epicoId, featureId, pbiId, canEdit }: { p
                     try {
                       const completed = await completePbi(pbi!.id);
                       setResult({ state: "ready", pbi: completed });
+                      setAttempt((value) => value + 1);
                     } catch (error) {
                       const campos = camposFaltantesDe(error);
                       setCompletionMessage(campos ? `Faltam preencher: ${descreverCamposFaltantes(campos)}.` : "Não foi possível concluir o PBI.");

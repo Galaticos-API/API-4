@@ -111,6 +111,15 @@ export class CriteriaRepository {
     return result.rows;
   }
 
+  async listByEntities(tipo: CriterionEntityType, entidadeIds: string[]): Promise<Criterion[]> {
+    if (entidadeIds.length === 0) return [];
+    const result = await this.pool.query<Criterion>(
+      `SELECT * FROM criterio_aceitacao WHERE entidade_tipo = $1 AND entidade_id = ANY($2::uuid[]) ORDER BY entidade_id, ordem ASC`,
+      [tipo, entidadeIds],
+    );
+    return result.rows;
+  }
+
   async countByEntity(tipo: CriterionEntityType, entidadeId: string): Promise<number> {
     const result = await this.pool.query<{ total: number }>(
       `SELECT COUNT(*)::int AS total FROM criterio_aceitacao WHERE entidade_tipo = $1 AND entidade_id = $2`,

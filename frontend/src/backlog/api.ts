@@ -45,6 +45,7 @@ export interface PbiInput {
   historia_como_um: string;
   historia_eu_quero: string;
   historia_para_que: string;
+  requer_interface: boolean;
 }
 
 export interface Pbi extends PbiInput {
@@ -57,10 +58,32 @@ export interface Pbi extends PbiInput {
   epico_titulo: string;
   projeto_id: string;
   projeto_status: string;
+  score_completude: number | null;
+  prototipo_vinculado?: boolean;
 }
 
 export interface CompletionError {
   campos_faltantes: string[];
+}
+
+export function hasCompletudeIndicator(score: number | null): score is number {
+  return score !== null;
+}
+
+export interface QualityCheckResult {
+  check_id: string;
+  check_name: string;
+  passed: boolean;
+  message: string;
+  applicable: boolean;
+}
+
+export interface QualityReport {
+  entity_type: string;
+  entity_id: string;
+  rule_version: string;
+  checks: QualityCheckResult[];
+  score_completude: number | null;
 }
 
 export function camposFaltantesDe(error: unknown): string[] | null {
@@ -122,10 +145,13 @@ function parsePbi(value: unknown): Pbi {
     id: pbi.id, feature_id: pbi.feature_id, codigo: asText(pbi.codigo), titulo: pbi.titulo,
     historia_como_um: asText(pbi.historia_como_um), historia_eu_quero: asText(pbi.historia_eu_quero),
     historia_para_que: asText(pbi.historia_para_que),
+    requer_interface: pbi.requer_interface === true,
+    prototipo_vinculado: pbi.prototipo_vinculado === true,
     status: (pbi.status as BacklogStatus) ?? "rascunho",
     criterios_count: Number(pbi.criterios_count ?? 0),
     feature_titulo: asText(pbi.feature_titulo), epico_id: asText(pbi.epico_id),
     epico_titulo: asText(pbi.epico_titulo), projeto_id: asText(pbi.projeto_id),
+    score_completude: pbi.score_completude === null || pbi.score_completude === undefined ? null : Number(pbi.score_completude),
     projeto_status: asText(pbi.projeto_status),
   };
 }
@@ -208,6 +234,27 @@ export interface PbiQualityReport {
 
 export async function getPbiQuality(id: string, signal: AbortSignal): Promise<PbiQualityReport> {
   return await (await apiRequest(`/pbis/${encodeURIComponent(id)}/quality`, { signal })).json();
+}
+
+export async function getPbiCompleteness(id: string, signal: AbortSignal): Promise<QualityReport> {
+  const data = await (await apiRequest(`/quality/pbis/${encodeURIComponent(id)}/quality`, { signal })).json();
+  if (!data || typeof data !== "object" || !Array.isArray(data.checks)) throw new Error("Resposta de completude inválida");
+  return {
+    entity_type: asText(data.entity_type),
+    entity_id: asText(data.entity_id),
+    rule_version: asText(data.rule_version),
+    checks: data.checks.map((check: unknown) => {
+      const value = check as Record<string, unknown>;
+      return {
+        check_id: asText(value.check_id),
+        check_name: asText(value.check_name),
+        passed: value.passed === true,
+        message: asText(value.message),
+        applicable: value.applicable === true,
+      };
+    }),
+    score_completude: data.score_completude === null ? null : Number(data.score_completude),
+  };
 }
 
 // =======================================

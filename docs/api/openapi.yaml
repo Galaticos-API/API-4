@@ -768,6 +768,82 @@ paths:
         '404':
           description: PBI não encontrado
 
+  /api/v1/quality/pbis/{id}/quality:
+    get:
+      summary: Calcula o indicador de completude sobre o checklist vigente do PBI (PBI-01.3.6 / S1-15)
+      operationId: getPbiCompleteness
+      description: >-
+        Calcula a proporção sem pesos das verificações habilitadas e aplicáveis. A verificação
+        de protótipo só se aplica quando `requer_interface` é verdadeiro e consulta os protótipos
+        vinculados ao PBI. Verificações
+        não aplicáveis não são retornadas nem entram no denominador. O valor é calculado na
+        consulta, não confiando no score persistido. A resposta informa a versão do conjunto
+        de regras usado. A política organizacional é lida da configuração administrativa vigente.
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Indicador e verificações consideradas
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PbiCompletenessReport'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: PBI não encontrado
+
+  /api/v1/quality/configuration/pbi:
+    get:
+      summary: Consulta a política organizacional das verificações de qualidade de PBI (S2-19 parcial)
+      operationId: getPbiQualityConfiguration
+      security:
+        - cookieAuth: []
+      responses:
+        '200':
+          description: Política vigente, versão e dados de auditoria da última alteração
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PbiQualityConfiguration'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    put:
+      summary: Atualiza verificações habilitadas e termos vagos organizacionais (somente admin)
+      operationId: updatePbiQualityConfiguration
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PbiQualityConfigurationInput'
+      responses:
+        '200':
+          description: Nova configuração versionada, registrada com autor, data e trilha de auditoria
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PbiQualityConfiguration'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Apenas administradores podem alterar a configuração
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
   /api/v1/criteria:
     post:
       summary: Registra um critério de aceitação polimórfico (PBI-01.2.1, PBI-01.2.2, PBI-01.2.3 / S1-10)
@@ -1356,6 +1432,10 @@ components:
           type: string
           enum: [Must, Should, Could]
           default: Must
+        requer_interface:
+          type: boolean
+          default: false
+          description: Define explicitamente se a verificação de protótipo deve ser aplicada ao PBI.
 
     UpdatePbiRequest:
       type: object
@@ -1381,12 +1461,14 @@ components:
         prioridade:
           type: string
           enum: [Must, Should, Could]
+        requer_interface:
+          type: boolean
         justificativa:
           type: string
 
     PbiResponse:
       type: object
-      required: [id, feature_id, codigo, titulo, historia_como_um, historia_eu_quero, historia_para_que, status, created_at, updated_at]
+      required: [id, feature_id, codigo, titulo, historia_como_um, historia_eu_quero, historia_para_que, requer_interface, status, created_at, updated_at]
       properties:
         id:
           type: string
@@ -1412,6 +1494,12 @@ components:
         prioridade:
           type: string
           enum: [Must, Should, Could]
+        requer_interface:
+          type: boolean
+          description: Indica se a regra de protótipo é aplicável a este PBI.
+        prototipo_vinculado:
+          type: boolean
+          description: Indica se há ao menos um protótipo registrado para este PBI.
         status:
           type: string
           enum: [rascunho, concluido]
@@ -1569,6 +1657,78 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/VagueTermOccurrence'
+
+    PbiCompletenessReport:
+      type: object
+      required: [entity_type, entity_id, rule_version, checks, score_completude]
+      properties:
+        entity_type:
+          type: string
+          enum: [pbi]
+        entity_id:
+          type: string
+          format: uuid
+        rule_version:
+          type: string
+          description: Versão do conjunto atual de verificações considerado no cálculo.
+        checks:
+          type: array
+          items:
+            type: object
+            required: [check_id, check_name, passed, message, applicable]
+            properties:
+              check_id:
+                type: string
+              check_name:
+                type: string
+              passed:
+                type: boolean
+              message:
+                type: string
+              applicable:
+                type: boolean
+                enum: [true]
+        score_completude:
+          type: integer
+          minimum: 0
+          maximum: 100
+          nullable: true
+
+    PbiQualityConfigurationInput:
+      type: object
+      additionalProperties: false
+      required: [checks, vague_terms]
+      properties:
+        checks:
+          type: object
+          additionalProperties: false
+          required: [titulo_infinitivo, historia_completa, cenario_estruturado, termos_vagos, prototipo_vinculado]
+          properties:
+            titulo_infinitivo: { type: boolean }
+            historia_completa: { type: boolean }
+            cenario_estruturado: { type: boolean }
+            termos_vagos: { type: boolean }
+            prototipo_vinculado: { type: boolean }
+        vague_terms:
+          type: array
+          maxItems: 100
+          items: { type: string, minLength: 1, maxLength: 80 }
+
+    PbiQualityConfiguration:
+      allOf:
+        - $ref: '#/components/schemas/PbiQualityConfigurationInput'
+        - type: object
+          required: [rule_version, updated_at, updated_by]
+          properties:
+            rule_version: { type: string, example: pbi-quality-v2 }
+            updated_at: { type: string, format: date-time }
+            updated_by:
+              type: object
+              nullable: true
+              required: [id, nome]
+              properties:
+                id: { type: string, format: uuid }
+                nome: { type: string }
 
     IngestDocumentRequest:
       type: object
