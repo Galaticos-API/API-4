@@ -768,6 +768,36 @@ paths:
         '404':
           description: PBI não encontrado
 
+  /api/v1/quality/pbis/{id}/quality:
+    get:
+      summary: Calcula o indicador de completude sobre o checklist vigente do PBI (PBI-01.3.6 / S1-15)
+      operationId: getPbiCompleteness
+      description: >-
+        Calcula a proporção sem pesos das verificações habilitadas e aplicáveis. Verificações
+        não aplicáveis não são retornadas nem entram no denominador. O valor é calculado na
+        consulta, não confiando no score persistido. A resposta informa a versão do conjunto
+        de regras usado. A configuração administrativa é entregue separadamente em S2-19.
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Indicador e verificações consideradas
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PbiCompletenessReport'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: PBI não encontrado
+
   /api/v1/criteria:
     post:
       summary: Registra um critério de aceitação polimórfico (PBI-01.2.1, PBI-01.2.2, PBI-01.2.3 / S1-10)
@@ -1569,6 +1599,42 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/VagueTermOccurrence'
+
+    PbiCompletenessReport:
+      type: object
+      required: [entity_type, entity_id, rule_version, checks, score_completude]
+      properties:
+        entity_type:
+          type: string
+          enum: [pbi]
+        entity_id:
+          type: string
+          format: uuid
+        rule_version:
+          type: string
+          description: Versão do conjunto atual de verificações considerado no cálculo.
+        checks:
+          type: array
+          items:
+            type: object
+            required: [check_id, check_name, passed, message, applicable]
+            properties:
+              check_id:
+                type: string
+              check_name:
+                type: string
+              passed:
+                type: boolean
+              message:
+                type: string
+              applicable:
+                type: boolean
+                enum: [true]
+        score_completude:
+          type: integer
+          minimum: 0
+          maximum: 100
+          nullable: true
 
     IngestDocumentRequest:
       type: object

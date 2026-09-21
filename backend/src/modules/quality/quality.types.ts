@@ -1,3 +1,5 @@
+import type { Pbi } from "../pbis/pbis.types.js";
+
 export const ENTITY_TYPES = ["epico", "feature", "pbi"] as const;
 export type EntityType = (typeof ENTITY_TYPES)[number];
 
@@ -18,9 +20,21 @@ export interface QualityCheckResult {
   applicable: boolean;
 }
 
+export interface PbiQualityRuleConfiguration {
+  /** Version of the effective checklist; clients can distinguish changed rule sets. */
+  rule_version: string;
+  /** Enabled checks carry item-specific applicability logic; inapplicable checks are omitted from score. */
+  checks: Array<{ check_id: PbiQualityCheck; isApplicable: (pbi: Pbi) => boolean }>;
+}
+
+export interface QualityRuleConfigurationProvider {
+  getCurrentPbiConfiguration(): Promise<PbiQualityRuleConfiguration>;
+}
+
 export interface QualityReport {
   entity_type: EntityType;
   entity_id: string;
+  rule_version: string;
   checks: QualityCheckResult[];
   score_completude: number | null;
 }

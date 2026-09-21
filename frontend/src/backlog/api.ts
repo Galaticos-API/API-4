@@ -79,6 +79,7 @@ export interface QualityCheckResult {
 export interface QualityReport {
   entity_type: string;
   entity_id: string;
+  rule_version: string;
   checks: QualityCheckResult[];
   score_completude: number | null;
 }
@@ -237,6 +238,7 @@ export async function getPbiCompleteness(id: string, signal: AbortSignal): Promi
   return {
     entity_type: asText(data.entity_type),
     entity_id: asText(data.entity_id),
+    rule_version: asText(data.rule_version),
     checks: data.checks.map((check: unknown) => {
       const value = check as Record<string, unknown>;
       return {
