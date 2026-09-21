@@ -58,4 +58,3 @@ it("perfil de leitura e projeto arquivado não oferecem ação", () => {
   view.rerender(<ItemArchive kind="features" project={{ ...project, status: "arquivado" }} canWrite onArchived={vi.fn()} />);
   expect(screen.queryByRole("button")).toBeNull();
 });
-
