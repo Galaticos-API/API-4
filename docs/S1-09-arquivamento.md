@@ -25,7 +25,10 @@ O projeto mantém seu contrato, que acrescenta projeto à contagem. Contratos em
 - Backend: build aprovado; 151 testes aprovados, 3 testes de banco/seed ignorados sem as variáveis de ambiente.
 - Frontend: 76 testes aprovados e build aprovado.
 - Testes PostgreSQL: projects.archive.db.test.ts e hierarchy-archive.db.test.ts cobrem cascata, arquivamento em cada nível, isolamento, preservação de critérios, rollback por auditoria, repetição, filtros e rejeição de escrita após arquivamento.
-- CI configura ARCHIVE_TEST_DATABASE_URL para banco exclusivo com sufixo _test e executa ambos após migrations. Docker local indisponível nesta sessão; execução remota pendente de autorização para publicar a branch.
+- Validação local em 21/09/2026, commit 729948e: PostgreSQL 16 + pgvector em contêiner isolado. Os dois arquivos de teste de arquivamento passaram: 11 testes, zero falhas e zero ignorados.
+- Todas as 13 migrations foram aplicadas em banco vazio; a segunda execução não reaplicou nenhuma. `test:integration:s105` passou nos quatro cenários (`empty`, `legacy`, `backlog`, `both`), incluindo preservação de dados, repetição e rollback de auditoria.
+- O banco da aplicação não foi alterado. O contêiner temporário foi removido após a validação.
+- CI configura ARCHIVE_TEST_DATABASE_URL para banco exclusivo com sufixo _test e executa ambos após migrations. Execução remota pendente de autorização para publicar a branch.
 - Verificação visual em navegador e revisão humana ainda pendentes.
 
 ## Limitação de concorrência
