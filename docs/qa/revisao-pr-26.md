@@ -8,18 +8,21 @@
 - O motor da PR reutiliza as regras determinísticas já existentes na PR #24 para título, história, cenários e termos vagos. Isso elimina a segunda implementação divergente (inclusive um padrão de expressão regular incorreto no motor duplicado).
 - O cálculo agora recebe o conjunto de regras versionado por um provedor explícito; verifica aplicabilidade por PBI, remove as não aplicáveis do relatório e do denominador, e lê a configuração uma única vez por página.
 - A resposta do indicador agora informa `rule_version`; o contrato foi incluído no OpenAPI e no tipo consumido pelo frontend.
+- A parte de S2-19 necessária ao Cenário 3 foi antecipada: a API lê a política organizacional persistida (singleton enquanto não existir entidade de organização), e um admin pode ativar/desativar as quatro verificações de PBI e ajustar a lista de termos vagos.
+- A política inicia com as quatro verificações e termos existentes ativos; cada alteração é transacional, incrementa a versão, registra autor/data e valores anterior/novo em `auditoria`. A API não altera o status de PBIs concluídos.
+- A configuração está documentada no OpenAPI: `GET /api/v1/quality/configuration/pbi` e `PUT` (admin). A migration aditiva `008_quality_organization_configuration.sql` preserva bancos existentes.
 - A configuração do Vitest foi atualizada para a API da versão atual; duas vulnerabilidades moderadas nas dependências de teste foram eliminadas.
 
 ## Verificações
 
-- Backend: `npm test` — 139 aprovados, 1 teste de carga de seed ignorado conforme configurado; `npm run typecheck` e `npm run build` — aprovados.
+- Backend: `npm test` — 143 aprovados, 1 teste de carga de seed ignorado conforme configurado; `npm run typecheck` e `npm run build` — aprovados.
 - Frontend: `npm test` — 62 aprovados; `npm run build` — aprovado; `npm audit` — 0 vulnerabilidades.
-- Cobertura adicional para `0%`, `null`, aplicabilidade diferente entre PBIs da mesma página, troca de versão/configuração vigente, atualização após mudar cenários e leitura em lote sem N+1.
+- Cobertura adicional para `0%`, `null`, aplicabilidade diferente entre PBIs da mesma página, troca de versão/configuração vigente, atualização após mudar cenários, termos vagos customizados e leitura em lote sem N+1.
 
 ## Resultado e limite de aceite
 
-Esta PR entrega a fundação e o consumo de um conjunto versionado de regras, além da exclusão por item das verificações não aplicáveis. O provedor de produção desta Sprint usa as quatro regras determinísticas existentes de S1-13. A configuração persistente/editável pelo administrador (PBI-01.6.1 / S2-19), ainda não implementada, deverá substituir esse provedor e fornecer a versão e as regras vigentes; por isso, o Cenário 3 de PBI-01.3.6 ainda não está completo de ponta a ponta e S1-15 não deve ser marcada como concluída até essa integração.
+Esta PR entrega o indicador de S1-15 e antecipa somente a parte de S2-19 necessária ao Cenário 3 de PBI-01.3.6: política organizacional persistida para verificações de PBI, endpoint administrativo, versionamento e auditoria. Configuração para épicos/features e condições de Definition of Ready/Done (PBI-01.6.2) continuam fora do escopo e devem permanecer como trabalho restante de S2-19. S1-15 só pode ser marcada como concluída após os testes com PostgreSQL real e a revisão/merge da PR.
 
 ## QA independente
 
-Foi conferido o fluxo contrário ao caso feliz: mudanças nos cenários alteram o score mesmo quando o valor persistido está desatualizado; um PBI que vale `0%` continua visível; `null` não vira `100%` nem `0%`; e uma regra inaplicável a um item não interfere nos demais PBIs da página. PostgreSQL e Ollama locais não foram necessários para esta mudança: não há migration nem chamada de IA neste incremento. O Docker Desktop está indisponível nesta máquina; os checks de integração com PostgreSQL deverão ser revalidados no CI após o envio do novo commit.
+Foi conferido o fluxo contrário ao caso feliz: mudanças nos cenários alteram o score mesmo quando o valor persistido está desatualizado; `0%` continua visível; `null` não vira `100%` nem `0%`; e regra inaplicável não interfere nos demais PBIs. Testes novos cobrem validação HTTP da configuração e termos configuráveis como literais seguros. PostgreSQL e Ollama locais não são dependências para os testes unitários determinísticos; porém esta extensão inclui migration e precisa de validação contra PostgreSQL real. O Docker Desktop está indisponível nesta máquina, então a validação real da migration e da transação de auditoria permanece pendente no CI/ambiente PostgreSQL.

@@ -47,3 +47,15 @@ dado, quando e então obrigatórios para PBI). O `init.sql` ainda declara `texto
 como `NOT NULL` — corrigir isso é responsabilidade desta migration, não do
 baseline. Se alguma linha existente violar a constraint, o `ALTER TABLE` falha e
 interrompe a migration sem apagar dados; não há saneamento automático aqui.
+
+## Configuração organizacional de qualidade (S2-19 parcial)
+
+`008_quality_organization_configuration.sql` cria a configuração versionada das
+verificações de qualidade de PBI e da lista de termos vagos. Como o sistema ainda
+não possui entidade de organização, a linha singleton representa a organização
+única atual. Alterações devem passar pela API administrativa, que registra autor,
+data e valores anterior/novo na auditoria. A configuração não modifica o status
+dos PBIs já concluídos. Esta migration não implementa regras de épico/feature nem
+DoR/DoD (PBI-01.6.2), que permanecem no escopo restante da S2-19.
+O cenário PostgreSQL de `npm run test:integration:s105` valida configuração
+padrão, versionamento, autor/data, auditoria e rollback quando a autoria não é válida.

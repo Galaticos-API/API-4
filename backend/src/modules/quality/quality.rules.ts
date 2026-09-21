@@ -84,5 +84,8 @@ export function validarCenario(cenario: { dado: string; quando: string; entao: s
 
 export function identificarTermosVagos(texto: string, termos: readonly string[] = TERMOS_VAGOS_PADRAO): string[] {
   const textoNormalizado = texto.toLowerCase();
-  return termos.filter((termo) => new RegExp(`\\b${termo.toLowerCase()}\\b`, "u").test(textoNormalizado));
+  return termos.filter((termo) => {
+    const literalTerm = termo.toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    return new RegExp(`\\b${literalTerm}\\b`, "u").test(textoNormalizado);
+  });
 }

@@ -124,6 +124,21 @@ test("indicador aplica apenas as verificações ativas e aplicáveis, e recalcul
   assert.equal(afterConfigurationChange.rule_version, "org-v2");
 });
 
+test("relatório detalhado considera a lista organizacional vigente de termos vagos", async () => {
+  const provider = new StubQualityRuleConfigurationProvider({
+    rule_version: "org-v3",
+    checks: PBI_QUALITY_CHECKS.map((check_id) => ({ check_id, isApplicable: () => true })),
+    vague_terms: ["ambíguo"],
+  });
+  const service = new QualityService(new StubCriteriaRepository([]), new StubPbisRepository({
+    ...pbiBase, titulo: "Cadastrar item ambíguo",
+  }), provider);
+
+  const report = await service.avaliarPbi({ ...pbiBase, titulo: "Cadastrar item ambíguo" });
+
+  assert.deepEqual(report.termos_vagos.find((occurrence) => occurrence.campo === "titulo")?.termos, ["ambíguo"]);
+});
+
 test("a aplicabilidade é avaliada por PBI e não compartilhada entre itens da mesma página", async () => {
   const provider = new StubQualityRuleConfigurationProvider({
     rule_version: "item-policy-v1",

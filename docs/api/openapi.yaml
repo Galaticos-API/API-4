@@ -776,7 +776,7 @@ paths:
         Calcula a proporção sem pesos das verificações habilitadas e aplicáveis. Verificações
         não aplicáveis não são retornadas nem entram no denominador. O valor é calculado na
         consulta, não confiando no score persistido. A resposta informa a versão do conjunto
-        de regras usado. A configuração administrativa é entregue separadamente em S2-19.
+        de regras usado. A política organizacional é lida da configuração administrativa vigente.
       security:
         - cookieAuth: []
       parameters:
@@ -797,6 +797,50 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '404':
           description: PBI não encontrado
+
+  /api/v1/quality/configuration/pbi:
+    get:
+      summary: Consulta a política organizacional das verificações de qualidade de PBI (S2-19 parcial)
+      operationId: getPbiQualityConfiguration
+      security:
+        - cookieAuth: []
+      responses:
+        '200':
+          description: Política vigente, versão e dados de auditoria da última alteração
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PbiQualityConfiguration'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    put:
+      summary: Atualiza verificações habilitadas e termos vagos organizacionais (somente admin)
+      operationId: updatePbiQualityConfiguration
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PbiQualityConfigurationInput'
+      responses:
+        '200':
+          description: Nova configuração versionada, registrada com autor, data e trilha de auditoria
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PbiQualityConfiguration'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Apenas administradores podem alterar a configuração
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
 
   /api/v1/criteria:
     post:
@@ -1635,6 +1679,41 @@ components:
           minimum: 0
           maximum: 100
           nullable: true
+
+    PbiQualityConfigurationInput:
+      type: object
+      additionalProperties: false
+      required: [checks, vague_terms]
+      properties:
+        checks:
+          type: object
+          additionalProperties: false
+          required: [titulo_infinitivo, historia_completa, cenario_estruturado, termos_vagos]
+          properties:
+            titulo_infinitivo: { type: boolean }
+            historia_completa: { type: boolean }
+            cenario_estruturado: { type: boolean }
+            termos_vagos: { type: boolean }
+        vague_terms:
+          type: array
+          maxItems: 100
+          items: { type: string, minLength: 1, maxLength: 80 }
+
+    PbiQualityConfiguration:
+      allOf:
+        - $ref: '#/components/schemas/PbiQualityConfigurationInput'
+        - type: object
+          required: [rule_version, updated_at, updated_by]
+          properties:
+            rule_version: { type: string, example: pbi-quality-v2 }
+            updated_at: { type: string, format: date-time }
+            updated_by:
+              type: object
+              nullable: true
+              required: [id, nome]
+              properties:
+                id: { type: string, format: uuid }
+                nome: { type: string }
 
     IngestDocumentRequest:
       type: object

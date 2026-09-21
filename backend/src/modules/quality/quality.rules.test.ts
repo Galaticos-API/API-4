@@ -61,3 +61,7 @@ test("identificarTermosVagos respeita lista customizada", () => {
   const termos = identificarTermosVagos("o fluxo deve ser simples", ["simples"]);
   assert.deepEqual(termos, ["simples"]);
 });
+
+test("identificarTermosVagos trata termos administrativos como texto literal", () => {
+  assert.deepEqual(identificarTermosVagos("o formato a.b é usado", ["a.b"]), ["a.b"]);
+});

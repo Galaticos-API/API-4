@@ -8,10 +8,12 @@ import {
   validarHistoria,
   validarCenario,
   identificarTermosVagos,
+  TERMOS_VAGOS_PADRAO,
   ResultadoValidacao,
   OcorrenciaTermoVago,
 } from "./quality.rules.js";
 import { PBI_QUALITY_CHECKS, PbiQualityCheck, PbiQualityRuleConfiguration, QualityCheckResult, QualityReport, QualityRuleConfigurationProvider } from "./quality.types.js";
+import { qualityConfigurationRepository } from "./quality.configuration.repository.js";
 
 export interface ResultadoCenario {
   id: string;
@@ -35,14 +37,30 @@ export function calculateCompleteness(checks: QualityCheckResult[]): number | nu
 }
 
 /**
- * Sprint 1's deterministic checklist. S2-19 will replace this provider with
- * the organization-backed configuration without changing score calculation.
+ * Deterministic fallback retained for isolated service tests. The application
+ * singleton below uses the persisted, organization-wide S2-19 configuration.
  */
 export class DefaultQualityRuleConfigurationProvider implements QualityRuleConfigurationProvider {
   async getCurrentPbiConfiguration(): Promise<PbiQualityRuleConfiguration> {
     return {
       rule_version: "pbi-quality-v1",
       checks: PBI_QUALITY_CHECKS.map((check_id) => ({ check_id, isApplicable: () => true })),
+    };
+  }
+}
+
+/** Database-backed organization policy used by the running application. */
+export class DatabaseQualityRuleConfigurationProvider implements QualityRuleConfigurationProvider {
+  constructor(private readonly configurationRepository = qualityConfigurationRepository) {}
+
+  async getCurrentPbiConfiguration(): Promise<PbiQualityRuleConfiguration> {
+    const current = await this.configurationRepository.getPbiConfiguration();
+    return {
+      rule_version: current.rule_version,
+      checks: PBI_QUALITY_CHECKS
+        .filter((check_id) => current.checks[check_id])
+        .map((check_id) => ({ check_id, isApplicable: () => true })),
+      vague_terms: current.vague_terms,
     };
   }
 }
@@ -57,22 +75,23 @@ export class QualityService {
   /** Detailed deterministic report shared by the existing PBI quality view. */
   async avaliarPbi(pbi: Pbi): Promise<RelatorioQualidadePbi> {
     const cenariosRegistrados = await this.criteriaRepo.listByEntity("pbi", pbi.id);
-    return this.buildDetailedReport(pbi, cenariosRegistrados);
+    const configuration = await this.rulesProvider.getCurrentPbiConfiguration();
+    return this.buildDetailedReport(pbi, cenariosRegistrados, configuration.vague_terms ?? TERMOS_VAGOS_PADRAO);
   }
 
-  private buildDetailedReport(pbi: Pbi, cenariosRegistrados: Criterion[]): RelatorioQualidadePbi {
+  private buildDetailedReport(pbi: Pbi, cenariosRegistrados: Criterion[], vagueTerms: readonly string[] = TERMOS_VAGOS_PADRAO): RelatorioQualidadePbi {
     const cenarios: ResultadoCenario[] = cenariosRegistrados.map((cenario) => {
       const resultado = validarCenario({ dado: cenario.dado ?? "", quando: cenario.quando ?? "", entao: cenario.entao ?? "" });
       return { id: cenario.id, nome: cenario.nome, aprovado: resultado.aprovado, motivo: resultado.motivo };
     });
     const termosVagos: OcorrenciaTermoVago[] = [
-      { campo: "titulo", termos: identificarTermosVagos(pbi.titulo) },
-      { campo: "historia_como_um", termos: identificarTermosVagos(pbi.historia_como_um) },
-      { campo: "historia_eu_quero", termos: identificarTermosVagos(pbi.historia_eu_quero) },
-      { campo: "historia_para_que", termos: identificarTermosVagos(pbi.historia_para_que) },
+      { campo: "titulo", termos: identificarTermosVagos(pbi.titulo, vagueTerms) },
+      { campo: "historia_como_um", termos: identificarTermosVagos(pbi.historia_como_um, vagueTerms) },
+      { campo: "historia_eu_quero", termos: identificarTermosVagos(pbi.historia_eu_quero, vagueTerms) },
+      { campo: "historia_para_que", termos: identificarTermosVagos(pbi.historia_para_que, vagueTerms) },
       ...cenariosRegistrados.map((cenario) => ({
         campo: `cenario:${cenario.nome ?? cenario.id}`,
-        termos: identificarTermosVagos([cenario.dado, cenario.quando, cenario.entao].filter(Boolean).join(" ")),
+        termos: identificarTermosVagos([cenario.dado, cenario.quando, cenario.entao].filter(Boolean).join(" "), vagueTerms),
       })),
     ].filter((ocorrencia) => ocorrencia.termos.length > 0);
 
@@ -91,7 +110,7 @@ export class QualityService {
 
     const criteria = await this.criteriaRepo.listByEntity("pbi", pbiId);
     const configuration = await this.rulesProvider.getCurrentPbiConfiguration();
-    return this.buildCompletenessReport(pbi, this.buildDetailedReport(pbi, criteria), configuration);
+    return this.buildCompletenessReport(pbi, this.buildDetailedReport(pbi, criteria, configuration.vague_terms ?? TERMOS_VAGOS_PADRAO), configuration);
   }
 
   /** Computes a page of indicators with one criteria query, avoiding an N+1 query pattern. */
@@ -107,7 +126,7 @@ export class QualityService {
     }
     const reports = pbis.map((pbi) => [
       pbi.id,
-      this.buildCompletenessReport(pbi, this.buildDetailedReport(pbi, grouped.get(pbi.id) ?? []), configuration),
+      this.buildCompletenessReport(pbi, this.buildDetailedReport(pbi, grouped.get(pbi.id) ?? [], configuration.vague_terms ?? TERMOS_VAGOS_PADRAO), configuration),
     ] as const);
     return new Map(reports);
   }
@@ -162,4 +181,4 @@ export class QualityService {
   }
 }
 
-export const qualityService = new QualityService();
+export const qualityService = new QualityService(criteriaRepository, pbisRepository, new DatabaseQualityRuleConfigurationProvider());

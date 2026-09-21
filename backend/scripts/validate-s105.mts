@@ -6,6 +6,7 @@ import { randomUUID } from "node:crypto";
 import pg from "pg";
 import { EpicsRepository } from "../src/modules/epics/epics.repository.js";
 import { CriteriaRepository } from "../src/modules/criteria/criteria.repository.js";
+import { QualityConfigurationRepository } from "../src/modules/quality/quality.configuration.repository.js";
 import { ValidationError } from "../src/shared/errors.js";
 
 // Never run fixtures on an application database, even if this variable was set accidentally.
@@ -58,6 +59,37 @@ try {
       const before = await pool.query("SELECT * FROM criterio_aceitacao ORDER BY id");
       for (const name of files) await apply(name);
       assert.deepEqual((await pool.query("SELECT * FROM criterio_aceitacao ORDER BY id")).rows, before.rows);
+
+      // Exercise the S2-19 slice against PostgreSQL: version, actor, audit, and rollback.
+      const configurationRepository = new QualityConfigurationRepository(pool);
+      const initialConfiguration = await configurationRepository.getPbiConfiguration();
+      assert.ok(Object.values(initialConfiguration.checks).every(Boolean));
+      const adminId = randomUUID();
+      await pool.query("INSERT INTO usuario (id, nome, email, senha_hash, role) VALUES ($1, 'Admin QA', $2, 'unused', 'admin')", [adminId, `${adminId}@example.test`]);
+      const changedInput = {
+        checks: { ...initialConfiguration.checks, termos_vagos: false },
+        vague_terms: [...initialConfiguration.vague_terms, "mensurável"],
+      };
+      const changedConfiguration = await configurationRepository.updatePbiConfiguration(changedInput, adminId);
+      assert.notEqual(changedConfiguration.rule_version, initialConfiguration.rule_version);
+      assert.equal(changedConfiguration.updated_by?.id, adminId);
+      assert.ok(changedConfiguration.updated_at);
+      const configAudit = await pool.query(
+        "SELECT usuario_id, dados_json FROM auditoria WHERE entidade_tipo = 'quality_configuration' AND entidade_id = $1::uuid ORDER BY created_at DESC LIMIT 1",
+        ["00000000-0000-4000-8000-000000000001"],
+      );
+      assert.equal(configAudit.rows[0].usuario_id, adminId);
+      assert.equal(configAudit.rows[0].dados_json.actor_id, adminId);
+      assert.equal(configAudit.rows[0].dados_json.after.checks.termos_vagos, false);
+      const nonexistentAdminId = randomUUID();
+      await assert.rejects(configurationRepository.updatePbiConfiguration(initialConfiguration, nonexistentAdminId), (error: any) => error?.code === "23503");
+      const afterRollback = await configurationRepository.getPbiConfiguration();
+      assert.equal(afterRollback.rule_version, changedConfiguration.rule_version);
+      assert.deepEqual(afterRollback.checks, changedConfiguration.checks);
+      await configurationRepository.updatePbiConfiguration({
+        checks: initialConfiguration.checks,
+        vague_terms: initialConfiguration.vague_terms,
+      }, adminId);
       const constraint = (await pool.query("SELECT pg_get_constraintdef(oid) AS definition FROM pg_constraint WHERE conrelid='epico'::regclass AND conname='ck_epico_status'")).rows[0].definition;
       if (expectedConstraint) assert.equal(constraint, expectedConstraint); else expectedConstraint = constraint;
       if (legacyEpicId) {

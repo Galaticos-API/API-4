@@ -25,6 +25,19 @@ export interface PbiQualityRuleConfiguration {
   rule_version: string;
   /** Enabled checks carry item-specific applicability logic; inapplicable checks are omitted from score. */
   checks: Array<{ check_id: PbiQualityCheck; isApplicable: (pbi: Pbi) => boolean }>;
+  /** Organization-configured terms used by the deterministic vague-language check. */
+  vague_terms?: readonly string[];
+}
+
+export interface PbiQualityConfigurationInput {
+  checks: Record<PbiQualityCheck, boolean>;
+  vague_terms: string[];
+}
+
+export interface PbiQualityConfigurationRecord extends PbiQualityConfigurationInput {
+  rule_version: string;
+  updated_at: string;
+  updated_by: { id: string; nome: string } | null;
 }
 
 export interface QualityRuleConfigurationProvider {
