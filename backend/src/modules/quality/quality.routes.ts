@@ -8,6 +8,7 @@ const router = Router();
 router.use(requireAuth);
 
 router.get("/pbis/:id/quality", qualityController.validatePbi);
+router.post("/evaluate", qualityController.evaluate);
 router.get("/configuration/pbi", qualityController.getPbiConfiguration);
 router.put("/configuration/pbi", requireRole("admin"), qualityController.updatePbiConfiguration);
 

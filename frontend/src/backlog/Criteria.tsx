@@ -8,7 +8,19 @@ type Result = { state: "loading" } | { state: "error"; message: string } | { sta
 const emptyTexto = { texto: "" };
 const emptyCenario = { nome: "", dado: "", quando: "", entao: "" };
 
-export function CriteriaEditor({ entidadeTipo, entidadeId, canEdit, titulo }: { entidadeTipo: CriterionEntityType; entidadeId: string; canEdit: boolean; titulo: string }) {
+export function CriteriaEditor({
+  entidadeTipo,
+  entidadeId,
+  canEdit,
+  titulo,
+  onCriteriaChange,
+}: {
+  entidadeTipo: CriterionEntityType;
+  entidadeId: string;
+  canEdit: boolean;
+  titulo: string;
+  onCriteriaChange?: (items: Criterion[]) => void;
+}) {
   const [result, setResult] = useState<Result>({ state: "loading" });
   const [attempt, setAttempt] = useState(0);
   const [formOpen, setFormOpen] = useState(false);
@@ -28,7 +40,10 @@ export function CriteriaEditor({ entidadeTipo, entidadeId, canEdit, titulo }: { 
     setResult({ state: "loading" });
     listCriteria(entidadeTipo, entidadeId, controller.signal)
       .then((items) => {
-        if (!controller.signal.aborted && versaoRef.current === versaoInicial) setResult({ state: "ready", items });
+        if (!controller.signal.aborted && versaoRef.current === versaoInicial) {
+          setResult({ state: "ready", items });
+          onCriteriaChange?.(items);
+        }
       })
       .catch((error) => {
         if (controller.signal.aborted || versaoRef.current !== versaoInicial) return;
@@ -65,7 +80,9 @@ export function CriteriaEditor({ entidadeTipo, entidadeId, canEdit, titulo }: { 
       );
       versaoRef.current += 1;
       if (result.state === "ready") {
-        setResult({ state: "ready", items: [...result.items, criado] });
+        const updated = [...result.items, criado];
+        setResult({ state: "ready", items: updated });
+        onCriteriaChange?.(updated);
       } else {
         recarregar();
       }
@@ -86,7 +103,9 @@ export function CriteriaEditor({ entidadeTipo, entidadeId, canEdit, titulo }: { 
       await deleteCriterion(id);
       versaoRef.current += 1;
       if (result.state === "ready") {
-        setResult({ state: "ready", items: result.items.filter((item) => item.id !== id) });
+        const updated = result.items.filter((item) => item.id !== id);
+        setResult({ state: "ready", items: updated });
+        onCriteriaChange?.(updated);
       } else {
         recarregar();
       }
@@ -103,6 +122,7 @@ export function CriteriaEditor({ entidadeTipo, entidadeId, canEdit, titulo }: { 
       const items = await moveCriterion(id, direction);
       versaoRef.current += 1;
       setResult({ state: "ready", items });
+      onCriteriaChange?.(items);
     } catch {
       setMessage("Não foi possível reordenar os critérios.");
     } finally {
@@ -114,7 +134,15 @@ export function CriteriaEditor({ entidadeTipo, entidadeId, canEdit, titulo }: { 
     <section className="projects-page">
       <div className="projects-heading">
         <div><p className="projects-eyebrow">{isCenario ? "Cenários de aceitação" : "Critérios de aceitação"}</p><h3>{titulo}</h3></div>
-        {canEdit && !formOpen && <button className="btn-secondary" onClick={() => setFormOpen(true)}>{isCenario ? "Novo cenário" : "Novo critério"}</button>}
+        {canEdit && !formOpen && (
+          <button
+            id={isCenario ? "novo-cenario-btn" : undefined}
+            className="btn-secondary"
+            onClick={() => setFormOpen(true)}
+          >
+            {isCenario ? "Novo cenário" : "Novo critério"}
+          </button>
+        )}
       </div>
 
       {result.state === "loading" && <div className="glass-panel projects-state" role="status">Carregando…</div>}
@@ -125,7 +153,11 @@ export function CriteriaEditor({ entidadeTipo, entidadeId, canEdit, titulo }: { 
         ? <div className="glass-panel projects-state"><p>Nenhum {isCenario ? "cenário" : "critério"} registrado ainda.</p></div>
         : <ol className="projects-grid" aria-label={isCenario ? "Cenários de aceitação" : "Critérios de aceitação"}>
           {result.items.map((item, index) => (
-            <li className="glass-panel project-card" key={item.id}>
+            <li
+              id={isCenario ? `cenario-${item.id}` : undefined}
+              className="glass-panel project-card"
+              key={item.id}
+            >
               {isCenario
                 ? <><h4>{item.nome}</h4><dl>
                   <dt>DADO</dt><dd>{item.dado}</dd>

@@ -1,10 +1,25 @@
 import { useEffect, useRef, useState } from "react";
 import { ApiError } from "../api/api_auth";
 import { navigate } from "./navigation";
-import { createPbi, completePbi, updatePbi, getPbi, listPbis, getPbiCompleteness, hasCompletudeIndicator, camposFaltantesDe, type Pbi, type PbiInput, type QualityReport } from "../api/api_backlog";
+import {
+  createPbi,
+  completePbi,
+  updatePbi,
+  getPbi,
+  listPbis,
+  getPbiQualityConfiguration,
+  hasCompletudeIndicator,
+  camposFaltantesDe,
+  type Pbi,
+  type PbiInput,
+  type PbiQualityConfigurationRecord,
+  type Criterion,
+} from "../api/api_backlog";
 import { descreverCamposFaltantes } from "./fields";
 import { useUnsavedChangesGuard } from "./useUnsavedChangesGuard";
 import { CriteriaEditor } from "./Criteria";
+import { QualityPanel } from "./QualityPanel";
+import { evaluatePbiRealtime } from "./qualityEngine";
 import "../projects/projects.css";
 
 type ListResult = { state: "loading" } | { state: "error"; message: string } | { state: "ready"; pbis: Pbi[] };
@@ -58,20 +73,42 @@ export function PbiList({ projectId, epicoId, featureId, canCreate }: { projectI
 
 export function PbiForm({ projectId, epicoId, featureId }: { projectId: string; epicoId: string; featureId: string }) {
   const [values, setValues] = useState<PbiInput>({ ...emptyInput, feature_id: featureId });
+  const [orgConfig, setOrgConfig] = useState<PbiQualityConfigurationRecord | null>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const submitting = useRef(false);
   const mounted = useRef(true);
-  useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
+
+  useEffect(() => {
+    mounted.current = true;
+    const controller = new AbortController();
+    getPbiQualityConfiguration(controller.signal)
+      .then((cfg) => { if (mounted.current) setOrgConfig(cfg); })
+      .catch(() => {});
+    return () => {
+      mounted.current = false;
+      controller.abort();
+    };
+  }, []);
+
   const isDirty = values.requer_interface || [values.titulo, values.historia_como_um, values.historia_eu_quero, values.historia_para_que].some((value) => value.trim().length > 0);
   const { confirmLeave } = useUnsavedChangesGuard(isDirty);
 
   const featurePath = `/projects/${projectId}/epics/${epicoId}/features/${featureId}`;
+  const qualityReport = evaluatePbiRealtime(values, [], orgConfig, "");
 
   return (
     <section className="projects-page">
-      <div className="projects-heading"><div><p className="projects-eyebrow">PBIs / Novo PBI</p><h2>Criar PBI</h2>
-        <p>O título e os três blocos da história são obrigatórios. O código é gerado automaticamente.</p></div></div>
+      <div className="projects-heading">
+        <div>
+          <p className="projects-eyebrow">PBIs / Novo PBI</p>
+          <h2>Criar PBI</h2>
+          <p>O título e os três blocos da história são obrigatórios. O painel abaixo avalia a qualidade em tempo real enquanto você escreve.</p>
+        </div>
+      </div>
+
+      <QualityPanel report={qualityReport} title="Checklist de qualidade em tempo real" />
+
       <form className="glass-panel project-form" noValidate aria-busy={busy} onSubmit={async (event) => {
         event.preventDefault();
         if (submitting.current) return;
@@ -106,7 +143,7 @@ export function PbiForm({ projectId, epicoId, featureId }: { projectId: string; 
           <input id="historia_para_que" name="historia_para_que" type="text" disabled={busy} value={values.historia_para_que} onChange={(e) => setValues((v) => ({ ...v, historia_para_que: e.target.value }))} />
         </div>
         <div className="project-field">
-          <label><input type="checkbox" checked={values.requer_interface} disabled={busy} onChange={(e) => setValues((v) => ({ ...v, requer_interface: e.target.checked }))} /> Este PBI exige interface ou protótipo visual</label>
+          <label><input id="requer_interface" type="checkbox" checked={values.requer_interface} disabled={busy} onChange={(e) => setValues((v) => ({ ...v, requer_interface: e.target.checked }))} /> Este PBI exige interface ou protótipo visual</label>
         </div>
         {message && <p role="alert">{message}</p>}
         <div className="project-actions">

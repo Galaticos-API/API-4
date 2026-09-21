@@ -302,3 +302,64 @@ test("impede cadastrar PBI em feature de projeto arquivado", async () => {
     (err: Error) => { assert.ok(err instanceof ValidationError); return true; },
   );
 });
+
+test("PBI-01.3.4 Cenário 2: permite concluir PBI com termos vagos sem bloqueio", async () => {
+  const { service, pbisRepo, criteriaRepo } = setup();
+
+  const created = await service.create({
+    feature_id: FEATURE_ID,
+    titulo: "Cadastrar item",
+    historia_como_um: "Product Owner",
+    historia_eu_quero: "um sistema rápido", // termo vago
+    historia_para_que: "fique bonito",      // termo vago
+  });
+
+  pbisRepo.criteriosPorPbi.set(created.id, 1);
+  criteriaRepo.cenariosPorPbi.set(created.id, [
+    { id: "c1", entidade_tipo: "pbi", entidade_id: created.id, texto: null, nome: "Cenário", dado: "d", quando: "q", entao: "e", ordem: 1, created_at: new Date().toISOString() },
+  ]);
+
+  const completed = await service.complete(created.id);
+  assert.equal(completed.status, "concluido");
+});
+
+test("permite concluir PBI com título fora do infinitivo quando regra titulo_infinitivo está desabilitada", async () => {
+  const pbisRepo = new InMemoryPbisRepository();
+  const featuresRepo = new StubFeaturesRepository();
+  const criteriaRepo = new StubCriteriaRepository();
+  featuresRepo.features.push({
+    id: FEATURE_ID, epico_id: "c0000000-0000-4000-8000-000000000001", titulo: "Feature base", descricao: null, objetivo: null,
+    prioridade: "Must", status: "rascunho", created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
+  });
+
+  // Provedor com titulo_infinitivo desabilitado
+  const customRulesProvider = {
+    async getCurrentPbiConfiguration() {
+      return {
+        rule_version: "custom-v1",
+        checks: [
+          { check_id: "cenario_estruturado" as const, isApplicable: () => true },
+          { check_id: "historia_completa" as const, isApplicable: () => true },
+        ],
+      };
+    },
+  };
+
+  const service = new PbisService(pbisRepo, featuresRepo, new QualityService(criteriaRepo, pbisRepo, customRulesProvider));
+
+  const created = await service.create({
+    feature_id: FEATURE_ID,
+    titulo: "Tela de usuários", // fora do infinitivo, mas regra está desabilitada
+    historia_como_um: "PO",
+    historia_eu_quero: "acessar a tela",
+    historia_para_que: "gerenciar acessos",
+  });
+
+  pbisRepo.criteriosPorPbi.set(created.id, 1);
+  criteriaRepo.cenariosPorPbi.set(created.id, [
+    { id: "c1", entidade_tipo: "pbi", entidade_id: created.id, texto: null, nome: "Cenário", dado: "d", quando: "q", entao: "e", ordem: 1, created_at: new Date().toISOString() },
+  ]);
+
+  const completed = await service.complete(created.id);
+  assert.equal(completed.status, "concluido");
+});

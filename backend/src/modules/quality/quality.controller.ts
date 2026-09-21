@@ -14,6 +14,23 @@ const configurationSchema = z.object({
   vague_terms: z.array(z.string().trim().min(1).max(80)).max(100),
 }).strict();
 
+const evaluatePbiSchema = z.object({
+  id: z.string().optional(),
+  titulo: z.string().default(""),
+  historia_como_um: z.string().default(""),
+  historia_eu_quero: z.string().default(""),
+  historia_para_que: z.string().default(""),
+  requer_interface: z.boolean().default(false),
+  prototipo_vinculado: z.boolean().default(false),
+  cenarios: z.array(z.object({
+    id: z.string().optional(),
+    nome: z.string().nullable().optional(),
+    dado: z.string().nullable().optional(),
+    quando: z.string().nullable().optional(),
+    entao: z.string().nullable().optional(),
+  })).optional().default([]),
+});
+
 function getParamId(param: string | string[] | undefined): string {
   if (Array.isArray(param)) return param[0] ?? "";
   return param ?? "";
@@ -24,6 +41,20 @@ export class QualityController {
     private readonly service: QualityService = qualityService,
     private readonly configurationRepository: QualityConfigurationRepository = qualityConfigurationRepository,
   ) {}
+
+  evaluate = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const parsed = evaluatePbiSchema.safeParse(req.body);
+      if (!parsed.success) {
+        res.status(400).json({ error: "Dados inválidos para avaliação.", code: "VALIDATION_ERROR", details: parsed.error.issues });
+        return;
+      }
+      const result = await this.service.evaluatePbiInput(parsed.data);
+      res.status(200).json(result);
+    } catch (error) {
+      next(error);
+    }
+  };
 
   validatePbi = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {

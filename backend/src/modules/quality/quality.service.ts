@@ -71,12 +71,67 @@ export class DatabaseQualityRuleConfigurationProvider implements QualityRuleConf
   }
 }
 
+export interface PbiEvaluationInput {
+  id?: string;
+  titulo: string;
+  historia_como_um: string;
+  historia_eu_quero: string;
+  historia_para_que: string;
+  requer_interface?: boolean;
+  prototipo_vinculado?: boolean;
+  cenarios?: Array<{ dado?: string | null; quando?: string | null; entao?: string | null; nome?: string | null }>;
+}
+
 export class QualityService {
   constructor(
     private readonly criteriaRepo: CriteriaRepository = criteriaRepository,
     private readonly pbisRepo: PbisRepository = pbisRepository,
     private readonly rulesProvider: QualityRuleConfigurationProvider = new DefaultQualityRuleConfigurationProvider(),
   ) {}
+
+  async getActiveConfiguration(): Promise<PbiQualityRuleConfiguration> {
+    return this.rulesProvider.getCurrentPbiConfiguration();
+  }
+
+  /** Evaluates arbitrary/draft PBI data without requiring it to be persisted first. */
+  async evaluatePbiInput(input: PbiEvaluationInput): Promise<QualityReport> {
+    const configuration = await this.rulesProvider.getCurrentPbiConfiguration();
+    const cenariosRegistrados: Criterion[] = (input.cenarios ?? []).map((c, index) => ({
+      id: `preview-${index}`,
+      entidade_tipo: "pbi",
+      entidade_id: input.id ?? "preview",
+      texto: null,
+      nome: c.nome ?? null,
+      dado: c.dado ?? null,
+      quando: c.quando ?? null,
+      entao: c.entao ?? null,
+      ordem: index + 1,
+      created_at: new Date().toISOString(),
+    }));
+
+    const pseudoPbi: Pbi = {
+      id: input.id ?? "preview",
+      feature_id: "00000000-0000-4000-8000-000000000000",
+      codigo: "PBI-PREVIEW",
+      titulo: input.titulo ?? "",
+      historia_como_um: input.historia_como_um ?? "",
+      historia_eu_quero: input.historia_eu_quero ?? "",
+      historia_para_que: input.historia_para_que ?? "",
+      regras_observacoes: null,
+      tipo: "Funcional",
+      prioridade: "Must",
+      status: "rascunho",
+      requer_interface: input.requer_interface === true,
+      prototipo_vinculado: input.prototipo_vinculado === true,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      score_completude: null,
+      criterios_count: cenariosRegistrados.length,
+    };
+
+    const detailedReport = this.buildDetailedReport(pseudoPbi, cenariosRegistrados, configuration.vague_terms ?? TERMOS_VAGOS_PADRAO);
+    return this.buildCompletenessReport(pseudoPbi, detailedReport, configuration);
+  }
 
   /** Detailed deterministic report shared by the existing PBI quality view. */
   async avaliarPbi(pbi: Pbi): Promise<RelatorioQualidadePbi> {

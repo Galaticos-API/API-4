@@ -257,6 +257,59 @@ export async function getPbiCompleteness(id: string, signal: AbortSignal): Promi
   };
 }
 
+export interface PbiQualityConfigurationRecord {
+  rule_version: string;
+  checks: Record<string, boolean>;
+  vague_terms: string[];
+  updated_at?: string;
+}
+
+export async function getPbiQualityConfiguration(signal?: AbortSignal): Promise<PbiQualityConfigurationRecord> {
+  const data = await (await apiRequest("/quality/configuration/pbi", { signal })).json();
+  return {
+    rule_version: asText(data.rule_version),
+    checks: (data.checks && typeof data.checks === "object") ? data.checks : {},
+    vague_terms: Array.isArray(data.vague_terms) ? data.vague_terms.map(asText) : [],
+    updated_at: asText(data.updated_at),
+  };
+}
+
+export interface EvaluatePbiInput {
+  id?: string;
+  titulo: string;
+  historia_como_um: string;
+  historia_eu_quero: string;
+  historia_para_que: string;
+  requer_interface?: boolean;
+  prototipo_vinculado?: boolean;
+  cenarios?: Array<{ dado?: string | null; quando?: string | null; entao?: string | null; nome?: string | null }>;
+}
+
+export async function evaluatePbiQuality(input: EvaluatePbiInput, signal?: AbortSignal): Promise<QualityReport> {
+  const data = await (await apiRequest("/quality/evaluate", {
+    method: "POST",
+    body: JSON.stringify(input),
+    signal,
+  })).json();
+  if (!data || typeof data !== "object" || !Array.isArray(data.checks)) throw new Error("Resposta de avaliação de qualidade inválida");
+  return {
+    entity_type: asText(data.entity_type),
+    entity_id: asText(data.entity_id),
+    rule_version: asText(data.rule_version),
+    checks: data.checks.map((check: unknown) => {
+      const value = check as Record<string, unknown>;
+      return {
+        check_id: asText(value.check_id),
+        check_name: asText(value.check_name),
+        passed: value.passed === true,
+        message: asText(value.message),
+        applicable: value.applicable === true,
+      };
+    }),
+    score_completude: data.score_completude === null ? null : Number(data.score_completude),
+  };
+}
+
 // =======================================
 // CRITÉRIOS DE ACEITAÇÃO POLIMÓRFICOS (S1-10/S1-11/S1-12)
 // =======================================

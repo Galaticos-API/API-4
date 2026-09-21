@@ -844,6 +844,33 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
+  /api/v1/quality/evaluate:
+    post:
+      summary: Avalia dados em tempo real de um PBI contra o checklist de qualidade vigente (PBI-01.3.5 / S1-14)
+      operationId: evaluatePbiQuality
+      description: >-
+        Permite ao painel de qualidade em tempo real avaliar rascunhos de PBI (título, história,
+        cenários e requer_interface) sem exigir persistência prévia no banco de dados.
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EvaluatePbiQualityRequest'
+      responses:
+        '200':
+          description: Resultado da avaliação das verificações ativas e indicador de completude
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PbiCompletenessReport'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
   /api/v1/criteria:
     post:
       summary: Registra um critério de aceitação polimórfico (PBI-01.2.1, PBI-01.2.2, PBI-01.2.3 / S1-10)
@@ -1693,6 +1720,44 @@ components:
           minimum: 0
           maximum: 100
           nullable: true
+
+    EvaluatePbiQualityRequest:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        titulo:
+          type: string
+        historia_como_um:
+          type: string
+        historia_eu_quero:
+          type: string
+        historia_para_que:
+          type: string
+        requer_interface:
+          type: boolean
+          default: false
+        prototipo_vinculado:
+          type: boolean
+          default: false
+        cenarios:
+          type: array
+          items:
+            type: object
+            properties:
+              nome:
+                type: string
+                nullable: true
+              dado:
+                type: string
+                nullable: true
+              quando:
+                type: string
+                nullable: true
+              entao:
+                type: string
+                nullable: true
 
     PbiQualityConfigurationInput:
       type: object

@@ -127,3 +127,75 @@ test("QualityController - validates and attributes configuration updates to auth
   assert.equal(invalidResponse.statusCode, 400);
   assert.equal(savedBy, "admin-1");
 });
+
+test("QualityController - evaluate evaluates unsaved PBI draft in real time", async () => {
+  const mockPbisRepo = new MockPbisRepository();
+  const mockCriteriaRepo = new MockCriteriaRepository();
+  const qualityService = new QualityService(mockCriteriaRepo, mockPbisRepo);
+  const qualityController = new QualityController(qualityService);
+
+  const req = {
+    body: {
+      titulo: "Cadastrar item",
+      historia_como_um: "Como um PO",
+      historia_eu_quero: "cadastrar itens",
+      historia_para_que: "organizar o trabalho",
+      requer_interface: false,
+      cenarios: [
+        {
+          nome: "Cenário 1",
+          dado: "usuário no sistema",
+          quando: "clicar em salvar",
+          entao: "item é criado",
+        },
+      ],
+    },
+  } as any;
+
+  const res = {
+    status: (code: number) => { res.statusCode = code; return res; },
+    json: (data: unknown) => { res.body = data; return res; },
+  } as any;
+
+  await qualityController.evaluate(req, res, (() => {}) as NextFunction);
+
+  assert.equal(res.statusCode, 200);
+  assert.ok(res.body);
+  assert.equal(res.body.entity_type, "pbi");
+  assert.ok(Array.isArray(res.body.checks));
+  assert.equal(res.body.score_completude, 100);
+});
+
+test("QualityController - evaluate detects invalid title and missing scenarios", async () => {
+  const mockPbisRepo = new MockPbisRepository();
+  const mockCriteriaRepo = new MockCriteriaRepository();
+  const qualityService = new QualityService(mockCriteriaRepo, mockPbisRepo);
+  const qualityController = new QualityController(qualityService);
+
+  const req = {
+    body: {
+      titulo: "Tela de usuários", // Não começa com infinitivo
+      historia_como_um: "", // Bloco ausente
+      historia_eu_quero: "ver usuários",
+      historia_para_que: "auditar acessos",
+      cenarios: [], // Sem cenários
+    },
+  } as any;
+
+  const res = {
+    status: (code: number) => { res.statusCode = code; return res; },
+    json: (data: unknown) => { res.body = data; return res; },
+  } as any;
+
+  await qualityController.evaluate(req, res, (() => {}) as NextFunction);
+
+  assert.equal(res.statusCode, 200);
+  const checks = res.body.checks as Array<{ check_id: string; passed: boolean }>;
+  const tituloCheck = checks.find((c) => c.check_id === "titulo_infinitivo");
+  const historiaCheck = checks.find((c) => c.check_id === "historia_completa");
+  const cenarioCheck = checks.find((c) => c.check_id === "cenario_estruturado");
+
+  assert.equal(tituloCheck?.passed, false);
+  assert.equal(historiaCheck?.passed, false);
+  assert.equal(cenarioCheck?.passed, false);
+});

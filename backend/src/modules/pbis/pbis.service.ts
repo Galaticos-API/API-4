@@ -2,7 +2,7 @@ import { createPbiSchema, updatePbiSchema, pbiQuerySchema, Pbi, PbiWithContext, 
 import { PbisRepository, pbisRepository } from "./pbis.repository.js";
 import { FeaturesRepository, featuresRepository } from "../features/features.repository.js";
 import { QualityService, qualityService, RelatorioQualidadePbi } from "../quality/quality.service.js";
-import { validarTituloInfinitivo } from "../quality/quality.rules.js";
+import { validarTituloInfinitivo, validarHistoria } from "../quality/quality.rules.js";
 import { NotFoundError, ValidationError, validateUuid } from "../../shared/errors.js";
 
 export class PbisService {
@@ -103,12 +103,41 @@ export class PbisService {
       return existing;
     }
 
+    const config = await this.qualityChecker.getActiveConfiguration();
+    const activeChecks = new Set(config.checks.map((c) => c.check_id));
     const camposFaltantes: string[] = [];
-    if ((existing.criterios_count ?? 0) === 0) {
+
+    // Verificação de cenários estruturados
+    if (activeChecks.has("cenario_estruturado")) {
+      if ((existing.criterios_count ?? 0) === 0) {
+        camposFaltantes.push("cenarios_aceitacao");
+      } else {
+        const qualityDetails = await this.qualityChecker.avaliarPbi(existing);
+        if (qualityDetails.cenarios.some((c) => !c.aprovado)) {
+          camposFaltantes.push("cenarios_aceitacao");
+        }
+      }
+    } else if ((existing.criterios_count ?? 0) === 0) {
       camposFaltantes.push("cenarios_aceitacao");
     }
-    if (!validarTituloInfinitivo(existing.titulo).aprovado) {
-      camposFaltantes.push("titulo_infinitivo");
+
+    // Verificação de título no infinitivo
+    if (activeChecks.has("titulo_infinitivo")) {
+      if (!validarTituloInfinitivo(existing.titulo).aprovado) {
+        camposFaltantes.push("titulo_infinitivo");
+      }
+    }
+
+    // Verificação de história completa
+    if (activeChecks.has("historia_completa")) {
+      const historiaRes = validarHistoria({
+        comoUm: existing.historia_como_um ?? "",
+        euQuero: existing.historia_eu_quero ?? "",
+        paraQue: existing.historia_para_que ?? "",
+      });
+      if (!historiaRes.aprovado) {
+        camposFaltantes.push("historia_completa");
+      }
     }
 
     if (camposFaltantes.length > 0) {
