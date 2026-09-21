@@ -40,7 +40,7 @@
 .auth-card h1 { font-size: 1.6rem; }
 .auth-card p { color: var(--text-secondary); }
 .auth-card form { display: grid; gap: 12px; }
-.auth-card input { width: 100%; padding: 12px; border-radius: var(--radius-sm); border: 1px solid var(--border-subtle); background: var(--bg-secondary); color: var(--text-primary); font: inherit; }
+.auth-card input, .auth-card select { width: 100%; padding: 12px; border-radius: var(--radius-sm); border: 1px solid var(--border-subtle); background: var(--bg-secondary); color: var(--text-primary); font: inherit; }
 .auth-card [role="alert"] { color: #fca5a5; }
 button:focus-visible, input:focus-visible { outline: 2px solid var(--accent-secondary); outline-offset: 3px; }
 button:disabled { opacity: .6; cursor: wait; }

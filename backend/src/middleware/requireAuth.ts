@@ -4,7 +4,6 @@ import {
   Response,
 } from "express";
 
-import { getSessionToken } from "../modules/auth/auth.cookies.js";
 import {
   SessionService,
   sessionService,
@@ -19,7 +18,17 @@ export function createRequireAuth(
     next: NextFunction,
   ): Promise<void> => {
     try {
-      const token = getSessionToken(req);
+      let token: string | undefined;
+
+      const authHeader = req.headers.authorization;
+      if (authHeader && authHeader.startsWith("Bearer ")) {
+        token = authHeader.split(" ")[1];
+      } else if (req.headers.cookie) {
+        const match = req.headers.cookie.match(/(?:^|;\s*)sinapse_session=([^;]+)/);
+        if (match) {
+          token = match[1];
+        }
+      }
 
       if (!token) {
         res.status(401).json({

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-import { ApiError } from "../auth/api";
+import { ApiError } from "../api/api_auth";
 import { navigate } from "./navigation";
-import { createPbi, completePbi, updatePbi, getPbi, listPbis, getPbiCompleteness, hasCompletudeIndicator, camposFaltantesDe, type Pbi, type PbiInput, type QualityReport } from "./api";
+import { createPbi, completePbi, updatePbi, getPbi, listPbis, getPbiCompleteness, hasCompletudeIndicator, camposFaltantesDe, type Pbi, type PbiInput, type QualityReport } from "../api/api_backlog";
 import { descreverCamposFaltantes } from "./fields";
 import { useUnsavedChangesGuard } from "./useUnsavedChangesGuard";
 import { CriteriaEditor } from "./Criteria";

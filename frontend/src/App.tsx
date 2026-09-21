@@ -219,9 +219,8 @@ export const App: React.FC = () => {
                       <h3 style={{ fontSize: "1.15rem", fontWeight: 600, marginTop: "2px" }}>{svc.name}</h3>
                     </div>
                     <span
-                      className={`badge ${
-                        svc.status === "online" ? "badge-success" : svc.status === "offline" ? "badge-warning" : "badge-info"
-                      }`}
+                      className={`badge ${svc.status === "online" ? "badge-success" : svc.status === "offline" ? "badge-warning" : "badge-info"
+                        }`}
                     >
                       {svc.status === "online" ? "Saudável" : svc.status === "offline" ? "Pendente" : "Inicializando"}
                     </span>

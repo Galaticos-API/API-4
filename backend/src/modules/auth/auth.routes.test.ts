@@ -20,6 +20,28 @@ class MockAuthRepository {
   public failedLoginCalls = 0;
   public resetCalls = 0;
 
+  async createUser(data: {
+    nome: string;
+    email: string;
+    senha_hash: string;
+    role?: UserRecord["role"];
+  }): Promise<UserRecord> {
+    this.user = {
+      id: "new-user-id",
+      nome: data.nome,
+      email: data.email,
+      senha_hash: data.senha_hash,
+      role: data.role ?? "po",
+      ativo: true,
+      tentativas_login: 0,
+      bloqueado_ate: null,
+      created_at: new Date(),
+      updated_at: new Date(),
+    };
+
+    return this.user;
+  }
+
   async findUserByEmail(
     _email: string,
   ): Promise<UserRecord | null> {
@@ -164,6 +186,11 @@ test("Testes HTTP - Autenticação e sessão", async (t) => {
   const app = express();
 
   app.use(express.json());
+
+  app.post(
+    "/api/v1/auth/register",
+    controller.register,
+  );
 
   app.post(
     "/api/v1/auth/login",
@@ -380,10 +407,7 @@ test("Testes HTTP - Autenticação e sessão", async (t) => {
         "user-1",
       );
 
-      assert.equal(
-        loginBody.token,
-        undefined,
-      );
+      assert.ok(loginBody.token);
 
       const cookie =
         setCookie.split(";")[0];
@@ -456,6 +480,59 @@ test("Testes HTTP - Autenticação e sessão", async (t) => {
         afterLogout.status,
         401,
       );
+    },
+  );
+
+  await t.test(
+    "registro de usuário cria conta e retorna status 201 com token",
+    async () => {
+      authRepository.user = null;
+
+      // Mock para createUser no repo
+      (authRepository as any).createUser = async (data: any) => {
+        authRepository.user = {
+          id: "new-user-id",
+          nome: data.nome,
+          email: data.email,
+          senha_hash: data.senha_hash,
+          role: data.role ?? "po",
+          ativo: true,
+          tentativas_login: 0,
+          bloqueado_ate: null,
+          created_at: new Date(),
+          updated_at: new Date(),
+        };
+        return authRepository.user;
+      };
+
+      authRepository.user = null;
+
+      const registerResponse = await fetch(
+        `${baseUrl}/api/v1/auth/register`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            nome: "Novo Usuário",
+            email: "novo@example.com",
+            password: "SenhaSegura123!",
+            role: "dev",
+          }),
+        },
+      );
+
+      assert.equal(registerResponse.status, 201);
+
+      const regBody = (await registerResponse.json()) as {
+        user: { id: string; email: string; role: string };
+        token: string;
+      };
+
+      assert.equal(regBody.user.email, "novo@example.com");
+      assert.equal(regBody.user.role, "dev");
+      assert.ok(regBody.token);
     },
   );
 });
