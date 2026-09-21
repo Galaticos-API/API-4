@@ -117,6 +117,7 @@ it("PBI-01.2.4: reordena cenários de um PBI com botões acessíveis por teclado
   const pbi = {
     id: "pbi-1", feature_id: "feature-1", codigo: "PBI-001", titulo: "Cadastrar item",
     historia_como_um: "PO", historia_eu_quero: "algo", historia_para_que: "algo", status: "rascunho",
+    requer_interface: false, prototipo_vinculado: false,
     criterios_count: 2, feature_titulo: "Feature base", epico_id: "epic-1", epico_titulo: "Épico base", projeto_id: "project-1",
     projeto_status: "ativo",
   };

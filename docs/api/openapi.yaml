@@ -773,7 +773,9 @@ paths:
       summary: Calcula o indicador de completude sobre o checklist vigente do PBI (PBI-01.3.6 / S1-15)
       operationId: getPbiCompleteness
       description: >-
-        Calcula a proporção sem pesos das verificações habilitadas e aplicáveis. Verificações
+        Calcula a proporção sem pesos das verificações habilitadas e aplicáveis. A verificação
+        de protótipo só se aplica quando `requer_interface` é verdadeiro e consulta os protótipos
+        vinculados ao PBI. Verificações
         não aplicáveis não são retornadas nem entram no denominador. O valor é calculado na
         consulta, não confiando no score persistido. A resposta informa a versão do conjunto
         de regras usado. A política organizacional é lida da configuração administrativa vigente.
@@ -1430,6 +1432,10 @@ components:
           type: string
           enum: [Must, Should, Could]
           default: Must
+        requer_interface:
+          type: boolean
+          default: false
+          description: Define explicitamente se a verificação de protótipo deve ser aplicada ao PBI.
 
     UpdatePbiRequest:
       type: object
@@ -1455,12 +1461,14 @@ components:
         prioridade:
           type: string
           enum: [Must, Should, Could]
+        requer_interface:
+          type: boolean
         justificativa:
           type: string
 
     PbiResponse:
       type: object
-      required: [id, feature_id, codigo, titulo, historia_como_um, historia_eu_quero, historia_para_que, status, created_at, updated_at]
+      required: [id, feature_id, codigo, titulo, historia_como_um, historia_eu_quero, historia_para_que, requer_interface, status, created_at, updated_at]
       properties:
         id:
           type: string
@@ -1486,6 +1494,12 @@ components:
         prioridade:
           type: string
           enum: [Must, Should, Could]
+        requer_interface:
+          type: boolean
+          description: Indica se a regra de protótipo é aplicável a este PBI.
+        prototipo_vinculado:
+          type: boolean
+          description: Indica se há ao menos um protótipo registrado para este PBI.
         status:
           type: string
           enum: [rascunho, concluido]
@@ -1688,12 +1702,13 @@ components:
         checks:
           type: object
           additionalProperties: false
-          required: [titulo_infinitivo, historia_completa, cenario_estruturado, termos_vagos]
+          required: [titulo_infinitivo, historia_completa, cenario_estruturado, termos_vagos, prototipo_vinculado]
           properties:
             titulo_infinitivo: { type: boolean }
             historia_completa: { type: boolean }
             cenario_estruturado: { type: boolean }
             termos_vagos: { type: boolean }
+            prototipo_vinculado: { type: boolean }
         vague_terms:
           type: array
           maxItems: 100

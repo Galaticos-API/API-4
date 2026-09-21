@@ -44,7 +44,10 @@ export class DefaultQualityRuleConfigurationProvider implements QualityRuleConfi
   async getCurrentPbiConfiguration(): Promise<PbiQualityRuleConfiguration> {
     return {
       rule_version: "pbi-quality-v1",
-      checks: PBI_QUALITY_CHECKS.map((check_id) => ({ check_id, isApplicable: () => true })),
+      checks: PBI_QUALITY_CHECKS.map((check_id) => ({
+        check_id,
+        isApplicable: (pbi) => check_id !== "prototipo_vinculado" || pbi.requer_interface,
+      })),
     };
   }
 }
@@ -59,7 +62,10 @@ export class DatabaseQualityRuleConfigurationProvider implements QualityRuleConf
       rule_version: current.rule_version,
       checks: PBI_QUALITY_CHECKS
         .filter((check_id) => current.checks[check_id])
-        .map((check_id) => ({ check_id, isApplicable: () => true })),
+        .map((check_id) => ({
+          check_id,
+          isApplicable: (pbi) => check_id !== "prototipo_vinculado" || pbi.requer_interface,
+        })),
       vague_terms: current.vague_terms,
     };
   }
@@ -166,6 +172,14 @@ export class QualityService {
         message: report.termos_vagos.length === 0
           ? "Não foram identificados termos vagos."
           : `Foram identificados termos vagos: ${[...new Set(report.termos_vagos.flatMap((item) => item.termos))].join(", ")}. Considere substituir por condições verificáveis.`,
+      },
+      prototipo_vinculado: {
+        check_id: "prototipo_vinculado",
+        check_name: "Protótipo associado",
+        passed: pbi.prototipo_vinculado === true,
+        message: pbi.prototipo_vinculado === true
+          ? "O PBI possui um protótipo associado."
+          : "Nenhum protótipo foi associado a este PBI.",
       },
     };
     const checks: QualityCheckResult[] = configuration.checks

@@ -39,6 +39,7 @@ class InMemoryPbisRepository extends PbisRepository {
       regras_observacoes: data.regras_observacoes?.trim() ?? null,
       tipo: data.tipo,
       prioridade: data.prioridade,
+      requer_interface: data.requer_interface,
       status: "rascunho",
       score_completude: 0,
       provenance: "human-authored",
@@ -114,6 +115,7 @@ test("PBI-01.1.4 Cenário 1: cria PBI com história completa vinculado à featur
 
   assert.equal(result.status, "rascunho");
   assert.match(result.codigo, /^PBI-\d{3}$/);
+  assert.equal(result.requer_interface, false);
 });
 
 test("listagem recalcula completude quando os cenários mudam sem confiar no valor persistido", async () => {

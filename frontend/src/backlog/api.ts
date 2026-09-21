@@ -45,6 +45,7 @@ export interface PbiInput {
   historia_como_um: string;
   historia_eu_quero: string;
   historia_para_que: string;
+  requer_interface: boolean;
 }
 
 export interface Pbi extends PbiInput {
@@ -58,6 +59,7 @@ export interface Pbi extends PbiInput {
   projeto_id: string;
   projeto_status: string;
   score_completude: number | null;
+  prototipo_vinculado?: boolean;
 }
 
 export interface CompletionError {
@@ -143,6 +145,8 @@ function parsePbi(value: unknown): Pbi {
     id: pbi.id, feature_id: pbi.feature_id, codigo: asText(pbi.codigo), titulo: pbi.titulo,
     historia_como_um: asText(pbi.historia_como_um), historia_eu_quero: asText(pbi.historia_eu_quero),
     historia_para_que: asText(pbi.historia_para_que),
+    requer_interface: pbi.requer_interface === true,
+    prototipo_vinculado: pbi.prototipo_vinculado === true,
     status: (pbi.status as BacklogStatus) ?? "rascunho",
     criterios_count: Number(pbi.criterios_count ?? 0),
     feature_titulo: asText(pbi.feature_titulo), epico_id: asText(pbi.epico_id),

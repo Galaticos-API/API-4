@@ -8,7 +8,7 @@ import { CriteriaEditor } from "./Criteria";
 import "../projects/projects.css";
 
 type ListResult = { state: "loading" } | { state: "error"; message: string } | { state: "ready"; pbis: Pbi[] };
-const emptyInput: PbiInput = { feature_id: "", titulo: "", historia_como_um: "", historia_eu_quero: "", historia_para_que: "" };
+const emptyInput: PbiInput = { feature_id: "", titulo: "", historia_como_um: "", historia_eu_quero: "", historia_para_que: "", requer_interface: false };
 
 export function PbiList({ projectId, epicoId, featureId, canCreate }: { projectId: string; epicoId: string; featureId: string; canCreate: boolean }) {
   const [result, setResult] = useState<ListResult>({ state: "loading" });
@@ -63,7 +63,7 @@ export function PbiForm({ projectId, epicoId, featureId }: { projectId: string; 
   const submitting = useRef(false);
   const mounted = useRef(true);
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
-  const isDirty = [values.titulo, values.historia_como_um, values.historia_eu_quero, values.historia_para_que].some((value) => value.trim().length > 0);
+  const isDirty = values.requer_interface || [values.titulo, values.historia_como_um, values.historia_eu_quero, values.historia_para_que].some((value) => value.trim().length > 0);
   const { confirmLeave } = useUnsavedChangesGuard(isDirty);
 
   const featurePath = `/projects/${projectId}/epics/${epicoId}/features/${featureId}`;
@@ -105,6 +105,9 @@ export function PbiForm({ projectId, epicoId, featureId }: { projectId: string; 
           <label htmlFor="historia_para_que">PARA QUE (obrigatório)</label>
           <input id="historia_para_que" name="historia_para_que" type="text" disabled={busy} value={values.historia_para_que} onChange={(e) => setValues((v) => ({ ...v, historia_para_que: e.target.value }))} />
         </div>
+        <div className="project-field">
+          <label><input type="checkbox" checked={values.requer_interface} disabled={busy} onChange={(e) => setValues((v) => ({ ...v, requer_interface: e.target.checked }))} /> Este PBI exige interface ou protótipo visual</label>
+        </div>
         {message && <p role="alert">{message}</p>}
         <div className="project-actions">
           <button type="submit" className="btn-primary" disabled={busy}>{busy ? "Criando…" : "Criar PBI"}</button>
@@ -115,10 +118,10 @@ export function PbiForm({ projectId, epicoId, featureId }: { projectId: string; 
   );
 }
 
-type PbiFields = Pick<PbiInput, "titulo" | "historia_como_um" | "historia_eu_quero" | "historia_para_que">;
+type PbiFields = Pick<PbiInput, "titulo" | "historia_como_um" | "historia_eu_quero" | "historia_para_que" | "requer_interface">;
 
 function toFields(pbi: Pbi): PbiFields {
-  return { titulo: pbi.titulo, historia_como_um: pbi.historia_como_um, historia_eu_quero: pbi.historia_eu_quero, historia_para_que: pbi.historia_para_que };
+  return { titulo: pbi.titulo, historia_como_um: pbi.historia_como_um, historia_eu_quero: pbi.historia_eu_quero, historia_para_que: pbi.historia_para_que, requer_interface: pbi.requer_interface };
 }
 
 export function PbiDetail({ projectId, epicoId, featureId, pbiId, canEdit }: { projectId: string; epicoId: string; featureId: string; pbiId: string; canEdit: boolean }) {
@@ -185,10 +188,11 @@ export function PbiDetail({ projectId, epicoId, featureId, pbiId, canEdit }: { p
               <input id="edit-eu-quero" type="text" disabled={saving} value={formValues.historia_eu_quero} onChange={(e) => setFormValues((v) => v && { ...v, historia_eu_quero: e.target.value })} /></div>
             <div className="project-field"><label htmlFor="edit-para-que">PARA QUE</label>
               <input id="edit-para-que" type="text" disabled={saving} value={formValues.historia_para_que} onChange={(e) => setFormValues((v) => v && { ...v, historia_para_que: e.target.value })} /></div>
+            <div className="project-field"><label><input type="checkbox" checked={formValues.requer_interface} disabled={saving} onChange={(e) => setFormValues((v) => v && { ...v, requer_interface: e.target.checked })} /> Este PBI exige interface ou protótipo visual</label></div>
             {editMessage && <p role="alert">{editMessage}</p>}
             <div className="project-actions">
               <button className="btn-primary" disabled={saving} onClick={async () => {
-                if (Object.values(formValues).some((v) => !v.trim())) { setEditMessage("Nenhum campo pode ficar vazio."); return; }
+                if ([formValues.titulo, formValues.historia_como_um, formValues.historia_eu_quero, formValues.historia_para_que].some((v) => !v.trim())) { setEditMessage("Nenhum campo pode ficar vazio."); return; }
                 setSaving(true); setEditMessage("");
                 try {
                   const updated = await updatePbi(pbi!.id, formValues);
@@ -210,6 +214,7 @@ export function PbiDetail({ projectId, epicoId, featureId, pbiId, canEdit }: { p
               <dt>COMO UM</dt><dd>{pbi!.historia_como_um}</dd>
               <dt>EU QUERO</dt><dd>{pbi!.historia_eu_quero}</dd>
               <dt>PARA QUE</dt><dd>{pbi!.historia_para_que}</dd>
+              <dt>Exige interface/protótipo</dt><dd>{pbi!.requer_interface ? "Sim" : "Não"}</dd>
               <dt>Cenários de aceitação registrados</dt><dd>{pbi!.criterios_count}</dd>
             </dl>
             {qualityResult.state === "ready" && qualityResult.quality.score_completude !== null && (

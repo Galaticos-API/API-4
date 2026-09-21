@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { calculateCompleteness, QualityService } from "./quality.service.js";
+import { calculateCompleteness, DatabaseQualityRuleConfigurationProvider, QualityService } from "./quality.service.js";
 import { CriteriaRepository } from "../criteria/criteria.repository.js";
 import { PbisRepository } from "../pbis/pbis.repository.js";
 import { Criterion, CriterionEntityType } from "../criteria/criteria.types.js";
@@ -10,7 +10,7 @@ import { PBI_QUALITY_CHECKS, PbiQualityRuleConfiguration, QualityRuleConfigurati
 const pbiBase: Pbi = {
   id: "pbi-1", feature_id: "feature-1", codigo: "PBI-001", titulo: "Cadastrar item",
   historia_como_um: "Product Owner", historia_eu_quero: "cadastrar um item", historia_para_que: "organizar o backlog",
-  regras_observacoes: null, tipo: "Funcional", prioridade: "Must", status: "rascunho",
+  regras_observacoes: null, tipo: "Funcional", prioridade: "Must", requer_interface: false, status: "rascunho",
   score_completude: 0, provenance: "human-authored", created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
 };
 
@@ -31,7 +31,7 @@ class StubPbisRepository extends PbisRepository {
 class StubQualityRuleConfigurationProvider implements QualityRuleConfigurationProvider {
   constructor(public configuration: PbiQualityRuleConfiguration = {
     rule_version: "test-v1",
-    checks: PBI_QUALITY_CHECKS.map((check_id) => ({ check_id, isApplicable: () => true })),
+    checks: PBI_QUALITY_CHECKS.map((check_id) => ({ check_id, isApplicable: (pbi) => check_id !== "prototipo_vinculado" || pbi.requer_interface })),
   }) {}
 
   async getCurrentPbiConfiguration(): Promise<PbiQualityRuleConfiguration> {
@@ -212,4 +212,28 @@ test("listagem calcula uma página com uma única configuração vigente e lote 
   assert.equal(batchReads, 1);
   assert.equal(reports.get("pbi-1")?.rule_version, "page-v3");
   assert.equal(reports.get("pbi-2")?.score_completude, 100);
+});
+
+test("provedor PostgreSQL aplica a regra de protótipo somente quando o PBI exige interface", async () => {
+  const configuration = {
+    rule_version: "pbi-quality-v9",
+    checks: Object.fromEntries(PBI_QUALITY_CHECKS.map((check) => [check, true])),
+    vague_terms: [],
+  };
+  const provider = new DatabaseQualityRuleConfigurationProvider({ getPbiConfiguration: async () => configuration } as any);
+  const withoutInterface = { ...pbiBase, id: "pbi-no-ui", requer_interface: false, prototipo_vinculado: false };
+  const interfaceWithoutPrototype = { ...pbiBase, id: "pbi-ui-no-prototype", requer_interface: true, prototipo_vinculado: false };
+  const interfaceWithPrototype = { ...pbiBase, id: "pbi-ui-with-prototype", requer_interface: true, prototipo_vinculado: true };
+  const service = new QualityService(new StubCriteriaRepository([]), new StubPbisRepository(null), provider);
+
+  const reports = await service.validatePbis([withoutInterface, interfaceWithoutPrototype, interfaceWithPrototype]);
+  const noUiChecks = reports.get(withoutInterface.id)!.checks;
+  const missingPrototype = reports.get(interfaceWithoutPrototype.id)!.checks.find((check) => check.check_id === "prototipo_vinculado");
+  const linkedPrototype = reports.get(interfaceWithPrototype.id)!.checks.find((check) => check.check_id === "prototipo_vinculado");
+
+  assert.equal(noUiChecks.some((check) => check.check_id === "prototipo_vinculado"), false);
+  assert.equal(missingPrototype?.applicable, true);
+  assert.equal(missingPrototype?.passed, false);
+  assert.equal(linkedPrototype?.applicable, true);
+  assert.equal(linkedPrototype?.passed, true);
 });

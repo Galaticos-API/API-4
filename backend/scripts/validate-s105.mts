@@ -7,6 +7,8 @@ import pg from "pg";
 import { EpicsRepository } from "../src/modules/epics/epics.repository.js";
 import { CriteriaRepository } from "../src/modules/criteria/criteria.repository.js";
 import { QualityConfigurationRepository } from "../src/modules/quality/quality.configuration.repository.js";
+import { DatabaseQualityRuleConfigurationProvider, QualityService } from "../src/modules/quality/quality.service.js";
+import { PbisRepository } from "../src/modules/pbis/pbis.repository.js";
 import { ValidationError } from "../src/shared/errors.js";
 
 // Never run fixtures on an application database, even if this variable was set accidentally.
@@ -64,6 +66,18 @@ try {
       const configurationRepository = new QualityConfigurationRepository(pool);
       const initialConfiguration = await configurationRepository.getPbiConfiguration();
       assert.ok(Object.values(initialConfiguration.checks).every(Boolean));
+      assert.equal(initialConfiguration.checks.prototipo_vinculado, true);
+      assert.equal(initialConfiguration.rule_version, "pbi-quality-v2");
+      const migrationAudits = await pool.query(
+        "SELECT usuario_id, dados_json FROM auditoria WHERE entidade_tipo='quality_configuration' AND acao='migration_updated' AND entidade_id=$1::uuid",
+        ["00000000-0000-4000-8000-000000000001"],
+      );
+      assert.equal(migrationAudits.rowCount, 1);
+      assert.equal(migrationAudits.rows[0].usuario_id, null);
+      assert.equal(migrationAudits.rows[0].dados_json.after.checks.prototipo_vinculado, true);
+      await pool.query(await sql("009_pbi_interface_quality.sql"));
+      assert.equal((await configurationRepository.getPbiConfiguration()).rule_version, initialConfiguration.rule_version, "a migration repetida não pode incrementar a versão de novo");
+      assert.equal((await pool.query("SELECT count(*)::int AS count FROM auditoria WHERE entidade_tipo='quality_configuration' AND acao='migration_updated'")).rows[0].count, 1);
       const adminId = randomUUID();
       await pool.query("INSERT INTO usuario (id, nome, email, senha_hash, role) VALUES ($1, 'Admin QA', $2, 'unused', 'admin')", [adminId, `${adminId}@example.test`]);
       const changedInput = {
@@ -90,6 +104,36 @@ try {
         checks: initialConfiguration.checks,
         vague_terms: initialConfiguration.vague_terms,
       }, adminId);
+
+      // Exercise production applicability against persisted PBI flags and actual
+      // rows in the pre-existing prototype table, not a stub provider.
+      const qualityProject = (await pool.query("INSERT INTO projeto(nome,cliente,status) VALUES ('Completude QA','QA','ativo') RETURNING id")).rows[0];
+      const qualityEpic = (await pool.query("INSERT INTO epico(projeto_id,titulo,status) VALUES ($1,'Qualidade','rascunho') RETURNING id", [qualityProject.id])).rows[0];
+      const qualityFeature = (await pool.query("INSERT INTO feature(epico_id,titulo,status) VALUES ($1,'Protótipo','rascunho') RETURNING id", [qualityEpic.id])).rows[0];
+      const noInterfacePbi = (await pool.query(`
+        INSERT INTO pbi (feature_id,codigo,titulo,historia_como_um,historia_eu_quero,historia_para_que,requer_interface)
+        VALUES ($1,'QA-001','Cadastrar informação','PO','cadastrar informação','organizar dados',FALSE) RETURNING id
+      `, [qualityFeature.id])).rows[0];
+      const missingPrototypePbi = (await pool.query(`
+        INSERT INTO pbi (feature_id,codigo,titulo,historia_como_um,historia_eu_quero,historia_para_que,requer_interface)
+        VALUES ($1,'QA-002','Exibir painel','PO','exibir painel','acompanhar dados',TRUE) RETURNING id
+      `, [qualityFeature.id])).rows[0];
+      const linkedPrototypePbi = (await pool.query(`
+        INSERT INTO pbi (feature_id,codigo,titulo,historia_como_um,historia_eu_quero,historia_para_que,requer_interface)
+        VALUES ($1,'QA-003','Exibir relatório','PO','exibir relatório','consultar dados',TRUE) RETURNING id
+      `, [qualityFeature.id])).rows[0];
+      await pool.query("INSERT INTO prototipo (pbi_id,nome,url) VALUES ($1,'Figma QA','https://figma.com/file/qa')", [linkedPrototypePbi.id]);
+      const pbisRepository = new PbisRepository(pool);
+      const persistedPbis = await Promise.all([noInterfacePbi, missingPrototypePbi, linkedPrototypePbi].map(({ id }) => pbisRepository.findById(id)));
+      assert.equal(persistedPbis[0]?.requer_interface, false);
+      assert.equal(persistedPbis[0]?.prototipo_vinculado, false);
+      assert.equal(persistedPbis[2]?.prototipo_vinculado, true);
+      const qualityService = new QualityService(new CriteriaRepository(pool), pbisRepository, new DatabaseQualityRuleConfigurationProvider(configurationRepository));
+      const reports = await qualityService.validatePbis(persistedPbis.filter((pbi): pbi is NonNullable<typeof pbi> => pbi !== null));
+      assert.equal(reports.get(noInterfacePbi.id)?.checks.some((check) => check.check_id === "prototipo_vinculado"), false);
+      assert.equal(reports.get(missingPrototypePbi.id)?.checks.find((check) => check.check_id === "prototipo_vinculado")?.passed, false);
+      assert.equal(reports.get(linkedPrototypePbi.id)?.checks.find((check) => check.check_id === "prototipo_vinculado")?.passed, true);
+
       const constraint = (await pool.query("SELECT pg_get_constraintdef(oid) AS definition FROM pg_constraint WHERE conrelid='epico'::regclass AND conname='ck_epico_status'")).rows[0].definition;
       if (expectedConstraint) assert.equal(constraint, expectedConstraint); else expectedConstraint = constraint;
       if (legacyEpicId) {

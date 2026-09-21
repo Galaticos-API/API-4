@@ -59,3 +59,15 @@ dos PBIs já concluídos. Esta migration não implementa regras de épico/featur
 DoR/DoD (PBI-01.6.2), que permanecem no escopo restante da S2-19.
 O cenário PostgreSQL de `npm run test:integration:s105` valida configuração
 padrão, versionamento, autor/data, auditoria e rollback quando a autoria não é válida.
+
+## Aplicabilidade da verificação de protótipo (S1-15)
+
+`009_pbi_interface_quality.sql` registra se cada PBI exige interface e adiciona
+à configuração de qualidade a verificação `prototipo_vinculado`. Ela só é
+aplicável quando `pbi.requer_interface` é verdadeiro; seu resultado consulta a
+tabela `prototipo` já existente, indexando a chave de vínculo. PBIs legados recebem
+`false` para não presumir que necessitam interface. A migration preserva os demais ajustes da política e
+incrementa sua versão ao introduzir a nova regra. A atualização da política fica
+registrada em `auditoria` como alteração de migration (sem atribuir a um admin).
+O teste PostgreSQL de compatibilidade verifica aplicabilidade, presença/ausência
+de protótipo e reexecução idempotente.

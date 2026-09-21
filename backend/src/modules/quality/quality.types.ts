@@ -8,6 +8,7 @@ export const PBI_QUALITY_CHECKS = [
   "historia_completa",
   "cenario_estruturado",
   "termos_vagos",
+  "prototipo_vinculado",
 ] as const;
 
 export type PbiQualityCheck = (typeof PBI_QUALITY_CHECKS)[number];

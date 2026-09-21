@@ -113,7 +113,7 @@ test("QualityController - validates and attributes configuration updates to auth
   } as any;
   const controller = new QualityController(undefined, repository);
   const payload = {
-    checks: { titulo_infinitivo: true, historia_completa: true, cenario_estruturado: false, termos_vagos: true },
+    checks: { titulo_infinitivo: true, historia_completa: true, cenario_estruturado: false, termos_vagos: true, prototipo_vinculado: true },
     vague_terms: ["simples"],
   };
   const res = { status: (code: number) => { res.statusCode = code; return res; }, json: (data: unknown) => { res.body = data; return res; } } as any;

@@ -38,6 +38,7 @@ class MockPbisRepo extends PbisRepository {
       regras_observacoes: null,
       tipo: data.tipo,
       prioridade: data.prioridade,
+      requer_interface: data.requer_interface,
       status: "rascunho",
       score_completude: 0,
       provenance: "human-authored",
@@ -113,12 +114,14 @@ test("Testes de integração HTTP - Rotas de PBIs", async (t) => {
         historia_como_um: "Product Owner",
         historia_eu_quero: "cadastrar um PBI",
         historia_para_que: "descrever o comportamento esperado",
+        requer_interface: true,
       }),
     });
 
     assert.equal(res.status, 201);
     const body = (await res.json()) as Pbi;
     assert.equal(body.status, "rascunho");
+    assert.equal(body.requer_interface, true);
     assert.match(body.codigo, /^PBI-\d{3}$/);
   });
 

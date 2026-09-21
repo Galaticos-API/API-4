@@ -9,6 +9,7 @@ const configurationSchema = z.object({
     historia_completa: z.boolean(),
     cenario_estruturado: z.boolean(),
     termos_vagos: z.boolean(),
+    prototipo_vinculado: z.boolean(),
   }).strict(),
   vague_terms: z.array(z.string().trim().min(1).max(80)).max(100),
 }).strict();

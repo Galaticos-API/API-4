@@ -165,7 +165,7 @@ validações determinísticas, decisões e anexos, sem depender de IA.
 | S1-12 | Could | Permitir reordenar cenários com persistência de ordem e interação acessível por teclado | PBI-01.2.4 | S1-10, S1-11 | P | Frontend, Backend |
 | S1-13 | Must | Implementar motor determinístico configurável para título no infinitivo, história completa, cenário estruturado e termos vagos | PBI-01.3.1, PBI-01.3.2, PBI-01.3.3, PBI-01.3.4 | S1-07, S1-10 | G | Backend, QA |
 | S1-14 | Must | Criar painel de qualidade em tempo real, navegação para campo inválido e bloqueio apenas na conclusão | PBI-01.3.5 | S1-13 | M | Frontend, Backend, UX |
-| S1-15 | Should | Calcular e exibir completude derivada do checklist, com regra versionada e sem uso de IA | PBI-01.3.6 | S1-13, S1-14 | M | Backend, Frontend |
+| S1-15 | Should | Calcular e exibir completude derivada do checklist, com regra versionada e sem uso de IA; aplicar verificação de protótipo apenas quando o PBI exigir interface | PBI-01.3.6 | S1-13, S1-14 | M | Backend, Frontend |
 | S1-16 | Must | Implementar árvore hierárquica, breadcrumb navegável, filtros combinados persistidos na sessão e estados vazios | PBI-01.4.1, PBI-01.4.2 | S1-03, S1-05, S1-06, S1-07 | G | Frontend, Backend |
 | S1-17 | Should | Implementar busca textual relacional por título e descrição, com trecho e caminho hierárquico | PBI-01.4.2 | S1-16 | M | Backend, Frontend, Banco |
 | S1-18 | Must | Implementar decisões em qualquer nível com contexto, justificativa, alternativas, autor/data e herança visual dos ascendentes | PBI-01.5.1, PBI-01.5.2 | PRE-02, S1-08 | G | Backend, Frontend, Banco |

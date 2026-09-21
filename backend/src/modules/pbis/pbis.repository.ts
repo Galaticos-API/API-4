@@ -11,7 +11,8 @@ const SELECT_WITH_CONTEXT = `
     e.titulo AS epico_titulo,
     e.projeto_id AS projeto_id,
     pr.status AS projeto_status,
-    COALESCE((SELECT COUNT(*)::int FROM criterio_aceitacao c WHERE c.entidade_tipo = 'pbi' AND c.entidade_id = p.id), 0) AS criterios_count
+    COALESCE((SELECT COUNT(*)::int FROM criterio_aceitacao c WHERE c.entidade_tipo = 'pbi' AND c.entidade_id = p.id), 0) AS criterios_count,
+    EXISTS (SELECT 1 FROM prototipo pt WHERE pt.pbi_id = p.id) AS prototipo_vinculado
   FROM pbi p
   JOIN feature f ON f.id = p.feature_id
   JOIN epico e ON e.id = f.epico_id
@@ -44,8 +45,8 @@ export class PbisRepository {
       const codigo = `PBI-${String(sequencia).padStart(3, "0")}`;
 
       const insertQuery = `
-        INSERT INTO pbi (feature_id, codigo, titulo, historia_como_um, historia_eu_quero, historia_para_que, regras_observacoes, tipo, prioridade)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        INSERT INTO pbi (feature_id, codigo, titulo, historia_como_um, historia_eu_quero, historia_para_que, regras_observacoes, tipo, prioridade, requer_interface)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
         RETURNING *
       `;
       const values = [
@@ -58,6 +59,7 @@ export class PbisRepository {
         data.regras_observacoes?.trim() ?? null,
         data.tipo,
         data.prioridade,
+        data.requer_interface,
       ];
 
       const result = await client.query<Pbi>(insertQuery, values);
@@ -69,7 +71,7 @@ export class PbisRepository {
           entidade_tipo: "pbi",
           entidade_id: created.id,
           acao: "CRIAR_PBI",
-          dados_json: { codigo: created.codigo, titulo: created.titulo, feature_id: created.feature_id, status: created.status },
+          dados_json: { codigo: created.codigo, titulo: created.titulo, feature_id: created.feature_id, status: created.status, requer_interface: created.requer_interface },
         },
         client,
       );
@@ -141,6 +143,7 @@ export class PbisRepository {
       if (data.regras_observacoes !== undefined) { updates.push(`regras_observacoes = $${valIndex}`); values.push(data.regras_observacoes?.trim() ?? null); valIndex++; }
       if (data.tipo !== undefined) { updates.push(`tipo = $${valIndex}`); values.push(data.tipo); valIndex++; }
       if (data.prioridade !== undefined) { updates.push(`prioridade = $${valIndex}`); values.push(data.prioridade); valIndex++; }
+      if (data.requer_interface !== undefined) { updates.push(`requer_interface = $${valIndex}`); values.push(data.requer_interface); valIndex++; }
 
       updates.push(`updated_at = CURRENT_TIMESTAMP`);
       values.push(id);
