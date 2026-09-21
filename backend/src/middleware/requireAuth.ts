@@ -4,7 +4,6 @@ import {
   Response,
 } from "express";
 
-import { getSessionToken } from "../modules/auth/auth.cookies.js";
 import {
   SessionService,
   sessionService,
@@ -19,11 +18,22 @@ export function createRequireAuth(
     next: NextFunction,
   ): Promise<void> => {
     try {
-      const token = getSessionToken(req);
+      // Extrai o token do cabeçalho Authorization (Bearer <token>)
+      const authHeader = req.headers.authorization;
+
+      if (!authHeader || !authHeader.startsWith("Bearer ")) {
+        res.status(401).json({
+          error: "Autenticação necessária.",
+          code: "UNAUTHORIZED",
+        });
+        return;
+      }
+
+      const token = authHeader.split(" ")[1];
 
       if (!token) {
         res.status(401).json({
-          error: "Autenticação necessária.",
+          error: "Token de autenticação ausente.",
           code: "UNAUTHORIZED",
         });
         return;

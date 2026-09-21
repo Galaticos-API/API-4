@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-import { ApiError } from "./http";
+import { ApiError } from "../api/api_auth";
 import { navigate } from "./navigation";
-import { createProject, getProject, listProjects, type Project, type ProjectInput } from "./api";
+import { createProject, getProject, listProjects, type Project, type ProjectInput } from "../api/api_projects";
 import { parseBacklogRoute } from "../backlog/navigation";
 import { BacklogScreen } from "../backlog/Backlog";
 import { EpicList } from "../backlog/Epics";

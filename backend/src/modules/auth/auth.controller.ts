@@ -5,7 +5,6 @@ import {
 } from "express";
 
 import { env } from "../../config/env.js";
-import { getSessionToken } from "./auth.cookies.js";
 import { SESSION_COOKIE_NAME } from "./auth.constants.js";
 import {
   authService,
@@ -79,6 +78,7 @@ export class AuthController {
 
       res.status(200).json({
         user: result.user,
+        token: result.token,
       });
     } catch (error) {
       next(error);
@@ -91,8 +91,7 @@ export class AuthController {
     next: NextFunction,
   ): Promise<void> => {
     try {
-      const token =
-        req.sessionToken ?? getSessionToken(req);
+      const token = req.sessionToken;
 
       if (token) {
         await this.sessions.revokeSession(token);
