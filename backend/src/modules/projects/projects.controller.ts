@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import { projectsService, ProjectsService } from "./projects.service.js";
-import { ValidationError } from "./projects.service.js";
+import { ValidationError } from "../../shared/errors.js";
 import { z } from "zod";
 
 const confirmation = z.object({

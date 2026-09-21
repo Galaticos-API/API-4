@@ -3,6 +3,13 @@ import cors from "cors";
 import { env } from "./config/env.js";
 import { checkDatabaseConnection } from "./database/db.js";
 import { projectsRouter } from "./modules/projects/projects.routes.js";
+import { epicsRouter } from "./modules/epics/epics.routes.js";
+import { featuresRouter } from "./modules/features/features.routes.js";
+import { pbisRouter } from "./modules/pbis/pbis.routes.js";
+import { criteriaRouter } from "./modules/criteria/criteria.routes.js";
+import qualityRouter from "./modules/quality/quality.routes.js";
+import { epicsCompatRouter } from "./modules/epics/epics.compat.routes.js";
+import { repoAnalysesRouter } from './modules/repo-analyses/repo-analyses.routes';
 import { authRouter } from "./modules/auth/auth.routes.js";
 import { errorHandler } from "./middleware/errorHandler.js";
 import { requireAuth } from "./middleware/requireAuth.js";
@@ -33,6 +40,19 @@ app.get("/health", async (_req: Request, res: Response) => {
 // Projects API Endpoints (v1 e alias)
 app.use("/api/v1/projects", requireAuth, projectsRouter);
 app.use("/api/projects", requireAuth, projectsRouter);
+// Compatibilidade das rotas de épicos da implementação anterior
+app.use("/api/v1", requireAuth, epicsCompatRouter);
+app.use("/api", requireAuth, epicsCompatRouter);
+
+// Hierarquia do backlog: épicos, features, PBIs e critérios de aceitação (S1-05/06/07/10)
+app.use("/api/v1/epics", requireAuth, epicsRouter);
+app.use("/api/v1/features", requireAuth, featuresRouter);
+app.use("/api/v1/pbis", requireAuth, pbisRouter);
+app.use("/api/v1/criteria", requireAuth, criteriaRouter);
+app.use("/api/v1/quality", qualityRouter);
+
+//Repo analyzer
+app.use('/api/v1/projects/:projectId/repo-analyses', repoAnalysesRouter);
 
 // Root Information Endpoint
 app.get("/api/v1", (_req: Request, res: Response) => {
@@ -43,7 +63,10 @@ app.get("/api/v1", (_req: Request, res: Response) => {
     documentation: "/docs",
     modules: [
       { name: "projects", status: "ready" },
-      { name: "requirements", status: "in_development" },
+      { name: "epics", status: "ready" },
+      { name: "features", status: "ready" },
+      { name: "pbis", status: "ready" },
+      { name: "criteria", status: "ready" },
       { name: "decisions", status: "in_development" },
       { name: "ai-bridge", status: "ready" },
     ],

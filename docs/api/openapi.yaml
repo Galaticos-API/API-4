@@ -12,6 +12,18 @@ servers:
     description: Serviço de IA local
 
 paths:
+  /api/v1/projects/{projectId}/epicos:
+    $ref: './epics-compat.yaml#/collection'
+  /api/projects/{projectId}/epicos:
+    $ref: './epics-compat.yaml#/collection'
+  /api/v1/epicos/{id}:
+    $ref: './epics-compat.yaml#/item'
+  /api/epicos/{id}:
+    $ref: './epics-compat.yaml#/item'
+  /api/v1/epicos/{id}/complete:
+    $ref: './epics-compat.yaml#/complete'
+  /api/epicos/{id}/complete:
+    $ref: './epics-compat.yaml#/complete'
   /health:
     get:
       summary: Verifica disponibilidade do serviço
@@ -335,6 +347,686 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
+  /api/v1/epics:
+    post:
+      summary: Cadastra um épico dentro de um projeto (PBI-01.1.2 / S1-05)
+      operationId: createEpic
+      description: Escrita permitida apenas aos perfis po e admin; dev recebe 403. Bloqueia projeto arquivado ou inexistente.
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateEpicRequest'
+      responses:
+        '201':
+          description: Épico criado com status rascunho
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EpicResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Perfil sem permissão de escrita
+        '404':
+          description: Projeto não encontrado
+
+    get:
+      summary: Lista épicos de um projeto (S1-05)
+      operationId: listEpics
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: projeto_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [rascunho, concluido, ativo, arquivado, todos]
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+      responses:
+        '200':
+          description: Lista paginada de épicos
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedEpicsResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v1/epics/{id}:
+    get:
+      summary: Obtém detalhes de um épico por ID (S1-05)
+      operationId: getEpicById
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Detalhes do épico com estatísticas
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EpicResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Épico não encontrado
+
+    put:
+      summary: Atualiza dados de um épico (S1-05)
+      operationId: updateEpic
+      description: Escrita permitida apenas aos perfis po e admin; dev recebe 403. PATCH no mesmo caminho é um alias desta operação.
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateEpicRequest'
+      responses:
+        '200':
+          description: Épico atualizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EpicResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Perfil sem permissão de escrita
+        '404':
+          description: Épico não encontrado
+
+  /api/v1/epics/{id}/complete:
+    patch:
+      summary: Marca um épico como concluído quando os campos obrigatórios do guia e ao menos um critério existirem (PBI-01.1.2 / S1-05)
+      operationId: completeEpic
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Épico concluído
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EpicResponse'
+        '400':
+          description: Campos obrigatórios ou critérios de aceitação ausentes
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Perfil sem permissão de escrita
+        '404':
+          description: Épico não encontrado
+
+  /api/v1/features:
+    post:
+      summary: Cadastra uma feature dentro de um épico (PBI-01.1.3 / S1-06)
+      operationId: createFeature
+      description: Escrita permitida apenas aos perfis po e admin; dev recebe 403.
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateFeatureRequest'
+      responses:
+        '201':
+          description: Feature criada com status rascunho
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FeatureResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Perfil sem permissão de escrita
+        '404':
+          description: Épico não encontrado
+
+    get:
+      summary: Lista features de um épico (S1-06)
+      operationId: listFeatures
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: epico_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [rascunho, concluido, arquivado, todos]
+      responses:
+        '200':
+          description: Lista paginada de features
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedFeaturesResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v1/features/{id}:
+    get:
+      summary: Obtém detalhes de uma feature, incluindo o épico de origem (PBI-01.1.3 / S1-06)
+      operationId: getFeatureById
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Detalhes da feature com contexto do épico
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FeatureResponse'
+        '404':
+          description: Feature não encontrada
+
+    put:
+      summary: Atualiza dados de uma feature (S1-06)
+      operationId: updateFeature
+      description: Escrita permitida apenas aos perfis po e admin; dev recebe 403. PATCH no mesmo caminho é um alias desta operação.
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateFeatureRequest'
+      responses:
+        '200':
+          description: Feature atualizada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FeatureResponse'
+        '404':
+          description: Feature não encontrada
+
+  /api/v1/features/{id}/complete:
+    patch:
+      summary: Marca uma feature como concluída quando descrição e objetivo estiverem preenchidos (PBI-01.1.3 / S1-06)
+      operationId: completeFeature
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Feature concluída
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FeatureResponse'
+        '400':
+          description: Campos obrigatórios ausentes
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Feature não encontrada
+
+  /api/v1/pbis:
+    post:
+      summary: Cadastra um PBI com história em três blocos dentro de uma feature (PBI-01.1.4 / S1-07)
+      operationId: createPbi
+      description: Escrita permitida apenas aos perfis po e admin; dev recebe 403. O código é gerado automaticamente pelo sistema.
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePbiRequest'
+      responses:
+        '201':
+          description: PBI criado com status rascunho e código provisório gerado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PbiResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Perfil sem permissão de escrita
+        '404':
+          description: Feature não encontrada
+
+    get:
+      summary: Lista PBIs de uma feature (S1-07)
+      operationId: listPbis
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: feature_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [rascunho, concluido, arquivado, todos]
+      responses:
+        '200':
+          description: Lista paginada de PBIs
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedPbisResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v1/pbis/{id}:
+    get:
+      summary: Obtém detalhes de um PBI, incluindo a cadeia feature/épico/projeto (PBI-01.1.4 / S1-07)
+      operationId: getPbiById
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Detalhes do PBI com contexto hierárquico
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PbiResponse'
+        '404':
+          description: PBI não encontrado
+
+    put:
+      summary: Atualiza dados de um PBI (S1-07)
+      operationId: updatePbi
+      description: Escrita permitida apenas aos perfis po e admin; dev recebe 403. PATCH no mesmo caminho é um alias desta operação.
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdatePbiRequest'
+      responses:
+        '200':
+          description: PBI atualizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PbiResponse'
+        '404':
+          description: PBI não encontrado
+
+  /api/v1/pbis/{id}/complete:
+    patch:
+      summary: Marca um PBI como concluído quando ao menos um cenário DADO/QUANDO/ENTÃO existir e o título estiver no infinitivo (PBI-01.1.4, PBI-01.3.1 / S1-07, S1-13)
+      operationId: completePbi
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: PBI concluído
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PbiResponse'
+        '400':
+          description: >-
+            Nenhum cenário de aceitação registrado e/ou título fora do padrão de verbo no
+            infinitivo. O campo `details.campos_faltantes` pode conter `cenarios_aceitacao`
+            e/ou `titulo_infinitivo`.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: PBI não encontrado
+
+  /api/v1/pbis/{id}/quality:
+    get:
+      summary: Executa o motor determinístico de qualidade do PBI (título infinitivo, história e cenários, termos vagos) (PBI-01.3.1 a PBI-01.3.4 / S1-13)
+      operationId: getPbiQuality
+      description: >-
+        Não bloqueia nada por si só — apenas relata. O bloqueio de conclusão real acontece em
+        PATCH /pbis/{id}/complete.
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Relatório de qualidade do PBI
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PbiQualityReport'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: PBI não encontrado
+
+  /api/v1/quality/pbis/{id}/quality:
+    get:
+      summary: Calcula o indicador de completude sobre o checklist vigente do PBI (PBI-01.3.6 / S1-15)
+      operationId: getPbiCompleteness
+      description: >-
+        Calcula a proporção sem pesos das verificações habilitadas e aplicáveis. A verificação
+        de protótipo só se aplica quando `requer_interface` é verdadeiro e consulta os protótipos
+        vinculados ao PBI. Verificações
+        não aplicáveis não são retornadas nem entram no denominador. O valor é calculado na
+        consulta, não confiando no score persistido. A resposta informa a versão do conjunto
+        de regras usado. A política organizacional é lida da configuração administrativa vigente.
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Indicador e verificações consideradas
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PbiCompletenessReport'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: PBI não encontrado
+
+  /api/v1/quality/configuration/pbi:
+    get:
+      summary: Consulta a política organizacional das verificações de qualidade de PBI (S2-19 parcial)
+      operationId: getPbiQualityConfiguration
+      security:
+        - cookieAuth: []
+      responses:
+        '200':
+          description: Política vigente, versão e dados de auditoria da última alteração
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PbiQualityConfiguration'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    put:
+      summary: Atualiza verificações habilitadas e termos vagos organizacionais (somente admin)
+      operationId: updatePbiQualityConfiguration
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PbiQualityConfigurationInput'
+      responses:
+        '200':
+          description: Nova configuração versionada, registrada com autor, data e trilha de auditoria
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PbiQualityConfiguration'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Apenas administradores podem alterar a configuração
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/v1/criteria:
+    post:
+      summary: Registra um critério de aceitação polimórfico (PBI-01.2.1, PBI-01.2.2, PBI-01.2.3 / S1-10)
+      operationId: createCriterion
+      description: >-
+        Épico e feature exigem texto livre; PBI exige nome, DADO, QUANDO e ENTÃO em conjunto.
+        Novo critério é sempre adicionado ao final da ordem existente na entidade.
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCriterionRequest'
+      responses:
+        '201':
+          description: Critério adicionado ao final da lista da entidade
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CriterionResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Perfil sem permissão de escrita
+        '404':
+          description: Entidade referenciada não encontrada
+
+    get:
+      summary: Lista critérios de aceitação ordenados de uma entidade (S1-10)
+      operationId: listCriteria
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: entidade_tipo
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [epico, feature, pbi]
+        - name: entidade_id
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Critérios ordenados da entidade
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/CriterionResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v1/criteria/{id}:
+    delete:
+      summary: Remove um critério de aceitação e reordena os demais da mesma entidade (PBI-01.2.1 / S1-10)
+      operationId: deleteCriterion
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Critério removido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CriterionResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Perfil sem permissão de escrita
+        '404':
+          description: Critério não encontrado
+
+  /api/v1/criteria/{id}/move:
+    patch:
+      summary: Reordena um critério em relação aos demais da mesma entidade (PBI-01.2.4 / S1-12)
+      operationId: moveCriterion
+      description: >-
+        Operação idempotente: mover o primeiro item para cima (ou o último para baixo) não
+        retorna erro, apenas devolve a lista sem alteração.
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [direction]
+              properties:
+                direction:
+                  type: string
+                  enum: [up, down]
+      responses:
+        '200':
+          description: Lista ordenada da entidade após a movimentação
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/CriterionResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Perfil sem permissão de escrita
+        '404':
+          description: Critério não encontrado
+
   /ingest/document:
     post:
       summary: Solicita ingestão assíncrona de documento
@@ -403,6 +1095,120 @@ paths:
         '502':
           description: Ollama indisponível
 
+  /epics/{id}/archive-impact:
+    get:
+      summary: Prévia do arquivamento de epics (S1-09)
+      security: [{cookieAuth: []}]
+      parameters:
+        - {name: id, in: path, required: true, schema: {type: string, format: uuid}}
+      responses:
+        '200':
+          description: Quantidades ainda não arquivadas, incluindo o próprio item
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/HierarchyArchiveImpact'}
+        '404': {description: Item não encontrado}
+  /epics/{id}/archive:
+    patch:
+      summary: Arquiva epics e descendentes com auditoria (S1-09)
+      description: Exclusivo de PO/admin. Não apaga conteúdo. Repetições preservam data e auditoria. Conflito exige nova prévia.
+      security: [{cookieAuth: []}]
+      parameters:
+        - {name: id, in: path, required: true, schema: {type: string, format: uuid}}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [confirmado, impacto]
+              properties:
+                confirmado: {type: boolean, enum: [true]}
+                impacto: {$ref: '#/components/schemas/HierarchyArchiveImpact'}
+                justificativa: {type: string, maxLength: 2000}
+      responses:
+        '200': {description: Item arquivado com archived_at}
+        '400': {description: Confirmação ou prévia inválida}
+        '403': {description: Perfil sem permissão de escrita}
+        '404': {description: Item não encontrado}
+        '409': {description: Impacto alterado ou ancestral somente leitura}
+
+  /features/{id}/archive-impact:
+    get:
+      summary: Prévia do arquivamento de features (S1-09)
+      security: [{cookieAuth: []}]
+      parameters:
+        - {name: id, in: path, required: true, schema: {type: string, format: uuid}}
+      responses:
+        '200':
+          description: Quantidades ainda não arquivadas, incluindo o próprio item
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/HierarchyArchiveImpact'}
+        '404': {description: Item não encontrado}
+  /features/{id}/archive:
+    patch:
+      summary: Arquiva features e descendentes com auditoria (S1-09)
+      description: Exclusivo de PO/admin. Não apaga conteúdo. Repetições preservam data e auditoria. Conflito exige nova prévia.
+      security: [{cookieAuth: []}]
+      parameters:
+        - {name: id, in: path, required: true, schema: {type: string, format: uuid}}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [confirmado, impacto]
+              properties:
+                confirmado: {type: boolean, enum: [true]}
+                impacto: {$ref: '#/components/schemas/HierarchyArchiveImpact'}
+                justificativa: {type: string, maxLength: 2000}
+      responses:
+        '200': {description: Item arquivado com archived_at}
+        '400': {description: Confirmação ou prévia inválida}
+        '403': {description: Perfil sem permissão de escrita}
+        '404': {description: Item não encontrado}
+        '409': {description: Impacto alterado ou ancestral somente leitura}
+
+  /pbis/{id}/archive-impact:
+    get:
+      summary: Prévia do arquivamento de pbis (S1-09)
+      security: [{cookieAuth: []}]
+      parameters:
+        - {name: id, in: path, required: true, schema: {type: string, format: uuid}}
+      responses:
+        '200':
+          description: Quantidades ainda não arquivadas, incluindo o próprio item
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/HierarchyArchiveImpact'}
+        '404': {description: Item não encontrado}
+  /pbis/{id}/archive:
+    patch:
+      summary: Arquiva pbis e descendentes com auditoria (S1-09)
+      description: Exclusivo de PO/admin. Não apaga conteúdo. Repetições preservam data e auditoria. Conflito exige nova prévia.
+      security: [{cookieAuth: []}]
+      parameters:
+        - {name: id, in: path, required: true, schema: {type: string, format: uuid}}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [confirmado, impacto]
+              properties:
+                confirmado: {type: boolean, enum: [true]}
+                impacto: {$ref: '#/components/schemas/HierarchyArchiveImpact'}
+                justificativa: {type: string, maxLength: 2000}
+      responses:
+        '200': {description: Item arquivado com archived_at}
+        '400': {description: Confirmação ou prévia inválida}
+        '403': {description: Perfil sem permissão de escrita}
+        '404': {description: Item não encontrado}
+        '409': {description: Impacto alterado ou ancestral somente leitura}
+
 components:
   securitySchemes:
     cookieAuth:
@@ -411,6 +1217,14 @@ components:
       name: sinapse_session
 
   schemas:
+    HierarchyArchiveImpact:
+      type: object
+      required: [epicos, features, pbis]
+      properties:
+        epicos: {type: integer, minimum: 0}
+        features: {type: integer, minimum: 0}
+        pbis: {type: integer, minimum: 0}
+
     ArchiveImpact:
       type: object
       additionalProperties: false
@@ -567,6 +1381,542 @@ components:
         offset:
           type: integer
           minimum: 0
+
+    CreateEpicRequest:
+      type: object
+      description: Criação sempre em rascunho. Outros valores de status são recusados.
+      required: [projeto_id, titulo]
+      properties:
+        projeto_id:
+          type: string
+          format: uuid
+        titulo:
+          type: string
+          minLength: 1
+          maxLength: 255
+        descricao:
+          type: string
+          nullable: true
+        objetivo:
+          type: string
+          nullable: true
+        escopo_macro:
+          type: string
+          nullable: true
+        resultado_esperado:
+          type: string
+          nullable: true
+        prioridade:
+          type: string
+          enum: [Must, Should, Could]
+          default: Must
+
+    UpdateEpicRequest:
+      type: object
+      description: Não aceita status. Use o endpoint complete; estados legados e projetos arquivados são somente leitura.
+      properties:
+        titulo:
+          type: string
+          minLength: 1
+          maxLength: 255
+        descricao:
+          type: string
+          nullable: true
+        objetivo:
+          type: string
+          nullable: true
+        escopo_macro:
+          type: string
+          nullable: true
+        resultado_esperado:
+          type: string
+          nullable: true
+        prioridade:
+          type: string
+          enum: [Must, Should, Could]
+        justificativa:
+          type: string
+
+    EpicResponse:
+      type: object
+      description: Estados ativo e arquivado são legados, preservados apenas para leitura.
+      required: [id, projeto_id, titulo, status, created_at, updated_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        projeto_id:
+          type: string
+          format: uuid
+        titulo:
+          type: string
+        descricao:
+          type: string
+          nullable: true
+        objetivo:
+          type: string
+          nullable: true
+        escopo_macro:
+          type: string
+          nullable: true
+        resultado_esperado:
+          type: string
+          nullable: true
+        prioridade:
+          type: string
+          enum: [Must, Should, Could]
+        status:
+          type: string
+          enum: [rascunho, concluido, ativo, arquivado]
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        features_count:
+          type: integer
+        criterios_count:
+          type: integer
+
+    PaginatedEpicsResponse:
+      type: object
+      required: [items, total, limit, offset]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/EpicResponse'
+        total:
+          type: integer
+        limit:
+          type: integer
+        offset:
+          type: integer
+
+    CreateFeatureRequest:
+      type: object
+      required: [epico_id, titulo]
+      properties:
+        epico_id:
+          type: string
+          format: uuid
+        titulo:
+          type: string
+          minLength: 1
+          maxLength: 255
+        descricao:
+          type: string
+          nullable: true
+        objetivo:
+          type: string
+          nullable: true
+        prioridade:
+          type: string
+          enum: [Must, Should, Could]
+          default: Must
+
+    UpdateFeatureRequest:
+      type: object
+      properties:
+        titulo:
+          type: string
+          minLength: 1
+          maxLength: 255
+        descricao:
+          type: string
+          nullable: true
+        objetivo:
+          type: string
+          nullable: true
+        prioridade:
+          type: string
+          enum: [Must, Should, Could]
+        justificativa:
+          type: string
+
+    FeatureResponse:
+      type: object
+      required: [id, epico_id, titulo, status, created_at, updated_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        epico_id:
+          type: string
+          format: uuid
+        titulo:
+          type: string
+        descricao:
+          type: string
+          nullable: true
+        objetivo:
+          type: string
+          nullable: true
+        prioridade:
+          type: string
+          enum: [Must, Should, Could]
+        status:
+          type: string
+          enum: [rascunho, concluido, arquivado]
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        pbis_count:
+          type: integer
+        criterios_count:
+          type: integer
+        epico_titulo:
+          type: string
+        projeto_id:
+          type: string
+          format: uuid
+
+    PaginatedFeaturesResponse:
+      type: object
+      required: [items, total, limit, offset]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/FeatureResponse'
+        total:
+          type: integer
+        limit:
+          type: integer
+        offset:
+          type: integer
+
+    CreatePbiRequest:
+      type: object
+      required: [feature_id, titulo, historia_como_um, historia_eu_quero, historia_para_que]
+      properties:
+        feature_id:
+          type: string
+          format: uuid
+        titulo:
+          type: string
+          minLength: 1
+          maxLength: 255
+        historia_como_um:
+          type: string
+          minLength: 1
+        historia_eu_quero:
+          type: string
+          minLength: 1
+        historia_para_que:
+          type: string
+          minLength: 1
+        regras_observacoes:
+          type: string
+          nullable: true
+        tipo:
+          type: string
+          default: Funcional
+        prioridade:
+          type: string
+          enum: [Must, Should, Could]
+          default: Must
+        requer_interface:
+          type: boolean
+          default: false
+          description: Define explicitamente se a verificação de protótipo deve ser aplicada ao PBI.
+
+    UpdatePbiRequest:
+      type: object
+      properties:
+        titulo:
+          type: string
+          minLength: 1
+          maxLength: 255
+        historia_como_um:
+          type: string
+          minLength: 1
+        historia_eu_quero:
+          type: string
+          minLength: 1
+        historia_para_que:
+          type: string
+          minLength: 1
+        regras_observacoes:
+          type: string
+          nullable: true
+        tipo:
+          type: string
+        prioridade:
+          type: string
+          enum: [Must, Should, Could]
+        requer_interface:
+          type: boolean
+        justificativa:
+          type: string
+
+    PbiResponse:
+      type: object
+      required: [id, feature_id, codigo, titulo, historia_como_um, historia_eu_quero, historia_para_que, requer_interface, status, created_at, updated_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        feature_id:
+          type: string
+          format: uuid
+        codigo:
+          type: string
+        titulo:
+          type: string
+        historia_como_um:
+          type: string
+        historia_eu_quero:
+          type: string
+        historia_para_que:
+          type: string
+        regras_observacoes:
+          type: string
+          nullable: true
+        tipo:
+          type: string
+        prioridade:
+          type: string
+          enum: [Must, Should, Could]
+        requer_interface:
+          type: boolean
+          description: Indica se a regra de protótipo é aplicável a este PBI.
+        prototipo_vinculado:
+          type: boolean
+          description: Indica se há ao menos um protótipo registrado para este PBI.
+        status:
+          type: string
+          enum: [rascunho, concluido, arquivado]
+        score_completude:
+          type: integer
+        provenance:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        criterios_count:
+          type: integer
+        feature_titulo:
+          type: string
+        epico_id:
+          type: string
+          format: uuid
+        epico_titulo:
+          type: string
+        projeto_id:
+          type: string
+          format: uuid
+
+    PaginatedPbisResponse:
+      type: object
+      required: [items, total, limit, offset]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/PbiResponse'
+        total:
+          type: integer
+        limit:
+          type: integer
+        offset:
+          type: integer
+
+    CreateCriterionRequest:
+      type: object
+      required: [entidade_tipo, entidade_id]
+      description: Épico e feature exigem "texto"; PBI exige "nome", "dado", "quando" e "entao" em conjunto.
+      properties:
+        entidade_tipo:
+          type: string
+          enum: [epico, feature, pbi]
+        entidade_id:
+          type: string
+          format: uuid
+        texto:
+          type: string
+        nome:
+          type: string
+        dado:
+          type: string
+        quando:
+          type: string
+        entao:
+          type: string
+
+    CriterionResponse:
+      type: object
+      required: [id, entidade_tipo, entidade_id, ordem, created_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        entidade_tipo:
+          type: string
+          enum: [epico, feature, pbi]
+        entidade_id:
+          type: string
+          format: uuid
+        texto:
+          type: string
+          nullable: true
+        nome:
+          type: string
+          nullable: true
+        dado:
+          type: string
+          nullable: true
+        quando:
+          type: string
+          nullable: true
+        entao:
+          type: string
+          nullable: true
+        ordem:
+          type: integer
+          minimum: 1
+        created_at:
+          type: string
+          format: date-time
+
+    ValidationResultResponse:
+      type: object
+      required: [aprovado]
+      properties:
+        aprovado:
+          type: boolean
+        motivo:
+          type: string
+
+    ScenarioQualityResult:
+      type: object
+      required: [id, aprovado]
+      properties:
+        id:
+          type: string
+          format: uuid
+        nome:
+          type: string
+          nullable: true
+        aprovado:
+          type: boolean
+        motivo:
+          type: string
+
+    VagueTermOccurrence:
+      type: object
+      required: [campo, termos]
+      properties:
+        campo:
+          type: string
+        termos:
+          type: array
+          items:
+            type: string
+
+    PbiQualityReport:
+      type: object
+      required: [titulo, historia, cenarios, termos_vagos]
+      properties:
+        titulo:
+          $ref: '#/components/schemas/ValidationResultResponse'
+        historia:
+          type: object
+          required: [aprovado, alertas]
+          properties:
+            aprovado:
+              type: boolean
+            alertas:
+              type: array
+              items:
+                type: string
+        cenarios:
+          type: array
+          items:
+            $ref: '#/components/schemas/ScenarioQualityResult'
+        termos_vagos:
+          type: array
+          items:
+            $ref: '#/components/schemas/VagueTermOccurrence'
+
+    PbiCompletenessReport:
+      type: object
+      required: [entity_type, entity_id, rule_version, checks, score_completude]
+      properties:
+        entity_type:
+          type: string
+          enum: [pbi]
+        entity_id:
+          type: string
+          format: uuid
+        rule_version:
+          type: string
+          description: Versão do conjunto atual de verificações considerado no cálculo.
+        checks:
+          type: array
+          items:
+            type: object
+            required: [check_id, check_name, passed, message, applicable]
+            properties:
+              check_id:
+                type: string
+              check_name:
+                type: string
+              passed:
+                type: boolean
+              message:
+                type: string
+              applicable:
+                type: boolean
+                enum: [true]
+        score_completude:
+          type: integer
+          minimum: 0
+          maximum: 100
+          nullable: true
+
+    PbiQualityConfigurationInput:
+      type: object
+      additionalProperties: false
+      required: [checks, vague_terms]
+      properties:
+        checks:
+          type: object
+          additionalProperties: false
+          required: [titulo_infinitivo, historia_completa, cenario_estruturado, termos_vagos, prototipo_vinculado]
+          properties:
+            titulo_infinitivo: { type: boolean }
+            historia_completa: { type: boolean }
+            cenario_estruturado: { type: boolean }
+            termos_vagos: { type: boolean }
+            prototipo_vinculado: { type: boolean }
+        vague_terms:
+          type: array
+          maxItems: 100
+          items: { type: string, minLength: 1, maxLength: 80 }
+
+    PbiQualityConfiguration:
+      allOf:
+        - $ref: '#/components/schemas/PbiQualityConfigurationInput'
+        - type: object
+          required: [rule_version, updated_at, updated_by]
+          properties:
+            rule_version: { type: string, example: pbi-quality-v2 }
+            updated_at: { type: string, format: date-time }
+            updated_by:
+              type: object
+              nullable: true
+              required: [id, nome]
+              properties:
+                id: { type: string, format: uuid }
+                nome: { type: string }
 
     IngestDocumentRequest:
       type: object

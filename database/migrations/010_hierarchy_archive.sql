@@ -1,3 +1,11 @@
+-- S1-09 integrada à S1-08; também regulariza instalações da antiga 005_hierarchy_archive.
+ALTER TABLE epico ALTER COLUMN status SET DEFAULT 'rascunho';
+ALTER TABLE feature ALTER COLUMN status SET DEFAULT 'rascunho';
+ALTER TABLE pbi ALTER COLUMN status SET DEFAULT 'rascunho';
+ALTER TABLE feature DROP CONSTRAINT IF EXISTS ck_feature_status;
+ALTER TABLE feature ADD CONSTRAINT ck_feature_status CHECK (status IN ('rascunho','concluido','arquivado'));
+ALTER TABLE pbi DROP CONSTRAINT IF EXISTS ck_pbi_status;
+ALTER TABLE pbi ADD CONSTRAINT ck_pbi_status CHECK (status IN ('rascunho','concluido','arquivado'));
 -- S1-09: arquivamento em cascata sem apagar o histórico.
 ALTER TABLE epico ADD COLUMN IF NOT EXISTS status VARCHAR(50) NOT NULL DEFAULT 'ativo';
 ALTER TABLE feature ADD COLUMN IF NOT EXISTS status VARCHAR(50) NOT NULL DEFAULT 'ativo';

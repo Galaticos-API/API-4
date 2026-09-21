@@ -6,6 +6,8 @@ import { z } from "zod";
 dotenv.config({ path: resolve(process.cwd(), "../.env") });
 dotenv.config();
 
+
+
 const envSchema = z.object({
   NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
   PORT: z.coerce.number().default(3001),
@@ -16,6 +18,7 @@ const envSchema = z.object({
   POSTGRES_HOST: z.string().default("localhost"),
   POSTGRES_PORT: z.coerce.number().default(5432),
   AI_SERVICE_URL: z.string().default("http://localhost:8000"),
+  REPO_ANALYZER_URL: z.string().default('http://localhost:8000'),
 
   // S1-01 — Autenticação e segurança
   AUTH_MAX_LOGIN_ATTEMPTS: z.coerce.number().int().min(1).default(5),

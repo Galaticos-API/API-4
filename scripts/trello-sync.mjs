@@ -61,7 +61,7 @@ const sprintDates = {
 const boardDescription = [
   "Quadro Scrum do projeto Sinapse — API do 4º semestre de ADS da Fatec São José dos Campos para a PRO4TECH.",
   "",
-  "Backlog: 63 PBIs convertidos em 67 tarefas técnicas, distribuídas em três sprints.",
+  "Backlog: 66 PBIs convertidos em 71 tarefas técnicas, distribuídas em três sprints.",
   "Equipe: 7 integrantes do Dev Team, 1 Product Owner e Cauan Gabriel como Scrum Master.",
   "Repositório: https://github.com/Galaticos-API/API-4",
   "",
@@ -140,7 +140,7 @@ const preparationResults = {
   "PRE-02": "Banco reproduzível contém todos os campos, tabelas, índices, chaves, restrições e auditoria exigidos",
   "PRE-03": "OpenAPI e JSON Schemas versionados distinguem comandos, sugestões, indexação, erros e correlação",
   "PRE-04": "Backend, frontend e serviço de IA possuem testes mínimos e scripts executados na integração contínua",
-  "PRE-05": "Tokens, componentes base, estados de interface e fluxo Projeto até PBI estão aprovados",
+  "PRE-05": "Arquivo Figma editável com tokens, componentes base, estados de interface e fluxo Projeto até PBI; link e validação do PO registrados",
   "PRE-06": "Base possui projetos anonimizados ou dados fictícios aprovados, sempre com origem registrada",
   "PRE-07": "Relatório compara modelos em português e define dimensão e configuração dos vetores",
   "PRE-08": "Vulnerabilidades, impactos e atualizações seguras estão registrados, com build e testes verdes",
@@ -536,7 +536,7 @@ const counts = tasks.reduce((acc, task) => {
   return acc;
 }, {});
 
-if (tasks.length !== 67 || counts[1] !== 32 || counts[2] !== 18 || counts[3] !== 17) {
+if (tasks.length !== 71 || counts[1] !== 33 || counts[2] !== 21 || counts[3] !== 17) {
   throw new Error(`Distribuição inesperada: total=${tasks.length}, sprints=${JSON.stringify(counts)}`);
 }
 
@@ -548,4 +548,4 @@ await updateBoardMetadata();
 const labels = await ensureLabels(tasks);
 await ensureMetaCards(lists, labels);
 await syncTasks(tasks, lists, labels);
-console.log("Sincronização concluída: Sprint 1=32, Sprint 2=18, Sprint 3=17.");
+console.log("Sincronização concluída: Sprint 1=33, Sprint 2=21, Sprint 3=17.");

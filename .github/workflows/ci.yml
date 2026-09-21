@@ -52,7 +52,7 @@ jobs:
       - run: npm run test:seed
         working-directory: backend
       - name: Test archive cascade on PostgreSQL
-        run: node --import tsx --test src/modules/projects/projects.archive.db.test.ts
+        run: node --import tsx --test src/modules/projects/projects.archive.db.test.ts src/modules/projects/hierarchy-archive.db.test.ts
         working-directory: backend
         env:
           ARCHIVE_TEST_DATABASE_URL: postgresql://seed_test:seed_test_only@localhost:5432/sinapse_seed_test

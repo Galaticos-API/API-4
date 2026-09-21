@@ -83,6 +83,60 @@ try {
       assert.equal((await readUser(await apiRequest("/auth/me"))).role, role);
     }
   });
+  await check("configuração organizacional de qualidade exige admin, versiona e audita alteração", async () => {
+    const configUrl = "/api/v1/quality/configuration/pbi";
+    assert.equal((await fetch(configUrl)).status, 200);
+    const current = await (await fetch(configUrl)).json() as { rule_version: string; checks: Record<string, boolean>; vague_terms: string[] };
+    assert.equal((await fetch(configUrl, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(current) })).status, 403);
+
+    await pool.query("UPDATE usuario SET role = 'admin' WHERE id = $1", [id]);
+    await reauthenticate();
+    const updatedInput = { ...current, checks: { ...current.checks, termos_vagos: !current.checks.termos_vagos }, vague_terms: [...current.vague_terms, "verificável"] };
+    const updatedResponse = await fetch(configUrl, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ checks: updatedInput.checks, vague_terms: updatedInput.vague_terms }) });
+    assert.equal(updatedResponse.status, 200);
+    const updated = await updatedResponse.json() as { rule_version: string; checks: Record<string, boolean>; vague_terms: string[]; updated_by: { id: string }; updated_at: string };
+    assert.notEqual(updated.rule_version, current.rule_version);
+    assert.equal(updated.checks.termos_vagos, updatedInput.checks.termos_vagos);
+    assert.ok(updated.vague_terms.includes("verificável"));
+    assert.equal(updated.updated_by.id, id);
+    assert.ok(updated.updated_at);
+    const audit = await pool.query("SELECT usuario_id, dados_json FROM auditoria WHERE entidade_tipo = 'quality_configuration' AND entidade_id = $1::uuid ORDER BY created_at DESC LIMIT 1", ["00000000-0000-4000-8000-000000000001"]);
+    assert.equal(audit.rows[0].usuario_id, id);
+    assert.equal(audit.rows[0].dados_json.actor_id, id);
+    assert.equal(audit.rows[0].dados_json.after.checks.termos_vagos, updatedInput.checks.termos_vagos);
+
+    const create = async (path: string, body: unknown) => {
+      const response = await fetch(path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      assert.equal(response.status, 201, `${path}: ${await response.clone().text()}`);
+      return response.json() as Promise<Record<string, any>>;
+    };
+    const project = await create("/api/v1/projects", { nome: `Qualidade ${id}`, cliente: "QA" });
+    const epic = await create("/api/v1/epics", { projeto_id: project.id, titulo: "Organizar qualidade" });
+    const feature = await create("/api/v1/features", { epico_id: epic.id, titulo: "Exibir indicador" });
+    const pbi = await create("/api/v1/pbis", {
+      feature_id: feature.id, titulo: "Consultar indicador", historia_como_um: "Product Owner",
+      historia_eu_quero: "consultar a completude", historia_para_que: "acompanhar a maturidade",
+    });
+    const criterion = await create("/api/v1/criteria", {
+      entidade_tipo: "pbi", entidade_id: pbi.id, nome: "Consulta", dado: "um item existente",
+      quando: "eu abrir o backlog", entao: "o indicador deve aparecer",
+    });
+    assert.ok(criterion.id);
+    assert.equal((await fetch(`/api/v1/pbis/${pbi.id}/complete`, { method: "PATCH" })).status, 200);
+    const beforeChange = await (await fetch(`/api/v1/quality/pbis/${pbi.id}/quality`)).json() as { rule_version: string; checks: Array<{ check_id: string }> };
+    assert.equal(beforeChange.checks.length, 4);
+
+    const revisedConfiguration = { checks: { ...current.checks, titulo_infinitivo: false }, vague_terms: current.vague_terms };
+    assert.equal((await fetch(configUrl, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(revisedConfiguration) })).status, 200);
+    const afterChange = await (await fetch(`/api/v1/quality/pbis/${pbi.id}/quality`)).json() as { rule_version: string; checks: Array<{ check_id: string }> };
+    assert.notEqual(afterChange.rule_version, beforeChange.rule_version);
+    assert.equal(afterChange.checks.some(({ check_id }) => check_id === "titulo_infinitivo"), false);
+    assert.equal((await (await fetch(`/api/v1/pbis/${pbi.id}`)).json()).status, "concluido");
+
+    await fetch(configUrl, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ checks: current.checks, vague_terms: current.vague_terms }) });
+    await pool.query("UPDATE usuario SET role = 'po' WHERE id = $1", [id]);
+    await reauthenticate();
+  });
   await check("perfil dev lê projetos mas não pode criar, editar ou arquivar", async () => {
     await pool.query("UPDATE usuario SET role = 'dev' WHERE id = $1", [id]);
     assert.equal((await fetch("/api/v1/projects")).status, 200);

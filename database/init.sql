@@ -25,8 +25,11 @@ CREATE TABLE IF NOT EXISTS epico (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     projeto_id UUID NOT NULL REFERENCES projeto(id) ON DELETE CASCADE,
     titulo VARCHAR(255) NOT NULL,
+    descricao TEXT,
     objetivo TEXT,
     escopo_macro TEXT,
+    resultado_esperado TEXT,
+    status VARCHAR(50) DEFAULT 'rascunho',
     prioridade VARCHAR(50) DEFAULT 'Must',
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
@@ -192,12 +195,36 @@ CREATE TABLE IF NOT EXISTS mensagem (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
+-- 19. Tabela: ANALISE_REPOSITORIO (RepoAnalyzer)
+CREATE TABLE IF NOT EXISTS analise_repositorio (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    projeto_id UUID NOT NULL REFERENCES projeto(id) ON DELETE CASCADE,
+    usuario_id UUID NOT NULL REFERENCES usuario(id) ON DELETE CASCADE,
+    repositorio_url VARCHAR(500) NOT NULL,
+    run_id VARCHAR(100),
+    status VARCHAR(50) NOT NULL DEFAULT 'iniciado', -- 'iniciado', 'em_execucao', 'concluido', 'falha'
+    etapa VARCHAR(50) DEFAULT 'queued',
+    etapa_label VARCHAR(100) DEFAULT 'Na fila',
+    progresso INT DEFAULT 0,
+    mensagem TEXT,
+    erro TEXT,
+    relatorio_markdown TEXT,
+    metadados JSONB DEFAULT '{}'::jsonb,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    concluido_em TIMESTAMPTZ
+);
+
 -- Índices de Otimização e Busca Vetorial
 CREATE INDEX IF NOT EXISTS idx_chunk_projeto_id ON chunk(projeto_id);
 CREATE INDEX IF NOT EXISTS idx_chunk_entidade ON chunk(entidade_tipo, entidade_id);
 CREATE INDEX IF NOT EXISTS idx_pbi_codigo ON pbi(codigo);
 CREATE INDEX IF NOT EXISTS idx_pbi_feature ON pbi(feature_id);
 CREATE INDEX IF NOT EXISTS idx_criterio_entidade ON criterio_aceitacao(entidade_tipo, entidade_id);
+CREATE INDEX IF NOT EXISTS idx_analise_repositorio_projeto ON analise_repositorio(projeto_id);
+CREATE INDEX IF NOT EXISTS idx_analise_repositorio_usuario ON analise_repositorio(usuario_id);
+CREATE INDEX IF NOT EXISTS idx_analise_repositorio_created_at ON analise_repositorio(created_at DESC);
 
 -- Índice HNSW no pgvector para busca por similaridade de cosseno ultrarrápida
 CREATE INDEX IF NOT EXISTS idx_chunk_embedding ON chunk USING hnsw (embedding vector_cosine_ops);
+

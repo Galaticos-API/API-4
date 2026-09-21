@@ -9,49 +9,13 @@ import {
   PaginatedProjects,
 } from "./projects.types.js";
 import { ProjectsRepository, projectsRepository } from "./projects.repository.js";
-
-const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-
-export class AppError extends Error {
-  constructor(
-    public readonly message: string,
-    public readonly statusCode: number = 400,
-    public readonly code: string = "BAD_REQUEST",
-    public readonly details?: unknown,
-  ) {
-    super(message);
-    this.name = "AppError";
-  }
-}
-
-export class NotFoundError extends AppError {
-  constructor(message: string = "Recurso não encontrado.") {
-    super(message, 404, "NOT_FOUND");
-    this.name = "NotFoundError";
-  }
-}
-
-export class ConflictError extends AppError {
-  constructor(message: string = "Conflito de integridade com recurso existente.") {
-    super(message, 409, "CONFLICT");
-    this.name = "ConflictError";
-  }
-}
-
-export class ValidationError extends AppError {
-  constructor(message: string, details?: unknown) {
-    super(message, 400, "VALIDATION_ERROR", details);
-    this.name = "ValidationError";
-  }
-}
+import { ConflictError, NotFoundError, ValidationError, validateUuid } from "../../shared/errors.js";
 
 export class ProjectsService {
   constructor(private readonly repository: ProjectsRepository = projectsRepository) {}
 
   private validateUuid(id: string): void {
-    if (!id || !UUID_REGEX.test(id)) {
-      throw new ValidationError("ID do projeto inválido. Deve ser um UUID válido.");
-    }
+    validateUuid(id, "ID do projeto");
   }
 
   async create(input: unknown, usuarioId?: string | null): Promise<Project> {

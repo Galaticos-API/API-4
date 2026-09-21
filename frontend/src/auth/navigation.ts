@@ -1,7 +1,11 @@
 export const routes = { architecture: "/", projects: "/projects", requirements: "/requirements", rag: "/rag" } as const;
 
+const SEGMENT = "[a-zA-Z0-9_-]+";
+
 export function isProjectPath(path: string) {
-  return /^\/projects(?:\/[a-zA-Z0-9_-]+)?$/.test(path);
+  return new RegExp(
+    `^/projects(?:/${SEGMENT}(?:/epics/${SEGMENT}(?:/features/${SEGMENT}(?:/pbis/${SEGMENT})?)?)?)?$`,
+  ).test(path);
 }
 
 /** Only known internal pages are valid post-login destinations. */

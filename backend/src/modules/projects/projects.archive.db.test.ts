@@ -21,7 +21,7 @@ test("S1-09: cascata transacional no PostgreSQL", { skip: !process.env.ARCHIVE_T
     await pool.query("INSERT INTO feature (id,epico_id,titulo) VALUES ($1,$2,'Feature')", [feature, epic]);
     await pool.query("INSERT INTO pbi (id,feature_id,codigo,titulo,historia_como_um,historia_eu_quero,historia_para_que) VALUES ($1,$3,'T1','PBI','PO','arquivar','preservar'),($2,$3,'T2','Antigo','PO','consultar','preservar')", [pbi, oldPbi, feature]);
     await pool.query("UPDATE pbi SET status='arquivado',archived_at=$2 WHERE id=$1", [oldPbi, historical]);
-    await pool.query("INSERT INTO criterio_aceitacao (id,entidade_tipo,entidade_id,texto) VALUES ($1,'pbi',$2,'Critério preservado')", [criterion, pbi]);
+    await pool.query("INSERT INTO criterio_aceitacao (id,entidade_tipo,entidade_id,texto,nome,dado,quando,entao) VALUES ($1,'pbi',$2,'Critério preservado','Preservar','um item','arquivar','preservar histórico')", [criterion, pbi]);
 
     await t.test("prévia conta somente novos afetados e não inventa projeto inexistente", async () => {
       assert.deepEqual(await repo.archiveImpact(project), impact);
