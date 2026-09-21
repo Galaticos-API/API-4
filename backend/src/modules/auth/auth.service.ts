@@ -7,11 +7,20 @@ import {
 import { sessionService } from "./session.service.js";
 import {
   LoginDTO,
+  RegisterDTO,
   SessionRecord,
   UserRecord,
+  UserRole,
 } from "./auth.types.js";
 
 interface AuthRepositoryPort {
+  createUser(data: {
+    nome: string;
+    email: string;
+    senha_hash: string;
+    role?: UserRole;
+  }): Promise<UserRecord>;
+
   findUserByEmail(email: string): Promise<UserRecord | null>;
 
   recordFailedLogin(
@@ -34,23 +43,39 @@ interface SessionServicePort {
 
 export type LoginResult =
   | {
-      success: true;
-      token: string;
-      user: {
-        id: string;
-        nome: string;
-        email: string;
-        role: UserRecord["role"];
-      };
-    }
-  | {
-      success: false;
-      reason:
-        | "invalid_credentials"
-        | "inactive_user"
-        | "temporarily_locked";
-      blockedUntil?: Date | string;
+    success: true;
+    token: string;
+    user: {
+      id: string;
+      nome: string;
+      email: string;
+      role: UserRecord["role"];
     };
+  }
+  | {
+    success: false;
+    reason:
+    | "invalid_credentials"
+    | "inactive_user"
+    | "temporarily_locked";
+    blockedUntil?: Date | string;
+  };
+
+export type RegisterResult =
+  | {
+    success: true;
+    token: string;
+    user: {
+      id: string;
+      nome: string;
+      email: string;
+      role: UserRecord["role"];
+    };
+  }
+  | {
+    success: false;
+    reason: "email_exists";
+  };
 
 let dummyHashPromise: Promise<string> | null = null;
 
@@ -69,7 +94,7 @@ export class AuthService {
     private readonly repository: AuthRepositoryPort = authRepository,
     private readonly sessions: SessionServicePort = sessionService,
     private readonly now: () => Date = () => new Date(),
-  ) {}
+  ) { }
 
   async login(data: LoginDTO): Promise<LoginResult> {
     const email = data.email.trim().toLowerCase();
@@ -127,7 +152,7 @@ export class AuthService {
       if (
         updatedUser?.bloqueado_ate &&
         new Date(updatedUser.bloqueado_ate).getTime() >
-          now.getTime()
+        now.getTime()
       ) {
         return {
           success: false,
@@ -154,6 +179,41 @@ export class AuthService {
     const { token } = await this.sessions.createSession(
       user.id,
     );
+
+    return {
+      success: true,
+      token,
+      user: {
+        id: user.id,
+        nome: user.nome,
+        email: user.email,
+        role: user.role,
+      },
+    };
+  }
+
+  async register(data: RegisterDTO): Promise<RegisterResult> {
+    const email = data.email.trim().toLowerCase();
+
+    const existingUser = await this.repository.findUserByEmail(email);
+
+    if (existingUser) {
+      return {
+        success: false,
+        reason: "email_exists",
+      };
+    }
+
+    const senha_hash = await hashPassword(data.password);
+
+    const user = await this.repository.createUser({
+      nome: data.nome,
+      email,
+      senha_hash,
+      role: data.role,
+    });
+
+    const { token } = await this.sessions.createSession(user.id);
 
     return {
       success: true,

@@ -18,22 +18,21 @@ export function createRequireAuth(
     next: NextFunction,
   ): Promise<void> => {
     try {
-      // Extrai o token do cabeçalho Authorization (Bearer <token>)
+      let token: string | undefined;
+
       const authHeader = req.headers.authorization;
-
-      if (!authHeader || !authHeader.startsWith("Bearer ")) {
-        res.status(401).json({
-          error: "Autenticação necessária.",
-          code: "UNAUTHORIZED",
-        });
-        return;
+      if (authHeader && authHeader.startsWith("Bearer ")) {
+        token = authHeader.split(" ")[1];
+      } else if (req.headers.cookie) {
+        const match = req.headers.cookie.match(/(?:^|;\s*)sinapse_session=([^;]+)/);
+        if (match) {
+          token = match[1];
+        }
       }
-
-      const token = authHeader.split(" ")[1];
 
       if (!token) {
         res.status(401).json({
-          error: "Token de autenticação ausente.",
+          error: "Autenticação necessária.",
           code: "UNAUTHORIZED",
         });
         return;

@@ -18,6 +18,30 @@ export const loginSchema = z.object({
 
 export type LoginDTO = z.infer<typeof loginSchema>;
 
+export const registerSchema = z.object({
+  nome: z
+    .string({ required_error: "O nome é obrigatório." })
+    .trim()
+    .min(2, "O nome deve ter no mínimo 2 caracteres."),
+
+  email: z
+    .string({ required_error: "O e-mail é obrigatório." })
+    .trim()
+    .email("E-mail inválido.")
+    .transform((value) => value.toLowerCase()),
+
+  password: z
+    .string({ required_error: "A senha é obrigatória." })
+    .min(6, "A senha deve ter no mínimo 6 caracteres."),
+
+  role: z
+    .enum(USER_ROLES, { invalid_type_error: "Função inválida." })
+    .optional()
+    .default("po"),
+});
+
+export type RegisterDTO = z.infer<typeof registerSchema>;
+
 export interface UserRecord {
   id: string;
   nome: string;
