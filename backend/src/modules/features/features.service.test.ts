@@ -152,7 +152,7 @@ test("PBI-01.1.5 Cenário 3: impede edição e conclusão de feature cujo projet
   );
 });
 
-test("impede cadastrar feature em épico com estado legado", async () => {
+test("permite cadastrar feature em épico ativo e rejeita épico arquivado", async () => {
   const { service, epicsRepo } = setup();
   const LEGACY_EPICO_ID = "c0000000-0000-4000-8000-000000000099";
   epicsRepo.epics.push({
@@ -161,6 +161,8 @@ test("impede cadastrar feature em épico com estado legado", async () => {
     created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
   });
 
+  assert.equal((await service.create({ epico_id: LEGACY_EPICO_ID, titulo: "Feature permitida" })).status, "rascunho");
+  epicsRepo.epics.find(epic => epic.id === LEGACY_EPICO_ID)!.status = "arquivado";
   await assert.rejects(
     async () => await service.create({ epico_id: LEGACY_EPICO_ID, titulo: "Feature nova" }),
     (err: Error) => { assert.ok(err instanceof ValidationError); return true; },

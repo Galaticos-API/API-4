@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-// Legacy states remain readable; only the dedicated completion operation changes status.
+// Historical ativo remains writable; only dedicated operations complete or archive items.
 export const EPIC_STATUSES = ["rascunho", "concluido", "ativo", "arquivado"] as const;
 export type EpicStatus = (typeof EPIC_STATUSES)[number];
 

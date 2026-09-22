@@ -87,7 +87,7 @@ item:
         content:
           application/json:
             schema: { $ref: '#/schemas/LegacyEpic' }
-      '400': { description: Dados inválidos, estado legado ou projeto arquivado }
+      '400': { description: Dados inválidos, épico ou projeto arquivado }
       '401': { description: Sessão ausente ou inválida }
       '403': { description: Papel sem permissão }
       '404': { description: Épico inexistente }
@@ -100,14 +100,14 @@ complete:
   patch:
     deprecated: true
     summary: Concluir épico usando a regra canônica
-    description: PO/admin. Exige os campos do guia e ao menos um critério. Falta de campos retorna details.campos_faltantes e o alias traduzido details.missing. Não permite concluir registros legados ou de projeto arquivado.
+    description: PO/admin. Exige os campos do guia e ao menos um critério. Falta de campos retorna details.campos_faltantes e o alias traduzido details.missing. Permite concluir épicos ativos com campos e critérios válidos. Não permite concluir épicos arquivados ou de projeto arquivado.
     responses:
       '200':
         description: Épico concluído
         content:
           application/json:
             schema: { $ref: '#/schemas/LegacyEpic' }
-      '400': { description: Campos ou critérios faltantes, estado legado ou projeto arquivado }
+      '400': { description: Campos ou critérios faltantes, épico ou projeto arquivado }
       '401': { description: Sessão ausente ou inválida }
       '403': { description: Papel sem permissão }
       '404': { description: Épico inexistente }

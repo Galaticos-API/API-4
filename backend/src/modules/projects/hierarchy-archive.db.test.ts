@@ -1,3 +1,10 @@
+import { FeaturesService } from "../features/features.service.js";
+import { EpicsRepository } from "../epics/epics.repository.js";
+import { EpicsService } from "../epics/epics.service.js";
+import { ProjectsRepository } from "./projects.repository.js";
+import { PbisService } from "../pbis/pbis.service.js";
+import { CriteriaService } from "../criteria/criteria.service.js";
+import { QualityService } from "../quality/quality.service.js";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
@@ -69,15 +76,31 @@ test("S1-09: arquivamento direto, preservação, filtros e escrita concorrente",
 
 test("S1-09: uma hierarquia ativa continua permitindo criar feature e PBI", { skip: !process.env.ARCHIVE_TEST_DATABASE_URL }, async () => {
   const db = new Pool({ connectionString: validateTarget(process.env.ARCHIVE_TEST_DATABASE_URL, "test") });
-  const [project, epic, feature] = Array.from({ length: 3 }, randomUUID);
+  const [project, epic] = Array.from({ length: 2 }, randomUUID);
+  const ids: string[] = [project, epic];
   try {
     await db.query("INSERT INTO projeto(id,nome,cliente,status) VALUES ($1::uuid,$1::text,'Teste','ativo')", [project]);
     await db.query("INSERT INTO epico(id,projeto_id,titulo,status) VALUES ($1,$2,'Épico ativo','ativo')", [epic, project]);
 
-    const createdFeature = await new FeaturesRepository(db).create({ epico_id: epic, titulo: "Feature em épico ativo", prioridade: "Must" });
+    const featuresRepo = new FeaturesRepository(db);
+    const epics = new EpicsService(new EpicsRepository(db), new ProjectsRepository(db));
+    const features = new FeaturesService(featuresRepo, new EpicsRepository(db));
+    const criteriaRepo = new CriteriaRepository(db);
+    const criteria = new CriteriaService(criteriaRepo);
+    const pbisRepo = new PbisRepository(db);
+    const pbis = new PbisService(pbisRepo, featuresRepo, new QualityService(criteriaRepo, pbisRepo));
+    const updated = await epics.update(epic, { titulo: "Épico ativo editado", descricao: "Descrição", objetivo: "Objetivo", escopo_macro: "Escopo", resultado_esperado: "Resultado" });
+    assert.equal(updated.status, "ativo");
+    const first = await criteria.create({ entidade_tipo: "epico", entidade_id: epic, texto: "Primeiro critério" });
+    const second = await criteria.create({ entidade_tipo: "epico", entidade_id: epic, texto: "Segundo critério" });
+    ids.push(first.id, second.id);
+    await criteria.move(second.id, { direction: "up" });
+    await criteria.delete(first.id);
+    const createdFeature = await features.create({ epico_id: epic, titulo: "Feature em épico ativo", prioridade: "Must" });
     assert.equal(createdFeature.status, "rascunho");
 
-    const createdPbi = await new PbisRepository(db).create({
+    ids.push(createdFeature.id);
+    const createdPbi = await pbis.create({
       feature_id: createdFeature.id,
       titulo: "Criar PBI em hierarquia ativa",
       historia_como_um: "Product Owner",
@@ -87,8 +110,17 @@ test("S1-09: uma hierarquia ativa continua permitindo criar feature e PBI", { sk
       prioridade: "Must",
       requer_interface: false,
     });
+    ids.push(createdPbi.id);
     assert.equal(createdPbi.status, "rascunho");
+    assert.equal((await epics.complete(epic)).status, "concluido");
+    const archive = new HierarchyArchiveRepository(db);
+    await archive.archive("epico", epic, { confirmado: true, impacto: await archive.impact("epico", epic) });
+    await assert.rejects(features.create({ epico_id: epic, titulo: "Bloqueada" }));
+    await assert.rejects(epics.update(epic, { titulo: "Bloqueado" }));
+    await assert.rejects(criteria.create({ entidade_tipo: "epico", entidade_id: epic, texto: "Bloqueado" }));
   } finally {
+    await db.query("DELETE FROM criterio_aceitacao WHERE entidade_id=$1", [epic]);
+    await db.query("DELETE FROM auditoria WHERE entidade_id=ANY($1::uuid[])", [ids]);
     await db.query("DELETE FROM projeto WHERE id=$1", [project]);
     await db.end();
   }

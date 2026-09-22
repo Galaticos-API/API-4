@@ -22,8 +22,8 @@ export class FeaturesService {
     if (!epico) {
       throw new NotFoundError("Épico não encontrado.");
     }
-    if (epico.status === "ativo" || epico.status === "arquivado") {
-      throw new ValidationError("Não é possível cadastrar features em um épico com estado legado.");
+    if (epico.status === "arquivado") {
+      throw new ValidationError("Não é possível cadastrar features em um épico arquivado.");
     }
     if (epico.projeto_status === "arquivado") {
       throw new ValidationError("Não é possível cadastrar features em um projeto arquivado.");

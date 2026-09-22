@@ -10,8 +10,8 @@ export class EpicsService {
   ) {}
 
   private async ensureWritable(epic: Epic): Promise<void> {
-    if (epic.status === "ativo" || epic.status === "arquivado") {
-      throw new ValidationError("Épico com estado legado disponível somente para leitura.");
+    if (epic.status === "arquivado") {
+      throw new ValidationError("Épico arquivado disponível somente para leitura.");
     }
     const project = await this.projectsRepo.findById(epic.projeto_id);
     if (!project) throw new NotFoundError("Projeto não encontrado.");

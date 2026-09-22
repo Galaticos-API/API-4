@@ -27,7 +27,7 @@ export class CriteriaRepository {
   async entityIsWritable(tipo: CriterionEntityType, id: string): Promise<boolean> {
     const queries: Record<CriterionEntityType, string> = {
       epico: `
-        SELECT (p.status != 'arquivado' AND e.status NOT IN ('ativo', 'arquivado')) AS writable
+        SELECT (p.status != 'arquivado' AND e.status != 'arquivado') AS writable
         FROM epico e JOIN projeto p ON p.id = e.projeto_id WHERE e.id = $1
       `,
       feature: `
@@ -48,7 +48,7 @@ export class CriteriaRepository {
   private async entityIsWritableInTransaction(client: PoolClient, tipo: CriterionEntityType, id: string): Promise<boolean> {
     const queries: Record<CriterionEntityType, string> = {
       epico: `
-        SELECT (p.status != 'arquivado' AND e.status NOT IN ('ativo', 'arquivado')) AS writable
+        SELECT (p.status != 'arquivado' AND e.status != 'arquivado') AS writable
         FROM epico e JOIN projeto p ON p.id = e.projeto_id WHERE e.id = $1
       `,
       feature: `
@@ -209,7 +209,7 @@ export class CriteriaRepository {
       // The service-level checks provide fast feedback, but only these checks are
       // authoritative: concurrent deletions must re-evaluate state after the entity lock.
       if (!(await this.entityIsWritableInTransaction(client, removed.entidade_tipo, removed.entidade_id))) {
-        throw new ValidationError("Não é possível alterar critérios de uma entidade arquivada ou em estado legado.");
+        throw new ValidationError("Não é possível alterar critérios de uma entidade arquivada.");
       }
       if (await this.removalBreaksCompletionInTransaction(client, removed.entidade_tipo, removed.entidade_id)) {
         throw new ValidationError("Não é possível remover o último critério de uma entidade já concluída. Reabra o item antes de remover.");

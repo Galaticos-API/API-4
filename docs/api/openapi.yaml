@@ -1413,7 +1413,7 @@ components:
 
     UpdateEpicRequest:
       type: object
-      description: Não aceita status. Use o endpoint complete; estados legados e projetos arquivados são somente leitura.
+      description: Não aceita status. Use os endpoints complete e archive; itens ou ancestrais arquivados são somente leitura.
       properties:
         titulo:
           type: string
@@ -1439,7 +1439,7 @@ components:
 
     EpicResponse:
       type: object
-      description: Estados ativo e arquivado são legados, preservados apenas para leitura.
+      description: O estado histórico ativo permite edição. Itens arquivados são preservados apenas para leitura.
       required: [id, projeto_id, titulo, status, created_at, updated_at]
       properties:
         id:

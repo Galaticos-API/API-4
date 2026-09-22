@@ -34,3 +34,11 @@ O projeto mantém seu contrato, que acrescenta projeto à contagem. Contratos em
 ## Limitação de concorrência
 
 A solução utiliza LOCK TABLE em ordem fixa nas quatro tabelas da hierarquia, serializando escritas e arquivamentos até o commit. Isso favorece consistência nesta etapa, mas limita paralelismo entre projetos; revisar a granularidade dos bloqueios se o volume crescer.
+
+## Revisão complementar — 22/09/2026
+
+A correção de assertWritable em caacef9 ainda deixava bloqueios de ativo nos serviços, nos critérios e na interface. Essas camadas agora permitem edição, conclusão, criação de filhos e critérios em épicos ativos; arquivado continua bloqueado. Os contratos canônico e legado foram alinhados.
+
+O teste PostgreSQL de hierarquia ativa agora usa os serviços da aplicação e cobre edição, critérios (criação, ordem e remoção), criação de feature/PBI, conclusão e posterior arquivamento com rejeição de escrita. O teste específico da migration 010 entrou no CI; seu pool usa uma conexão para preservar o search_path dos schemas isolados.
+
+Validação local: 151 testes backend aprovados (5 testes condicionais ignorados nessa execução); 78 testes frontend aprovados; ambas as compilações aprovadas. Execução separada em PostgreSQL 16 + pgvector: 15 testes aprovados, nenhum ignorado; compatibilidade S1-05 aprovada nos quatro cenários. Banco da aplicação preservado.

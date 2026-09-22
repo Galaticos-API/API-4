@@ -144,9 +144,9 @@ export function EpicDetail({ projectId, epicId, canEdit, children }: { projectId
     <button className="btn-secondary" onClick={() => setAttempt((v) => v + 1)}>Tentar novamente</button></div>;
   if (!epic) return null;
 
-  const estadoLegado = epic.status === "ativo" || epic.status === "arquivado";
+  const epicoArquivado = epic.status === "arquivado";
   const projetoArquivado = epic.projeto_status === "arquivado";
-  const readOnly = estadoLegado || projetoArquivado;
+  const readOnly = epicoArquivado || projetoArquivado;
   const canWrite = canEdit && !readOnly;
 
   return (
@@ -158,8 +158,8 @@ export function EpicDetail({ projectId, epicId, canEdit, children }: { projectId
       {readOnly && (
         <div className="glass-panel projects-state">
           <p role="status">
-            {estadoLegado
-              ? `Este épico está em um estado legado ("${epic.status}") e está disponível apenas para leitura.`
+            {epicoArquivado
+              ? "Este épico está arquivado e está disponível apenas para leitura."
               : "Este épico pertence a um projeto arquivado e está disponível apenas para leitura."}
           </p>
         </div>
@@ -209,7 +209,7 @@ export function EpicDetail({ projectId, epicId, canEdit, children }: { projectId
             {canWrite && (
               <div className="project-actions">
                 <button className="btn-secondary" onClick={() => { setFormValues(toFields(epic)); setEditing(true); }}>Editar</button>
-                {epic.status === "rascunho" && (
+                {(epic.status === "rascunho" || epic.status === "ativo") && (
                   <button className="btn-primary" disabled={completing} onClick={async () => {
                     setCompleting(true); setCompletionMessage("");
                     try {

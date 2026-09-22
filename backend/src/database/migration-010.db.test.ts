@@ -18,7 +18,7 @@ async function createPre010Schema(db: Pool, schema: string): Promise<void> {
 }
 
 test("migration 010: aplica em schema limpo e legado sem default incompatível", { skip: !process.env.ARCHIVE_TEST_DATABASE_URL }, async (t) => {
-  const db = new Pool({ connectionString: validateTarget(process.env.ARCHIVE_TEST_DATABASE_URL, "test") });
+  const db = new Pool({ max: 1, connectionString: validateTarget(process.env.ARCHIVE_TEST_DATABASE_URL, "test") });
   const migration = await readFile(migrationPath, "utf8");
   const schemas = [`migration_clean_${randomUUID().replaceAll("-", "")}`, `migration_legacy_${randomUUID().replaceAll("-", "")}`];
   try {

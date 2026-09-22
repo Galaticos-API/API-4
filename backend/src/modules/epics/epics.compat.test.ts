@@ -109,7 +109,10 @@ test("contrato único de épicos em URLs canônicas e aliases", async (t) => {
       projects.archived = false;
       repo.rows.find((r) => r.id === row.id)!.status = "ativo";
       assert.equal((await call(detail(row.id))).status, 200);
-      assert.equal((await call(detail(row.id), "PATCH", { titulo: "Novo" })).status, 400);
+      assert.equal((await call(detail(row.id), "PATCH", { titulo: "Novo" })).status, 200);
+      assert.equal((await call(`${detail(row.id)}/complete`, "PATCH")).status, 200);
+      repo.rows.find((r) => r.id === row.id)!.status = "arquivado";
+      assert.equal((await call(detail(row.id), "PATCH", { titulo: "Bloqueado" })).status, 400);
     });
   }
   await t.test("listagem legada preserva mais de 100 registros e isolamento por projeto", async () => {

@@ -19,7 +19,7 @@ export class CriteriaService {
       throw new NotFoundError(`${this.entityLabel(dto.entidade_tipo)} não encontrado.`);
     }
     if (!(await this.repository.entityIsWritable(dto.entidade_tipo, dto.entidade_id))) {
-      throw new ValidationError(`Não é possível alterar critérios de um(a) ${this.entityLabel(dto.entidade_tipo).toLowerCase()} arquivado(a) ou em estado legado.`);
+      throw new ValidationError(`Não é possível alterar critérios de um(a) ${this.entityLabel(dto.entidade_tipo).toLowerCase()} arquivado(a).`);
     }
 
     return await this.repository.create(dto, usuarioId);
@@ -44,7 +44,7 @@ export class CriteriaService {
       throw new NotFoundError("Critério não encontrado.");
     }
     if (!(await this.repository.entityIsWritable(existing.entidade_tipo, existing.entidade_id))) {
-      throw new ValidationError(`Não é possível alterar critérios de um(a) ${this.entityLabel(existing.entidade_tipo).toLowerCase()} arquivado(a) ou em estado legado.`);
+      throw new ValidationError(`Não é possível alterar critérios de um(a) ${this.entityLabel(existing.entidade_tipo).toLowerCase()} arquivado(a).`);
     }
     if (await this.repository.removalBreaksCompletion(existing.entidade_tipo, existing.entidade_id)) {
       throw new ValidationError(
@@ -74,7 +74,7 @@ export class CriteriaService {
       throw new NotFoundError("Critério não encontrado.");
     }
     if (!(await this.repository.entityIsWritable(existing.entidade_tipo, existing.entidade_id))) {
-      throw new ValidationError(`Não é possível alterar critérios de um(a) ${this.entityLabel(existing.entidade_tipo).toLowerCase()} arquivado(a) ou em estado legado.`);
+      throw new ValidationError(`Não é possível alterar critérios de um(a) ${this.entityLabel(existing.entidade_tipo).toLowerCase()} arquivado(a).`);
     }
 
     const lista = await this.repository.move(id, parseResult.data.direction, usuarioId);
