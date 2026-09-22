@@ -1,3 +1,4 @@
+import { lockHierarchy, assertWritable } from "../projects/hierarchy-archive.js";
 import { Pool, PoolClient } from "pg";
 import { pool } from "../../database/db.js";
 import { CreateFeatureDTO, UpdateFeatureDTO, FeatureQueryDTO, Feature, FeatureWithStats, PaginatedFeatures } from "./features.types.js";
@@ -33,6 +34,8 @@ export class FeaturesRepository {
 
     try {
       await client.query("BEGIN");
+      await lockHierarchy(client);
+      await assertWritable(client, "epico", data.epico_id);
 
       const insertQuery = `
         INSERT INTO feature (epico_id, titulo, descricao, objetivo, prioridade)
@@ -81,7 +84,8 @@ export class FeaturesRepository {
       params.push(query.epico_id);
       paramIndex++;
     }
-    if (query.status) {
+    if (!query.status) whereConditions.push("f.status != 'arquivado'");
+    if (query.status && query.status !== "todos") {
       whereConditions.push(`f.status = $${paramIndex}`);
       params.push(query.status);
       paramIndex++;
@@ -110,6 +114,8 @@ export class FeaturesRepository {
 
     try {
       await client.query("BEGIN");
+      await lockHierarchy(client);
+      await assertWritable(client, "feature", id);
 
       const existing = await this.findById(id);
       if (!existing) {
@@ -162,6 +168,8 @@ export class FeaturesRepository {
 
     try {
       await client.query("BEGIN");
+      await lockHierarchy(client);
+      await assertWritable(client, "feature", id);
 
       const existing = await this.findById(id);
       if (!existing) {

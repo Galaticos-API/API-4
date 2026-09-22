@@ -148,6 +148,7 @@ paths:
         - name: status
           in: query
           required: false
+          description: Ausente exclui arquivados; arquivado retorna somente arquivados; todos inclui todos os estados.
           schema:
             type: string
             enum: [ativo, em_andamento, concluido, arquivado, todos]
@@ -258,15 +259,45 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
         '409':
-          description: Conflito de nome duplicado com outro projeto ativo
+          description: Nome duplicado ou tentativa de editar projeto arquivado (somente leitura).
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
 
+  /api/v1/projects/{id}/archive-impact:
+    get:
+      summary: Consulta quantidade de novos itens afetados pela cascata (S1-09)
+      operationId: getProjectArchiveImpact
+      description: Disponível para po e admin. Não modifica registros. Itens já arquivados não entram na contagem.
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Contagens para confirmação explícita
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ArchiveImpact'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Perfil sem permissão de escrita
+        '404':
+          description: Projeto não encontrado
+
   /api/v1/projects/{id}/archive:
     patch:
-      summary: Arquiva um projeto (S1-03 / S1-09)
+      summary: Arquiva projeto, épicos, features e PBIs em cascata (S1-09)
       operationId: archiveProject
       description: Escrita permitida apenas aos perfis po e admin; dev recebe 403.
       security:
@@ -279,17 +310,28 @@ paths:
             type: string
             format: uuid
       requestBody:
-        required: false
+        required: true
         content:
           application/json:
             schema:
               type: object
+              required: [confirmado, impacto]
               properties:
+                confirmado:
+                  type: boolean
+                  enum: [true]
+                impacto:
+                  $ref: '#/components/schemas/ArchiveImpact'
                 justificativa:
                   type: string
+                  maxLength: 2000
       responses:
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '409':
+          description: Contagem mudou desde a prévia. Consultar novamente e pedir nova confirmação.
         '200':
-          description: Projeto arquivado
+          description: Cascata e auditoria confirmadas atomicamente. Repetição preserva as datas e não duplica auditoria.
           content:
             application/json:
               schema:
@@ -349,7 +391,7 @@ paths:
           in: query
           schema:
             type: string
-            enum: [rascunho, concluido, ativo, arquivado]
+            enum: [rascunho, concluido, ativo, arquivado, todos]
         - name: limit
           in: query
           schema:
@@ -509,7 +551,7 @@ paths:
           in: query
           schema:
             type: string
-            enum: [rascunho, concluido]
+            enum: [rascunho, concluido, arquivado, todos]
       responses:
         '200':
           description: Lista paginada de features
@@ -645,7 +687,7 @@ paths:
           in: query
           schema:
             type: string
-            enum: [rascunho, concluido]
+            enum: [rascunho, concluido, arquivado, todos]
       responses:
         '200':
           description: Lista paginada de PBIs
@@ -1053,6 +1095,120 @@ paths:
         '502':
           description: Ollama indisponível
 
+  /epics/{id}/archive-impact:
+    get:
+      summary: Prévia do arquivamento de epics (S1-09)
+      security: [{cookieAuth: []}]
+      parameters:
+        - {name: id, in: path, required: true, schema: {type: string, format: uuid}}
+      responses:
+        '200':
+          description: Quantidades ainda não arquivadas, incluindo o próprio item
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/HierarchyArchiveImpact'}
+        '404': {description: Item não encontrado}
+  /epics/{id}/archive:
+    patch:
+      summary: Arquiva epics e descendentes com auditoria (S1-09)
+      description: Exclusivo de PO/admin. Não apaga conteúdo. Repetições preservam data e auditoria. Conflito exige nova prévia.
+      security: [{cookieAuth: []}]
+      parameters:
+        - {name: id, in: path, required: true, schema: {type: string, format: uuid}}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [confirmado, impacto]
+              properties:
+                confirmado: {type: boolean, enum: [true]}
+                impacto: {$ref: '#/components/schemas/HierarchyArchiveImpact'}
+                justificativa: {type: string, maxLength: 2000}
+      responses:
+        '200': {description: Item arquivado com archived_at}
+        '400': {description: Confirmação ou prévia inválida}
+        '403': {description: Perfil sem permissão de escrita}
+        '404': {description: Item não encontrado}
+        '409': {description: Impacto alterado ou ancestral somente leitura}
+
+  /features/{id}/archive-impact:
+    get:
+      summary: Prévia do arquivamento de features (S1-09)
+      security: [{cookieAuth: []}]
+      parameters:
+        - {name: id, in: path, required: true, schema: {type: string, format: uuid}}
+      responses:
+        '200':
+          description: Quantidades ainda não arquivadas, incluindo o próprio item
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/HierarchyArchiveImpact'}
+        '404': {description: Item não encontrado}
+  /features/{id}/archive:
+    patch:
+      summary: Arquiva features e descendentes com auditoria (S1-09)
+      description: Exclusivo de PO/admin. Não apaga conteúdo. Repetições preservam data e auditoria. Conflito exige nova prévia.
+      security: [{cookieAuth: []}]
+      parameters:
+        - {name: id, in: path, required: true, schema: {type: string, format: uuid}}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [confirmado, impacto]
+              properties:
+                confirmado: {type: boolean, enum: [true]}
+                impacto: {$ref: '#/components/schemas/HierarchyArchiveImpact'}
+                justificativa: {type: string, maxLength: 2000}
+      responses:
+        '200': {description: Item arquivado com archived_at}
+        '400': {description: Confirmação ou prévia inválida}
+        '403': {description: Perfil sem permissão de escrita}
+        '404': {description: Item não encontrado}
+        '409': {description: Impacto alterado ou ancestral somente leitura}
+
+  /pbis/{id}/archive-impact:
+    get:
+      summary: Prévia do arquivamento de pbis (S1-09)
+      security: [{cookieAuth: []}]
+      parameters:
+        - {name: id, in: path, required: true, schema: {type: string, format: uuid}}
+      responses:
+        '200':
+          description: Quantidades ainda não arquivadas, incluindo o próprio item
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/HierarchyArchiveImpact'}
+        '404': {description: Item não encontrado}
+  /pbis/{id}/archive:
+    patch:
+      summary: Arquiva pbis e descendentes com auditoria (S1-09)
+      description: Exclusivo de PO/admin. Não apaga conteúdo. Repetições preservam data e auditoria. Conflito exige nova prévia.
+      security: [{cookieAuth: []}]
+      parameters:
+        - {name: id, in: path, required: true, schema: {type: string, format: uuid}}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [confirmado, impacto]
+              properties:
+                confirmado: {type: boolean, enum: [true]}
+                impacto: {$ref: '#/components/schemas/HierarchyArchiveImpact'}
+                justificativa: {type: string, maxLength: 2000}
+      responses:
+        '200': {description: Item arquivado com archived_at}
+        '400': {description: Confirmação ou prévia inválida}
+        '403': {description: Perfil sem permissão de escrita}
+        '404': {description: Item não encontrado}
+        '409': {description: Impacto alterado ou ancestral somente leitura}
+
 components:
   securitySchemes:
     cookieAuth:
@@ -1061,6 +1217,33 @@ components:
       name: sinapse_session
 
   schemas:
+    HierarchyArchiveImpact:
+      type: object
+      required: [epicos, features, pbis]
+      properties:
+        epicos: {type: integer, minimum: 0}
+        features: {type: integer, minimum: 0}
+        pbis: {type: integer, minimum: 0}
+
+    ArchiveImpact:
+      type: object
+      additionalProperties: false
+      required: [projeto, epicos, features, pbis]
+      properties:
+        projeto:
+          type: integer
+          minimum: 0
+          maximum: 1
+        epicos:
+          type: integer
+          minimum: 0
+        features:
+          type: integer
+          minimum: 0
+        pbis:
+          type: integer
+          minimum: 0
+
     LoginRequest:
       type: object
       required: [email, password]
@@ -1114,7 +1297,7 @@ components:
           nullable: true
         status:
           type: string
-          enum: [ativo, em_andamento, concluido, arquivado]
+          enum: [ativo, em_andamento, concluido]
           default: ativo
         data_inicio:
           type: string
@@ -1137,7 +1320,7 @@ components:
           nullable: true
         status:
           type: string
-          enum: [ativo, em_andamento, concluido, arquivado]
+          enum: [ativo, em_andamento, concluido]
         data_inicio:
           type: string
           format: date-time
@@ -1173,6 +1356,11 @@ components:
           format: date-time
         epicos_count:
           type: integer
+        archived_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: Data do arquivamento; nula em registros legados sem data conhecida.
         documentos_count:
           type: integer
 
@@ -1225,7 +1413,7 @@ components:
 
     UpdateEpicRequest:
       type: object
-      description: Não aceita status. Use o endpoint complete; estados legados e projetos arquivados são somente leitura.
+      description: Não aceita status. Use os endpoints complete e archive; itens ou ancestrais arquivados são somente leitura.
       properties:
         titulo:
           type: string
@@ -1251,7 +1439,7 @@ components:
 
     EpicResponse:
       type: object
-      description: Estados ativo e arquivado são legados, preservados apenas para leitura.
+      description: O estado histórico ativo permite edição. Itens arquivados são preservados apenas para leitura.
       required: [id, projeto_id, titulo, status, created_at, updated_at]
       properties:
         id:
@@ -1370,7 +1558,7 @@ components:
           enum: [Must, Should, Could]
         status:
           type: string
-          enum: [rascunho, concluido]
+          enum: [rascunho, concluido, arquivado]
         created_at:
           type: string
           format: date-time
@@ -1502,7 +1690,7 @@ components:
           description: Indica se há ao menos um protótipo registrado para este PBI.
         status:
           type: string
-          enum: [rascunho, concluido]
+          enum: [rascunho, concluido, arquivado]
         score_completude:
           type: integer
         provenance:

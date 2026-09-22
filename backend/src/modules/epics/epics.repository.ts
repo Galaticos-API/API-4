@@ -1,3 +1,4 @@
+import { lockHierarchy, assertWritable } from "../projects/hierarchy-archive.js";
 import { Pool, PoolClient } from "pg";
 import { pool } from "../../database/db.js";
 import { CreateEpicDTO, UpdateEpicDTO, EpicQueryDTO, Epic, EpicWithStats, PaginatedEpics } from "./epics.types.js";
@@ -30,6 +31,8 @@ export class EpicsRepository {
 
     try {
       await client.query("BEGIN");
+      await lockHierarchy(client);
+      await assertWritable(client, "projeto", data.projeto_id);
 
       const insertQuery = `
         INSERT INTO epico (projeto_id, titulo, descricao, objetivo, escopo_macro, resultado_esperado, prioridade)
@@ -80,7 +83,8 @@ export class EpicsRepository {
       params.push(query.projeto_id);
       paramIndex++;
     }
-    if (query.status) {
+    if (!query.status) whereConditions.push("e.status != 'arquivado'");
+    if (query.status && query.status !== "todos") {
       whereConditions.push(`e.status = $${paramIndex}`);
       params.push(query.status);
       paramIndex++;
@@ -115,6 +119,8 @@ export class EpicsRepository {
 
     try {
       await client.query("BEGIN");
+      await lockHierarchy(client);
+      await assertWritable(client, "epico", id);
 
       const existing = await this.findById(id);
       if (!existing) {
@@ -169,6 +175,8 @@ export class EpicsRepository {
 
     try {
       await client.query("BEGIN");
+      await lockHierarchy(client);
+      await assertWritable(client, "epico", id);
 
       const existing = await this.findById(id);
       if (!existing) {

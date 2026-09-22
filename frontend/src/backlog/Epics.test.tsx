@@ -1,6 +1,7 @@
 import { afterEach, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { EpicDetail, EpicForm, EpicList } from "./Epics";
+import { FeatureList } from "./Features";
 
 const epic = { id: "epic-1", projeto_id: "project-1", titulo: "Organizar requisitos", status: "rascunho",
   descricao: "d", objetivo: "o", escopo_macro: "e", resultado_esperado: "r", criterios_count: 1 };
@@ -52,4 +53,20 @@ it("estado legado permanece visível sem ação de conclusão", async () => {
   render(<EpicDetail projectId="project-1" epicId={epic.id} canEdit />);
   await screen.findByText("arquivado");
   expect(screen.queryByText("Marcar como concluído")).toBeNull();
+});
+
+it.each(["ativo", "arquivado"])("épico %s aplica permissões também aos critérios e filhos", async (status) => {
+  vi.stubGlobal("fetch", vi.fn((url) => response(String(url).includes("?") ? { items: [], total: 0 } : { ...epic, status })));
+  render(<EpicDetail projectId="project-1" epicId={epic.id} canEdit>
+    <FeatureList projectId="project-1" epicoId={epic.id} canCreate />
+  </EpicDetail>);
+  await screen.findByText("Nenhuma feature cadastrada");
+  for (const label of ["Editar", "Marcar como concluído", "Arquivar item", "Nova feature"]) {
+    if (status === "ativo") expect(screen.getByRole("button", { name: label })).toBeInTheDocument();
+    else expect(screen.queryByRole("button", { name: label })).toBeNull();
+  }
+  if (status === "ativo") {
+    fireEvent.click(screen.getByRole("button", { name: "Editar" }));
+    expect(screen.getByRole("button", { name: "Salvar alterações" })).toBeInTheDocument();
+  }
 });

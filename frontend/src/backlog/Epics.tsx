@@ -1,4 +1,6 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { ReadOnlyContext } from "./ReadOnlyContext";
+import { ItemArchive } from "./ItemArchive";
+import { useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { ApiError } from "../api/api_auth";
 import { navigate } from "./navigation";
 import { createEpic, completeEpic, updateEpic, getEpic, listEpics, camposFaltantesDe, type Epic, type EpicInput } from "../api/api_backlog";
@@ -10,21 +12,24 @@ import "../projects/projects.css";
 type ListResult = { state: "loading" } | { state: "error"; message: string } | { state: "ready"; epics: Epic[] };
 const emptyInput: EpicInput = { projeto_id: "", titulo: "", descricao: "", objetivo: "", escopo_macro: "", resultado_esperado: "" };
 
-export function EpicList({ projetoId, canCreate }: { projetoId: string; canCreate: boolean }) {
+export function EpicList({ projetoId, canCreate: allowedToCreate }: { projetoId: string; canCreate: boolean }) {
+  const inheritedReadOnly = useContext(ReadOnlyContext);
+  const canCreate = allowedToCreate && !inheritedReadOnly;
   const [result, setResult] = useState<ListResult>({ state: "loading" });
   const [attempt, setAttempt] = useState(0);
+  const [status, setStatus] = useState("");
 
   useEffect(() => {
     const controller = new AbortController();
     setResult({ state: "loading" });
-    listEpics(projetoId, controller.signal)
+    listEpics(projetoId, controller.signal, status)
       .then((epics) => { if (!controller.signal.aborted) setResult({ state: "ready", epics }); })
       .catch((error) => {
         if (controller.signal.aborted) return;
         setResult({ state: "error", message: error instanceof ApiError && error.status === 401 ? "É necessário entrar para acessar os épicos." : "Não foi possível carregar os épicos." });
       });
     return () => controller.abort();
-  }, [projetoId, attempt]);
+  }, [projetoId, attempt, status]);
 
   return (
     <section className="projects-page">
@@ -32,6 +37,7 @@ export function EpicList({ projetoId, canCreate }: { projetoId: string; canCreat
         <div><p className="projects-eyebrow">Épicos do projeto</p><h3>Épicos</h3></div>
         {canCreate && <button className="btn-primary" onClick={() => navigate(`/projects/${projetoId}/epics/new`)}>Novo épico</button>}
       </div>
+      <label>Exibir itens <select value={status} onChange={event => setStatus(event.target.value)}><option value="">Não arquivados</option><option value="arquivado">Arquivados</option><option value="todos">Todos</option></select></label>
       {result.state === "loading" && <div className="glass-panel projects-state" role="status">Carregando épicos…</div>}
       {result.state === "error" && <div className="glass-panel projects-state"><p role="alert">{result.message}</p>
         <button className="btn-secondary" onClick={() => setAttempt((v) => v + 1)}>Tentar novamente</button></div>}
@@ -138,9 +144,9 @@ export function EpicDetail({ projectId, epicId, canEdit, children }: { projectId
     <button className="btn-secondary" onClick={() => setAttempt((v) => v + 1)}>Tentar novamente</button></div>;
   if (!epic) return null;
 
-  const estadoLegado = epic.status === "ativo" || epic.status === "arquivado";
+  const epicoArquivado = epic.status === "arquivado";
   const projetoArquivado = epic.projeto_status === "arquivado";
-  const readOnly = estadoLegado || projetoArquivado;
+  const readOnly = epicoArquivado || projetoArquivado;
   const canWrite = canEdit && !readOnly;
 
   return (
@@ -152,8 +158,8 @@ export function EpicDetail({ projectId, epicId, canEdit, children }: { projectId
       {readOnly && (
         <div className="glass-panel projects-state">
           <p role="status">
-            {estadoLegado
-              ? `Este épico está em um estado legado ("${epic.status}") e está disponível apenas para leitura.`
+            {epicoArquivado
+              ? "Este épico está arquivado e está disponível apenas para leitura."
               : "Este épico pertence a um projeto arquivado e está disponível apenas para leitura."}
           </p>
         </div>
@@ -203,7 +209,7 @@ export function EpicDetail({ projectId, epicId, canEdit, children }: { projectId
             {canWrite && (
               <div className="project-actions">
                 <button className="btn-secondary" onClick={() => { setFormValues(toFields(epic)); setEditing(true); }}>Editar</button>
-                {epic.status === "rascunho" && (
+                {(epic.status === "rascunho" || epic.status === "ativo") && (
                   <button className="btn-primary" disabled={completing} onClick={async () => {
                     setCompleting(true); setCompletionMessage("");
                     try {
@@ -223,8 +229,10 @@ export function EpicDetail({ projectId, epicId, canEdit, children }: { projectId
           </>
         )}
       </article>
+      {epic.status === "arquivado" && <p>Arquivado em: {epic.archived_at ? new Date(epic.archived_at!).toLocaleString("pt-BR") : "data não registrada"}</p>}
+      <ItemArchive project={epic} kind="epics" canWrite={canEdit && !readOnly && !editing && !saving && !completing} onArchived={() => setAttempt(v => v + 1)} />
       <CriteriaEditor entidadeTipo="epico" entidadeId={epic.id} canEdit={canWrite} titulo="Critérios do épico" />
-      {children}
+      <ReadOnlyContext.Provider value={readOnly}>{children}</ReadOnlyContext.Provider>
     </section>
   );
 }

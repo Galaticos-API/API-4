@@ -1,5 +1,13 @@
 import { Request, Response, NextFunction } from "express";
 import { projectsService, ProjectsService } from "./projects.service.js";
+import { ValidationError } from "../../shared/errors.js";
+import { z } from "zod";
+
+const confirmation = z.object({
+  confirmado: z.literal(true),
+  impacto: z.object({ projeto: z.number().int().min(0).max(1), epicos: z.number().int().nonnegative(), features: z.number().int().nonnegative(), pbis: z.number().int().nonnegative() }).strict(),
+  justificativa: z.string().trim().max(2000).optional(),
+});
 
 function getParamId(param: string | string[] | undefined): string {
   if (Array.isArray(param)) return param[0] ?? "";
@@ -53,12 +61,19 @@ export class ProjectsController {
     try {
       const id = getParamId(req.params.id);
       const usuarioId = req.auth?.id ?? null;
-      const justificativa = (req.body?.justificativa as string) || undefined;
-      const result = await this.service.archive(id, usuarioId, justificativa);
+      const parsed = confirmation.safeParse(req.body);
+      if (!parsed.success) throw new ValidationError("Consulte a prévia e confirme explicitamente o arquivamento.");
+      const result = await this.service.archive(id, usuarioId, parsed.data.justificativa, parsed.data.impacto);
       res.status(200).json(result);
     } catch (error) {
       next(error);
     }
+  };
+
+  archiveImpact = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      res.status(200).json(await this.service.archiveImpact(getParamId(req.params.id)));
+    } catch (error) { next(error); }
   };
 }
 

@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import { AppError } from "../shared/errors.js";
+import { ArchiveConflict } from "../modules/projects/archive.types.js";
 
 export function errorHandler(
   err: Error,
@@ -7,6 +8,10 @@ export function errorHandler(
   res: Response,
   _next: NextFunction,
 ): void {
+  if (err instanceof ArchiveConflict) {
+    res.status(409).json({ error: err.message, code: "ARCHIVE_CONFLICT" });
+    return;
+  }
   if (err instanceof AppError) {
     res.status(err.statusCode).json({
       error: err.message,
@@ -33,7 +38,11 @@ export function errorHandler(
     return;
   }
 
-  console.error("[Internal Server Error]", err);
+  // PostgreSQL errors may include row values and SQL; never log the raw error.
+  const code = (err as { code?: unknown }).code;
+  console.error("[Internal Server Error]", {
+    code: typeof code === "string" && /^[0-9A-Z]{5}$/.test(code) ? code : "INTERNAL_SERVER_ERROR",
+  });
   res.status(500).json({
     error: "Erro interno do servidor.",
     code: "INTERNAL_SERVER_ERROR",

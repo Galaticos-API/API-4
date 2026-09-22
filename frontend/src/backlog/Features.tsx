@@ -1,4 +1,6 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { ReadOnlyContext } from "./ReadOnlyContext";
+import { ItemArchive } from "./ItemArchive";
+import { useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { ApiError } from "../api/api_auth";
 import { navigate } from "./navigation";
 import { createFeature, completeFeature, updateFeature, getFeature, listFeatures, camposFaltantesDe, type Feature, type FeatureInput } from "../api/api_backlog";
@@ -10,21 +12,24 @@ import "../projects/projects.css";
 type ListResult = { state: "loading" } | { state: "error"; message: string } | { state: "ready"; features: Feature[] };
 const emptyInput: FeatureInput = { epico_id: "", titulo: "", descricao: "", objetivo: "" };
 
-export function FeatureList({ projectId, epicoId, canCreate }: { projectId: string; epicoId: string; canCreate: boolean }) {
+export function FeatureList({ projectId, epicoId, canCreate: allowedToCreate }: { projectId: string; epicoId: string; canCreate: boolean }) {
+  const inheritedReadOnly = useContext(ReadOnlyContext);
+  const canCreate = allowedToCreate && !inheritedReadOnly;
   const [result, setResult] = useState<ListResult>({ state: "loading" });
   const [attempt, setAttempt] = useState(0);
+  const [status, setStatus] = useState("");
 
   useEffect(() => {
     const controller = new AbortController();
     setResult({ state: "loading" });
-    listFeatures(epicoId, controller.signal)
+    listFeatures(epicoId, controller.signal, status)
       .then((features) => { if (!controller.signal.aborted) setResult({ state: "ready", features }); })
       .catch((error) => {
         if (controller.signal.aborted) return;
         setResult({ state: "error", message: error instanceof ApiError && error.status === 401 ? "É necessário entrar para acessar as features." : "Não foi possível carregar as features." });
       });
     return () => controller.abort();
-  }, [epicoId, attempt]);
+  }, [epicoId, attempt, status]);
 
   return (
     <section className="projects-page">
@@ -32,6 +37,7 @@ export function FeatureList({ projectId, epicoId, canCreate }: { projectId: stri
         <div><p className="projects-eyebrow">Features do épico</p><h3>Features</h3></div>
         {canCreate && <button className="btn-primary" onClick={() => navigate(`/projects/${projectId}/epics/${epicoId}/features/new`)}>Nova feature</button>}
       </div>
+      <label>Exibir itens <select value={status} onChange={event => setStatus(event.target.value)}><option value="">Não arquivados</option><option value="arquivado">Arquivados</option><option value="todos">Todos</option></select></label>
       {result.state === "loading" && <div className="glass-panel projects-state" role="status">Carregando features…</div>}
       {result.state === "error" && <div className="glass-panel projects-state"><p role="alert">{result.message}</p>
         <button className="btn-secondary" onClick={() => setAttempt((v) => v + 1)}>Tentar novamente</button></div>}
@@ -134,7 +140,7 @@ export function FeatureDetail({ projectId, epicoId, featureId, canEdit, children
   if (result.state === "error") return <div className="glass-panel projects-state"><p role="alert">{result.message}</p>
     <button className="btn-secondary" onClick={() => setAttempt((v) => v + 1)}>Tentar novamente</button></div>;
 
-  const readOnly = feature!.projeto_status === "arquivado";
+  const readOnly = feature!.status === "arquivado" || feature!.projeto_status === "arquivado";
 
   return (
     <section className="projects-page">
@@ -203,8 +209,10 @@ export function FeatureDetail({ projectId, epicoId, featureId, canEdit, children
           </>
         )}
       </article>
+      {feature!.status === "arquivado" && <p>Arquivado em: {feature!.archived_at ? new Date(feature!.archived_at!).toLocaleString("pt-BR") : "data não registrada"}</p>}
+      <ItemArchive project={feature!} kind="features" canWrite={canEdit && !readOnly && !editing && !saving && !completing} onArchived={() => setAttempt(v => v + 1)} />
       <CriteriaEditor entidadeTipo="feature" entidadeId={feature!.id} canEdit={canEdit && !readOnly} titulo="Critérios da feature" />
-      {children}
+      <ReadOnlyContext.Provider value={readOnly}>{children}</ReadOnlyContext.Provider>
     </section>
   );
 }

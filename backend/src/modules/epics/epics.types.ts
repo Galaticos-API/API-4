@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-// Legacy states remain readable; only the dedicated completion operation changes status.
+// Historical ativo remains writable; only dedicated operations complete or archive items.
 export const EPIC_STATUSES = ["rascunho", "concluido", "ativo", "arquivado"] as const;
 export type EpicStatus = (typeof EPIC_STATUSES)[number];
 
@@ -43,7 +43,7 @@ export type UpdateEpicDTO = z.infer<typeof updateEpicSchema>;
 
 export const epicQuerySchema = z.object({
   projeto_id: z.string().uuid().optional(),
-  status: z.enum(EPIC_STATUSES).optional(),
+  status: z.enum([...EPIC_STATUSES, "todos"]).optional(),
   limit: z.coerce.number().int().min(1).max(100).default(50),
   offset: z.coerce.number().int().min(0).default(0),
 });

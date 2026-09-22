@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const FEATURE_STATUSES = ["rascunho", "concluido"] as const;
+export const FEATURE_STATUSES = ["rascunho", "concluido", "arquivado"] as const;
 export type FeatureStatus = (typeof FEATURE_STATUSES)[number];
 
 export const FEATURE_PRIORITIES = ["Must", "Should", "Could"] as const;
@@ -34,7 +34,7 @@ export type UpdateFeatureDTO = z.infer<typeof updateFeatureSchema>;
 
 export const featureQuerySchema = z.object({
   epico_id: z.string().uuid().optional(),
-  status: z.enum(FEATURE_STATUSES).optional(),
+  status: z.enum([...FEATURE_STATUSES, "todos"]).optional(),
   limit: z.coerce.number().int().min(1).max(100).default(50),
   offset: z.coerce.number().int().min(0).default(0),
 });

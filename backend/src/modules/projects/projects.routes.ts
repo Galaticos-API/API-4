@@ -320,3 +320,4 @@ projectsRouter.patch("/:id", canWrite, projectsController.update);
  *         description: Projeto não encontrado
  */
 projectsRouter.patch("/:id/archive", canWrite, projectsController.archive);
+projectsRouter.get("/:id/archive-impact", canWrite, projectsController.archiveImpact);

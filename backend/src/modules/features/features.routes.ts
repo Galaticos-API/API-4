@@ -1,3 +1,4 @@
+import { archiveHandlers } from "../projects/hierarchy-archive.js";
 import { Router } from "express";
 import { featuresController } from "./features.controller.js";
 import { requireRole } from "../../middleware/requireRole.js";
@@ -295,3 +296,7 @@ featuresRouter.patch("/:id", canWrite, featuresController.update);
  *         description: Feature não encontrada
  */
 featuresRouter.patch("/:id/complete", canWrite, featuresController.complete);
+
+const archive = archiveHandlers("feature");
+featuresRouter.get("/:id/archive-impact", canWrite, archive.impact);
+featuresRouter.patch("/:id/archive", canWrite, archive.archive);

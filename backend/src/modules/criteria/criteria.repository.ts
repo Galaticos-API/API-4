@@ -1,3 +1,4 @@
+import { lockHierarchy, assertWritable } from "../projects/hierarchy-archive.js";
 import { Pool, PoolClient } from "pg";
 import { pool } from "../../database/db.js";
 import { CreateCriterionDTO, Criterion, CriterionEntityType } from "./criteria.types.js";
@@ -26,15 +27,15 @@ export class CriteriaRepository {
   async entityIsWritable(tipo: CriterionEntityType, id: string): Promise<boolean> {
     const queries: Record<CriterionEntityType, string> = {
       epico: `
-        SELECT (p.status != 'arquivado' AND e.status NOT IN ('ativo', 'arquivado')) AS writable
+        SELECT (p.status != 'arquivado' AND e.status != 'arquivado') AS writable
         FROM epico e JOIN projeto p ON p.id = e.projeto_id WHERE e.id = $1
       `,
       feature: `
-        SELECT p.status != 'arquivado' AS writable
+        SELECT (p.status != 'arquivado' AND e.status != 'arquivado' AND f.status != 'arquivado') AS writable
         FROM feature f JOIN epico e ON e.id = f.epico_id JOIN projeto p ON p.id = e.projeto_id WHERE f.id = $1
       `,
       pbi: `
-        SELECT p.status != 'arquivado' AS writable
+        SELECT (p.status != 'arquivado' AND e.status != 'arquivado' AND f.status != 'arquivado' AND pb.status != 'arquivado') AS writable
         FROM pbi pb JOIN feature f ON f.id = pb.feature_id JOIN epico e ON e.id = f.epico_id JOIN projeto p ON p.id = e.projeto_id
         WHERE pb.id = $1
       `,
@@ -47,15 +48,15 @@ export class CriteriaRepository {
   private async entityIsWritableInTransaction(client: PoolClient, tipo: CriterionEntityType, id: string): Promise<boolean> {
     const queries: Record<CriterionEntityType, string> = {
       epico: `
-        SELECT (p.status != 'arquivado' AND e.status NOT IN ('ativo', 'arquivado')) AS writable
+        SELECT (p.status != 'arquivado' AND e.status != 'arquivado') AS writable
         FROM epico e JOIN projeto p ON p.id = e.projeto_id WHERE e.id = $1
       `,
       feature: `
-        SELECT p.status != 'arquivado' AS writable
+        SELECT (p.status != 'arquivado' AND e.status != 'arquivado' AND f.status != 'arquivado') AS writable
         FROM feature f JOIN epico e ON e.id = f.epico_id JOIN projeto p ON p.id = e.projeto_id WHERE f.id = $1
       `,
       pbi: `
-        SELECT p.status != 'arquivado' AS writable
+        SELECT (p.status != 'arquivado' AND e.status != 'arquivado' AND f.status != 'arquivado' AND pb.status != 'arquivado') AS writable
         FROM pbi pb JOIN feature f ON f.id = pb.feature_id JOIN epico e ON e.id = f.epico_id JOIN projeto p ON p.id = e.projeto_id
         WHERE pb.id = $1
       `,
@@ -96,6 +97,7 @@ export class CriteriaRepository {
   // diferentes causariam espera circular). O lock é liberado automaticamente no COMMIT/ROLLBACK.
   private async lockEntity(client: PoolClient, tipo: CriterionEntityType, entidadeId: string): Promise<void> {
     await client.query(`SELECT pg_advisory_xact_lock(hashtext($1))`, [`${tipo}:${entidadeId}`]);
+    await assertWritable(client, tipo, entidadeId);
   }
 
   async findById(id: string): Promise<Criterion | null> {
@@ -133,6 +135,7 @@ export class CriteriaRepository {
 
     try {
       await client.query("BEGIN");
+      await lockHierarchy(client);
       await this.lockEntity(client, dto.entidade_tipo, dto.entidade_id);
 
       const ordemResult = await client.query<{ proxima_ordem: number }>(
@@ -187,6 +190,7 @@ export class CriteriaRepository {
 
     try {
       await client.query("BEGIN");
+      await lockHierarchy(client);
 
       const peek = await client.query<Criterion>(`SELECT entidade_tipo, entidade_id FROM criterio_aceitacao WHERE id = $1`, [id]);
       if (!peek.rows[0]) {
@@ -205,7 +209,7 @@ export class CriteriaRepository {
       // The service-level checks provide fast feedback, but only these checks are
       // authoritative: concurrent deletions must re-evaluate state after the entity lock.
       if (!(await this.entityIsWritableInTransaction(client, removed.entidade_tipo, removed.entidade_id))) {
-        throw new ValidationError("Não é possível alterar critérios de uma entidade arquivada ou em estado legado.");
+        throw new ValidationError("Não é possível alterar critérios de uma entidade arquivada.");
       }
       if (await this.removalBreaksCompletionInTransaction(client, removed.entidade_tipo, removed.entidade_id)) {
         throw new ValidationError("Não é possível remover o último critério de uma entidade já concluída. Reabra o item antes de remover.");
@@ -244,6 +248,7 @@ export class CriteriaRepository {
 
     try {
       await client.query("BEGIN");
+      await lockHierarchy(client);
 
       const peek = await client.query<Criterion>(`SELECT entidade_tipo, entidade_id FROM criterio_aceitacao WHERE id = $1`, [id]);
       if (!peek.rows[0]) {

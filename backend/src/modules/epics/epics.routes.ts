@@ -1,3 +1,4 @@
+import { archiveHandlers } from "../projects/hierarchy-archive.js";
 import { Router } from "express";
 import { EpicsController } from "./epics.controller.js";
 import { EpicsService, epicsService } from "./epics.service.js";
@@ -323,7 +324,9 @@ epicsRouter.patch("/:id", canWrite, epicsController.update);
  *         description: Épico não encontrado
  */
 epicsRouter.patch("/:id/complete", canWrite, epicsController.complete);
-
+const archive = archiveHandlers("epico");
+epicsRouter.get("/:id/archive-impact", canWrite, archive.impact);
+epicsRouter.patch("/:id/archive", canWrite, archive.archive);
 return epicsRouter;
 }
 

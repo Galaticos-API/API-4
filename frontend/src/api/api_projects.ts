@@ -1,7 +1,20 @@
 import { apiRequest } from "./api_auth";
 
 export interface ProjectInput { nome: string; cliente: string; descricao: string }
-export interface Project extends ProjectInput { id: string; status: "ativo" | "em_andamento" | "concluido" | "arquivado" }
+export interface Project extends ProjectInput { id: string; status: "ativo" | "em_andamento" | "concluido" | "arquivado"; archived_at?: string | null }
+export interface ArchiveImpact { projeto: number; epicos: number; features: number; pbis: number }
+
+export async function getArchiveImpact(id: string): Promise<ArchiveImpact> {
+  const data = await (await apiRequest(`/projects/${encodeURIComponent(id)}/archive-impact`, { signal: AbortSignal.timeout(15000) })).json();
+  if (!data || !["projeto", "epicos", "features", "pbis"].every(key => Number.isInteger(data[key]) && data[key] >= 0)) throw new Error("Prévia inválida");
+  return data;
+}
+
+export async function archiveProject(id: string, impacto: ArchiveImpact): Promise<Project> {
+  return parseProject(await (await apiRequest(`/projects/${encodeURIComponent(id)}/archive`, {
+    method: "PATCH", body: JSON.stringify({ confirmado: true, impacto }), signal: AbortSignal.timeout(15000),
+  })).json());
+}
 
 function parseProject(value: unknown): Project {
   if (!value || typeof value !== "object") throw new Error("Projeto inválido");
@@ -17,8 +30,8 @@ function parseProject(value: unknown): Project {
 
 export interface ProjectPage { projects: Project[]; total: number; limit: number; offset: number }
 
-export async function listProjects(signal: AbortSignal, offset = 0): Promise<ProjectPage> {
-  const data = await (await apiRequest(`/projects?limit=50&offset=${offset}`, { signal })).json();
+export async function listProjects(signal: AbortSignal, offset = 0, status = ""): Promise<ProjectPage> {
+  const data = await (await apiRequest(`/projects?limit=50&offset=${offset}${status ? `&status=${encodeURIComponent(status)}` : ""}`, { signal })).json();
   if (!Array.isArray(data.items)) throw new Error("Lista de projetos inválida");
   if (!Number.isInteger(data.total) || data.total < 0 || data.limit !== 50 || data.offset !== offset) throw new Error("Paginação inválida");
   return { projects: data.items.map(parseProject), total: data.total, limit: data.limit, offset: data.offset };

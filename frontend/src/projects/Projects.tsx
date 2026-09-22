@@ -7,6 +7,7 @@ import { BacklogScreen } from "../backlog/Backlog";
 import { EpicList } from "../backlog/Epics";
 import { RepoAnalyzerTab } from "./RepoAnalyzerTab";
 import "./projects.css";
+import { ProjectArchive } from "./ProjectArchive";
 
 type Result = { state: "loading" } | { state: "error"; message: string } | { state: "ready"; projects: Project[]; total: number };
 const empty: ProjectInput = { nome: "", cliente: "", descricao: "" };
@@ -19,13 +20,14 @@ export function Projects({ pathname, canCreate = false }: { pathname: string; ca
   const [result, setResult] = useState<Result>({ state: "loading" });
   const [attempt, setAttempt] = useState(0);
   const [offset, setOffset] = useState(0);
+  const [status, setStatus] = useState("");
 
   useEffect(() => {
     if (isNew || backlogRoute) return;
     const controller = new AbortController();
     setResult({ state: "loading" });
     const signal = AbortSignal.any([controller.signal, AbortSignal.timeout(15000)]);
-    const request = isDetail ? getProject(id, signal).then(project => ({ projects: [project], total: 1 })) : listProjects(signal, offset);
+    const request = isDetail ? getProject(id, signal).then(project => ({ projects: [project], total: 1 })) : listProjects(signal, offset, status);
     request.then(page => {
       if (!controller.signal.aborted) setResult({ state: "ready", ...page });
     }).catch(error => {
@@ -38,7 +40,7 @@ export function Projects({ pathname, canCreate = false }: { pathname: string; ca
       });
     });
     return () => controller.abort();
-  }, [id, isDetail, isNew, backlogRoute, attempt, offset]);
+  }, [id, isDetail, isNew, Boolean(backlogRoute), attempt, offset, status]);
 
   if (backlogRoute) return <BacklogScreen route={backlogRoute} canCreate={canCreate} />;
   if (isNew) return canCreate ? <ProjectForm /> : <section className="projects-page"><h2>Acesso de leitura</h2><p role="alert">Seu perfil não permite criar projetos.</p><button className="btn-secondary" onClick={() => navigate("/projects")}>Voltar aos projetos</button></section>;
@@ -48,17 +50,24 @@ export function Projects({ pathname, canCreate = false }: { pathname: string; ca
         <p>Reúna o contexto do cliente e organize os requisitos da sua equipe.</p></div>
       {(isDetail || canCreate) && <button className="btn-primary" onClick={() => navigate(isDetail ? "/projects" : "/projects/new")}>{isDetail ? "Voltar aos projetos" : "Novo projeto"}</button>}
     </div>
+    {!isDetail && <label className="project-filter">Exibir projetos
+      <select value={status} onChange={event => { setStatus(event.target.value); setOffset(0); }}>
+        <option value="">Não arquivados</option><option value="arquivado">Arquivados</option><option value="todos">Todos</option>
+      </select>
+    </label>}
     {result.state === "loading" && <div className="glass-panel projects-state" role="status">Carregando {isDetail ? "projeto" : "projetos"}…</div>}
     {result.state === "error" && <div className="glass-panel projects-state"><p role="alert">{result.message}</p>
       <button className="btn-secondary" onClick={() => setAttempt(value => value + 1)}>Tentar novamente</button></div>}
-    {result.state === "ready" && (isDetail ? <ProjectDetail project={result.projects[0]} canCreate={canCreate} /> : result.projects.length === 0
-      ? <div className="glass-panel projects-state"><h3>Nenhum projeto cadastrado</h3><p>Crie o primeiro projeto para começar a organizar o trabalho.</p>
-        {canCreate && <button className="btn-primary" onClick={() => navigate("/projects/new")}>Criar primeiro projeto</button>}</div>
+    {result.state === "ready" && (isDetail ? <><ProjectDetail project={result.projects[0]} canCreate={canCreate && result.projects[0].status !== "arquivado"} /><ProjectArchive key={id} project={result.projects[0]} canWrite={canCreate} onArchived={project => setResult({ state: "ready", projects: [project], total: 1 })} /></> : result.projects.length === 0
+      ? <div className="glass-panel projects-state"><h3>{status === "arquivado" ? "Nenhum projeto arquivado" : "Nenhum projeto cadastrado"}</h3><p>{status === "arquivado" ? "Os projetos arquivados poderão ser consultados aqui." : "Crie o primeiro projeto para começar a organizar o trabalho."}</p>
+        {canCreate && status !== "arquivado" && <button className="btn-primary" onClick={() => navigate("/projects/new")}>Criar primeiro projeto</button>}</div>
+
       : <div className="projects-grid">{result.projects.map(project => <article className="glass-panel project-card" key={project.id}>
         <span className={`badge ${project.status === "ativo" ? "badge-success" : "badge-warning"}`}>{project.status}</span>
         <h3>{project.nome}</h3><p>{project.cliente}</p><p className="project-excerpt">{project.descricao}</p>
         <button className="btn-secondary" onClick={() => navigate(`/projects/${project.id}`)} aria-label={`Abrir projeto ${project.nome}`}>Ver projeto</button>
-      </article>)}</div>)}
+        {project.status === "arquivado" && <p>Somente leitura · Arquivado em: {project.archived_at ? new Date(project.archived_at).toLocaleString("pt-BR") : "data não registrada"}</p>}
+    </article>)}</div>)}
     {!isDetail && !isNew && <nav className="project-actions" aria-label="Paginação de projetos">
       <button className="btn-secondary" disabled={offset === 0 || result.state === "loading"} onClick={() => setOffset(value => Math.max(0, value - 50))}>Anterior</button>
       <span>Página {Math.floor(offset / 50) + 1}{result.state === "ready" ? ` · ${result.total} projetos` : ""}</span>
@@ -74,6 +83,7 @@ function ProjectDetail({ project, canCreate }: { project: Project; canCreate: bo
     <article className="glass-panel project-card">
       <span className={`badge ${project.status === "ativo" ? "badge-success" : "badge-warning"}`}>{project.status}</span>
       <h3>{project.nome}</h3><dl><dt>Cliente</dt><dd>{project.cliente}</dd><dt>Descrição</dt><dd className="project-description">{project.descricao}</dd></dl>
+      {project.status === "arquivado" && <p>Somente leitura · Arquivado em: {project.archived_at ? new Date(project.archived_at).toLocaleString("pt-BR") : "data não registrada"}</p>}
     </article>
 
     {/* Abas de Contexto do Projeto */}
@@ -108,9 +118,10 @@ function ProjectDetail({ project, canCreate }: { project: Project; canCreate: bo
       </button>
     </div>
 
-    {activeTab === "backlog" && <EpicList projetoId={project.id} canCreate={canCreate} />}
+    {activeTab === "backlog" && <EpicList key={`${project.id}-${project.status}`} projetoId={project.id} canCreate={canCreate} />}
     {activeTab === "repo-analyzer" && <RepoAnalyzerTab projectId={project.id} />}
   </>;
+
 }
 
 function ProjectForm() {

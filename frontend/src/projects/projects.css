@@ -1,4 +1,9 @@
 .projects-page { display: grid; gap: 24px; }
+.project-filter { display: grid; gap: 8px; max-width: 260px; }
+.project-filter select { padding: 12px; font: inherit; border: 1px solid var(--border-subtle); border-radius: 8px; color: var(--text-primary); background: var(--bg-secondary); }
+.archive-dialog { padding: 28px; max-width: 560px; width: calc(100% - 32px); border: 1px solid var(--border-subtle); border-radius: 12px; color: var(--text-primary); background: var(--bg-secondary); }
+.archive-dialog::backdrop { background: #0009; }
+.archive-dialog p { margin: 20px 0; line-height: 1.6; }
 .projects-heading { display: flex; align-items: center; justify-content: space-between; gap: 20px; }
 .projects-heading h2 { font-size: 1.8rem; }
 .projects-heading p, .project-card p, .projects-state p, .project-form > p { color: var(--text-secondary); }

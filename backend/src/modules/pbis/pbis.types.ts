@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const PBI_STATUSES = ["rascunho", "concluido"] as const;
+export const PBI_STATUSES = ["rascunho", "concluido", "arquivado"] as const;
 export type PbiStatus = (typeof PBI_STATUSES)[number];
 
 export const PBI_PRIORITIES = ["Must", "Should", "Could"] as const;
@@ -49,7 +49,7 @@ export type UpdatePbiDTO = z.infer<typeof updatePbiSchema>;
 
 export const pbiQuerySchema = z.object({
   feature_id: z.string().uuid().optional(),
-  status: z.enum(PBI_STATUSES).optional(),
+  status: z.enum([...PBI_STATUSES, "todos"]).optional(),
   limit: z.coerce.number().int().min(1).max(100).default(50),
   offset: z.coerce.number().int().min(0).default(0),
 });

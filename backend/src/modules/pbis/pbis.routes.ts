@@ -1,3 +1,4 @@
+import { archiveHandlers } from "../projects/hierarchy-archive.js";
 import { Router } from "express";
 import { pbisController } from "./pbis.controller.js";
 import { requireRole } from "../../middleware/requireRole.js";
@@ -377,3 +378,7 @@ pbisRouter.patch("/:id/complete", canWrite, pbisController.complete);
  *         description: PBI não encontrado
  */
 pbisRouter.get("/:id/quality", pbisController.quality);
+
+const archive = archiveHandlers("pbi");
+pbisRouter.get("/:id/archive-impact", canWrite, archive.impact);
+pbisRouter.patch("/:id/archive", canWrite, archive.archive);

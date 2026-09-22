@@ -1,3 +1,4 @@
+import { lockHierarchy, assertWritable } from "../projects/hierarchy-archive.js";
 import { Pool, PoolClient } from "pg";
 import { pool } from "../../database/db.js";
 import { CreatePbiDTO, UpdatePbiDTO, PbiQueryDTO, Pbi, PbiWithContext, PaginatedPbis } from "./pbis.types.js";
@@ -36,6 +37,8 @@ export class PbisRepository {
 
     try {
       await client.query("BEGIN");
+      await lockHierarchy(client);
+      await assertWritable(client, "feature", data.feature_id);
 
       const seqResult = await client.query<{ proxima_sequencia: number }>(
         `SELECT COUNT(*)::int + 1 AS proxima_sequencia FROM pbi WHERE feature_id = $1`,
@@ -96,7 +99,8 @@ export class PbisRepository {
       params.push(query.feature_id);
       paramIndex++;
     }
-    if (query.status) {
+    if (!query.status) whereConditions.push("p.status != 'arquivado'");
+    if (query.status && query.status !== "todos") {
       whereConditions.push(`p.status = $${paramIndex}`);
       params.push(query.status);
       paramIndex++;
@@ -125,6 +129,8 @@ export class PbisRepository {
 
     try {
       await client.query("BEGIN");
+      await lockHierarchy(client);
+      await assertWritable(client, "pbi", id);
 
       const existing = await this.findById(id);
       if (!existing) {
@@ -181,6 +187,8 @@ export class PbisRepository {
 
     try {
       await client.query("BEGIN");
+      await lockHierarchy(client);
+      await assertWritable(client, "pbi", id);
 
       const existing = await this.findById(id);
       if (!existing) {

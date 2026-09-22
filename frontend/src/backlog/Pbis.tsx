@@ -1,4 +1,6 @@
-import { useEffect, useRef, useState } from "react";
+import { ReadOnlyContext } from "./ReadOnlyContext";
+import { ItemArchive } from "./ItemArchive";
+import { useContext, useEffect, useRef, useState } from "react";
 import { ApiError } from "../api/api_auth";
 import { navigate } from "./navigation";
 import { createPbi, completePbi, updatePbi, getPbi, listPbis, getPbiCompleteness, hasCompletudeIndicator, camposFaltantesDe, type Pbi, type PbiInput, type QualityReport } from "../api/api_backlog";
@@ -10,21 +12,24 @@ import "../projects/projects.css";
 type ListResult = { state: "loading" } | { state: "error"; message: string } | { state: "ready"; pbis: Pbi[] };
 const emptyInput: PbiInput = { feature_id: "", titulo: "", historia_como_um: "", historia_eu_quero: "", historia_para_que: "", requer_interface: false };
 
-export function PbiList({ projectId, epicoId, featureId, canCreate }: { projectId: string; epicoId: string; featureId: string; canCreate: boolean }) {
+export function PbiList({ projectId, epicoId, featureId, canCreate: allowedToCreate }: { projectId: string; epicoId: string; featureId: string; canCreate: boolean }) {
+  const inheritedReadOnly = useContext(ReadOnlyContext);
+  const canCreate = allowedToCreate && !inheritedReadOnly;
   const [result, setResult] = useState<ListResult>({ state: "loading" });
   const [attempt, setAttempt] = useState(0);
+  const [status, setStatus] = useState("");
 
   useEffect(() => {
     const controller = new AbortController();
     setResult({ state: "loading" });
-    listPbis(featureId, controller.signal)
+    listPbis(featureId, controller.signal, status)
       .then((pbis) => { if (!controller.signal.aborted) setResult({ state: "ready", pbis }); })
       .catch((error) => {
         if (controller.signal.aborted) return;
         setResult({ state: "error", message: error instanceof ApiError && error.status === 401 ? "É necessário entrar para acessar os PBIs." : "Não foi possível carregar os PBIs." });
       });
     return () => controller.abort();
-  }, [featureId, attempt]);
+  }, [featureId, attempt, status]);
 
   const newPath = `/projects/${projectId}/epics/${epicoId}/features/${featureId}/pbis/new`;
   const getCompletudeColor = (score: number) => score >= 80 ? "badge-success" : score >= 50 ? "badge-warning" : "badge-error";
@@ -35,6 +40,7 @@ export function PbiList({ projectId, epicoId, featureId, canCreate }: { projectI
         <div><p className="projects-eyebrow">PBIs da feature</p><h3>Product Backlog Items</h3></div>
         {canCreate && <button className="btn-primary" onClick={() => navigate(newPath)}>Novo PBI</button>}
       </div>
+      <label>Exibir itens <select value={status} onChange={event => setStatus(event.target.value)}><option value="">Não arquivados</option><option value="arquivado">Arquivados</option><option value="todos">Todos</option></select></label>
       {result.state === "loading" && <div className="glass-panel projects-state" role="status">Carregando PBIs…</div>}
       {result.state === "error" && <div className="glass-panel projects-state"><p role="alert">{result.message}</p>
         <button className="btn-secondary" onClick={() => setAttempt((v) => v + 1)}>Tentar novamente</button></div>}
@@ -164,7 +170,7 @@ export function PbiDetail({ projectId, epicoId, featureId, pbiId, canEdit }: { p
   if (result.state === "error") return <div className="glass-panel projects-state"><p role="alert">{result.message}</p>
     <button className="btn-secondary" onClick={() => setAttempt((v) => v + 1)}>Tentar novamente</button></div>;
 
-  const readOnly = pbi!.projeto_status === "arquivado";
+  const readOnly = pbi!.status === "arquivado" || pbi!.projeto_status === "arquivado";
 
   return (
     <section className="projects-page">
@@ -251,6 +257,8 @@ export function PbiDetail({ projectId, epicoId, featureId, pbiId, canEdit }: { p
           </>
         )}
       </article>
+      {pbi!.status === "arquivado" && <p>Arquivado em: {pbi!.archived_at ? new Date(pbi!.archived_at!).toLocaleString("pt-BR") : "data não registrada"}</p>}
+      <ItemArchive project={pbi!} kind="pbis" canWrite={canEdit && !readOnly && !editing && !saving && !completing} onArchived={() => setAttempt(v => v + 1)} />
       <CriteriaEditor entidadeTipo="pbi" entidadeId={pbi!.id} canEdit={canEdit && !readOnly} titulo="Cenários do PBI" />
       <CriteriaEditor entidadeTipo="feature" entidadeId={featureId} canEdit={false} titulo="Critérios da feature (consulta)" />
     </section>

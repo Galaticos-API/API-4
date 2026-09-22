@@ -1,6 +1,6 @@
 import { apiRequest, ApiError } from "./api_auth";
 
-export type BacklogStatus = "rascunho" | "concluido";
+export type BacklogStatus = "rascunho" | "concluido" | "arquivado";
 export type Priority = "Must" | "Should" | "Could";
 
 export interface EpicInput {
@@ -19,6 +19,7 @@ export interface Epic extends EpicInput {
   features_count: number;
   criterios_count: number;
   projeto_status: string;
+  archived_at?: string | null;
 }
 
 export interface FeatureInput {
@@ -37,6 +38,7 @@ export interface Feature extends FeatureInput {
   epico_titulo: string;
   projeto_id: string;
   projeto_status: string;
+  archived_at?: string | null;
 }
 
 export interface PbiInput {
@@ -58,6 +60,7 @@ export interface Pbi extends PbiInput {
   epico_titulo: string;
   projeto_id: string;
   projeto_status: string;
+  archived_at?: string | null;
   score_completude: number | null;
   prototipo_vinculado?: boolean;
 }
@@ -114,6 +117,7 @@ function parseEpic(value: unknown): Epic {
     status: (epic.status as BacklogStatus) ?? "rascunho",
     features_count: Number(epic.features_count ?? 0),
     criterios_count: Number(epic.criterios_count ?? 0),
+    archived_at: asText((value as Record<string, unknown>).archived_at),
     projeto_status: asText(epic.projeto_status),
   };
 }
@@ -132,6 +136,7 @@ function parseFeature(value: unknown): Feature {
     criterios_count: Number(feature.criterios_count ?? 0),
     epico_titulo: asText(feature.epico_titulo),
     projeto_id: asText(feature.projeto_id),
+    archived_at: asText((value as Record<string, unknown>).archived_at),
     projeto_status: asText(feature.projeto_status),
   };
 }
@@ -152,12 +157,13 @@ function parsePbi(value: unknown): Pbi {
     feature_titulo: asText(pbi.feature_titulo), epico_id: asText(pbi.epico_id),
     epico_titulo: asText(pbi.epico_titulo), projeto_id: asText(pbi.projeto_id),
     score_completude: pbi.score_completude === null || pbi.score_completude === undefined ? null : Number(pbi.score_completude),
+    archived_at: asText((value as Record<string, unknown>).archived_at),
     projeto_status: asText(pbi.projeto_status),
   };
 }
 
-export async function listEpics(projetoId: string, signal: AbortSignal): Promise<Epic[]> {
-  const data = await (await apiRequest(`/epics?projeto_id=${encodeURIComponent(projetoId)}&limit=100`, { signal })).json();
+export async function listEpics(projetoId: string, signal: AbortSignal, status = ""): Promise<Epic[]> {
+  const data = await (await apiRequest(`/epics?projeto_id=${encodeURIComponent(projetoId)}&limit=100${status ? `&status=${encodeURIComponent(status)}` : ""}`, { signal })).json();
   if (!Array.isArray(data.items)) throw new Error("Lista de épicos inválida");
   return data.items.map(parseEpic);
 }
@@ -178,8 +184,8 @@ export async function updateEpic(id: string, input: Partial<EpicInput>): Promise
   return parseEpic(await (await apiRequest(`/epics/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify(input) })).json());
 }
 
-export async function listFeatures(epicoId: string, signal: AbortSignal): Promise<Feature[]> {
-  const data = await (await apiRequest(`/features?epico_id=${encodeURIComponent(epicoId)}&limit=100`, { signal })).json();
+export async function listFeatures(epicoId: string, signal: AbortSignal, status = ""): Promise<Feature[]> {
+  const data = await (await apiRequest(`/features?epico_id=${encodeURIComponent(epicoId)}&limit=100${status ? `&status=${encodeURIComponent(status)}` : ""}`, { signal })).json();
   if (!Array.isArray(data.items)) throw new Error("Lista de features inválida");
   return data.items.map(parseFeature);
 }
@@ -200,8 +206,8 @@ export async function updateFeature(id: string, input: Partial<FeatureInput>): P
   return parseFeature(await (await apiRequest(`/features/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify(input) })).json());
 }
 
-export async function listPbis(featureId: string, signal: AbortSignal): Promise<Pbi[]> {
-  const data = await (await apiRequest(`/pbis?feature_id=${encodeURIComponent(featureId)}&limit=100`, { signal })).json();
+export async function listPbis(featureId: string, signal: AbortSignal, status = ""): Promise<Pbi[]> {
+  const data = await (await apiRequest(`/pbis?feature_id=${encodeURIComponent(featureId)}&limit=100${status ? `&status=${encodeURIComponent(status)}` : ""}`, { signal })).json();
   if (!Array.isArray(data.items)) throw new Error("Lista de PBIs inválida");
   return data.items.map(parsePbi);
 }
