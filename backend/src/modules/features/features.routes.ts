@@ -298,5 +298,5 @@ featuresRouter.patch("/:id", canWrite, featuresController.update);
 featuresRouter.patch("/:id/complete", canWrite, featuresController.complete);
 
 const archive = archiveHandlers("feature");
-featuresRouter.get("/:id/archive-impact", archive.impact);
+featuresRouter.get("/:id/archive-impact", canWrite, archive.impact);
 featuresRouter.patch("/:id/archive", canWrite, archive.archive);

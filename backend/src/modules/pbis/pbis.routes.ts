@@ -380,5 +380,5 @@ pbisRouter.patch("/:id/complete", canWrite, pbisController.complete);
 pbisRouter.get("/:id/quality", pbisController.quality);
 
 const archive = archiveHandlers("pbi");
-pbisRouter.get("/:id/archive-impact", archive.impact);
+pbisRouter.get("/:id/archive-impact", canWrite, archive.impact);
 pbisRouter.patch("/:id/archive", canWrite, archive.archive);

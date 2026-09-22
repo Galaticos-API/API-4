@@ -325,7 +325,7 @@ epicsRouter.patch("/:id", canWrite, epicsController.update);
  */
 epicsRouter.patch("/:id/complete", canWrite, epicsController.complete);
 const archive = archiveHandlers("epico");
-epicsRouter.get("/:id/archive-impact", archive.impact);
+epicsRouter.get("/:id/archive-impact", canWrite, archive.impact);
 epicsRouter.patch("/:id/archive", canWrite, archive.archive);
 return epicsRouter;
 }
