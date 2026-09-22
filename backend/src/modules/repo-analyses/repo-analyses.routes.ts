@@ -5,7 +5,64 @@ import { requireAuth } from '../../middleware/requireAuth'; // Ajuste conforme o
 export const repoAnalysesRouter = Router({ mergeParams: true });
 const service = new RepoAnalysesService();
 
-// Iniciar nova análise
+/**
+ * @swagger
+ * /api/v1/projects/{projectId}/repo-analyses:
+ *   post:
+ *     summary: Iniciar nova análise de repositório
+ *     tags: [Repo Analyses]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: projectId
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: ID do projeto
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - repositorio_url
+ *             properties:
+ *               repositorio_url:
+ *                 type: string
+ *                 format: uri
+ *                 description: URL do repositório a ser analisado
+ *     responses:
+ *       201:
+ *         description: Análise iniciada com sucesso
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 id:
+ *                   type: string
+ *                   format: uuid
+ *                 projeto_id:
+ *                   type: string
+ *                   format: uuid
+ *                 usuario_id:
+ *                   type: string
+ *                   format: uuid
+ *                 repositorio_url:
+ *                   type: string
+ *                 status:
+ *                   type: string
+ *                 created_at:
+ *                   type: string
+ *                   format: date-time
+ *       400:
+ *         description: Dados inválidos ou erro ao iniciar análise
+ *       401:
+ *         description: Não autenticado
+ */
 repoAnalysesRouter.post('/', requireAuth, async (req: any, res) => {
     try {
         const { projectId } = req.params;
@@ -19,7 +76,53 @@ repoAnalysesRouter.post('/', requireAuth, async (req: any, res) => {
     }
 });
 
-// Listar análises do projeto
+/**
+ * @swagger
+ * /api/v1/projects/{projectId}/repo-analyses:
+ *   get:
+ *     summary: Listar análises de repositório do projeto
+ *     tags: [Repo Analyses]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: projectId
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: ID do projeto
+ *     responses:
+ *       200:
+ *         description: Lista de análises
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 type: object
+ *                 properties:
+ *                   id:
+ *                     type: string
+ *                     format: uuid
+ *                   projeto_id:
+ *                     type: string
+ *                     format: uuid
+ *                   usuario_id:
+ *                     type: string
+ *                     format: uuid
+ *                   repositorio_url:
+ *                     type: string
+ *                   status:
+ *                     type: string
+ *                   created_at:
+ *                     type: string
+ *                     format: date-time
+ *       401:
+ *         description: Não autenticado
+ *       500:
+ *         description: Erro interno do servidor
+ */
 repoAnalysesRouter.get('/', requireAuth, async (req: any, res) => {
     try {
         const { projectId } = req.params;
@@ -30,7 +133,60 @@ repoAnalysesRouter.get('/', requireAuth, async (req: any, res) => {
     }
 });
 
-// Obter detalhes de uma análise específica
+/**
+ * @swagger
+ * /api/v1/projects/{projectId}/repo-analyses/{id}:
+ *   get:
+ *     summary: Obter detalhes de uma análise específica
+ *     tags: [Repo Analyses]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: projectId
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: ID do projeto
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: ID da análise
+ *     responses:
+ *       200:
+ *         description: Detalhes da análise
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 id:
+ *                   type: string
+ *                   format: uuid
+ *                 projeto_id:
+ *                   type: string
+ *                   format: uuid
+ *                 usuario_id:
+ *                   type: string
+ *                   format: uuid
+ *                 repositorio_url:
+ *                   type: string
+ *                 status:
+ *                   type: string
+ *                 created_at:
+ *                   type: string
+ *                   format: date-time
+ *       401:
+ *         description: Não autenticado
+ *       404:
+ *         description: Análise não encontrada
+ *       500:
+ *         description: Erro interno do servidor
+ */
 repoAnalysesRouter.get('/:id', requireAuth, async (req: any, res) => {
     try {
         const { id, projectId } = req.params;

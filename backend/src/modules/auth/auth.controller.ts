@@ -5,7 +5,6 @@ import {
 } from "express";
 
 import { env } from "../../config/env.js";
-import { getSessionToken } from "./auth.cookies.js";
 import { SESSION_COOKIE_NAME } from "./auth.constants.js";
 import {
   authService,
@@ -15,13 +14,62 @@ import {
   sessionService,
   SessionService,
 } from "./session.service.js";
-import { loginSchema } from "./auth.types.js";
+import { loginSchema, registerSchema } from "./auth.types.js";
 
 export class AuthController {
   constructor(
     private readonly service: AuthService = authService,
     private readonly sessions: SessionService = sessionService,
-  ) {}
+  ) { }
+
+  register = async (
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> => {
+    try {
+      const parsed = registerSchema.safeParse(req.body);
+
+      if (!parsed.success) {
+        res.status(400).json({
+          error: "Dados de cadastro inválidos.",
+          code: "VALIDATION_ERROR",
+          details: parsed.error.flatten(),
+        });
+        return;
+      }
+
+      const result = await this.service.register(parsed.data);
+
+      if (!result.success) {
+        if (result.reason === "email_exists") {
+          res.status(409).json({
+            error: "E-mail já cadastrado na plataforma.",
+            code: "EMAIL_EXISTS",
+          });
+          return;
+        }
+      } else {
+        res.cookie(SESSION_COOKIE_NAME, result.token, {
+          httpOnly: true,
+          secure: env.NODE_ENV === "production",
+          sameSite: "lax",
+          path: "/",
+          maxAge:
+            env.AUTH_SESSION_MAX_HOURS * 60 * 60 * 1000,
+        });
+
+        res.status(201).json({
+          user: result.user,
+          token: result.token,
+        });
+      }
+
+
+    } catch (error) {
+      next(error);
+    }
+  };
 
   login = async (
     req: Request,
@@ -79,6 +127,7 @@ export class AuthController {
 
       res.status(200).json({
         user: result.user,
+        token: result.token,
       });
     } catch (error) {
       next(error);
@@ -91,8 +140,7 @@ export class AuthController {
     next: NextFunction,
   ): Promise<void> => {
     try {
-      const token =
-        req.sessionToken ?? getSessionToken(req);
+      const token = req.sessionToken;
 
       if (token) {
         await this.sessions.revokeSession(token);

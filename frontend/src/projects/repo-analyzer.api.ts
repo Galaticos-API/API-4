@@ -1,4 +1,4 @@
-import { apiRequest } from "./http";
+import { apiRequest } from "../api/api_auth";
 
 export interface RepoAnalysis {
     id: string;

@@ -11,7 +11,7 @@ beforeEach(() => {
   Object.defineProperty(HTMLDialogElement.prototype, "showModal", { configurable: true, value: function (this: HTMLDialogElement) { this.setAttribute("open", ""); } });
   Object.defineProperty(HTMLDialogElement.prototype, "close", { configurable: true, value: function (this: HTMLDialogElement) { this.removeAttribute("open"); } });
 });
-afterEach(() => { cleanup(); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
+afterEach(() => { localStorage.removeItem("app_auth_token"); cleanup(); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
 
 it("consulta o impacto e cancelar não envia arquivamento", async () => {
   const fetcher = vi.fn(() => reply(impact)); vi.stubGlobal("fetch", fetcher);
@@ -25,6 +25,7 @@ it("consulta o impacto e cancelar não envia arquivamento", async () => {
 });
 
 it("envia a confirmação e a prévia exibida, sem duplicar a gravação", async () => {
+  localStorage.setItem("app_auth_token", "archive-test-token");
   let finish!: (response: Response) => void;
   const fetcher = vi.fn().mockImplementationOnce(() => reply(impact)).mockImplementationOnce(() => new Promise<Response>(resolve => { finish = resolve; }));
   vi.stubGlobal("fetch", fetcher); const saved = vi.fn();
@@ -32,6 +33,8 @@ it("envia a confirmação e a prévia exibida, sem duplicar a gravação", async
   fireEvent.click(screen.getByText("Arquivar item")); await screen.findByRole("dialog");
   fireEvent.click(screen.getByText("Confirmar arquivamento")); fireEvent.click(screen.getByText("Confirmar arquivamento"));
   expect(fetcher).toHaveBeenCalledTimes(2);
+  expect(fetcher.mock.calls[0][1].headers.Authorization).toBe("Bearer archive-test-token");
+  expect(fetcher.mock.calls[1][1].headers.Authorization).toBe("Bearer archive-test-token");
   expect(JSON.parse(fetcher.mock.calls[1][1].body)).toEqual({ confirmado: true, impacto: impact });
   finish(new Response(JSON.stringify({ ...project, status: "arquivado", archived_at: "2026-09-16T12:00:00Z" })));
   await waitFor(() => expect(saved).toHaveBeenCalledOnce());

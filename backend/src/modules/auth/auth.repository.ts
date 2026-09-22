@@ -5,6 +5,7 @@ import {
   SessionRecord,
   SessionWithUser,
   UserRecord,
+  UserRole,
 } from "./auth.types.js";
 
 export class AuthRepository {
@@ -12,6 +13,39 @@ export class AuthRepository {
 
   constructor(customPool?: Pool) {
     this.pool = customPool ?? pool;
+  }
+
+  async createUser(data: {
+    nome: string;
+    email: string;
+    senha_hash: string;
+    role?: UserRole;
+  }): Promise<UserRecord> {
+    const result = await this.pool.query<UserRecord>(
+      `
+        INSERT INTO usuario (
+          nome,
+          email,
+          senha_hash,
+          role
+        )
+        VALUES ($1, $2, $3, $4)
+        RETURNING
+          id,
+          nome,
+          email,
+          senha_hash,
+          role,
+          ativo,
+          tentativas_login,
+          bloqueado_ate,
+          created_at,
+          updated_at
+      `,
+      [data.nome.trim(), data.email.trim().toLowerCase(), data.senha_hash, data.role ?? "po"],
+    );
+
+    return result.rows[0];
   }
 
   async findUserByEmail(email: string): Promise<UserRecord | null> {

@@ -42,3 +42,9 @@ A correção de assertWritable em caacef9 ainda deixava bloqueios de ativo nos s
 O teste PostgreSQL de hierarquia ativa agora usa os serviços da aplicação e cobre edição, critérios (criação, ordem e remoção), criação de feature/PBI, conclusão e posterior arquivamento com rejeição de escrita. O teste específico da migration 010 entrou no CI; seu pool usa uma conexão para preservar o search_path dos schemas isolados.
 
 Validação local: 151 testes backend aprovados (5 testes condicionais ignorados nessa execução); 78 testes frontend aprovados; ambas as compilações aprovadas. Execução separada em PostgreSQL 16 + pgvector: 15 testes aprovados, nenhum ignorado; compatibilidade S1-05 aprovada nos quatro cenários. Banco da aplicação preservado.
+
+## Integração da main — conflitos da PR #28
+
+Main 8a44d16 integrada em 22/09/2026, preservando Swagger, autenticação por token e a nova organização de módulos em frontend/src/api. Os componentes de arquivamento foram adaptados aos novos caminhos; os testes verificam Authorization tanto na prévia quanto na confirmação. Preservadas as regras de hierarquia ativa e leitura dos arquivados.
+
+Validação após integração: backend 145 testes aprovados e 5 condicionais ignorados; frontend 78 aprovados; builds aprovados. PostgreSQL isolado: 14 migrations aplicadas, 15 testes de arquivamento/migration aprovados sem ignorados, quatro cenários de compatibilidade aprovados. A contagem do backend mudou com a suíte de autenticação trazida pela main.

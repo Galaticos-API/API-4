@@ -1,9 +1,9 @@
 import { ReadOnlyContext } from "./ReadOnlyContext";
 import { ItemArchive } from "./ItemArchive";
 import { useContext, useEffect, useRef, useState, type ReactNode } from "react";
-import { ApiError } from "../auth/api";
+import { ApiError } from "../api/api_auth";
 import { navigate } from "./navigation";
-import { createFeature, completeFeature, updateFeature, getFeature, listFeatures, camposFaltantesDe, type Feature, type FeatureInput } from "./api";
+import { createFeature, completeFeature, updateFeature, getFeature, listFeatures, camposFaltantesDe, type Feature, type FeatureInput } from "../api/api_backlog";
 import { descreverCamposFaltantes } from "./fields";
 import { useUnsavedChangesGuard } from "./useUnsavedChangesGuard";
 import { CriteriaEditor } from "./Criteria";

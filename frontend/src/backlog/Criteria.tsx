@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { ApiError } from "../auth/api";
-import { listCriteria, createCriterion, deleteCriterion, moveCriterion, type Criterion, type CriterionEntityType } from "./api";
+import { ApiError } from "../api/api_auth";
+import { listCriteria, createCriterion, deleteCriterion, moveCriterion, type Criterion, type CriterionEntityType } from "../api/api_backlog";
 import "../projects/projects.css";
 
 type Result = { state: "loading" } | { state: "error"; message: string } | { state: "ready"; items: Criterion[] };

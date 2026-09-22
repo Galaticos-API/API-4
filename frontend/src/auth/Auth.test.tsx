@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { AuthGate, AuthProvider, useAuth } from "./Auth";
 import { navigate, safeDestination } from "./navigation";
-import { apiRequest, readUser } from "./api";
+import { apiRequest, readUser } from "../api/api_auth";
 import { useLayoutEffect, useRef } from "react";
 
 const user = { id: "1", nome: "Pessoa", role: "po", email: "pessoa@example.com" };
@@ -12,13 +12,20 @@ function Content() {
   const { logout } = useAuth();
   return <div>Conteúdo interno<button onClick={() => void logout()}>Sair</button>
     <button onClick={() => navigate("/requirements?filter=active#list")}>Requisitos</button>
-    <button onClick={() => void apiRequest("/projects").catch(() => {})}>Carregar projetos</button>
+    <button onClick={() => void apiRequest("/projects").catch(() => { })}>Carregar projetos</button>
   </div>;
 }
 function mount() { render(<AuthProvider><AuthGate><Content /></AuthGate></AuthProvider>); }
-beforeEach(() => { window.history.replaceState(null, "", "/"); });
-afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
+beforeEach(() => {
+  window.history.replaceState(null, "", "/");
+  window.localStorage.clear();
+});
 
+afterEach(() => {
+  cleanup();
+  vi.unstubAllGlobals();
+  window.localStorage.clear();
+});
 it("adapta o usuário da S1-01 e rejeita um contrato de sessão inválido", async () => {
   await expect(readUser(new Response(JSON.stringify({ user })))).resolves.toEqual({
     id: user.id, name: user.nome, email: user.email, role: user.role,

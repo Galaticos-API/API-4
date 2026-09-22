@@ -1,4 +1,4 @@
-import { apiRequest } from "./http";
+import { apiRequest } from "./api_auth";
 
 export interface ProjectInput { nome: string; cliente: string; descricao: string }
 export interface Project extends ProjectInput { id: string; status: "ativo" | "em_andamento" | "concluido" | "arquivado"; archived_at?: string | null }

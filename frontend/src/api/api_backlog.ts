@@ -1,4 +1,4 @@
-import { apiRequest, ApiError } from "../auth/api";
+import { apiRequest, ApiError } from "./api_auth";
 
 export type BacklogStatus = "rascunho" | "concluido" | "arquivado";
 export type Priority = "Must" | "Should" | "Could";

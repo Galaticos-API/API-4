@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { archiveProject, getArchiveImpact, type ArchiveImpact, type Project } from "./api";
-import { ApiError } from "./http";
+import { archiveProject, getArchiveImpact, type ArchiveImpact, type Project } from "../api/api_projects";
+import { ApiError } from "../api/api_auth";
 
 export function ProjectArchive({ project, canWrite, onArchived }: { project: Project; canWrite: boolean; onArchived: (project: Project) => void }) {
   const [impact, setImpact] = useState<ArchiveImpact | null>(null);

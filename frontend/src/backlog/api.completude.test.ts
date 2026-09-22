@@ -1,5 +1,5 @@
 import { expect, it } from "vitest";
-import { hasCompletudeIndicator } from "./api";
+import { hasCompletudeIndicator } from "../api/api_backlog";
 
 it("considera 0% como indicador válido e oculta somente quando a pontuação é nula", () => {
   expect(hasCompletudeIndicator(0)).toBe(true);
