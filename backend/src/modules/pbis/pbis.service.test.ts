@@ -363,3 +363,22 @@ test("permite concluir PBI com título fora do infinitivo quando regra titulo_in
   const completed = await service.complete(created.id);
   assert.equal(completed.status, "concluido");
 });
+
+test("permite concluir PBI sem cenário quando cenario_estruturado está desabilitada", async () => {
+  const pbisRepo = new InMemoryPbisRepository();
+  const featuresRepo = new StubFeaturesRepository();
+  const criteriaRepo = new StubCriteriaRepository();
+  featuresRepo.features.push({
+    id: FEATURE_ID, epico_id: "c0000000-0000-4000-8000-000000000001", titulo: "Feature base", descricao: null, objetivo: null,
+    prioridade: "Must", status: "rascunho", created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
+  });
+  const rulesProvider = { async getCurrentPbiConfiguration() {
+    return { rule_version: "no-scenarios", checks: [
+      { check_id: "titulo_infinitivo" as const, isApplicable: () => true },
+      { check_id: "historia_completa" as const, isApplicable: () => true },
+    ] };
+  } };
+  const service = new PbisService(pbisRepo, featuresRepo, new QualityService(criteriaRepo, pbisRepo, rulesProvider));
+  const created = await service.create({ feature_id: FEATURE_ID, titulo: "Cadastrar item", historia_como_um: "PO", historia_eu_quero: "registrar", historia_para_que: "organizar" });
+  assert.equal((await service.complete(created.id)).status, "concluido");
+});

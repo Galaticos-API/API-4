@@ -117,8 +117,6 @@ export class PbisService {
           camposFaltantes.push("cenarios_aceitacao");
         }
       }
-    } else if ((existing.criterios_count ?? 0) === 0) {
-      camposFaltantes.push("cenarios_aceitacao");
     }
 
     // Verificação de título no infinitivo

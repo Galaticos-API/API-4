@@ -123,10 +123,10 @@ export class QualityService {
       status: "rascunho",
       requer_interface: input.requer_interface === true,
       prototipo_vinculado: input.prototipo_vinculado === true,
+      provenance: "human-authored",
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
       score_completude: null,
-      criterios_count: cenariosRegistrados.length,
     };
 
     const detailedReport = this.buildDetailedReport(pseudoPbi, cenariosRegistrados, configuration.vague_terms ?? TERMOS_VAGOS_PADRAO);

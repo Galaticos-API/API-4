@@ -132,6 +132,10 @@ export function evaluatePbiRealtime(
   organizationConfig: { checks?: Record<string, boolean>; vague_terms?: string[] } | null,
   fieldPrefix: string = "",
 ): RealtimeQualityReport {
+  const fieldId = (field: "titulo" | "comoUm" | "euQuero" | "paraQue" | "requer_interface") => {
+    if (fieldPrefix === "edit-") return `${fieldPrefix}${({ titulo: "titulo", comoUm: "como-um", euQuero: "eu-quero", paraQue: "para-que", requer_interface: "requer_interface" })[field]}`;
+    return ({ titulo: "titulo", comoUm: "historia_como_um", euQuero: "historia_eu_quero", paraQue: "historia_para_que", requer_interface: "requer_interface" })[field];
+  };
   const activeChecks = organizationConfig?.checks ?? {
     titulo_infinitivo: true,
     historia_completa: true,
@@ -155,7 +159,7 @@ export function evaluatePbiRealtime(
       passed: tituloRes.aprovado,
       message: tituloRes.motivo ?? "O título está em conformidade com o padrão.",
       is_blocking: true,
-      target_field_id: `${fieldPrefix}titulo`,
+      target_field_id: fieldId("titulo"),
     });
   }
 
@@ -167,9 +171,9 @@ export function evaluatePbiRealtime(
       paraQue: data.historia_para_que,
     });
 
-    let targetField = `${fieldPrefix}como-um`;
-    if (historiaRes.blocoAusente === "euQuero") targetField = `${fieldPrefix}eu-quero`;
-    else if (historiaRes.blocoAusente === "paraQue") targetField = `${fieldPrefix}para-que`;
+    let targetField = fieldId("comoUm");
+    if (historiaRes.blocoAusente === "euQuero") targetField = fieldId("euQuero");
+    else if (historiaRes.blocoAusente === "paraQue") targetField = fieldId("paraQue");
 
     let msg = "A história do usuário está completa.";
     if (!historiaRes.aprovado) {
@@ -219,10 +223,10 @@ export function evaluatePbiRealtime(
   // 4. Termos vagos (Alerta não-bloqueante per PBI-01.3.4 Cenário 2)
   if (activeChecks.termos_vagos !== false) {
     const ocorrencias: Array<{ campo: string; targetId: string; termos: string[] }> = [
-      { campo: "Título", targetId: `${fieldPrefix}titulo`, termos: identificarTermosVagos(data.titulo, vagueTerms) },
-      { campo: "COMO UM", targetId: `${fieldPrefix}como-um`, termos: identificarTermosVagos(data.historia_como_um, vagueTerms) },
-      { campo: "EU QUERO", targetId: `${fieldPrefix}eu-quero`, termos: identificarTermosVagos(data.historia_eu_quero, vagueTerms) },
-      { campo: "PARA QUE", targetId: `${fieldPrefix}para-que`, termos: identificarTermosVagos(data.historia_para_que, vagueTerms) },
+      { campo: "Título", targetId: fieldId("titulo"), termos: identificarTermosVagos(data.titulo, vagueTerms) },
+      { campo: "COMO UM", targetId: fieldId("comoUm"), termos: identificarTermosVagos(data.historia_como_um, vagueTerms) },
+      { campo: "EU QUERO", targetId: fieldId("euQuero"), termos: identificarTermosVagos(data.historia_eu_quero, vagueTerms) },
+      { campo: "PARA QUE", targetId: fieldId("paraQue"), termos: identificarTermosVagos(data.historia_para_que, vagueTerms) },
       ...cenarios.map((c, i) => ({
         campo: `Cenário ${c.nome ? `"${c.nome}"` : i + 1}`,
         targetId: c.id ? `cenario-${c.id}` : "cenarios-section",
@@ -232,7 +236,7 @@ export function evaluatePbiRealtime(
 
     const passou = ocorrencias.length === 0;
     let msg = "Não foram identificados termos vagos.";
-    let targetId = `${fieldPrefix}titulo`;
+    let targetId = fieldId("titulo");
 
     if (!passou) {
       const todosTermos = [...new Set(ocorrencias.flatMap((o) => o.termos))];
@@ -261,7 +265,7 @@ export function evaluatePbiRealtime(
         ? "O PBI possui um protótipo associado."
         : "Nenhum protótipo associado. Recomenda-se anexar o protótipo para PBIs que exigem interface.",
       is_blocking: false,
-      target_field_id: `${fieldPrefix}requer_interface`,
+      target_field_id: fieldId("requer_interface"),
     });
   }
 

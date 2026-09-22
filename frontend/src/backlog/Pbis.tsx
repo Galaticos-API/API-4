@@ -8,12 +8,13 @@ import {
   getPbi,
   listPbis,
   getPbiQualityConfiguration,
+  getPbiCompleteness,
   hasCompletudeIndicator,
   camposFaltantesDe,
   type Pbi,
   type PbiInput,
   type PbiQualityConfigurationRecord,
-  type Criterion,
+  type QualityReport,
 } from "../api/api_backlog";
 import { descreverCamposFaltantes } from "./fields";
 import { useUnsavedChangesGuard } from "./useUnsavedChangesGuard";
@@ -74,28 +75,33 @@ export function PbiList({ projectId, epicoId, featureId, canCreate }: { projectI
 export function PbiForm({ projectId, epicoId, featureId }: { projectId: string; epicoId: string; featureId: string }) {
   const [values, setValues] = useState<PbiInput>({ ...emptyInput, feature_id: featureId });
   const [orgConfig, setOrgConfig] = useState<PbiQualityConfigurationRecord | null>(null);
+  const [configState, setConfigState] = useState<"loading" | "ready" | "error">("loading");
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const submitting = useRef(false);
   const mounted = useRef(true);
 
-  useEffect(() => {
+  const loadConfiguration = () => {
+    setConfigState("loading");
     mounted.current = true;
     const controller = new AbortController();
     getPbiQualityConfiguration(controller.signal)
-      .then((cfg) => { if (mounted.current) setOrgConfig(cfg); })
-      .catch(() => {});
+      .then((cfg) => { if (mounted.current) { setOrgConfig(cfg); setConfigState("ready"); } })
+      .catch(() => { if (mounted.current) setConfigState("error"); });
     return () => {
       mounted.current = false;
       controller.abort();
     };
+  };
+  useEffect(() => {
+    return loadConfiguration();
   }, []);
 
   const isDirty = values.requer_interface || [values.titulo, values.historia_como_um, values.historia_eu_quero, values.historia_para_que].some((value) => value.trim().length > 0);
   const { confirmLeave } = useUnsavedChangesGuard(isDirty);
 
   const featurePath = `/projects/${projectId}/epics/${epicoId}/features/${featureId}`;
-  const qualityReport = evaluatePbiRealtime(values, [], orgConfig, "");
+  const qualityReport = configState === "ready" ? evaluatePbiRealtime(values, [], orgConfig, "") : null;
 
   return (
     <section className="projects-page">
@@ -107,7 +113,9 @@ export function PbiForm({ projectId, epicoId, featureId }: { projectId: string; 
         </div>
       </div>
 
-      <QualityPanel report={qualityReport} title="Checklist de qualidade em tempo real" />
+      {configState === "loading" && <p role="status">Carregando regras de qualidade…</p>}
+      {configState === "error" && <div role="alert"><p>Não foi possível carregar a configuração vigente de qualidade.</p><button type="button" className="btn-secondary" onClick={loadConfiguration}>Tentar novamente</button></div>}
+      {qualityReport && <QualityPanel report={qualityReport} title="Checklist de qualidade em tempo real" />}
 
       <form className="glass-panel project-form" noValidate aria-busy={busy} onSubmit={async (event) => {
         event.preventDefault();
@@ -130,6 +138,7 @@ export function PbiForm({ projectId, epicoId, featureId }: { projectId: string; 
           <label htmlFor="titulo">Título (obrigatório, verbo no infinitivo)</label>
           <input id="titulo" name="titulo" type="text" disabled={busy} value={values.titulo} onChange={(e) => setValues((v) => ({ ...v, titulo: e.target.value }))} />
         </div>
+        <div id="cenarios-section" tabIndex={-1} className="project-field"><p>Os cenários de aceitação poderão ser incluídos após salvar o PBI.</p></div>
         <div className="project-field">
           <label htmlFor="historia_como_um">COMO UM (obrigatório)</label>
           <input id="historia_como_um" name="historia_como_um" type="text" disabled={busy} value={values.historia_como_um} onChange={(e) => setValues((v) => ({ ...v, historia_como_um: e.target.value }))} />
@@ -170,6 +179,8 @@ export function PbiDetail({ projectId, epicoId, featureId, pbiId, canEdit }: { p
   const [formValues, setFormValues] = useState<PbiFields | null>(null);
   const [saving, setSaving] = useState(false);
   const [editMessage, setEditMessage] = useState("");
+  const [criteria, setCriteria] = useState<import("../api/api_backlog").Criterion[]>([]);
+  const [editConfig, setEditConfig] = useState<PbiQualityConfigurationRecord | null>(null);
   const [qualityResult, setQualityResult] = useState<{ state: "loading" } | { state: "error" } | { state: "ready"; quality: QualityReport }>({ state: "loading" });
 
   useEffect(() => {
@@ -183,6 +194,12 @@ export function PbiDetail({ projectId, epicoId, featureId, pbiId, canEdit }: { p
       });
     return () => controller.abort();
   }, [pbiId, attempt]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    getPbiQualityConfiguration(controller.signal).then(setEditConfig).catch(() => setEditConfig(null));
+    return () => controller.abort();
+  }, [pbiId]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -202,6 +219,9 @@ export function PbiDetail({ projectId, epicoId, featureId, pbiId, canEdit }: { p
     <button className="btn-secondary" onClick={() => setAttempt((v) => v + 1)}>Tentar novamente</button></div>;
 
   const readOnly = pbi!.projeto_status === "arquivado";
+  const realtimeReport = editing && formValues && editConfig
+    ? evaluatePbiRealtime(formValues, criteria, editConfig, "edit-")
+    : null;
 
   return (
     <section className="projects-page">
@@ -217,6 +237,7 @@ export function PbiDetail({ projectId, epicoId, featureId, pbiId, canEdit }: { p
         </div>
         {editing && formValues ? (
           <>
+            {realtimeReport && <QualityPanel report={realtimeReport} title="Checklist de qualidade em tempo real" />}
             <div className="project-field"><label htmlFor="edit-titulo">Título</label>
               <input id="edit-titulo" type="text" disabled={saving} value={formValues.titulo} onChange={(e) => setFormValues((v) => v && { ...v, titulo: e.target.value })} /></div>
             <div className="project-field"><label htmlFor="edit-como-um">COMO UM</label>
@@ -288,7 +309,7 @@ export function PbiDetail({ projectId, epicoId, featureId, pbiId, canEdit }: { p
           </>
         )}
       </article>
-      <CriteriaEditor entidadeTipo="pbi" entidadeId={pbi!.id} canEdit={canEdit && !readOnly} titulo="Cenários do PBI" />
+      <CriteriaEditor entidadeTipo="pbi" entidadeId={pbi!.id} canEdit={canEdit && !readOnly} titulo="Cenários do PBI" onCriteriaChange={setCriteria} />
       <CriteriaEditor entidadeTipo="feature" entidadeId={featureId} canEdit={false} titulo="Critérios da feature (consulta)" />
     </section>
   );
