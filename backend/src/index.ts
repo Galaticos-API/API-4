@@ -1,7 +1,9 @@
 import express, { Request, Response } from "express";
 import cors from "cors";
+import swaggerUi from 'swagger-ui-express';
 import { env } from "./config/env.js";
 import { checkDatabaseConnection } from "./database/db.js";
+import { swaggerSpec } from "./config/swagger.config.js";
 import { projectsRouter } from "./modules/projects/projects.routes.js";
 import { epicsRouter } from "./modules/epics/epics.routes.js";
 import { featuresRouter } from "./modules/features/features.routes.js";
@@ -53,6 +55,9 @@ app.use("/api/v1/quality", qualityRouter);
 
 //Repo analyzer
 app.use('/api/v1/projects/:projectId/repo-analyses', repoAnalysesRouter);
+
+// Swagger Documentation
+app.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 // Root Information Endpoint
 app.get("/api/v1", (_req: Request, res: Response) => {
