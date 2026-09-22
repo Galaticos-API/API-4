@@ -27,9 +27,9 @@ export async function lockHierarchy(client: PoolClient) {
 export async function assertWritable(client: PoolClient, kind: Kind | "projeto", id: string) {
   const queries = {
     projeto: "SELECT status = 'arquivado' AS archived FROM projeto WHERE id = $1",
-    epico: "SELECT e.status IN ('ativo','arquivado') OR p.status = 'arquivado' AS archived FROM epico e JOIN projeto p ON p.id=e.projeto_id WHERE e.id=$1",
-    feature: "SELECT f.status = 'arquivado' OR e.status IN ('ativo','arquivado') OR p.status = 'arquivado' AS archived FROM feature f JOIN epico e ON e.id=f.epico_id JOIN projeto p ON p.id=e.projeto_id WHERE f.id=$1",
-    pbi: "SELECT b.status = 'arquivado' OR f.status = 'arquivado' OR e.status IN ('ativo','arquivado') OR p.status = 'arquivado' AS archived FROM pbi b JOIN feature f ON f.id=b.feature_id JOIN epico e ON e.id=f.epico_id JOIN projeto p ON p.id=e.projeto_id WHERE b.id=$1",
+    epico: "SELECT e.status = 'arquivado' OR p.status = 'arquivado' AS archived FROM epico e JOIN projeto p ON p.id=e.projeto_id WHERE e.id=$1",
+    feature: "SELECT f.status = 'arquivado' OR e.status = 'arquivado' OR p.status = 'arquivado' AS archived FROM feature f JOIN epico e ON e.id=f.epico_id JOIN projeto p ON p.id=e.projeto_id WHERE f.id=$1",
+    pbi: "SELECT b.status = 'arquivado' OR f.status = 'arquivado' OR e.status = 'arquivado' OR p.status = 'arquivado' AS archived FROM pbi b JOIN feature f ON f.id=b.feature_id JOIN epico e ON e.id=f.epico_id JOIN projeto p ON p.id=e.projeto_id WHERE b.id=$1",
   };
   const row = (await client.query(queries[kind], [id])).rows[0];
   if (!row) throw new NotFoundError();

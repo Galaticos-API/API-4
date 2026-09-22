@@ -7,6 +7,7 @@ import { HierarchyArchiveRepository, lockHierarchy } from "./hierarchy-archive.j
 import { ArchiveConflict } from "./archive.types.js";
 import { FeaturesRepository } from "../features/features.repository.js";
 import { featureQuerySchema } from "../features/features.types.js";
+import { PbisRepository } from "../pbis/pbis.repository.js";
 import { CriteriaRepository } from "../criteria/criteria.repository.js";
 
 test("S1-09: arquivamento direto, preservação, filtros e escrita concorrente", { skip: !process.env.ARCHIVE_TEST_DATABASE_URL }, async (t) => {
@@ -64,4 +65,31 @@ test("S1-09: arquivamento direto, preservação, filtros e escrita concorrente",
       }
     });
   } finally { await db.end(); }
+});
+
+test("S1-09: uma hierarquia ativa continua permitindo criar feature e PBI", { skip: !process.env.ARCHIVE_TEST_DATABASE_URL }, async () => {
+  const db = new Pool({ connectionString: validateTarget(process.env.ARCHIVE_TEST_DATABASE_URL, "test") });
+  const [project, epic, feature] = Array.from({ length: 3 }, randomUUID);
+  try {
+    await db.query("INSERT INTO projeto(id,nome,cliente,status) VALUES ($1::uuid,$1::text,'Teste','ativo')", [project]);
+    await db.query("INSERT INTO epico(id,projeto_id,titulo,status) VALUES ($1,$2,'Épico ativo','ativo')", [epic, project]);
+
+    const createdFeature = await new FeaturesRepository(db).create({ epico_id: epic, titulo: "Feature em épico ativo", prioridade: "Must" });
+    assert.equal(createdFeature.status, "rascunho");
+
+    const createdPbi = await new PbisRepository(db).create({
+      feature_id: createdFeature.id,
+      titulo: "Criar PBI em hierarquia ativa",
+      historia_como_um: "Product Owner",
+      historia_eu_quero: "cadastrar um PBI",
+      historia_para_que: "continuar o refinamento",
+      tipo: "Funcional",
+      prioridade: "Must",
+      requer_interface: false,
+    });
+    assert.equal(createdPbi.status, "rascunho");
+  } finally {
+    await db.query("DELETE FROM projeto WHERE id=$1", [project]);
+    await db.end();
+  }
 });
