@@ -2,11 +2,14 @@ import { createFeatureSchema, updateFeatureSchema, featureQuerySchema, Feature, 
 import { FeaturesRepository, featuresRepository } from "./features.repository.js";
 import { EpicsRepository, epicsRepository } from "../epics/epics.repository.js";
 import { NotFoundError, ValidationError, validateUuid } from "../../shared/errors.js";
+import { assertChangeJustification, ChangeJustificationPolicy } from "../audit/change-justification.js";
+import { organizationPolicyRepository } from "../organization/organization.policy.repository.js";
 
 export class FeaturesService {
   constructor(
     private readonly repository: FeaturesRepository = featuresRepository,
     private readonly epicsRepo: EpicsRepository = epicsRepository,
+    private readonly changeJustification: ChangeJustificationPolicy = organizationPolicyRepository,
   ) {}
 
   async create(input: unknown, usuarioId?: string | null): Promise<Feature> {
@@ -67,6 +70,12 @@ export class FeaturesService {
       const issue = parseResult.error.issues[0];
       throw new ValidationError(issue.message, parseResult.error.format());
     }
+
+    assertChangeJustification({
+      status: existing.status,
+      justificativa: parseResult.data.justificativa,
+      obrigatoriaNaOrganizacao: await this.changeJustification.isRequiredForCompletedItems(),
+    });
 
     const updated = await this.repository.update(id, parseResult.data, usuarioId);
     if (!updated) {

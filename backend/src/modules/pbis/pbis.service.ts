@@ -4,12 +4,15 @@ import { FeaturesRepository, featuresRepository } from "../features/features.rep
 import { QualityService, qualityService, RelatorioQualidadePbi } from "../quality/quality.service.js";
 import { validarTituloInfinitivo } from "../quality/quality.rules.js";
 import { NotFoundError, ValidationError, validateUuid } from "../../shared/errors.js";
+import { assertChangeJustification, ChangeJustificationPolicy } from "../audit/change-justification.js";
+import { organizationPolicyRepository } from "../organization/organization.policy.repository.js";
 
 export class PbisService {
   constructor(
     private readonly repository: PbisRepository = pbisRepository,
     private readonly featuresRepo: FeaturesRepository = featuresRepository,
     private readonly qualityChecker: QualityService = qualityService,
+    private readonly changeJustification: ChangeJustificationPolicy = organizationPolicyRepository,
   ) {}
 
   async create(input: unknown, usuarioId?: string | null): Promise<Pbi> {
@@ -79,6 +82,12 @@ export class PbisService {
       const issue = parseResult.error.issues[0];
       throw new ValidationError(issue.message, parseResult.error.format());
     }
+
+    assertChangeJustification({
+      status: existing.status,
+      justificativa: parseResult.data.justificativa,
+      obrigatoriaNaOrganizacao: await this.changeJustification.isRequiredForCompletedItems(),
+    });
 
     const updated = await this.repository.update(id, parseResult.data, usuarioId);
     if (!updated) {

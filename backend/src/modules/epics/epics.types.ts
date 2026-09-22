@@ -35,7 +35,7 @@ export const updateEpicSchema = z.object({
   escopo_macro: z.string().trim().optional().nullable(),
   resultado_esperado: z.string().trim().optional().nullable(),
   prioridade: z.enum(EPIC_PRIORITIES).optional(),
-  justificativa: z.string().trim().optional().nullable(),
+  justificativa: z.string().trim().max(2000, "A justificativa não pode exceder 2000 caracteres.").optional().nullable(),
   status: z.never().optional(),
 });
 

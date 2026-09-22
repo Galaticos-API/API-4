@@ -213,7 +213,7 @@ pbisRouter.get("/:id", pbisController.getById);
  *               justificativa:
  *                 type: string
  *                 nullable: true
- *                 description: Justificativa da alteração
+ *                 description: Justificativa da alteração. Obrigatória para itens concluídos quando a organização exigir.
  *     responses:
  *       200:
  *         description: PBI atualizado
@@ -278,7 +278,7 @@ pbisRouter.put("/:id", canWrite, pbisController.update);
  *               justificativa:
  *                 type: string
  *                 nullable: true
- *                 description: Justificativa da alteração
+ *                 description: Justificativa da alteração. Obrigatória para itens concluídos quando a organização exigir.
  *     responses:
  *       200:
  *         description: PBI atualizado

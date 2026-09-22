@@ -4,6 +4,7 @@ import { navigate } from "./navigation";
 import { createPbi, completePbi, updatePbi, getPbi, listPbis, getPbiCompleteness, hasCompletudeIndicator, camposFaltantesDe, type Pbi, type PbiInput, type QualityReport } from "../api/api_backlog";
 import { descreverCamposFaltantes } from "./fields";
 import { useUnsavedChangesGuard } from "./useUnsavedChangesGuard";
+import { ChangeJustificationField, ItemAuditHistory, justificationSaveError, loadJustificationRequirement } from "./ChangeJustification";
 import { CriteriaEditor } from "./Criteria";
 import "../projects/projects.css";
 

@@ -83,8 +83,9 @@ function setup() {
     escopo_macro: null, resultado_esperado: null, prioridade: "Must", status: "rascunho",
     created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
   });
-  const service = new FeaturesService(featuresRepo, epicsRepo);
-  return { service, featuresRepo, epicsRepo };
+  const changeJustification = { required: true, async isRequiredForCompletedItems() { return this.required; } };
+  const service = new FeaturesService(featuresRepo, epicsRepo, changeJustification);
+  return { service, featuresRepo, epicsRepo, changeJustification };
 }
 
 test("PBI-01.1.3 Cenário 1: cria feature completa vinculada ao épico com status rascunho", async () => {
@@ -133,6 +134,23 @@ test("impede conclusão de feature sem descrição ou objetivo", async () => {
       return true;
     },
   );
+});
+
+test("PBI-01.5.6: impede alterar feature concluída sem justificativa quando a organização exige", async () => {
+  const { service } = setup();
+  const created = await service.create({ epico_id: EPICO_ID, titulo: "Feature completa", descricao: "d", objetivo: "o" });
+  await service.complete(created.id);
+
+  await assert.rejects(
+    async () => await service.update(created.id, { titulo: "Feature revisada" }),
+    (err: Error) => { assert.ok(err instanceof ValidationError); return true; },
+  );
+
+  const updated = await service.update(created.id, {
+    titulo: "Feature revisada",
+    justificativa: "O título precisava deixar o recorte mais explícito",
+  });
+  assert.equal(updated.titulo, "Feature revisada");
 });
 
 test("PBI-01.1.5 Cenário 3: impede edição e conclusão de feature cujo projeto foi arquivado", async () => {

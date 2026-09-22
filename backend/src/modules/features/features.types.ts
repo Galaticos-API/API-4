@@ -27,7 +27,7 @@ export const updateFeatureSchema = z.object({
   descricao: z.string().trim().optional().nullable(),
   objetivo: z.string().trim().optional().nullable(),
   prioridade: z.enum(FEATURE_PRIORITIES).optional(),
-  justificativa: z.string().trim().optional().nullable(),
+  justificativa: z.string().trim().max(2000, "A justificativa não pode exceder 2000 caracteres.").optional().nullable(),
 });
 
 export type UpdateFeatureDTO = z.infer<typeof updateFeatureSchema>;

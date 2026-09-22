@@ -174,7 +174,7 @@ export async function completeEpic(id: string): Promise<Epic> {
   return parseEpic(await (await apiRequest(`/epics/${encodeURIComponent(id)}/complete`, { method: "PATCH" })).json());
 }
 
-export async function updateEpic(id: string, input: Partial<EpicInput>): Promise<Epic> {
+export async function updateEpic(id: string, input: Partial<EpicInput> & { justificativa?: string }): Promise<Epic> {
   return parseEpic(await (await apiRequest(`/epics/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify(input) })).json());
 }
 
@@ -196,7 +196,7 @@ export async function completeFeature(id: string): Promise<Feature> {
   return parseFeature(await (await apiRequest(`/features/${encodeURIComponent(id)}/complete`, { method: "PATCH" })).json());
 }
 
-export async function updateFeature(id: string, input: Partial<FeatureInput>): Promise<Feature> {
+export async function updateFeature(id: string, input: Partial<FeatureInput> & { justificativa?: string }): Promise<Feature> {
   return parseFeature(await (await apiRequest(`/features/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify(input) })).json());
 }
 
@@ -218,8 +218,39 @@ export async function completePbi(id: string): Promise<Pbi> {
   return parsePbi(await (await apiRequest(`/pbis/${encodeURIComponent(id)}/complete`, { method: "PATCH" })).json());
 }
 
-export async function updatePbi(id: string, input: Partial<PbiInput>): Promise<Pbi> {
+export async function updatePbi(id: string, input: Partial<PbiInput> & { justificativa?: string }): Promise<Pbi> {
   return parsePbi(await (await apiRequest(`/pbis/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify(input) })).json());
+}
+
+export interface ChangeJustificationPolicy {
+  justificativa_alteracao_obrigatoria: boolean;
+}
+
+export async function getChangeJustificationPolicy(signal?: AbortSignal): Promise<ChangeJustificationPolicy> {
+  const data = await (await apiRequest("/organization/policy", { signal })).json();
+  return { justificativa_alteracao_obrigatoria: data?.justificativa_alteracao_obrigatoria === true };
+}
+
+export interface AuditHistoryItem {
+  id: string;
+  acao: string;
+  justificativa: string | null;
+  created_at: string;
+  usuario_id: string | null;
+  usuario_nome: string | null;
+}
+
+export async function listAuditHistory(entidadeTipo: "epico" | "feature" | "pbi", entidadeId: string, signal: AbortSignal): Promise<AuditHistoryItem[]> {
+  const data = await (await apiRequest(`/audit?entidade_tipo=${entidadeTipo}&entidade_id=${encodeURIComponent(entidadeId)}`, { signal })).json();
+  if (!Array.isArray(data.items)) throw new Error("Histórico de auditoria inválido");
+  return data.items.map((item: Record<string, unknown>) => ({
+    id: asText(item.id),
+    acao: asText(item.acao),
+    justificativa: typeof item.justificativa === "string" && item.justificativa.trim() ? item.justificativa : null,
+    created_at: asText(item.created_at),
+    usuario_id: typeof item.usuario_id === "string" ? item.usuario_id : null,
+    usuario_nome: typeof item.usuario_nome === "string" ? item.usuario_nome : null,
+  }));
 }
 
 export interface ValidationResult { aprovado: boolean; motivo?: string }

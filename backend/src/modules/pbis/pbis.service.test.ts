@@ -4,7 +4,7 @@ import { PbisService } from "./pbis.service.js";
 import { PbisRepository } from "./pbis.repository.js";
 import { FeaturesRepository } from "../features/features.repository.js";
 import { ValidationError, NotFoundError } from "../../shared/errors.js";
-import { CreatePbiDTO, Pbi, PbiWithContext, PaginatedPbis, PbiQueryDTO } from "./pbis.types.js";
+import { CreatePbiDTO, Pbi, PbiWithContext, PaginatedPbis, PbiQueryDTO, UpdatePbiDTO } from "./pbis.types.js";
 import { FeatureWithStats } from "../features/features.types.js";
 import { CriteriaRepository } from "../criteria/criteria.repository.js";
 import { Criterion, CriterionEntityType } from "../criteria/criteria.types.js";
@@ -57,6 +57,23 @@ class InMemoryPbisRepository extends PbisRepository {
     return { items, total: items.length, limit: query.limit, offset: query.offset };
   }
 
+  async update(id: string, data: UpdatePbiDTO): Promise<PbiWithContext | null> {
+    const index = this.pbis.findIndex((p) => p.id === id);
+    if (index === -1) return null;
+    this.pbis[index] = {
+      ...this.pbis[index],
+      ...(data.titulo !== undefined ? { titulo: data.titulo.trim() } : {}),
+      ...(data.historia_como_um !== undefined ? { historia_como_um: data.historia_como_um.trim() } : {}),
+      ...(data.historia_eu_quero !== undefined ? { historia_eu_quero: data.historia_eu_quero.trim() } : {}),
+      ...(data.historia_para_que !== undefined ? { historia_para_que: data.historia_para_que.trim() } : {}),
+      ...(data.regras_observacoes !== undefined ? { regras_observacoes: data.regras_observacoes?.trim() ?? null } : {}),
+      ...(data.tipo !== undefined ? { tipo: data.tipo } : {}),
+      ...(data.prioridade !== undefined ? { prioridade: data.prioridade } : {}),
+      ...(data.requer_interface !== undefined ? { requer_interface: data.requer_interface } : {}),
+    };
+    return { ...this.pbis[index], criterios_count: this.criteriosPorPbi.get(id) ?? 0, projeto_status: this.statusProjeto };
+  }
+
   setCachedScore(id: string, score: number): void {
     const pbi = this.pbis.find((item) => item.id === id);
     if (pbi) pbi.score_completude = score;
@@ -98,8 +115,9 @@ function setup() {
     id: FEATURE_ID, epico_id: "c0000000-0000-4000-8000-000000000001", titulo: "Feature base", descricao: null, objetivo: null,
     prioridade: "Must", status: "rascunho", created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
   });
-  const service = new PbisService(pbisRepo, featuresRepo, new QualityService(criteriaRepo, pbisRepo));
-  return { service, pbisRepo, featuresRepo, criteriaRepo };
+  const changeJustification = { required: true, async isRequiredForCompletedItems() { return this.required; } };
+  const service = new PbisService(pbisRepo, featuresRepo, new QualityService(criteriaRepo, pbisRepo), changeJustification);
+  return { service, pbisRepo, featuresRepo, criteriaRepo, changeJustification };
 }
 
 test("PBI-01.1.4 Cenário 1: cria PBI com história completa vinculado à feature com status rascunho", async () => {
@@ -280,6 +298,79 @@ test("quality() retorna o relatório determinístico combinando título, histór
   assert.equal(relatorio.titulo.aprovado, false);
   assert.equal(relatorio.cenarios[0].aprovado, true);
   assert.ok(relatorio.termos_vagos.some((o) => o.termos.includes("rápido")));
+});
+
+test("PBI-01.5.6 Cenário 4: permite alterar PBI em rascunho sem justificativa", async () => {
+  const { service } = setup();
+  const created = await service.create({
+    feature_id: FEATURE_ID,
+    titulo: "Cadastrar item",
+    historia_como_um: "Product Owner",
+    historia_eu_quero: "cadastrar um item",
+    historia_para_que: "eu organize o backlog",
+  });
+
+  const updated = await service.update(created.id, { titulo: "Registrar item" });
+  assert.equal(updated.titulo, "Registrar item");
+});
+
+test("PBI-01.5.6 Cenário 3: impede alterar PBI concluído sem justificativa quando a organização exige", async () => {
+  const { service, pbisRepo } = setup();
+  const created = await service.create({
+    feature_id: FEATURE_ID,
+    titulo: "Cadastrar item",
+    historia_como_um: "Product Owner",
+    historia_eu_quero: "cadastrar um item",
+    historia_para_que: "eu organize o backlog",
+  });
+  pbisRepo.criteriosPorPbi.set(created.id, 1);
+  await service.complete(created.id);
+
+  await assert.rejects(
+    async () => await service.update(created.id, { titulo: "Registrar item" }),
+    (err: Error) => {
+      assert.ok(err instanceof ValidationError);
+      const details = (err as ValidationError).details as { campos_faltantes: string[] };
+      assert.ok(details.campos_faltantes.includes("justificativa"));
+      return true;
+    },
+  );
+});
+
+test("PBI-01.5.6 Cenário 1: grava alteração de PBI concluído quando a justificativa é informada", async () => {
+  const { service, pbisRepo } = setup();
+  const created = await service.create({
+    feature_id: FEATURE_ID,
+    titulo: "Cadastrar item",
+    historia_como_um: "Product Owner",
+    historia_eu_quero: "cadastrar um item",
+    historia_para_que: "eu organize o backlog",
+  });
+  pbisRepo.criteriosPorPbi.set(created.id, 1);
+  await service.complete(created.id);
+
+  const updated = await service.update(created.id, {
+    titulo: "Registrar item",
+    justificativa: "O verbo cadastrar não descrevia o comportamento real",
+  });
+  assert.equal(updated.titulo, "Registrar item");
+});
+
+test("PBI-01.5.6 Cenário 3: permite alterar PBI concluído sem justificativa quando a organização dispensa", async () => {
+  const { service, pbisRepo, changeJustification } = setup();
+  changeJustification.required = false;
+  const created = await service.create({
+    feature_id: FEATURE_ID,
+    titulo: "Cadastrar item",
+    historia_como_um: "Product Owner",
+    historia_eu_quero: "cadastrar um item",
+    historia_para_que: "eu organize o backlog",
+  });
+  pbisRepo.criteriosPorPbi.set(created.id, 1);
+  await service.complete(created.id);
+
+  const updated = await service.update(created.id, { titulo: "Registrar item" });
+  assert.equal(updated.titulo, "Registrar item");
 });
 
 test("impede cadastrar PBI em feature de projeto arquivado", async () => {

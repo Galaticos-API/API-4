@@ -2,11 +2,14 @@ import { createEpicSchema, updateEpicSchema, epicQuerySchema, Epic, EpicWithStat
 import { EpicsRepository, epicsRepository } from "./epics.repository.js";
 import { ProjectsRepository, projectsRepository } from "../projects/projects.repository.js";
 import { NotFoundError, ValidationError, validateUuid } from "../../shared/errors.js";
+import { assertChangeJustification, ChangeJustificationPolicy } from "../audit/change-justification.js";
+import { organizationPolicyRepository } from "../organization/organization.policy.repository.js";
 
 export class EpicsService {
   constructor(
     private readonly repository: EpicsRepository = epicsRepository,
     private readonly projectsRepo: ProjectsRepository = projectsRepository,
+    private readonly changeJustification: ChangeJustificationPolicy = organizationPolicyRepository,
   ) {}
 
   private async ensureWritable(epic: Epic): Promise<void> {
@@ -82,6 +85,13 @@ export class EpicsService {
         throw new ValidationError("Não é possível remover campos obrigatórios de um épico concluído.");
       }
     }
+
+    assertChangeJustification({
+      status: existing.status,
+      justificativa: parseResult.data.justificativa,
+      obrigatoriaNaOrganizacao: await this.changeJustification.isRequiredForCompletedItems(),
+    });
+
     const updated = await this.repository.update(id, parseResult.data, usuarioId);
     if (!updated) {
       throw new NotFoundError("Épico não encontrado.");

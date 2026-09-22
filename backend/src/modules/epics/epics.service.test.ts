@@ -97,8 +97,9 @@ function setup() {
     id: PROJETO_ID, nome: "Projeto Ativo", cliente: "Cliente", descricao: null, status: "ativo",
     data_inicio: new Date().toISOString(), created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
   });
-  const service = new EpicsService(epicsRepo, projectsRepo);
-  return { service, epicsRepo, projectsRepo };
+  const changeJustification = { required: true, async isRequiredForCompletedItems() { return this.required; } };
+  const service = new EpicsService(epicsRepo, projectsRepo, changeJustification);
+  return { service, epicsRepo, projectsRepo, changeJustification };
 }
 
 test("PBI-01.1.2 Cenário 1: cria épico completo vinculado ao projeto com status rascunho", async () => {
@@ -201,6 +202,34 @@ test("impede cadastro de épico em projeto arquivado", async () => {
       return true;
     },
   );
+});
+
+test("PBI-01.5.6: impede alterar épico concluído sem justificativa quando a organização exige", async () => {
+  const { service, epicsRepo } = setup();
+  const created = await service.create({
+    projeto_id: PROJETO_ID,
+    titulo: "Épico completo",
+    descricao: "descrição",
+    objetivo: "objetivo",
+    escopo_macro: "escopo",
+    resultado_esperado: "resultado",
+  });
+  epicsRepo.criteriosPorEpico.set(created.id, 1);
+  await service.complete(created.id);
+
+  await assert.rejects(
+    async () => await service.update(created.id, { titulo: "Épico revisado" }),
+    (err: Error) => {
+      assert.ok(err instanceof ValidationError);
+      return true;
+    },
+  );
+
+  const updated = await service.update(created.id, {
+    titulo: "Épico revisado",
+    justificativa: "O título original não refletia o objetivo da entrega",
+  });
+  assert.equal(updated.titulo, "Épico revisado");
 });
 
 test("PBI-01.1.5 Cenário 3: impede edição e conclusão de épico cujo projeto foi arquivado", async () => {

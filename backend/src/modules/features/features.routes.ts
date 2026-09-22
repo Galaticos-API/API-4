@@ -188,7 +188,7 @@ featuresRouter.get("/:id", featuresController.getById);
  *               justificativa:
  *                 type: string
  *                 nullable: true
- *                 description: Justificativa da alteração
+ *                 description: Justificativa da alteração. Obrigatória para itens concluídos quando a organização exigir.
  *     responses:
  *       200:
  *         description: Feature atualizada
@@ -245,7 +245,7 @@ featuresRouter.put("/:id", canWrite, featuresController.update);
  *               justificativa:
  *                 type: string
  *                 nullable: true
- *                 description: Justificativa da alteração
+ *                 description: Justificativa da alteração. Obrigatória para itens concluídos quando a organização exigir.
  *     responses:
  *       200:
  *         description: Feature atualizada

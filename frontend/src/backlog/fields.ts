@@ -6,6 +6,7 @@ export const CAMPO_LABELS: Record<string, string> = {
   criterios_aceitacao: "Critérios de aceitação",
   cenarios_aceitacao: "Cenários de aceitação (DADO/QUANDO/ENTÃO)",
   titulo_infinitivo: "Título (deve começar com verbo no infinitivo, ex.: Cadastrar, Consultar)",
+  justificativa: "Justificativa da alteração",
 };
 
 export function descreverCamposFaltantes(campos: string[]): string {

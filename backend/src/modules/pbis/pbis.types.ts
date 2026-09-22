@@ -42,7 +42,7 @@ export const updatePbiSchema = z.object({
   tipo: z.string().trim().min(1).max(50).optional(),
   prioridade: z.enum(PBI_PRIORITIES).optional(),
   requer_interface: z.boolean().optional(),
-  justificativa: z.string().trim().optional().nullable(),
+  justificativa: z.string().trim().max(2000, "A justificativa não pode exceder 2000 caracteres.").optional().nullable(),
 });
 
 export type UpdatePbiDTO = z.infer<typeof updatePbiSchema>;
