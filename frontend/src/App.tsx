@@ -187,8 +187,10 @@ export const App: React.FC = () => {
       </header>
 
       {/* Main Content Area */}
-      <main style={{ flex: 1, padding: "32px", maxWidth: "1280px", margin: "0 auto", width: "100%" }}>
+      <main className="app-main">
         {activeTab === "projects" && <Projects key={pathname} pathname={pathname} canCreate={session.user?.role === "po" || session.user?.role === "admin"} />}
+        {activeTab === "knowledge" && <UnavailableScreen title="Acervo de conhecimento" description="A busca no acervo será conectada quando a API de documentos e pesquisa estiver disponível na main." />}
+        {activeTab === "chat" && <UnavailableScreen title="Conversa" description="A conversa por projeto depende do contrato de histórico e consulta assistida, ainda não publicado no backend da main." />}
         {!activeTab && <section><h2>Página não encontrada</h2><button className="btn-primary" onClick={() => navigate("/", true)}>Ir para o início</button></section>}
         {activeTab === "architecture" && (
           <div>
@@ -202,10 +204,9 @@ export const App: React.FC = () => {
             </div>
 
             {/* Service Grid */}
-            <div
+            <div className="architecture-grid"
               style={{
                 display: "grid",
-                gridTemplateColumns: "repeat(auto-fit, minmax(360px, 1fr))",
                 gap: "20px",
                 marginBottom: "36px",
               }}
@@ -281,7 +282,7 @@ export const App: React.FC = () => {
               Estrutura padrão de requisitos em 4 níveis (Projeto &rarr; Épico &rarr; Feature &rarr; PBI) com rastreabilidade de autoria humana vs IA.
             </p>
 
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px" }}>
+            <div className="requirements-grid" style={{ display: "grid", gap: "20px" }}>
               <div style={{ background: "rgba(0, 0, 0, 0.25)", padding: "20px", borderRadius: "var(--radius-sm)", border: "1px solid var(--border-subtle)" }}>
                 <h4 style={{ fontWeight: 600, marginBottom: "12px", color: "var(--accent-secondary)" }}>Regras de Proveniência (PRD 12)</h4>
                 <ul style={{ listStyle: "none", display: "flex", flexDirection: "column", gap: "10px", fontSize: "0.9rem", color: "var(--text-secondary)" }}>
@@ -342,3 +343,7 @@ export const App: React.FC = () => {
     </div>
   );
 };
+
+function UnavailableScreen({ title, description }: { title: string; description: string }) {
+  return <section className="unavailable-screen"><p>EM PREPARAÇÃO</p><h2>{title}</h2><p>{description}</p><button className="btn-secondary" onClick={() => navigate("/projects")}>Abrir projetos</button></section>;
+}

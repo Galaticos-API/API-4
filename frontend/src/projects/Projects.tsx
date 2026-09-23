@@ -8,6 +8,7 @@ import { EpicList } from "../backlog/Epics";
 import { RepoAnalyzerTab } from "./RepoAnalyzerTab";
 import "./projects.css";
 import { ProjectArchive } from "./ProjectArchive";
+import { SearchField } from "../components/SearchField";
 
 type Result = { state: "loading" } | { state: "error"; message: string } | { state: "ready"; projects: Project[]; total: number };
 const empty: ProjectInput = { nome: "", cliente: "", descricao: "" };
@@ -21,6 +22,7 @@ export function Projects({ pathname, canCreate = false }: { pathname: string; ca
   const [attempt, setAttempt] = useState(0);
   const [offset, setOffset] = useState(0);
   const [status, setStatus] = useState("");
+  const [search, setSearch] = useState("");
 
   useEffect(() => {
     if (isNew || backlogRoute) return;
@@ -50,11 +52,6 @@ export function Projects({ pathname, canCreate = false }: { pathname: string; ca
         <p>Reúna o contexto do cliente e organize os requisitos da sua equipe.</p></div>
       {(isDetail || canCreate) && <button className="btn-primary" onClick={() => navigate(isDetail ? "/projects" : "/projects/new")}>{isDetail ? "Voltar aos projetos" : "Novo projeto"}</button>}
     </div>
-    {!isDetail && <label className="project-filter">Exibir projetos
-      <select value={status} onChange={event => { setStatus(event.target.value); setOffset(0); }}>
-        <option value="">Não arquivados</option><option value="arquivado">Arquivados</option><option value="todos">Todos</option>
-      </select>
-    </label>}
     {result.state === "loading" && <div className="glass-panel projects-state" role="status">Carregando {isDetail ? "projeto" : "projetos"}…</div>}
     {result.state === "error" && <div className="glass-panel projects-state"><p role="alert">{result.message}</p>
       <button className="btn-secondary" onClick={() => setAttempt(value => value + 1)}>Tentar novamente</button></div>}
@@ -62,12 +59,15 @@ export function Projects({ pathname, canCreate = false }: { pathname: string; ca
       ? <div className="glass-panel projects-state"><h3>{status === "arquivado" ? "Nenhum projeto arquivado" : "Nenhum projeto cadastrado"}</h3><p>{status === "arquivado" ? "Os projetos arquivados poderão ser consultados aqui." : "Crie o primeiro projeto para começar a organizar o trabalho."}</p>
         {canCreate && status !== "arquivado" && <button className="btn-primary" onClick={() => navigate("/projects/new")}>Criar primeiro projeto</button>}</div>
 
-      : <div className="projects-grid">{result.projects.map(project => <article className="glass-panel project-card" key={project.id}>
+      : <div className="projects-grid">{result.projects.filter(project => `${project.nome} ${project.cliente} ${project.descricao}`.toLocaleLowerCase("pt-BR").includes(search.trim().toLocaleLowerCase("pt-BR"))).map(project => <article className="glass-panel project-card" key={project.id}>
         <span className={`badge ${project.status === "ativo" ? "badge-success" : "badge-warning"}`}>{project.status}</span>
         <h3>{project.nome}</h3><p>{project.cliente}</p><p className="project-excerpt">{project.descricao}</p>
         <button className="btn-secondary" onClick={() => navigate(`/projects/${project.id}`)} aria-label={`Abrir projeto ${project.nome}`}>Ver projeto</button>
         {project.status === "arquivado" && <p>Somente leitura · Arquivado em: {project.archived_at ? new Date(project.archived_at).toLocaleString("pt-BR") : "data não registrada"}</p>}
     </article>)}</div>)}
+    {!isDetail && <div className="project-filters"><SearchField label="Buscar projetos" value={search} onChange={setSearch} placeholder="Nome, cliente ou descrição" /><label className="project-filter">Exibir projetos
+      <select value={status} onChange={event => { setStatus(event.target.value); setOffset(0); }}><option value="">Não arquivados</option><option value="arquivado">Arquivados</option><option value="todos">Todos</option></select>
+    </label></div>}
     {!isDetail && !isNew && <nav className="project-actions" aria-label="Paginação de projetos">
       <button className="btn-secondary" disabled={offset === 0 || result.state === "loading"} onClick={() => setOffset(value => Math.max(0, value - 50))}>Anterior</button>
       <span>Página {Math.floor(offset / 50) + 1}{result.state === "ready" ? ` · ${result.total} projetos` : ""}</span>
