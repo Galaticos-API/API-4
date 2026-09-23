@@ -97,92 +97,12 @@ export const App: React.FC = () => {
 
   return (
     <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
-      {/* Top Header */}
-      <header
-        style={{
-          borderBottom: "1px solid var(--border-subtle)",
-          background: "rgba(10, 13, 20, 0.8)",
-          backdropFilter: "blur(10px)",
-          position: "sticky",
-          top: 0,
-          zIndex: 100,
-          padding: "16px 32px",
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
-          <div
-            style={{
-              width: "40px",
-              height: "40px",
-              borderRadius: "10px",
-              background: "linear-gradient(135deg, #6366f1 0%, #06b6d4 100%)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              boxShadow: "0 0 15px rgba(99, 102, 241, 0.4)",
-            }}
-          >
-            <Sparkles size={22} color="#fff" />
-          </div>
-          <div>
-            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-              <h1 style={{ fontSize: "1.25rem", fontWeight: 700, letterSpacing: "-0.02em" }}>Sinapse</h1>
-              <span className="badge badge-info">PRO4TECH API-4</span>
-            </div>
-            <p style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>
-              Memória Institucional da Fábrica de Software
-            </p>
-          </div>
-        </div>
-
-        {/* Navigation Tabs */}
-        <div
-          style={{
-            display: "flex",
-            gap: "6px",
-            background: "var(--bg-secondary)",
-            padding: "4px",
-            borderRadius: "var(--radius-md)",
-            border: "1px solid var(--border-subtle)",
-          }}
-        >
-          <button onClick={() => setActiveTab("projects")} className={activeTab === "projects" ? "btn-primary" : "btn-secondary"}>
-            <Layers size={16} /> Projetos
-          </button>
-          <button
-            onClick={() => setActiveTab("architecture")}
-            className={activeTab === "architecture" ? "btn-primary" : "btn-secondary"}
-            style={{ padding: "8px 16px", fontSize: "0.85rem" }}
-          >
-            <Layers size={16} /> Arquitetura & Stacks
-          </button>
-          <button
-            onClick={() => setActiveTab("requirements")}
-            className={activeTab === "requirements" ? "btn-primary" : "btn-secondary"}
-            style={{ padding: "8px 16px", fontSize: "0.85rem" }}
-          >
-            <BookOpen size={16} /> Requisitos do PO
-          </button>
-          <button
-            onClick={() => setActiveTab("rag")}
-            className={activeTab === "rag" ? "btn-primary" : "btn-secondary"}
-            style={{ padding: "8px 16px", fontSize: "0.85rem" }}
-          >
-            <Cpu size={16} /> RAG & Assistente IA
-          </button>
-        </div>
-
-        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-          <span>{session.user?.name}</span>
-          <button className="btn-secondary" onClick={() => void logout()}>Sair</button>
-          <span className="badge badge-success">
-            <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#10b981" }} />
-            Ambiente Local Ativo
-          </span>
-        </div>
+      <header className="app-header">
+        <div className="app-brand"><span className="app-brand-mark"><Sparkles size={20} /></span><h1>Sinapse</h1></div>
+        <nav className="app-nav" aria-label="Navegação principal">
+          {([ ["projects", "Projetos", Layers], ["architecture", "Arquitetura", Layers], ["requirements", "Requisitos", BookOpen], ["rag", "Assistente", Cpu] ] as const).map(([id, label, Icon]) => <button key={id} className={activeTab === id ? "active" : ""} onClick={() => setActiveTab(id)} aria-current={activeTab === id ? "page" : undefined} title={label}><Icon size={16} /><span className="nav-label"> {label}</span></button>)}
+        </nav>
+        <div className="app-user"><span className="app-user-name">{session.user?.name}</span><button onClick={() => void logout()} aria-label="Sair">Sair</button></div>
       </header>
 
       {/* Main Content Area */}
