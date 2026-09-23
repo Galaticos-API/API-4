@@ -2,8 +2,13 @@ import { createPbiSchema, updatePbiSchema, pbiQuerySchema, Pbi, PbiWithContext, 
 import { PbisRepository, pbisRepository } from "./pbis.repository.js";
 import { FeaturesRepository, featuresRepository } from "../features/features.repository.js";
 import { QualityService, qualityService, RelatorioQualidadePbi } from "../quality/quality.service.js";
-import { validarTituloInfinitivo } from "../quality/quality.rules.js";
 import { NotFoundError, ValidationError, validateUuid } from "../../shared/errors.js";
+
+const COMPLETION_BLOCKING_FIELDS: Record<string, string> = {
+  titulo_infinitivo: "titulo_infinitivo",
+  historia_completa: "historia_completa",
+  cenario_estruturado: "cenarios_aceitacao",
+};
 
 export class PbisService {
   constructor(
@@ -25,15 +30,16 @@ export class PbisService {
     if (!feature) {
       throw new NotFoundError("Feature não encontrada.");
     }
+
     if (feature.projeto_status === "arquivado") {
       throw new ValidationError("Não é possível cadastrar PBIs em um projeto arquivado.");
     }
 
     const created = await this.repository.create(dto, usuarioId);
-    
+
     const qualityReport = await this.qualityChecker.validatePbi(created.id);
     created.score_completude = qualityReport.score_completude;
-    
+
     return created;
   }
 
@@ -46,10 +52,12 @@ export class PbisService {
 
     const page = await this.repository.findAll(parseResult.data);
     const reports = await this.qualityChecker.validatePbis(page.items);
+
     const items = page.items.map((pbi) => ({
       ...pbi,
       score_completude: reports.get(pbi.id)?.score_completude ?? null,
     }));
+
     return { ...page, items };
   }
 
@@ -62,16 +70,25 @@ export class PbisService {
     }
 
     const report = await this.qualityChecker.validatePbi(id);
-    return { ...pbi, score_completude: report.score_completude };
+
+    return {
+      ...pbi,
+      score_completude: report.score_completude,
+    };
   }
 
-  async update(id: string, input: unknown, usuarioId?: string | null): Promise<PbiWithContext> {
+  async update(
+    id: string,
+    input: unknown,
+    usuarioId?: string | null,
+  ): Promise<PbiWithContext> {
     validateUuid(id, "ID do PBI");
 
     const existing = await this.repository.findById(id);
     if (!existing) {
       throw new NotFoundError("PBI não encontrado.");
     }
+
     this.assertProjetoAtivo(existing);
 
     const parseResult = updatePbiSchema.safeParse(input);
@@ -80,7 +97,12 @@ export class PbisService {
       throw new ValidationError(issue.message, parseResult.error.format());
     }
 
-    const updated = await this.repository.update(id, parseResult.data, usuarioId);
+    const updated = await this.repository.update(
+      id,
+      parseResult.data,
+      usuarioId,
+    );
+
     if (!updated) {
       throw new NotFoundError("PBI não encontrado.");
     }
@@ -91,25 +113,38 @@ export class PbisService {
     return updated;
   }
 
-  async complete(id: string, usuarioId?: string | null): Promise<PbiWithContext> {
+  async complete(
+    id: string,
+    usuarioId?: string | null,
+  ): Promise<PbiWithContext> {
     validateUuid(id, "ID do PBI");
 
     const existing = await this.repository.findById(id);
     if (!existing) {
       throw new NotFoundError("PBI não encontrado.");
     }
+
     this.assertProjetoAtivo(existing);
+
     if (existing.status === "concluido") {
       return existing;
     }
 
-    const camposFaltantes: string[] = [];
-    if ((existing.criterios_count ?? 0) === 0) {
-      camposFaltantes.push("cenarios_aceitacao");
-    }
-    if (!validarTituloInfinitivo(existing.titulo).aprovado) {
-      camposFaltantes.push("titulo_infinitivo");
-    }
+    // O relatório contém somente as verificações ativas e aplicáveis da
+    // configuração vigente. Alertas informativos não fazem parte deste mapa e,
+    // portanto, nunca impedem a conclusão.
+    const qualityReport = await this.qualityChecker.validatePbi(id);
+
+    const camposFaltantes = qualityReport.checks
+      .filter(
+        (check) =>
+          !check.passed
+          && COMPLETION_BLOCKING_FIELDS[check.check_id],
+      )
+      .map(
+        (check) =>
+          COMPLETION_BLOCKING_FIELDS[check.check_id],
+      );
 
     if (camposFaltantes.length > 0) {
       throw new ValidationError(
@@ -119,6 +154,7 @@ export class PbisService {
     }
 
     const completed = await this.repository.markConcluded(id, usuarioId);
+
     if (!completed) {
       throw new NotFoundError("PBI não encontrado.");
     }
@@ -130,6 +166,7 @@ export class PbisService {
     validateUuid(id, "ID do PBI");
 
     const pbi = await this.repository.findById(id);
+
     if (!pbi) {
       throw new NotFoundError("PBI não encontrado.");
     }
@@ -139,7 +176,9 @@ export class PbisService {
 
   private assertProjetoAtivo(pbi: PbiWithContext): void {
     if (pbi.projeto_status === "arquivado") {
-      throw new ValidationError("Não é possível alterar PBIs de um projeto arquivado.");
+      throw new ValidationError(
+        "Não é possível alterar PBIs de um projeto arquivado.",
+      );
     }
   }
 }
