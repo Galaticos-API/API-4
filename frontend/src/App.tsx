@@ -100,7 +100,7 @@ export const App: React.FC = () => {
       <header className="app-header">
         <div className="app-brand"><span className="app-brand-mark"><Sparkles size={20} /></span><h1>Sinapse</h1></div>
         <nav className="app-nav" aria-label="Navegação principal">
-          {([ ["projects", "Projetos", Layers], ["architecture", "Arquitetura", Layers], ["requirements", "Requisitos", BookOpen], ["rag", "Assistente", Cpu] ] as const).map(([id, label, Icon]) => <button key={id} className={activeTab === id ? "active" : ""} onClick={() => setActiveTab(id)} aria-current={activeTab === id ? "page" : undefined} title={label}><Icon size={16} /><span className="nav-label"> {label}</span></button>)}
+          {([ ["projects", "Projetos", Layers], ["requirements", "Backlog", BookOpen], ["knowledge", "Acervo", BookOpen], ["chat", "Conversa", Cpu] ] as const).map(([id, label, Icon]) => <button key={id} className={activeTab === id ? "active" : ""} onClick={() => setActiveTab(id)} aria-current={activeTab === id ? "page" : undefined} title={label}><Icon size={16} /><span className="nav-label"> {label}</span></button>)}
         </nav>
         <div className="app-user"><span className="app-user-name">{session.user?.name}</span><button onClick={() => void logout()} aria-label="Sair">Sair</button></div>
       </header>
@@ -108,6 +108,8 @@ export const App: React.FC = () => {
       {/* Main Content Area */}
       <main style={{ flex: 1, padding: "32px", maxWidth: "1280px", margin: "0 auto", width: "100%" }}>
         {activeTab === "projects" && <Projects key={pathname} pathname={pathname} canCreate={session.user?.role === "po" || session.user?.role === "admin"} />}
+        {activeTab === "knowledge" && <UnavailableScreen title="Acervo de conhecimento" description="A busca no acervo será conectada quando a API de documentos e pesquisa estiver disponível na main." />}
+        {activeTab === "chat" && <UnavailableScreen title="Conversa" description="A conversa por projeto depende do contrato de histórico e consulta assistida, ainda não publicado no backend da main." />}
         {!activeTab && <section><h2>Página não encontrada</h2><button className="btn-primary" onClick={() => navigate("/", true)}>Ir para o início</button></section>}
         {activeTab === "architecture" && (
           <div>
@@ -261,3 +263,7 @@ export const App: React.FC = () => {
     </div>
   );
 };
+
+function UnavailableScreen({ title, description }: { title: string; description: string }) {
+  return <section className="unavailable-screen"><p>EM PREPARAÇÃO</p><h2>{title}</h2><p>{description}</p><button className="btn-secondary" onClick={() => navigate("/projects")}>Abrir projetos</button></section>;
+}
