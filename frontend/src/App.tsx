@@ -161,6 +161,7 @@ export const App: React.FC = () => {
           </button>
           <button
             onClick={() => setActiveTab("requirements")}
+            aria-label="Requisitos do PO"
             className={activeTab === "requirements" ? "btn-primary" : "btn-secondary"}
             style={{ padding: "8px 16px", fontSize: "0.85rem" }}
           >
