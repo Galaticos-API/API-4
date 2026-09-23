@@ -64,7 +64,7 @@ export function Projects({ pathname, canCreate = false }: { pathname: string; ca
         <h3>{project.nome}</h3><p>{project.cliente}</p><p className="project-excerpt">{project.descricao}</p>
         <button className="btn-secondary" onClick={() => navigate(`/projects/${project.id}`)} aria-label={`Abrir projeto ${project.nome}`}>Ver projeto</button>
         {project.status === "arquivado" && <p>Somente leitura · Arquivado em: {project.archived_at ? new Date(project.archived_at).toLocaleString("pt-BR") : "data não registrada"}</p>}
-    </article>)}</div>)}
+      </article>)}</div>)}
     {!isDetail && <div className="project-filters"><SearchField label="Buscar projetos" value={search} onChange={setSearch} placeholder="Nome, cliente ou descrição" /><label className="project-filter">Exibir projetos
       <select value={status} onChange={event => { setStatus(event.target.value); setOffset(0); }}><option value="">Não arquivados</option><option value="arquivado">Arquivados</option><option value="todos">Todos</option></select>
     </label></div>}
@@ -94,8 +94,8 @@ function ProjectDetail({ project, canCreate }: { project: Project; canCreate: bo
           padding: "0.5rem 1rem",
           fontWeight: 500,
           fontSize: "0.875rem",
-          borderBottom: activeTab === "backlog" ? "2px solid #4f46e5" : "2px solid transparent",
-          color: activeTab === "backlog" ? "#4f46e5" : "#6b7280",
+          borderBottom: activeTab === "backlog" ? "2px solid var(--accent-primary)" : "2px solid transparent",
+          color: activeTab === "backlog" ? "var(--accent-primary)" : "var(--text-secondary)",
           background: "none",
           cursor: "pointer"
         }}
@@ -108,8 +108,8 @@ function ProjectDetail({ project, canCreate }: { project: Project; canCreate: bo
           padding: "0.5rem 1rem",
           fontWeight: 500,
           fontSize: "0.875rem",
-          borderBottom: activeTab === "repo-analyzer" ? "2px solid #4f46e5" : "2px solid transparent",
-          color: activeTab === "repo-analyzer" ? "#4f46e5" : "#6b7280",
+          borderBottom: activeTab === "repo-analyzer" ? "2px solid var(--accent-primary)" : "2px solid transparent",
+          color: activeTab === "repo-analyzer" ? "var(--accent-primary)" : "var(--text-secondary)",
           background: "none",
           cursor: "pointer"
         }}
