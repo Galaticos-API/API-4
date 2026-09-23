@@ -163,8 +163,12 @@ test("PBI-01.1.4 Cenário 3: impede conclusão sem nenhum cenário de aceitaçã
   );
 });
 
-test("permite concluir PBI após registrar ao menos um cenário de aceitação", async () => {
-  const { service, pbisRepo } = setup();
+test("permite concluir PBI após registrar ao menos um cenário de aceitação estruturado", async () => {
+  const {
+    service,
+    pbisRepo,
+    criteriaRepo,
+  } = setup();
 
   const created = await service.create({
     feature_id: FEATURE_ID,
@@ -175,7 +179,25 @@ test("permite concluir PBI após registrar ao menos um cenário de aceitação",
   });
 
   pbisRepo.criteriosPorPbi.set(created.id, 1);
-  const completed = await service.complete(created.id);
+
+  criteriaRepo.cenariosPorPbi.set(created.id, [
+    {
+      id: "c1",
+      entidade_tipo: "pbi",
+      entidade_id: created.id,
+      texto: null,
+      nome: "Cenário",
+      dado: "usuário autenticado",
+      quando: "confirmar",
+      entao: "item criado",
+      ordem: 1,
+      created_at: new Date().toISOString(),
+    },
+  ]);
+
+  const completed =
+    await service.complete(created.id);
+
   assert.equal(completed.status, "concluido");
 });
 
@@ -290,6 +312,166 @@ test("impede cadastrar PBI em feature de projeto arquivado", async () => {
     prioridade: "Must", status: "rascunho", projeto_status: "arquivado",
     created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
   });
+
+  test("permite concluir PBI com título fora do infinitivo quando regra titulo_infinitivo está desabilitada", async () => {
+  const pbisRepo = new InMemoryPbisRepository();
+  const featuresRepo =
+    new StubFeaturesRepository();
+  const criteriaRepo =
+    new StubCriteriaRepository();
+
+  featuresRepo.features.push({
+    id: FEATURE_ID,
+    epico_id:
+      "c0000000-0000-4000-8000-000000000001",
+    titulo: "Feature base",
+    descricao: null,
+    objetivo: null,
+    prioridade: "Must",
+    status: "rascunho",
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  });
+
+  const customRulesProvider = {
+    async getCurrentPbiConfiguration() {
+      return {
+        rule_version: "custom-v1",
+        checks: [
+          {
+            check_id:
+              "cenario_estruturado" as const,
+            isApplicable: () => true,
+          },
+          {
+            check_id:
+              "historia_completa" as const,
+            isApplicable: () => true,
+          },
+        ],
+      };
+    },
+  };
+
+  const service = new PbisService(
+    pbisRepo,
+    featuresRepo,
+    new QualityService(
+      criteriaRepo,
+      pbisRepo,
+      customRulesProvider,
+    ),
+  );
+
+  const created = await service.create({
+    feature_id: FEATURE_ID,
+    titulo: "Tela de usuários",
+    historia_como_um: "PO",
+    historia_eu_quero: "acessar a tela",
+    historia_para_que: "gerenciar acessos",
+  });
+
+  pbisRepo.criteriosPorPbi.set(
+    created.id,
+    1,
+  );
+
+  criteriaRepo.cenariosPorPbi.set(
+    created.id,
+    [
+      {
+        id: "c1",
+        entidade_tipo: "pbi",
+        entidade_id: created.id,
+        texto: null,
+        nome: "Cenário",
+        dado: "d",
+        quando: "q",
+        entao: "e",
+        ordem: 1,
+        created_at:
+          new Date().toISOString(),
+      },
+    ],
+  );
+
+  const completed =
+    await service.complete(created.id);
+
+  assert.equal(
+    completed.status,
+    "concluido",
+  );
+});
+
+test("permite concluir PBI sem cenários quando cenario_estruturado está desabilitada", async () => {
+  const pbisRepo = new InMemoryPbisRepository();
+  const featuresRepo =
+    new StubFeaturesRepository();
+  const criteriaRepo =
+    new StubCriteriaRepository();
+
+  featuresRepo.features.push({
+    id: FEATURE_ID,
+    epico_id:
+      "c0000000-0000-4000-8000-000000000001",
+    titulo: "Feature base",
+    descricao: null,
+    objetivo: null,
+    prioridade: "Must",
+    status: "rascunho",
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  });
+
+  const customRulesProvider = {
+    async getCurrentPbiConfiguration() {
+      return {
+        rule_version: "custom-v1",
+        checks: [
+          {
+            check_id:
+              "titulo_infinitivo" as const,
+            isApplicable: () => true,
+          },
+          {
+            check_id:
+              "historia_completa" as const,
+            isApplicable: () => true,
+          },
+        ],
+      };
+    },
+  };
+
+  const service = new PbisService(
+    pbisRepo,
+    featuresRepo,
+    new QualityService(
+      criteriaRepo,
+      pbisRepo,
+      customRulesProvider,
+    ),
+  );
+
+  const created = await service.create({
+    feature_id: FEATURE_ID,
+    titulo: "Cadastrar item",
+    historia_como_um: "PO",
+    historia_eu_quero:
+      "cadastrar um item",
+    historia_para_que:
+      "organizar o backlog",
+  });
+
+  const completed =
+    await service.complete(created.id);
+
+  assert.equal(
+    completed.status,
+    "concluido",
+  );
+});
 
   await assert.rejects(
     async () => await service.create({
