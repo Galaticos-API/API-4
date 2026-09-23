@@ -1,5 +1,9 @@
 .projects-page { display: grid; gap: 24px; }
 .project-filter { display: grid; gap: 8px; max-width: 260px; }
+.project-filters { display: flex; flex-wrap: wrap; align-items: end; gap: 12px; padding: 16px; border: 1px solid var(--border-subtle); border-radius: var(--radius-md); background: var(--bg-card); }
+.search-field { position: relative; display: flex; flex: 1 1 260px; align-items: center; min-width: 0; }
+.search-field svg { position: absolute; left: 12px; color: var(--text-muted); pointer-events: none; }
+.search-field input { width: 100%; min-height: 42px; padding: 10px 12px 10px 38px; border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); background: var(--bg-secondary); color: var(--text-primary); font: inherit; }
 .project-filter select { padding: 12px; font: inherit; border: 1px solid var(--border-subtle); border-radius: 8px; color: var(--text-primary); background: var(--bg-secondary); }
 .archive-dialog { padding: 28px; max-width: 560px; width: calc(100% - 32px); border: 1px solid var(--border-subtle); border-radius: 12px; color: var(--text-primary); background: var(--bg-secondary); }
 .archive-dialog::backdrop { background: #0009; }
@@ -26,4 +30,4 @@
 .projects-page [role="alert"] { color: #fca5a5; }
 .project-actions { display: flex; flex-wrap: wrap; gap: 12px; }
 .badge-error { background: rgba(244, 67, 54, 0.2); color: #fca5a5; }
-@media (max-width: 900px) { .projects-heading { align-items: flex-start; flex-direction: column; } header > div { flex-wrap: wrap; } }
+@media (max-width: 900px) { .projects-heading { align-items: flex-start; flex-direction: column; } .project-filters { align-items: stretch; } header > div { flex-wrap: wrap; } }
