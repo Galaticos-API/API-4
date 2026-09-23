@@ -1,4 +1,4 @@
-export const routes = { architecture: "/", projects: "/projects", requirements: "/requirements", knowledge: "/knowledge", chat: "/chat", rag: "/rag" } as const;
+export const routes = { landing: "/", architecture: "/architecture", projects: "/projects", requirements: "/requirements", knowledge: "/knowledge", chat: "/chat", rag: "/rag" } as const;
 
 const SEGMENT = "[a-zA-Z0-9_-]+";
 

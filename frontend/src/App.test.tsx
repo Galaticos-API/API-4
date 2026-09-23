@@ -18,17 +18,17 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-test("renders the architecture view and service catalog", () => {
+test("renders the landing page view as main default view", () => {
   render(<App />);
 
   expect(screen.getByRole("heading", { name: "Sinapse" })).toBeInTheDocument();
-  expect(screen.getByRole("heading", { name: "Topologia de Serviços e Microsserviços" })).toBeInTheDocument();
-  expect(screen.getByText("PostgreSQL + pgvector")).toBeInTheDocument();
+  expect(screen.getByRole("heading", { name: /Transforme requisitos/i })).toBeInTheDocument();
+  expect(screen.getByText("Pilares do Ecossistema")).toBeInTheDocument();
 });
 
-test("allows switching to the requirements view", () => {
+test("allows navigating from landing page using action buttons", () => {
   render(<App />);
-  fireEvent.click(screen.getByRole("button", { name: /Requisitos do PO/ }));
-
-  expect(screen.getByRole("heading", { name: "Modelo de Requisitos & Proveniência" })).toBeInTheDocument();
+  const exploreBtn = screen.getByRole("button", { name: "Explorar Projetos" });
+  expect(exploreBtn).toBeInTheDocument();
+  fireEvent.click(exploreBtn);
 });
