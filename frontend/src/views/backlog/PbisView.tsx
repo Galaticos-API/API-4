@@ -18,6 +18,7 @@ import {
 import { descreverCamposFaltantes } from "../../models/fields";
 import { useUnsavedChangesGuard } from "../../viewmodels/useUnsavedChangesGuard";
 import { CriteriaEditor } from "./CriteriaView";
+import { ItemHistoryView } from "./ItemHistoryView";
 import { QualityPanelView as QualityPanel } from "./QualityPanelView";
 import { evaluatePbiRealtime } from "../../models/qualityEngine";
 import "../../assets/styles/projects.css";
@@ -660,7 +661,7 @@ type PbiFields = Pick<
   | "historia_eu_quero"
   | "historia_para_que"
   | "requer_interface"
->;
+> & { justificativa?: string };
 
 function toFields(
   pbi: Pbi,
@@ -675,6 +676,7 @@ function toFields(
       pbi.historia_para_que,
     requer_interface:
       pbi.requer_interface,
+    justificativa: "",
   };
 }
 
@@ -1107,6 +1109,30 @@ export function PbiDetail({
                   </label>
                 </div>
 
+                {pbi!.status === "concluido" && (
+                  <div className="project-field" key="justificativa">
+                    <label htmlFor="edit-justificativa">
+                      Justificativa da alteração (obrigatória)
+                    </label>
+                    <textarea
+                      id="edit-justificativa"
+                      rows={2}
+                      disabled={saving}
+                      placeholder="Descreva a justificativa para alterar este PBI já concluído"
+                      value={formValues.justificativa ?? ""}
+                      onChange={(event) =>
+                        setFormValues(
+                          (value) =>
+                            value && {
+                              ...value,
+                              justificativa: event.target.value,
+                            },
+                        )
+                      }
+                    />
+                  </div>
+                )}
+
                 {editMessage && (
                   <p role="alert">
                     {editMessage}
@@ -1135,6 +1161,12 @@ export function PbiDetail({
                         return;
                       }
 
+                      if (pbi!.status === "concluido" && !formValues.justificativa?.trim()) {
+                        setEditMessage("A justificativa é obrigatória ao alterar um item concluído.");
+                        document.getElementById("edit-justificativa")?.focus();
+                        return;
+                      }
+
                       setSaving(true);
                       setEditMessage("");
 
@@ -1156,10 +1188,12 @@ export function PbiDetail({
                           (value) =>
                             value + 1,
                         );
-                      } catch {
-                        setEditMessage(
-                          "Não foi possível salvar as alterações. Tente novamente.",
-                        );
+                      } catch (error: any) {
+                        const msg = error?.message || "Não foi possível salvar as alterações. Tente novamente.";
+                        setEditMessage(msg);
+                        if (msg.includes("justificativa")) {
+                          document.getElementById("edit-justificativa")?.focus();
+                        }
                       } finally {
                         setSaving(false);
                       }
@@ -1325,6 +1359,12 @@ export function PbiDetail({
         entidadeId={featureId}
         canEdit={false}
         titulo="Critérios da feature (consulta)"
+      />
+
+      <ItemHistoryView
+        entidadeTipo="pbi"
+        entidadeId={pbi!.id}
+        refreshTrigger={attempt}
       />
     </section>
   );

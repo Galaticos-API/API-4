@@ -20,6 +20,7 @@ export interface EpicInput {
   objetivo: string;
   escopo_macro: string;
   resultado_esperado: string;
+  justificativa?: string | null;
 }
 
 export interface Epic extends EpicInput {
@@ -37,6 +38,7 @@ export interface FeatureInput {
   titulo: string;
   descricao: string;
   objetivo: string;
+  justificativa?: string | null;
 }
 
 export interface Feature extends FeatureInput {
@@ -58,6 +60,8 @@ export interface PbiInput {
   historia_eu_quero: string;
   historia_para_que: string;
   requer_interface: boolean;
+  regras_observacoes?: string | null;
+  justificativa?: string | null;
 }
 
 export interface Pbi extends PbiInput {
@@ -888,4 +892,29 @@ export async function moveCriterion(
   }
 
   return data.items.map(parseCriterion);
+}
+
+export interface AuditHistoryItem {
+  id: string;
+  usuario_id: string | null;
+  usuario_nome: string | null;
+  entidade_tipo: string;
+  entidade_id: string;
+  acao: string;
+  justificativa: string | null;
+  dados_json: Record<string, unknown>;
+  created_at: string;
+}
+
+export async function getItemHistory(
+  entidadeTipo: string,
+  entidadeId: string,
+  signal?: AbortSignal,
+): Promise<AuditHistoryItem[]> {
+  const response = await apiRequest(
+    `/audit/${encodeURIComponent(entidadeTipo)}/${encodeURIComponent(entidadeId)}/history`,
+    { signal },
+  );
+  const data = await response.json();
+  return Array.isArray(data.items) ? data.items : [];
 }
