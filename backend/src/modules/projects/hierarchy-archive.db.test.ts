@@ -151,7 +151,7 @@ test("S1-24: transações exigem justificativa em alterações de itens concluí
       [configId],
     );
 
-    await db.query("INSERT INTO projeto(id,nome,cliente,status) VALUES ($1,$1::text,'Teste','ativo')", [project]);
+    await db.query("INSERT INTO projeto(id,nome,cliente,status) VALUES ($1::uuid,$2::text,'Teste','ativo')", [project, project]);
     await db.query("INSERT INTO epico(id,projeto_id,titulo,descricao,objetivo,escopo_macro,resultado_esperado,status) VALUES ($1,$2,'Épico','Descrição','Objetivo','Escopo','Resultado','concluido')", [epic, project]);
     await db.query("INSERT INTO feature(id,epico_id,titulo,descricao,objetivo,status) VALUES ($1,$2,'Feature','Descrição','Objetivo','concluido'),($3,$2,'Feature tardia','Descrição','Objetivo','rascunho')", [feature, epic, lateFeature]);
     await db.query("INSERT INTO pbi(id,feature_id,codigo,titulo,historia_como_um,historia_eu_quero,historia_para_que,status) VALUES ($1,$2,'PBI-001','PBI','PO','alterar','preservar','concluido')", [pbi, feature]);
