@@ -13,6 +13,11 @@ import qualityRouter from "./modules/quality/quality.routes.js";
 import { epicsCompatRouter } from "./modules/epics/epics.compat.routes.js";
 import { repoAnalysesRouter } from './modules/repo-analyses/repo-analyses.routes';
 import { authRouter } from "./modules/auth/auth.routes.js";
+import { documentsRouter } from "./modules/documents/documents.routes.js";
+import { searchRouter } from "./modules/search/search.routes.js";
+import { chatRouter } from "./modules/chat/chat.routes.js";
+import { developersRouter } from "./modules/developers/developers.routes.js";
+import { adminRouter } from "./modules/admin/admin.routes.js";
 import { errorHandler } from "./middleware/errorHandler.js";
 import { requireAuth } from "./middleware/requireAuth.js";
 
@@ -53,7 +58,23 @@ app.use("/api/v1/pbis", requireAuth, pbisRouter);
 app.use("/api/v1/criteria", requireAuth, criteriaRouter);
 app.use("/api/v1/quality", qualityRouter);
 
-//Repo analyzer
+// Documentos do projeto
+app.use("/api/v1/projects/:projectId/documents", documentsRouter);
+app.use("/api/v1/documents", documentsRouter);
+
+// Busca híbrida e acervo
+app.use("/api/v1/search", searchRouter);
+
+// Chat assistivo e conversas
+app.use("/api/v1/chat", chatRouter);
+
+// Desenvolvedores e competências
+app.use("/api/v1/developers", developersRouter);
+
+// Painel administrativo
+app.use("/api/v1/admin", adminRouter);
+
+// Repo analyzer
 app.use('/api/v1/projects/:projectId/repo-analyses', repoAnalysesRouter);
 
 // Swagger Documentation

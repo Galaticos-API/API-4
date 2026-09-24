@@ -1,4 +1,4 @@
-export interface User { id: string; name: string; email: string; role: "admin" | "po" | "dev" }
+export interface User { id: string; name: string; email: string; role: "admin" | "po" | "dev"; nome?: string }
 
 export class ApiError extends Error {
   constructor(public status: number, public details?: unknown) { super(`HTTP ${status}`); }
@@ -16,11 +16,13 @@ export async function apiRequest(path: string, init: RequestInit = {}) {
     headers["Authorization"] = `Bearer ${token}`;
   }
 
+  const timeoutSignal = typeof AbortSignal !== "undefined" && typeof AbortSignal.timeout === "function" ? AbortSignal.timeout(15000) : undefined;
+
   const response = await fetch(`/api/v1${path}`, {
     ...init,
     credentials: "same-origin",
     cache: "no-store",
-    signal: init.signal ?? AbortSignal.timeout(15000),
+    signal: init.signal ?? timeoutSignal,
     headers,
   });
 

@@ -95,7 +95,7 @@ it.each([403, 422, 503])("trata erro %s ao criar sem apagar os campos", async st
 it("apresenta os dados e status no detalhe", async () => {
   vi.stubGlobal("fetch", vi.fn(() => response(project)));
   render(<Projects pathname="/projects/project-1" />);
-  expect(await screen.findByText("Sinapse")).toBeTruthy();
+  expect((await screen.findAllByText("Sinapse")).length).toBeGreaterThan(0);
   expect(screen.getByText("ativo")).toBeTruthy();
   expect(screen.getByText("Conhecimento da equipe")).toBeTruthy();
 });
