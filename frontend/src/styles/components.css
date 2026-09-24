@@ -1,91 +1,94 @@
-@import "./tokens.css";
-
 .ds-button {
   min-height: 40px;
-  padding: 0 var(--ds-space-4);
-  border-radius: var(--ds-radius-sm);
+  padding: 0 var(--space-6);
+  border-radius: var(--radius-full);
   border: 1px solid transparent;
-  font: 600 14px/20px var(--ds-font-sans);
+  font: 500 14px/20px var(--font-sans);
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: var(--ds-space-2);
+  gap: var(--space-2);
   cursor: pointer;
-  transition: background var(--ds-transition-fast), border-color var(--ds-transition-fast), color var(--ds-transition-fast);
-}
-
-.ds-button:focus-visible,
-.ds-input:focus-visible,
-.ds-textarea:focus-visible {
-  outline: 3px solid color-mix(in srgb, var(--ds-focus) 45%, transparent);
-  outline-offset: 2px;
+  transition: background var(--transition-normal), border-color var(--transition-normal), color var(--transition-normal);
 }
 
 .ds-button--primary {
-  background: var(--ds-action);
-  color: var(--ds-neutral-0);
+  background: var(--brand-primary);
+  color: var(--text-primary);
 }
-.ds-button--primary:hover { background: var(--ds-action-hover); }
+.ds-button--primary:hover:not(:disabled) { background: var(--brand-primary-hover); }
 
 .ds-button--secondary {
-  background: var(--ds-bg-surface);
-  color: var(--ds-text);
-  border-color: var(--ds-border-strong);
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  border-color: var(--border-subtle);
 }
-.ds-button--secondary:hover { background: var(--ds-bg-subtle); }
+.ds-button--secondary:hover:not(:disabled) { background: var(--bg-card-hover); border-color: var(--border-active); }
 
 .ds-button--ghost {
   background: transparent;
-  color: var(--ds-text-secondary);
+  color: var(--text-secondary);
 }
-.ds-button--ghost:hover { background: var(--ds-bg-subtle); color: var(--ds-text); }
+.ds-button--ghost:hover:not(:disabled) { background: var(--bg-tertiary); color: var(--text-primary); }
 
 .ds-button--danger {
-  background: var(--ds-danger-fg);
-  color: var(--ds-neutral-0);
+  background: transparent;
+  color: var(--status-danger);
+  border-color: color-mix(in srgb, var(--status-danger-strong) 55%, transparent);
+}
+.ds-button--danger:hover:not(:disabled) { background: color-mix(in srgb, var(--status-danger-strong) 16%, transparent); }
+
+.ds-button--sm {
+  min-height: 32px;
+  padding: 0 var(--space-4);
+  font-size: 13px;
 }
 
 .ds-button:disabled {
-  opacity: .5;
+  opacity: 0.5;
   cursor: not-allowed;
 }
 
 .ds-field {
   display: grid;
-  gap: var(--ds-space-2);
+  gap: var(--space-2);
 }
 
 .ds-label {
-  color: var(--ds-text);
-  font: 600 14px/20px var(--ds-font-sans);
+  color: var(--text-primary);
+  font: 600 14px/20px var(--font-sans);
 }
 
 .ds-help {
-  color: var(--ds-text-muted);
-  font: 400 12px/16px var(--ds-font-sans);
+  color: var(--text-muted);
+  font: 400 12px/16px var(--font-sans);
+}
+
+.ds-help--error {
+  color: var(--status-danger);
 }
 
 .ds-input,
 .ds-textarea {
   width: 100%;
-  border: 1px solid var(--ds-border-strong);
-  border-radius: var(--ds-radius-sm);
-  background: var(--ds-bg-surface);
-  color: var(--ds-text);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
   padding: 10px 12px;
-  font: 400 14px/20px var(--ds-font-sans);
+  font: 400 14px/20px var(--font-sans);
 }
 .ds-input[aria-invalid="true"],
 .ds-textarea[aria-invalid="true"] {
-  border-color: var(--ds-danger-fg);
+  border-color: var(--status-danger-strong);
 }
 
 .ds-card {
-  background: var(--ds-bg-surface);
-  color: var(--ds-text);
-  border: 1px solid var(--ds-border);
-  border-radius: var(--ds-radius-md);
-  box-shadow: var(--ds-shadow-sm);
+  background: var(--bg-card);
+  color: var(--text-primary);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
 }
 
 .ds-badge {
@@ -93,47 +96,89 @@
   align-items: center;
   gap: 6px;
   min-height: 24px;
-  padding: 2px 8px;
-  border-radius: var(--ds-radius-pill);
-  font: 600 12px/16px var(--ds-font-sans);
-  border: 1px solid var(--ds-border);
-  background: var(--ds-bg-subtle);
-  color: var(--ds-text-secondary);
+  padding: 2px 12px;
+  border-radius: var(--radius-full);
+  font: 600 12px/16px var(--font-sans);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  border: 1px solid var(--border-strong);
+  background: transparent;
+  color: var(--text-secondary);
 }
 
-.ds-badge--must { background: var(--ds-danger-bg); color: var(--ds-danger-fg); border-color: transparent; }
-.ds-badge--should { background: var(--ds-warning-bg); color: var(--ds-warning-fg); border-color: transparent; }
-.ds-badge--could { background: var(--ds-info-bg); color: var(--ds-info-fg); border-color: transparent; }
-.ds-badge--success { background: var(--ds-success-bg); color: var(--ds-success-fg); border-color: transparent; }
-.ds-badge--ai { background: var(--ds-ai-bg); color: var(--ds-ai-fg); border-color: transparent; }
+.ds-badge--brand { border-color: var(--brand-primary); color: var(--brand-primary); }
+.ds-badge--success { border-color: color-mix(in srgb, var(--status-success) 60%, transparent); color: var(--status-success); background: color-mix(in srgb, var(--status-success) 12%, transparent); }
+.ds-badge--warning { border-color: color-mix(in srgb, var(--status-warning) 60%, transparent); color: var(--status-warning); background: color-mix(in srgb, var(--status-warning) 12%, transparent); }
+.ds-badge--danger { border-color: color-mix(in srgb, var(--status-danger-strong) 60%, transparent); color: var(--status-danger); background: color-mix(in srgb, var(--status-danger-strong) 12%, transparent); }
+.ds-badge--info { border-color: var(--border-strong); color: var(--text-primary); background: var(--bg-tertiary); }
 
 .ds-progress {
   height: 8px;
   overflow: hidden;
-  border-radius: var(--ds-radius-pill);
-  background: var(--ds-neutral-200);
+  border-radius: var(--radius-full);
+  background: var(--bg-tertiary);
 }
 .ds-progress > span {
   display: block;
   height: 100%;
   border-radius: inherit;
-  background: var(--ds-action);
+  background: var(--brand-primary);
+  transition: width 0.5s ease;
 }
 
+.ds-alert {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-4);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  font-size: 0.9rem;
+}
+.ds-alert--danger { border-color: color-mix(in srgb, var(--status-danger-strong) 55%, transparent); background: color-mix(in srgb, var(--status-danger-strong) 10%, transparent); }
+.ds-alert--danger strong { color: var(--status-danger); }
+.ds-alert--warning { border-color: color-mix(in srgb, var(--status-warning) 55%, transparent); background: color-mix(in srgb, var(--status-warning) 10%, transparent); }
+.ds-alert--success { border-color: color-mix(in srgb, var(--status-success) 55%, transparent); background: color-mix(in srgb, var(--status-success) 10%, transparent); }
+.ds-alert p { color: var(--text-secondary); }
+
+.ds-empty {
+  display: grid;
+  justify-items: center;
+  gap: var(--space-3);
+  padding: var(--space-8) var(--space-6);
+  text-align: center;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-md);
+}
+.ds-empty p { color: var(--text-secondary); max-width: 46ch; }
+
 .ds-ai-suggestion {
-  border: 1px solid color-mix(in srgb, var(--ds-ai-fg) 25%, transparent);
-  border-left: 4px solid var(--ds-ai-fg);
-  border-radius: var(--ds-radius-md);
-  background: var(--ds-ai-bg);
-  color: var(--ds-neutral-900);
-  padding: var(--ds-space-4);
+  border: 1px solid color-mix(in srgb, var(--brand-primary) 35%, transparent);
+  border-left: 4px solid var(--brand-primary);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--brand-primary) 8%, var(--bg-secondary));
+  color: var(--text-primary);
+  padding: var(--space-4);
 }
 
 .ds-quality-item {
   display: grid;
   grid-template-columns: 24px 1fr auto;
   align-items: start;
-  gap: var(--ds-space-3);
-  padding: var(--ds-space-3) 0;
-  border-bottom: 1px solid var(--ds-border);
+  gap: var(--space-3);
+  padding: var(--space-3) 0;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }

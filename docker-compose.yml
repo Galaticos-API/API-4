@@ -82,6 +82,11 @@ services:
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-sinapse_dev_password}
       - POSTGRES_DB=${POSTGRES_DB:-sinapse}
       - AI_SERVICE_URL=http://ai-service:8000
+      - DOCUMENT_MAX_SIZE_MB=${DOCUMENT_MAX_SIZE_MB:-20}
+      - DOCUMENT_STORAGE_DIR=/data/documents
+      - DOCUMENT_EVENTS_WEBHOOK_URL=${DOCUMENT_EVENTS_WEBHOOK_URL:-}
+    volumes:
+      - documents_data:/data/documents
     depends_on:
       postgres:
         condition: service_healthy
@@ -132,6 +137,8 @@ volumes:
     name: sinapse_n8n_data
   ollama_data:
     name: sinapse_ollama_data
+  documents_data:
+    name: sinapse_documents_data
 
 networks:
   sinapse-network:

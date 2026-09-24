@@ -113,7 +113,7 @@ export const DeveloperDashboard: React.FC = () => {
                 ))}
             </div>
 
-            <div className="glass-panel" style={{ padding: "24px", borderLeft: "4px solid var(--accent-primary)", background: "linear-gradient(90deg, rgba(99, 102, 241, 0.08) 0%, transparent 100%)" }}>
+            <div className="glass-panel" style={{ padding: "24px", borderLeft: "4px solid var(--accent-primary)", background: "linear-gradient(90deg, rgba(249, 115, 22, 0.08) 0%, transparent 100%)" }}>
                 <h4 style={{ fontSize: "1rem", fontWeight: 600, marginBottom: "8px", display: "flex", alignItems: "center", gap: "8px" }}>
                     <AlertCircle size={18} color="var(--accent-primary)" />
                     Fronteira Arquitetural Crítica (RNF-01 e PRD 10.2)

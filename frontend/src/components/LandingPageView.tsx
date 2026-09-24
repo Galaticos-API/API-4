@@ -7,8 +7,8 @@ export const LandingPageView: React.FC = () => {
         <div style={{ maxWidth: "1200px", margin: "0 auto", padding: "20px 0", display: "flex", flexDirection: "column", gap: "48px" }}>
 
             {/* Hero Section */}
-            <div className="glass-panel" style={{ padding: "48px 36px", textAlign: "center", background: "linear-gradient(135deg, rgba(99, 102, 241, 0.12) 0%, rgba(15, 23, 42, 0.6) 100%)", border: "1px solid var(--border-subtle)" }}>
-                <div style={{ display: "inline-flex", alignItems: "center", gap: "8px", background: "rgba(99, 102, 241, 0.15)", padding: "6px 16px", borderRadius: "20px", color: "var(--accent-primary)", fontSize: "0.85rem", fontWeight: 600, marginBottom: "20px" }}>
+            <div className="glass-panel" style={{ padding: "48px 36px", textAlign: "center", background: "linear-gradient(135deg, rgba(249, 115, 22, 0.12) 0%, rgba(15, 23, 42, 0.6) 100%)", border: "1px solid var(--border-subtle)" }}>
+                <div style={{ display: "inline-flex", alignItems: "center", gap: "8px", background: "rgba(249, 115, 22, 0.15)", padding: "6px 16px", borderRadius: "20px", color: "var(--accent-primary)", fontSize: "0.85rem", fontWeight: 600, marginBottom: "20px" }}>
                     <Sparkles size={16} /> A Memória Inteligente da Fábrica de Software
                 </div>
                 <h1 style={{ fontSize: "2.5rem", fontWeight: 800, color: "#fff", marginBottom: "16px", lineHeight: 1.2 }}>
@@ -52,7 +52,7 @@ export const LandingPageView: React.FC = () => {
                     </div>
 
                     <div className="glass-panel" style={{ padding: "28px" }}>
-                        <div style={{ color: "#34d399", marginBottom: "16px" }}><Search size={28} /></div>
+                        <div style={{ color: "var(--status-success)", marginBottom: "16px" }}><Search size={28} /></div>
                         <h3 style={{ fontSize: "1.15rem", fontWeight: 600, color: "#fff", marginBottom: "8px" }}>Busca Híbrida & Memória</h3>
                         <p style={{ color: "var(--text-secondary)", fontSize: "0.9rem", lineHeight: 1.5 }}>
                             Encontre rapidamente decisões passadas e consulte o acervo documental por projeto para reaproveitar aprendizados anteriores.

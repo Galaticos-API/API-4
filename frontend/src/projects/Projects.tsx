@@ -6,6 +6,7 @@ import { parseBacklogRoute } from "../backlog/navigation";
 import { BacklogScreen } from "../backlog/Backlog";
 import { EpicList } from "../backlog/Epics";
 import { RepoAnalyzerTab } from "./RepoAnalyzerTab";
+import { DocumentsTab } from "./DocumentsTab";
 import "./projects.css";
 import { ProjectArchive } from "./ProjectArchive";
 import { SearchField } from "../components/SearchField";
@@ -76,52 +77,55 @@ export function Projects({ pathname, canCreate = false }: { pathname: string; ca
   </section>;
 }
 
+type ProjectTab = "backlog" | "documents" | "repo-analyzer";
+
+const PROJECT_TABS: ReadonlyArray<{ id: ProjectTab; label: string }> = [
+  { id: "backlog", label: "Backlog e épicos" },
+  { id: "documents", label: "Documentos" },
+  { id: "repo-analyzer", label: "Análise de repositório" },
+];
+
 function ProjectDetail({ project, canCreate }: { project: Project; canCreate: boolean }) {
-  const [activeTab, setActiveTab] = useState<"backlog" | "repo-analyzer">("backlog");
+  const [activeTab, setActiveTab] = useState<ProjectTab>("backlog");
+  const archived = project.status === "arquivado";
+
+  function moveTab(event: React.KeyboardEvent<HTMLButtonElement>, index: number) {
+    const step = event.key === "ArrowRight" ? 1 : event.key === "ArrowLeft" ? -1 : 0;
+    if (!step) return;
+    event.preventDefault();
+    const next = PROJECT_TABS[(index + step + PROJECT_TABS.length) % PROJECT_TABS.length];
+    setActiveTab(next.id);
+    document.getElementById(`project-tab-${next.id}`)?.focus();
+  }
 
   return <>
     <article className="glass-panel project-card">
       <span className={`badge ${project.status === "ativo" ? "badge-success" : "badge-warning"}`}>{project.status}</span>
       <h3>{project.nome}</h3><dl><dt>Cliente</dt><dd>{project.cliente}</dd><dt>Descrição</dt><dd className="project-description">{project.descricao}</dd></dl>
-      {project.status === "arquivado" && <p>Somente leitura · Arquivado em: {project.archived_at ? new Date(project.archived_at).toLocaleString("pt-BR") : "data não registrada"}</p>}
+      {archived && <p>Somente leitura · Arquivado em: {project.archived_at ? new Date(project.archived_at).toLocaleString("pt-BR") : "data não registrada"}</p>}
     </article>
 
-    {/* Abas de Contexto do Projeto */}
-    <div className="flex border-b border-gray-200 mb-4" style={{ display: "flex", gap: "1rem", borderBottom: "1px solid #e5e7eb", marginBottom: "1.5rem" }}>
-      <button
-        onClick={() => setActiveTab("backlog")}
-        style={{
-          padding: "0.5rem 1rem",
-          fontWeight: 500,
-          fontSize: "0.875rem",
-          borderBottom: activeTab === "backlog" ? "2px solid var(--accent-primary)" : "2px solid transparent",
-          color: activeTab === "backlog" ? "var(--accent-primary)" : "var(--text-secondary)",
-          background: "none",
-          cursor: "pointer"
-        }}
-      >
-        📋 Backlog & Épicos
-      </button>
-      <button
-        onClick={() => setActiveTab("repo-analyzer")}
-        style={{
-          padding: "0.5rem 1rem",
-          fontWeight: 500,
-          fontSize: "0.875rem",
-          borderBottom: activeTab === "repo-analyzer" ? "2px solid var(--accent-primary)" : "2px solid transparent",
-          color: activeTab === "repo-analyzer" ? "var(--accent-primary)" : "var(--text-secondary)",
-          background: "none",
-          cursor: "pointer"
-        }}
-      >
-        🔬 RepoAnalyzer (Análise de Repositório)
-      </button>
+    <div className="project-tabs" role="tablist" aria-label="Contexto do projeto">
+      {PROJECT_TABS.map((tab, index) => <button
+        key={tab.id}
+        id={`project-tab-${tab.id}`}
+        type="button"
+        role="tab"
+        className="project-tab"
+        aria-selected={activeTab === tab.id}
+        aria-controls={`project-panel-${tab.id}`}
+        tabIndex={activeTab === tab.id ? 0 : -1}
+        onClick={() => setActiveTab(tab.id)}
+        onKeyDown={event => moveTab(event, index)}
+      >{tab.label}</button>)}
     </div>
 
-    {activeTab === "backlog" && <EpicList key={`${project.id}-${project.status}`} projetoId={project.id} canCreate={canCreate} />}
-    {activeTab === "repo-analyzer" && <RepoAnalyzerTab projectId={project.id} />}
+    <div id={`project-panel-${activeTab}`} role="tabpanel" aria-labelledby={`project-tab-${activeTab}`}>
+      {activeTab === "backlog" && <EpicList key={`${project.id}-${project.status}`} projetoId={project.id} canCreate={canCreate} />}
+      {activeTab === "documents" && <DocumentsTab key={project.id} projectId={project.id} canWrite={canCreate} readOnlyNote={archived ? "Projeto arquivado: os documentos ficam disponíveis somente para consulta." : undefined} />}
+      {activeTab === "repo-analyzer" && <RepoAnalyzerTab key={project.id} projectId={project.id} />}
+    </div>
   </>;
-
 }
 
 function ProjectForm() {

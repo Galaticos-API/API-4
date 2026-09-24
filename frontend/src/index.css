@@ -1,39 +1,5 @@
-:root {
-  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  --font-mono: 'JetBrains Mono', monospace;
-
-  /* PRO4TECH: off-black foundation and orange action color. */
-  --bg-primary: #0b0d10;
-  --bg-secondary: #111318;
-  --bg-tertiary: #171a21;
-  --bg-card: rgba(23, 26, 33, .92);
-  --bg-card-hover: #20242d;
-
-  --border-subtle: rgba(255, 255, 255, 0.08);
-  --border-active: rgba(237, 106, 50, .55);
-
-  --text-primary: #f8fafc;
-  --text-secondary: #94a3b8;
-  --text-muted: #64748b;
-
-  --accent-primary: #ed6a32;
-  --accent-glow: rgba(237, 106, 50, .28);
-  --accent-secondary: #f1885b;
-  --accent-emerald: #22b458;
-  --accent-amber: #c88b00;
-
-  --radius-sm: 8px;
-  --radius-md: 12px;
-  --radius-lg: 16px;
-  --radius-full: 9999px;
-
-  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.2);
-  --shadow-md: 0 4px 20px rgba(0, 0, 0, 0.35);
-  --shadow-glow: 0 0 24px var(--accent-glow);
-
-  --transition-fast: 0.15s ease;
-  --transition-normal: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-}
+@import "./styles/tokens.css";
+@import "./styles/components.css";
 
 .auth-shell {
   min-height: 100vh;
@@ -75,18 +41,21 @@
 }
 
 .auth-card [role="alert"] {
-  color: #fca5a5;
+  color: var(--status-danger);
 }
 
 button:focus-visible,
-input:focus-visible {
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+summary:focus-visible {
   outline: 2px solid var(--accent-secondary);
   outline-offset: 3px;
 }
 
 button:disabled {
-  opacity: .6;
-  cursor: wait;
+  opacity: .55;
+  cursor: not-allowed;
 }
 
 @media (max-width: 900px) {
@@ -109,10 +78,6 @@ body {
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
   min-height: 100vh;
-  background-image:
-    radial-gradient(circle at 15% 15%, rgba(99, 102, 241, 0.12) 0%, transparent 40%),
-    radial-gradient(circle at 85% 85%, rgba(6, 182, 212, 0.08) 0%, transparent 45%);
-  background-attachment: fixed;
   overflow-x: clip;
 }
 
@@ -158,7 +123,7 @@ body,
   gap: 14px;
   padding: 12px clamp(16px, 3vw, 32px);
   border-bottom: 1px solid var(--border-subtle);
-  background: rgba(11, 13, 16, .92);
+  background: rgba(10, 13, 20, .92);
   backdrop-filter: blur(14px);
 }
 
@@ -179,8 +144,45 @@ body,
   height: 38px;
   border-radius: var(--radius-md);
   color: #fff;
-  background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+  background: var(--brand-primary);
   box-shadow: 0 0 18px var(--accent-glow);
+}
+
+.app-brand-text {
+  min-width: 0;
+}
+
+.app-brand-title {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.app-brand-title h1 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: -.02em;
+}
+
+.app-brand-text p {
+  font-size: .8rem;
+  font-weight: 400;
+  color: var(--text-muted);
+}
+
+.app-env-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--status-success);
+}
+
+@media (max-width: 1100px) {
+  .app-env-badge,
+  .app-brand-text p {
+    display: none;
+  }
 }
 
 .app-nav {
@@ -190,14 +192,14 @@ body,
   gap: 3px;
   padding: 3px;
   border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-full);
   background: var(--bg-secondary);
 }
 
 .app-nav button {
   min-height: 34px;
   padding: 7px 10px;
-  border-radius: 8px;
+  border-radius: var(--radius-full);
   background: transparent;
   color: var(--text-secondary);
   font: 600 .8rem/1 var(--font-sans);
@@ -321,8 +323,11 @@ button {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 4px 10px;
+  padding: 4px 12px;
   border-radius: var(--radius-full);
+  border: 1px solid var(--border-strong);
+  background: transparent;
+  color: var(--text-secondary);
   font-size: 0.75rem;
   font-weight: 600;
   text-transform: uppercase;
@@ -330,59 +335,63 @@ button {
 }
 
 .badge-success {
-  background: rgba(16, 185, 129, 0.15);
-  color: #34d399;
-  border: 1px solid rgba(16, 185, 129, 0.3);
+  background: color-mix(in srgb, var(--status-success) 12%, transparent);
+  color: var(--status-success);
+  border-color: color-mix(in srgb, var(--status-success) 60%, transparent);
 }
 
 .badge-info {
-  background: rgba(99, 102, 241, 0.15);
-  color: #818cf8;
-  border: 1px solid rgba(99, 102, 241, 0.3);
+  background: transparent;
+  color: var(--brand-primary);
+  border-color: var(--brand-primary);
 }
 
 .badge-warning {
-  background: rgba(245, 158, 11, 0.15);
-  color: #fbbf24;
-  border: 1px solid rgba(245, 158, 11, 0.3);
+  background: color-mix(in srgb, var(--status-warning) 12%, transparent);
+  color: var(--status-warning);
+  border-color: color-mix(in srgb, var(--status-warning) 60%, transparent);
+}
+
+.badge-error {
+  background: color-mix(in srgb, var(--status-danger-strong) 12%, transparent);
+  color: var(--status-danger);
+  border-color: color-mix(in srgb, var(--status-danger-strong) 60%, transparent);
 }
 
 /* Buttons */
 .btn-primary {
-  background: linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-secondary) 100%);
-  color: #fff;
-  padding: 10px 20px;
-  border-radius: var(--radius-sm);
-  font-weight: 600;
+  background: var(--brand-primary);
+  color: var(--text-primary);
+  padding: 10px 24px;
+  border-radius: var(--radius-full);
+  font-weight: 500;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
-  box-shadow: var(--shadow-sm);
-  transition: all var(--transition-normal);
+  transition: background var(--transition-normal), box-shadow var(--transition-normal);
 }
 
-.btn-primary:hover {
-  background: linear-gradient(135deg, var(--accent-secondary) 0%, var(--accent-primary) 100%);
+.btn-primary:hover:not(:disabled) {
+  background: var(--brand-primary-hover);
   box-shadow: var(--shadow-glow);
-  transform: translateY(-1px);
 }
 
 .btn-secondary {
   background: var(--bg-tertiary);
   color: var(--text-secondary);
   border: 1px solid var(--border-subtle);
-  padding: 10px 18px;
-  border-radius: var(--radius-sm);
+  padding: 10px 20px;
+  border-radius: var(--radius-full);
   font-weight: 500;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
-  transition: all var(--transition-normal);
+  transition: background var(--transition-normal), color var(--transition-normal), border-color var(--transition-normal);
 }
 
-.btn-secondary:hover {
+.btn-secondary:hover:not(:disabled) {
   background: var(--bg-card-hover);
   color: var(--text-primary);
   border-color: var(--border-active);
