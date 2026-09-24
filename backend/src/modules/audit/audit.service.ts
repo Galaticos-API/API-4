@@ -10,6 +10,18 @@ export interface AuditEntry {
   dados_json: Record<string, unknown>;
 }
 
+export interface AuditHistoryRecord {
+  id: string;
+  usuario_id: string | null;
+  usuario_nome: string | null;
+  entidade_tipo: string;
+  entidade_id: string;
+  acao: string;
+  justificativa: string | null;
+  dados_json: Record<string, unknown>;
+  created_at: string;
+}
+
 export class AuditService {
   private db: Pool | PoolClient;
 
@@ -40,6 +52,30 @@ export class AuditService {
     ];
 
     await executor.query(query, values);
+  }
+
+  async getHistory(entidadeTipo: string, entidadeId: string): Promise<AuditHistoryRecord[]> {
+    const query = `
+      SELECT
+        a.id,
+        a.usuario_id,
+        u.nome AS usuario_nome,
+        a.entidade_tipo,
+        a.entidade_id,
+        a.acao,
+        a.justificativa,
+        a.dados_json,
+        a.created_at
+      FROM auditoria a
+      LEFT JOIN usuario u ON u.id = a.usuario_id
+      WHERE a.entidade_tipo = $1 AND a.entidade_id = $2
+      ORDER BY a.created_at DESC
+    `;
+    const result = await this.db.query(query, [entidadeTipo, entidadeId]);
+    return result.rows.map((row) => ({
+      ...row,
+      created_at: new Date(row.created_at).toISOString(),
+    }));
   }
 }
 

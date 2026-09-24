@@ -18,6 +18,7 @@ type ConfigurationRow = {
   configuration: {
     checks: Record<string, boolean>;
     vague_terms: string[];
+    exigir_justificativa_item_concluido?: boolean;
   };
   updated_at: Date | string;
   updated_by: string | null;
@@ -223,6 +224,8 @@ export class QualityConfigurationRepository {
       vague_terms:
         raw.vague_terms
         ?? [...TERMOS_VAGOS_PADRAO],
+      exigir_justificativa_item_concluido:
+        raw.exigir_justificativa_item_concluido ?? true,
       updated_at:
         new Date(row.updated_at).toISOString(),
       updated_by:

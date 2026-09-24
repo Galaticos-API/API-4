@@ -172,6 +172,12 @@ export class PbisRepository {
         client,
       );
 
+      await client.query(
+        `INSERT INTO pbi_versao (pbi_id, versao, snapshot_json, justificativa, autor_id, created_at)
+         VALUES ($1, (SELECT COALESCE(MAX(versao), 0) + 1 FROM pbi_versao WHERE pbi_id = $1), $2, $3, $4, CURRENT_TIMESTAMP)`,
+        [id, JSON.stringify(updated), data.justificativa ?? "", usuarioId ?? null],
+      );
+
       await client.query("COMMIT");
       return await this.findById(id);
     } catch (error) {
