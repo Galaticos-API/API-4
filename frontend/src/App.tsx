@@ -80,13 +80,7 @@ export const App: React.FC = () => {
           <button onClick={() => setActiveTab("projects")} className={activeTab === "projects" ? "btn-primary" : "btn-secondary"}>
             <Layers size={16} /> Projetos
           </button>
-          <button
-            onClick={() => setActiveTab("architecture")}
-            className={activeTab === "architecture" ? "btn-primary" : "btn-secondary"}
-            style={{ padding: "8px 16px", fontSize: "0.85rem" }}
-          >
-            <Layers size={16} /> Arquitetura & Stacks
-          </button>
+
           <button
             onClick={() => setActiveTab("requirements")}
             aria-label="Requisitos do PO"
