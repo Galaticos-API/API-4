@@ -13,14 +13,11 @@ Toda a especificação técnica, backlog e decisões arquiteturais estão estrut
 
 | Documento | Descrição e Conteúdo |
 |---|---|
+| 🤖 **[Contexto Canônico de IA e Agentes](docs/AGENTS.md)** | **Contexto unificado para LLM Agents** com visão do produto, schema, regras de negócio e stack. |
 | 📄 **[PRD — Product Requirements Document](docs/PRD-PRO4TECH.md)** | Requisitos funcionais (RF), não-funcionais (RNF), regras de negócio e governança de IA. |
-| 🏛️ **[Arquitetura e Modelagem de Dados](docs/Architecture/README.md)** | Diagramas de componentes, fluxo de RAG, diagrama ERD e fronteiras entre camadas. |
-| 🤖 **[Contexto Canônico de IA e Agentes](docs/AGENTS.md)** | Regras não-negociáveis para agentes autônomos e desenvolvedores (assistência estrita, proveniência e isolamento). |
-| 🛠️ **[Guia de Configuração e Ambiente](docs/SETUP_GUIDE.md)** | Passo a passo de instalação local de todas as stacks, variáveis de ambiente e portas padrão. |
+| 🏛️ **[Arquitetura, GraphRAG e Embeddings](docs/Architecture/README.md)** | Diagramas, fluxo RAG, ERD, proposta GraphRAG e benchmark do spike `bge-m3`. |
+| 📊 **[Planejamento Scrum & Plano de Tarefas](docs/PLANEJAMENTO_SCRUM.md)** | Metas executivas por sprint e detalhamento operacional das 71 tarefas técnicas. |
 | 📋 **[Backlog de Produto (66 PBIs)](docs/backlog/README.md)** | Especificação completa dos 6 épicos e 18 features no padrão da fábrica. |
-| 📅 **[Plano de Tarefas e Execução Técnica](docs/PLANO_DE_TAREFAS_DESENVOLVIMENTO.md)** | Detalhamento operacional das 71 tarefas técnicas, estimativas, dependências e status real das PREs. |
-| 📊 **[Planejamento Scrum por Sprint](docs/PLANEJAMENTO_SCRUM.md)** | Metas executivas de entrega divididas entre Sprint 1, 2 e 3. |
-| 🔬 **[Spike Técnico: Embeddings PT-BR](docs/Spike%20Embeddings.md)** | Relatório de validação do modelo `BAAI/bge-m3` (1024 dimensões) e índice HNSW no `pgvector`. |
 | 🔌 **[Contrato OpenAPI (Serviços)](docs/api/openapi.yaml)** | Especificação dos endpoints e schemas HTTP compartilhados entre backend, IA e n8n. |
 
 ---
@@ -40,23 +37,7 @@ O ecossistema é distribuído em microsserviços conteinerizados e locais:
 
 ### Qualidade e completude de PBIs
 
-O backend calcula o indicador de completude a partir das regras determinísticas
-ativas para PBIs (título, história, cenários, termos vagos e protótipo); ele não
-depende do valor em cache da coluna de score. No cadastro do PBI, o PO informa
-explicitamente se ele exige interface/protótipo. A verificação de protótipo só
-entra no cálculo quando esse campo está ativo e consulta a tabela `prototipo`.
-A política atual é persistida no PostgreSQL e pode ser consultada ou alterada por administradores em
-`GET /api/v1/quality/configuration/pbi` e `PUT /api/v1/quality/configuration/pbi`.
-As alterações são versionadas e auditadas. A migration correspondente é a
-`008_quality_organization_configuration.sql` e a regra por interface é
-introduzida por `009_pbi_interface_quality.sql`; veja o [guia de migrations](database/migrations/README.md)
-e o [contrato OpenAPI](docs/api/openapi.yaml).
-
-**Escopo restante:** configuração de qualidade para épicos/features e regras de
-Definition of Ready/Done ainda não estão incluídas nesta entrega. A migration
-009 adiciona o campo explícito ao PBI e a verificação de protótipo à configuração
-versionada. Consulte a [revisão QA da PR #26](docs/qa/revisao-pr-26.md) para
-verificações, limites e status de aceite.
+O backend calcula o indicador de completude a partir das regras determinísticas ativas para PBIs (título, história, cenários, termos vagos e protótipo); ele não depende do valor em cache da coluna de score. No cadastro do PBI, o PO informa explicitamente se ele exige interface/protótipo. A verificação de protótipo só entra no cálculo quando esse campo está ativo e consulta a tabela `prototipo`. A política atual é persistida no PostgreSQL e pode ser consultada ou alterada por administradores em `GET /api/v1/quality/configuration/pbi` e `PUT /api/v1/quality/configuration/pbi`. As alterações são versionadas e auditadas. As migrations correspondentes são `008_quality_organization_configuration.sql` e `009_pbi_interface_quality.sql`; veja o [guia de migrations](database/migrations/README.md) e o [contrato OpenAPI](docs/api/openapi.yaml).
 
 ---
 
@@ -90,7 +71,7 @@ docker compose down
 
 Para remover o container e todos seus dados:
 ```bash
-docker compose down -r
+docker compose down -v
 ```
 
 ### 4. Baixar Modelos Locais no Ollama (opcional)
@@ -153,15 +134,12 @@ API-4/
 │   ├── migrations/            # Migrations versionadas em SQL
 │   └── seed/                  # Carga de dados fictícios para desenvolvimento
 ├── docs/                      # Documentação canônica consolidada
-│   ├── Architecture/          # Diagramas de arquitetura, fluxo RAG e ERD
+│   ├── AGENTS.md              # Contexto canônico autoritativo para agentes e LLMs
 │   ├── PRD-PRO4TECH.md        # Especificação técnica e requisitos funcionais
+│   ├── PLANEJAMENTO_SCRUM.md  # Organização das tarefas de desenvolvimento e plano técnico
+│   ├── Architecture/          # Diagramas de arquitetura, fluxo RAG, ERD e GraphRAG
 │   ├── backlog/               # Mapeamento dos 6 épicos e 66 PBIs
-│   ├── PLANO_DE_TAREFAS_DESENVOLVIMENTO.md # Plano detalhado e status
-│   ├── api/                   # Contrato OpenAPI (openapi.yaml)
-│   ├── AGENTS.md              # Diretrizes canônicas para agentes e LLMs
-│   ├── PLANEJAMENTO_SCRUM.md  # Organização das tarefas de desenvolvimento
-│   ├── SETUP_GUIDE.md         # Guia de configuração e desenvolvimento
-│   └── Spike Embeddings.md    # Relatório técnico do Spike PRE-07
+│   └── api/                   # Contrato OpenAPI (openapi.yaml)
 ├── frontend/                  # SPA React 19/TypeScript/Vite (Interface do PO)
 ├── n8n/                       # Workflows exportados e arquivos locais monitorados
 ├── scripts/                   # Utilitários e benchmarks (spike_embeddings.py)

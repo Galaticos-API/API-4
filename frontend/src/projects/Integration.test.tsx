@@ -30,11 +30,11 @@ it("faz login no destino de projetos, cria e consulta usando o contrato real das
   fireEvent.change(screen.getByLabelText("Senha"), { target: { value: "senha" } });
   fireEvent.click(screen.getByText("Entrar"));
   await screen.findByLabelText("Nome do projeto");
-  expect(screen.getByText(user.nome)).toBeTruthy();
+  expect(screen.getByText(new RegExp(user.nome, "i"))).toBeTruthy();
   fireEvent.change(screen.getByLabelText("Nome do projeto"), { target: { value: project.nome } });
   fireEvent.change(screen.getByLabelText("Cliente"), { target: { value: project.cliente } });
   fireEvent.click(screen.getByRole("button", { name: "Criar projeto" }));
-  expect(await screen.findByText(project.nome)).toBeTruthy();
+  expect((await screen.findAllByText(project.nome)).length).toBeGreaterThan(0);
   expect(window.location.pathname).toBe(`/projects/${project.id}`);
   expect(screen.getByText("em_andamento")).toBeTruthy();
   const post = request.mock.calls.find(([url, init]) => url === "/api/v1/projects" && init?.method === "POST");

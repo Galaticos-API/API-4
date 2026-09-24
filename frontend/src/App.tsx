@@ -1,20 +1,24 @@
 import React, { useState, useEffect } from "react";
-import { isProjectPath, navigate, routes } from "./auth/navigation";
+import { isProjectPath, navigate, routes } from "./models/navigation";
 import { useAuth } from "./auth/Auth";
-import { Projects } from "./projects/Projects";
-import { LandingPageView } from "./components/LandingPageView";
-import { DeveloperDashboard } from "./components/DeveloperDashboard";
-import {
-  Cpu,
-  Layers,
-  Sparkles,
-  BookOpen,
-} from "lucide-react";
+import { ProjectsView } from "./views/projects/ProjectsView";
+import { LandingPageView } from "./views/landing/LandingPageView";
+import { DeveloperDashboardView } from "./views/dashboard/DeveloperDashboardView";
+import { DocumentsView } from "./views/documents/DocumentsView";
+import { KnowledgeView } from "./views/knowledge/KnowledgeView";
+import { ChatView } from "./views/chat/ChatView";
+import { AdminView } from "./views/admin/AdminView";
+import { RequirementsView } from "./views/backlog/RequirementsView";
+import "./assets/styles/garakis-prototype.css";
 
 export const App: React.FC = () => {
   const { session, logout } = useAuth();
   const [pathname, setPathname] = useState(window.location.pathname);
-  const activeTab = isProjectPath(pathname) ? "projects" : (Object.keys(routes) as Array<keyof typeof routes>).find(key => routes[key] === pathname);
+
+  const activeTab = isProjectPath(pathname)
+    ? "projects"
+    : (Object.keys(routes) as Array<keyof typeof routes>).find((key) => routes[key] === pathname) || "projects";
+
   const setActiveTab = (tab: keyof typeof routes) => navigate(routes[tab]);
 
   useEffect(() => {
@@ -24,112 +28,70 @@ export const App: React.FC = () => {
   }, []);
 
   return (
-    <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
-      {/* Top Header */}
-      <header
-        style={{
-          borderBottom: "1px solid var(--border-subtle)",
-          background: "rgba(10, 13, 20, 0.8)",
-          backdropFilter: "blur(10px)",
-          position: "sticky",
-          top: 0,
-          zIndex: 100,
-          padding: "16px 32px",
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
-          <div
-            style={{
-              width: "40px",
-              height: "40px",
-              borderRadius: "10px",
-              background: "linear-gradient(135deg, #6366f1 0%, #06b6d4 100%)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              boxShadow: "0 0 15px rgba(99, 102, 241, 0.4)",
-            }}
+    <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", background: "var(--bg)", color: "var(--text)" }}>
+      {/* Top Header Bar (Protótipo Garakis) */}
+      <header className="top-header">
+        <a className="brand" onClick={() => navigate("/projects")}>
+          S<b>•</b>NAPSE
+        </a>
+
+        <nav className="nav-links" aria-label="Navegação principal">
+          <button
+            onClick={() => setActiveTab("projects")}
+            className={activeTab === "projects" ? "active" : ""}
           >
-            <Sparkles size={22} color="#fff" />
-          </div>
-          <div>
-            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-              <h1 style={{ fontSize: "1.25rem", fontWeight: 700, letterSpacing: "-0.02em" }}>Sinapse</h1>
-              <span className="badge badge-info">PRO4TECH API-4</span>
-            </div>
-            <p style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>
-              Memória Institucional da Fábrica de Software
-            </p>
-          </div>
-        </div>
-
-        {/* Navigation Tabs */}
-        <div
-          style={{
-            display: "flex",
-            gap: "6px",
-            background: "var(--bg-secondary)",
-            padding: "4px",
-            borderRadius: "var(--radius-md)",
-            border: "1px solid var(--border-subtle)",
-          }}
-        >
-          <button onClick={() => setActiveTab("projects")} className={activeTab === "projects" ? "btn-primary" : "btn-secondary"}>
-            <Layers size={16} /> Projetos
+            Projetos
           </button>
-
           <button
             onClick={() => setActiveTab("requirements")}
-            aria-label="Requisitos do PO"
-            className={activeTab === "requirements" ? "btn-primary" : "btn-secondary"}
-            style={{ padding: "8px 16px", fontSize: "0.85rem" }}
+            className={activeTab === "requirements" ? "active" : ""}
           >
-            <BookOpen size={16} /> Requisitos do PO
+            Backlog
           </button>
           <button
-            onClick={() => setActiveTab("rag")}
-            className={activeTab === "rag" ? "btn-primary" : "btn-secondary"}
-            style={{ padding: "8px 16px", fontSize: "0.85rem" }}
+            onClick={() => setActiveTab("knowledge")}
+            className={activeTab === "knowledge" ? "active" : ""}
           >
-            <Cpu size={16} /> RAG & Assistente IA
+            Conhecimento
           </button>
-        </div>
+          <button
+            onClick={() => setActiveTab("chat")}
+            className={activeTab === "chat" || activeTab === "rag" ? "active" : ""}
+          >
+            Conversa
+          </button>
+        </nav>
 
         <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-          <span>{session.user?.name}</span>
-          <button className="btn-secondary" onClick={() => void logout()}>Sair</button>
-          <span className="badge badge-success">
-            <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#10b981" }} />
-            Ambiente Local Ativo
-          </span>
+          <button className="user-menu-btn" onClick={() => navigate("/admin")}>
+            {session.user?.nome || session.user?.name || "Cauan Gabriel"} · {session.user?.role?.toUpperCase() || "PO"} ▾
+          </button>
+          <button
+            className="btn-garakis secondary"
+            style={{ minHeight: "34px", padding: "0 12px", fontSize: "0.8rem" }}
+            onClick={() => void logout()}
+          >
+            Sair
+          </button>
         </div>
       </header>
 
       {/* Main Content Area */}
-      <main className="app-main">
-        {activeTab === "projects" && <Projects key={pathname} pathname={pathname} canCreate={session.user?.role === "po" || session.user?.role === "admin"} />}
-
-        {/* Landing Page como visão principal da rota "/" */}
-        {(activeTab === "landing" || !activeTab) && <LandingPageView />}
-
-        {/* Aba de arquitetura / dashboard técnico exclusiva para devs */}
-        {activeTab === "architecture" && <DeveloperDashboard />}
-
-        {activeTab === "knowledge" && <UnavailableScreen title="Acervo de conhecimento" description="A busca no acervo será conectada quando a API de documentos e pesquisa estiver disponível na main." />}
-        {activeTab === "chat" && <UnavailableScreen title="Conversa" description="A conversa por projeto depende do contrato de histórico e consulta assistida, ainda não publicado no backend da main." />}
+      <main style={{ flex: 1 }}>
+        {activeTab === "projects" && <ProjectsView key={pathname} pathname={pathname} canCreate={session.user?.role === "po" || session.user?.role === "admin"} />}
+        {activeTab === "requirements" && <RequirementsView canCreate={session.user?.role === "po" || session.user?.role === "admin"} />}
+        {activeTab === "documents" && <DocumentsView />}
+        {activeTab === "knowledge" && <KnowledgeView />}
+        {(activeTab === "chat" || activeTab === "rag") && <ChatView />}
+        {activeTab === "admin" && <AdminView />}
+        {activeTab === "architecture" && <DeveloperDashboardView />}
+        {activeTab === "landing" && <LandingPageView />}
       </main>
 
       {/* Footer */}
-      <footer style={{ borderTop: "1px solid var(--border-subtle)", padding: "16px 32px", textAlign: "center", fontSize: "0.8rem", color: "var(--text-muted)" }}>
-        PRO4TECH &middot; Fatec São José dos Campos &middot; Grupo Galáticos &middot; 2º Semestre/2026
+      <footer style={{ borderTop: "1px solid var(--line)", padding: "20px 36px", textAlign: "center", fontSize: "0.8rem", color: "var(--dim)" }}>
+        Sinapse &middot; PRO4TECH &middot; Fatec São José dos Campos &middot; Grupo Galáticos &middot; 2º Semestre/2026
       </footer>
     </div>
   );
 };
-
-function UnavailableScreen({ title, description }: { title: string; description: string }) {
-  return <section className="unavailable-screen"><p>EM PREPARAÇÃO</p><h2>{title}</h2><p>{description}</p><button className="btn-secondary" onClick={() => navigate("/projects")}>Abrir projetos</button></section>;
-}

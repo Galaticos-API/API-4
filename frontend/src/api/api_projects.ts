@@ -1,18 +1,18 @@
 import { apiRequest } from "./api_auth";
 
 export interface ProjectInput { nome: string; cliente: string; descricao: string }
-export interface Project extends ProjectInput { id: string; status: "ativo" | "em_andamento" | "concluido" | "arquivado"; archived_at?: string | null }
+export interface Project extends ProjectInput { id: string; status: "ativo" | "em_andamento" | "concluido" | "arquivado"; archived_at?: string | null; documentos_count?: number }
 export interface ArchiveImpact { projeto: number; epicos: number; features: number; pbis: number }
 
 export async function getArchiveImpact(id: string): Promise<ArchiveImpact> {
-  const data = await (await apiRequest(`/projects/${encodeURIComponent(id)}/archive-impact`, { signal: AbortSignal.timeout(15000) })).json();
+  const data = await (await apiRequest(`/projects/${encodeURIComponent(id)}/archive-impact`)).json();
   if (!data || !["projeto", "epicos", "features", "pbis"].every(key => Number.isInteger(data[key]) && data[key] >= 0)) throw new Error("Prévia inválida");
   return data;
 }
 
 export async function archiveProject(id: string, impacto: ArchiveImpact): Promise<Project> {
   return parseProject(await (await apiRequest(`/projects/${encodeURIComponent(id)}/archive`, {
-    method: "PATCH", body: JSON.stringify({ confirmado: true, impacto }), signal: AbortSignal.timeout(15000),
+    method: "PATCH", body: JSON.stringify({ confirmado: true, impacto }),
   })).json());
 }
 

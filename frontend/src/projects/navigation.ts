@@ -1,1 +1,1 @@
-export { routes, isProjectPath, navigate } from "../auth/navigation";
+export { routes, isProjectPath, navigate } from "../models/navigation";
