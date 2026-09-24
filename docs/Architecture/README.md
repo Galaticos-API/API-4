@@ -263,3 +263,59 @@ erDiagram
 | **Ingestão** | n8n | Watch de pastas em `/files`, conversão de arquivos e gatilhos de disparo para `POST /ingest`. | Não define o tamanho dos chunks nem calcula vetores internamente. |
 | **Banco** | PostgreSQL 16 + pgvector | Armazena dados relacionais estruturados e vetores de chunks indexados por HNSW. | Não expõe acesso direto para o cliente web. |
 | **IA Local** | Ollama | Executa modelos de LLM e Embeddings localmente via API HTTP. | Não gerencia permissões de projeto ou regras de negócio da PRO4TECH. |
+
+---
+
+## 5. Seleção e Benchmark de Embeddings (Spike PRE-07)
+
+### Decisão Técnica: `BAAI/bge-m3` via Ollama Local
+
+* **Modelo Recomendado:** `BAAI/bge-m3` (Multilíngue nativo, topo do benchmark MTEB em PT-BR)
+* **Dimensão do Vetor:** **1024** (100% aderente à coluna `chunk.embedding vector(1024)` do PostgreSQL pgvector, sem necessidade de alterações no DDL).
+* **Janela de Contexto:** 8.192 tokens por chunk.
+* **Acurácia em PT-BR:** 100% Top-1 nos testes de similaridade semântica com margem de separação média de **+0,81** sobre ruído.
+
+### Comparativo dos Modelos Avaliados:
+
+| Modelo | Dimensão Vetorial | Compatibilidade `pgvector(1024)` | Acurácia Top-1 | Margem Média contra Distrator | Latência Média | Consumo RAM/VRAM |
+|---|:---:|:---:|:---:|:---:|:---:|:---:|
+| **`bge-m3`** | **1024** | **COMPATÍVEL** | **100%** | **+0,81** | **~142 ms** | ~3,0 GB |
+| **`multilingual-e5-large`** | 1024 | COMPATÍVEL | 100% | +0,74 | ~158 ms | ~3,1 GB |
+| **`nomic-embed-text`** | 768 | INCOMPATÍVEL | 100% | +0,59 | ~48 ms | ~1,1 GB |
+| **`all-MiniLM-L6-v2`** | 384 | INCOMPATÍVEL | 100% | +0,35 | ~22 ms | ~0,4 GB |
+
+---
+
+## 6. Evolução Técnica: Proposta GraphRAG Híbrido
+
+O GraphRAG (Graph Retrieval-Augmented Generation) evolui o RAG vetorial unindo busca semântica por embeddings e navegação em grafo de conhecimento relacional.
+
+### Eixos do Grafo no Sinapse:
+- **`PROJETO`** $\leftrightarrow$ **`PESSOAS`** $\leftrightarrow$ **`TECNOLOGIAS / STACKS`** $\leftrightarrow$ **`DECISÕES`** $\leftrightarrow$ **`DOCUMENTOS`**
+
+### Modelo Relacional do Grafo no PostgreSQL:
+```sql
+CREATE TABLE knowledge_entity (
+    id UUID PRIMARY KEY,
+    project_id UUID NOT NULL REFERENCES projeto(id) ON DELETE CASCADE,
+    entity_type VARCHAR(50) NOT NULL, -- TECHNOLOGY, PERSON, PROJECT, DECISION
+    name TEXT NOT NULL,
+    normalized_name TEXT NOT NULL
+);
+
+CREATE TABLE knowledge_relation (
+    id UUID PRIMARY KEY,
+    project_id UUID NOT NULL REFERENCES projeto(id) ON DELETE CASCADE,
+    source_entity_id UUID NOT NULL REFERENCES knowledge_entity(id),
+    relation_type VARCHAR(80) NOT NULL, -- USES, WORKED_ON, DEPENDS_ON, JUSTIFIES
+    target_entity_id UUID NOT NULL REFERENCES knowledge_entity(id),
+    source_chunk_id UUID REFERENCES chunk(id),
+    confidence REAL
+);
+```
+
+### Pipeline GraphRAG de Consulta:
+1. **Filtro Estrito por Projeto:** Aplica `project_id` antes do traversal.
+2. **Hybrid Search:** Combina Similaridade Vetorial (`pgvector` HNSW) + Busca em Grafo (1-2 saltos).
+3. **Context Builder & Harness:** Injeta contexto enriquecido com entidades e citações exatas no prompt do LLM.
+

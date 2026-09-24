@@ -106,10 +106,10 @@ infraestrutura não descreve comportamento de usuário. Ficam registrados aqui p
 planejamento, fora da hierarquia.
 
 Os habilitadores são identificados como `PRE-*` e a lista oficial vive no
-[Plano de Tarefas de Desenvolvimento](../PLANO_DE_TAREFAS_DESENVOLVIMENTO.md), que é
+[Plano de Tarefas e Execução](../PLANEJAMENTO_SCRUM.md), que é
 a fonte dos cartões do quadro. A tabela abaixo é a visão do backlog: acrescenta quais
 **features** cada habilitador bloqueia. Responsáveis e situação técnica ficam no plano de
-tarefas e no registro de status do [Plano de Tarefas](../PLANO_DE_TAREFAS_DESENVOLVIMENTO.md), para não divergirem daqui.
+tarefas e no registro de status do [Planejamento Scrum](../PLANEJAMENTO_SCRUM.md), para não divergirem daqui.
 
 | # | Habilitador | Bloqueia |
 |:---:|---|---|
