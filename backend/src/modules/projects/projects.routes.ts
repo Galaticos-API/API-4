@@ -4,7 +4,10 @@ import { requireRole } from "../../middleware/requireRole.js";
 
 export const projectsRouter = Router();
 
-const canWrite = requireRole("admin", "po");
+const canWrite = requireRole(
+  "admin",
+  "po",
+);
 
 /**
  * @swagger
@@ -60,7 +63,11 @@ const canWrite = requireRole("admin", "po");
  *       403:
  *         description: Sem permissão
  */
-projectsRouter.post("/", canWrite, projectsController.create);
+projectsRouter.post(
+  "/",
+  canWrite,
+  projectsController.create,
+);
 
 /**
  * @swagger
@@ -125,7 +132,38 @@ projectsRouter.post("/", canWrite, projectsController.create);
  *       401:
  *         description: Não autenticado
  */
-projectsRouter.get("/", projectsController.list);
+projectsRouter.get(
+  "/",
+  projectsController.list,
+);
+
+/**
+ * @swagger
+ * /api/v1/projects/{id}/backlog-tree:
+ *   get:
+ *     summary: Obter a árvore completa do backlog de um projeto
+ *     tags: [Projects]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *     responses:
+ *       200:
+ *         description: Projeto com épicos, features, PBIs e tecnologias associadas
+ *       400:
+ *         description: ID inválido
+ *       404:
+ *         description: Projeto não encontrado
+ */
+projectsRouter.get(
+  "/:id/backlog-tree",
+  projectsController.backlogTree,
+);
 
 /**
  * @swagger
@@ -155,7 +193,10 @@ projectsRouter.get("/", projectsController.list);
  *       404:
  *         description: Projeto não encontrado
  */
-projectsRouter.get("/:id", projectsController.getById);
+projectsRouter.get(
+  "/:id",
+  projectsController.getById,
+);
 
 /**
  * @swagger
@@ -216,7 +257,11 @@ projectsRouter.get("/:id", projectsController.getById);
  *       404:
  *         description: Projeto não encontrado
  */
-projectsRouter.put("/:id", canWrite, projectsController.update);
+projectsRouter.put(
+  "/:id",
+  canWrite,
+  projectsController.update,
+);
 
 /**
  * @swagger
@@ -277,7 +322,11 @@ projectsRouter.put("/:id", canWrite, projectsController.update);
  *       404:
  *         description: Projeto não encontrado
  */
-projectsRouter.patch("/:id", canWrite, projectsController.update);
+projectsRouter.patch(
+  "/:id",
+  canWrite,
+  projectsController.update,
+);
 
 /**
  * @swagger
@@ -319,5 +368,14 @@ projectsRouter.patch("/:id", canWrite, projectsController.update);
  *       404:
  *         description: Projeto não encontrado
  */
-projectsRouter.patch("/:id/archive", canWrite, projectsController.archive);
-projectsRouter.get("/:id/archive-impact", canWrite, projectsController.archiveImpact);
+projectsRouter.patch(
+  "/:id/archive",
+  canWrite,
+  projectsController.archive,
+);
+
+projectsRouter.get(
+  "/:id/archive-impact",
+  canWrite,
+  projectsController.archiveImpact,
+);
