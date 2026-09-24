@@ -6,6 +6,7 @@ import { navigate } from "../../models/navigation";
 import { createFeature, completeFeature, updateFeature, getFeature, listFeatures, camposFaltantesDe, type Feature, type FeatureInput } from "../../api/api_backlog";
 import { descreverCamposFaltantes } from "../../models/fields";
 import { useUnsavedChangesGuard } from "../../viewmodels/useUnsavedChangesGuard";
+import { usePbiQualityConfiguration } from "../../viewmodels/usePbiQualityConfiguration";
 import { CriteriaEditor } from "./CriteriaView";
 import "../../assets/styles/projects.css";
 
@@ -135,6 +136,9 @@ export function FeatureDetail({ projectId, epicoId, featureId, canEdit, children
   }, [featureId, attempt]);
 
   const feature = result.state === "ready" ? result.feature : null;
+  const justificationPolicy = usePbiQualityConfiguration(
+    feature?.status === "concluido",
+  );
   const isDirty = editing && feature !== null && formValues !== null && JSON.stringify(formValues) !== JSON.stringify(toFields(feature));
   const { confirmLeave } = useUnsavedChangesGuard(isDirty);
 
@@ -143,6 +147,9 @@ export function FeatureDetail({ projectId, epicoId, featureId, canEdit, children
     <button className="btn-secondary" onClick={() => setAttempt((v) => v + 1)}>Tentar novamente</button></div>;
 
   const readOnly = feature!.status === "arquivado" || feature!.projeto_status === "arquivado";
+  const justificationRequired = feature!.status === "concluido"
+    && (justificationPolicy.result.state !== "ready"
+      || justificationPolicy.result.config.exigir_justificativa_item_concluido);
 
   return (
     <section className="projects-page">
@@ -163,7 +170,7 @@ export function FeatureDetail({ projectId, epicoId, featureId, canEdit, children
                   : <input id={`edit-${field}`} type="text" disabled={saving} value={formValues[field] ?? ""} onChange={(e) => setFormValues((v) => v && { ...v, [field]: e.target.value })} />}
               </div>
             ))}
-            {feature!.status === "concluido" && (
+            {justificationRequired && (
               <div className="project-field" key="justificativa">
                 <label htmlFor="edit-justificativa">Justificativa da alteração (obrigatória)</label>
                 <textarea
@@ -180,14 +187,16 @@ export function FeatureDetail({ projectId, epicoId, featureId, canEdit, children
             <div className="project-actions">
               <button className="btn-primary" disabled={saving} onClick={async () => {
                 if (!formValues?.titulo.trim()) { setEditMessage("O título não pode ficar vazio."); return; }
-                if (feature!.status === "concluido" && !formValues?.justificativa?.trim()) {
+                if (justificationRequired && !formValues?.justificativa?.trim()) {
                   setEditMessage("A justificativa é obrigatória ao alterar um item concluído.");
                   document.getElementById("edit-justificativa")?.focus();
                   return;
                 }
                 setSaving(true); setEditMessage("");
                 try {
-                  const updated = await updateFeature(feature!.id, formValues);
+                  const payload = { ...formValues };
+                  if (!justificationRequired) delete payload.justificativa;
+                  const updated = await updateFeature(feature!.id, payload);
                   setResult({ state: "ready", feature: updated });
                   setEditing(false);
                   setAttempt((v) => v + 1);
@@ -237,7 +246,8 @@ export function FeatureDetail({ projectId, epicoId, featureId, canEdit, children
       </article>
       {feature!.status === "arquivado" && <p>Arquivado em: {feature!.archived_at ? new Date(feature!.archived_at!).toLocaleString("pt-BR") : "data não registrada"}</p>}
       <ItemArchiveView project={feature!} kind="features" canWrite={canEdit && !readOnly && !editing && !saving && !completing} onArchived={() => setAttempt(v => v + 1)} />
-      <CriteriaEditor entidadeTipo="feature" entidadeId={feature!.id} canEdit={canEdit && !readOnly} titulo="Critérios da feature" />
+      <CriteriaEditor entidadeTipo="feature" entidadeId={feature!.id} canEdit={canEdit && !readOnly} titulo="Critérios da feature"
+        itemConcluido={feature!.status === "concluido"} justificativaObrigatoria={justificationRequired} />
       <ItemHistoryView entidadeTipo="feature" entidadeId={feature!.id} refreshTrigger={attempt} />
       <ReadOnlyContext.Provider value={readOnly}>{children}</ReadOnlyContext.Provider>
     </section>

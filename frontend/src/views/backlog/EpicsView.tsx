@@ -6,6 +6,7 @@ import { navigate } from "../../models/navigation";
 import { createEpic, completeEpic, updateEpic, getEpic, listEpics, camposFaltantesDe, type Epic, type EpicInput } from "../../api/api_backlog";
 import { descreverCamposFaltantes } from "../../models/fields";
 import { useUnsavedChangesGuard } from "../../viewmodels/useUnsavedChangesGuard";
+import { usePbiQualityConfiguration } from "../../viewmodels/usePbiQualityConfiguration";
 import { CriteriaEditor } from "./CriteriaView";
 import "../../assets/styles/projects.css";
 
@@ -138,6 +139,9 @@ export function EpicDetail({ projectId, epicId, canEdit, children }: { projectId
   }, [epicId, attempt]);
 
   const epic = result.state === "ready" ? result.epic : null;
+  const justificationPolicy = usePbiQualityConfiguration(
+    epic?.status === "concluido",
+  );
   const isDirty = editing && epic !== null && formValues !== null && JSON.stringify(formValues) !== JSON.stringify(toFields(epic));
   const { confirmLeave } = useUnsavedChangesGuard(isDirty);
 
@@ -150,6 +154,9 @@ export function EpicDetail({ projectId, epicId, canEdit, children }: { projectId
   const projetoArquivado = epic.projeto_status === "arquivado";
   const readOnly = epicoArquivado || projetoArquivado;
   const canWrite = canEdit && !readOnly;
+  const justificationRequired = epic.status === "concluido"
+    && (justificationPolicy.result.state !== "ready"
+      || justificationPolicy.result.config.exigir_justificativa_item_concluido);
 
   return (
     <section className="projects-page">
@@ -181,7 +188,7 @@ export function EpicDetail({ projectId, epicId, canEdit, children }: { projectId
                   : <input id={`edit-${field}`} type="text" disabled={saving} value={formValues[field] ?? ""} onChange={(e) => setFormValues((v) => v && { ...v, [field]: e.target.value })} />}
               </div>
             ))}
-            {epic.status === "concluido" && (
+            {justificationRequired && (
               <div className="project-field" key="justificativa">
                 <label htmlFor="edit-justificativa">Justificativa da alteração (obrigatória)</label>
                 <textarea
@@ -198,14 +205,16 @@ export function EpicDetail({ projectId, epicId, canEdit, children }: { projectId
             <div className="project-actions">
               <button className="btn-primary" disabled={saving} onClick={async () => {
                 if (!formValues?.titulo.trim()) { setEditMessage("O título não pode ficar vazio."); return; }
-                if (epic.status === "concluido" && !formValues?.justificativa?.trim()) {
+                if (justificationRequired && !formValues?.justificativa?.trim()) {
                   setEditMessage("A justificativa é obrigatória ao alterar um item concluído.");
                   document.getElementById("edit-justificativa")?.focus();
                   return;
                 }
                 setSaving(true); setEditMessage("");
                 try {
-                  const updated = await updateEpic(epic.id, formValues);
+                  const payload = { ...formValues };
+                  if (!justificationRequired) delete payload.justificativa;
+                  const updated = await updateEpic(epic.id, payload);
                   setResult({ state: "ready", epic: updated });
                   setEditing(false);
                   setAttempt((v) => v + 1);
@@ -257,7 +266,8 @@ export function EpicDetail({ projectId, epicId, canEdit, children }: { projectId
       </article>
       {epic.status === "arquivado" && <p>Arquivado em: {epic.archived_at ? new Date(epic.archived_at!).toLocaleString("pt-BR") : "data não registrada"}</p>}
       <ItemArchiveView project={epic} kind="epics" canWrite={canEdit && !readOnly && !editing && !saving && !completing} onArchived={() => setAttempt(v => v + 1)} />
-      <CriteriaEditor entidadeTipo="epico" entidadeId={epic.id} canEdit={canWrite} titulo="Critérios do épico" />
+      <CriteriaEditor entidadeTipo="epico" entidadeId={epic.id} canEdit={canWrite} titulo="Critérios do épico"
+        itemConcluido={epic.status === "concluido"} justificativaObrigatoria={justificationRequired} />
       <ItemHistoryView entidadeTipo="epico" entidadeId={epic.id} refreshTrigger={attempt} />
       <ReadOnlyContext.Provider value={readOnly}>{children}</ReadOnlyContext.Provider>
     </section>

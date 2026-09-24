@@ -1,4 +1,4 @@
-import { Pool } from "pg";
+import { Pool, PoolClient } from "pg";
 import { pool } from "../../database/db.js";
 import { auditService } from "../audit/audit.service.js";
 import { ValidationError } from "../../shared/errors.js";
@@ -28,8 +28,11 @@ type ConfigurationRow = {
 export class QualityConfigurationRepository {
   constructor(private readonly db: Pool = pool) {}
 
-  async getPbiConfiguration(): Promise<PbiQualityConfigurationRecord> {
-    const result = await this.db.query<ConfigurationRow>(
+  async getPbiConfiguration(
+    executor: Pool | PoolClient = this.db,
+    options: { lock?: boolean } = {},
+  ): Promise<PbiQualityConfigurationRecord> {
+    const result = await executor.query<ConfigurationRow>(
       `
         SELECT
           c.id,
@@ -41,6 +44,7 @@ export class QualityConfigurationRepository {
         FROM quality_configuration c
         LEFT JOIN usuario u ON u.id = c.updated_by
         WHERE c.id = $1
+        ${options.lock ? "FOR SHARE OF c" : ""}
       `,
       [CONFIGURATION_ID],
     );
@@ -111,7 +115,14 @@ export class QualityConfigurationRepository {
         `,
         [
           CONFIGURATION_ID,
-          JSON.stringify(input),
+          JSON.stringify({
+            ...before.configuration,
+            ...input,
+            exigir_justificativa_item_concluido:
+              input.exigir_justificativa_item_concluido
+              ?? before.configuration.exigir_justificativa_item_concluido
+              ?? true,
+          }),
           usuarioId,
         ],
       );
@@ -127,7 +138,7 @@ export class QualityConfigurationRepository {
           dados_json: {
             actor_id: usuarioId,
             before: before.configuration,
-            after: input,
+            after: after.configuration,
             version: after.version,
           },
         },

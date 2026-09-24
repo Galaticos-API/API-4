@@ -15,6 +15,7 @@ import { ArchiveConflict } from "./archive.types.js";
 import { FeaturesRepository } from "../features/features.repository.js";
 import { featureQuerySchema } from "../features/features.types.js";
 import { PbisRepository } from "../pbis/pbis.repository.js";
+import { AuditService } from "../audit/audit.service.js";
 import { CriteriaRepository } from "../criteria/criteria.repository.js";
 
 test("S1-09: arquivamento direto, preservação, filtros e escrita concorrente", { skip: !process.env.ARCHIVE_TEST_DATABASE_URL }, async (t) => {
@@ -122,6 +123,104 @@ test("S1-09: uma hierarquia ativa continua permitindo criar feature e PBI", { sk
     await db.query("DELETE FROM criterio_aceitacao WHERE entidade_id=$1", [epic]);
     await db.query("DELETE FROM auditoria WHERE entidade_id=ANY($1::uuid[])", [ids]);
     await db.query("DELETE FROM projeto WHERE id=$1", [project]);
+    await db.end();
+  }
+});
+
+test("S1-24: transações exigem justificativa em alterações de itens concluídos", { skip: !process.env.ARCHIVE_TEST_DATABASE_URL }, async (t) => {
+  const db = new Pool({ connectionString: validateTarget(process.env.ARCHIVE_TEST_DATABASE_URL, "test") });
+  const [project, epic, feature, pbi, lateFeature] = Array.from({ length: 5 }, randomUUID);
+  const configId = "00000000-0000-4000-8000-000000000001";
+  let originalConfiguration: unknown;
+  const criteria = new CriteriaRepository(db);
+  const epics = new EpicsRepository(db);
+  const features = new FeaturesRepository(db);
+  const pbis = new PbisRepository(db);
+
+  try {
+    const savedConfiguration = await db.query<{ configuration: unknown }>(
+      "SELECT configuration FROM quality_configuration WHERE id = $1 FOR UPDATE",
+      [configId],
+    );
+    assert.ok(savedConfiguration.rows[0], "o banco de teste deve estar migrado");
+    originalConfiguration = savedConfiguration.rows[0].configuration;
+    await db.query(
+      `UPDATE quality_configuration
+       SET configuration = jsonb_set(configuration, '{exigir_justificativa_item_concluido}', 'true'::jsonb, true)
+       WHERE id = $1`,
+      [configId],
+    );
+
+    await db.query("INSERT INTO projeto(id,nome,cliente,status) VALUES ($1,$1::text,'Teste','ativo')", [project]);
+    await db.query("INSERT INTO epico(id,projeto_id,titulo,descricao,objetivo,escopo_macro,resultado_esperado,status) VALUES ($1,$2,'Épico','Descrição','Objetivo','Escopo','Resultado','concluido')", [epic, project]);
+    await db.query("INSERT INTO feature(id,epico_id,titulo,descricao,objetivo,status) VALUES ($1,$2,'Feature','Descrição','Objetivo','concluido'),($3,$2,'Feature tardia','Descrição','Objetivo','rascunho')", [feature, epic, lateFeature]);
+    await db.query("INSERT INTO pbi(id,feature_id,codigo,titulo,historia_como_um,historia_eu_quero,historia_para_que,status) VALUES ($1,$2,'PBI-001','PBI','PO','alterar','preservar','concluido')", [pbi, feature]);
+
+    await t.test("update de épico, feature e PBI revalida sob lock e audita a justificativa", async () => {
+      await assert.rejects(epics.update(epic, { titulo: "Épico sem justificativa" }), /justificativa é obrigatória/);
+      await assert.rejects(features.update(feature, { titulo: "Feature sem justificativa" }), /justificativa é obrigatória/);
+      await assert.rejects(pbis.update(pbi, { titulo: "PBI sem justificativa" }), /justificativa é obrigatória/);
+
+      await epics.update(epic, { titulo: "Épico corrigido", justificativa: "Ajuste solicitado pelo PO" });
+      await features.update(feature, { titulo: "Feature corrigida", justificativa: "Atualização do escopo aprovado" });
+      await pbis.update(pbi, { titulo: "PBI corrigido", justificativa: "Correção após validação" });
+
+      const audit = await db.query<{ entidade_tipo: string; justificativa: string }>(
+        "SELECT entidade_tipo, justificativa FROM auditoria WHERE entidade_id = ANY($1::uuid[]) AND acao LIKE 'ATUALIZAR_%' ORDER BY entidade_tipo",
+        [[epic, feature, pbi]],
+      );
+      assert.deepEqual(audit.rows.map((row) => row.justificativa), [
+        "Ajuste solicitado pelo PO",
+        "Atualização do escopo aprovado",
+        "Correção após validação",
+      ]);
+      const history = await new AuditService(db).getHistory("pbi", pbi);
+      assert.equal(history.items[0]?.pbi_versao, 1);
+      assert.equal(history.items[0]?.pbi_snapshot?.titulo, "PBI corrigido");
+    });
+
+    await t.test("create, delete e move de critérios exigem justificativa e registram auditoria", async () => {
+      for (const [tipo, entidadeId] of [["epico", epic], ["feature", feature], ["pbi", pbi]] as const) {
+        const input = tipo === "pbi"
+          ? { entidade_tipo: tipo, entidade_id: entidadeId, nome: `Cenário ${tipo}`, dado: "contexto", quando: "ação", entao: "resultado" }
+          : { entidade_tipo: tipo, entidade_id: entidadeId, texto: `Critério ${tipo}` };
+        await assert.rejects(criteria.create(input as any), /justificativa é obrigatória/);
+        const first = await criteria.create({ ...input, justificativa: `Adicionar ${tipo}` } as any);
+        const second = await criteria.create({ ...input, justificativa: `Adicionar segundo ${tipo}` } as any);
+
+        await assert.rejects(criteria.move(second.id, "up"), /justificativa é obrigatória/);
+        await criteria.move(second.id, "up", undefined, `Reordenar ${tipo}`);
+
+        await assert.rejects(criteria.delete(first.id), /justificativa é obrigatória/);
+        await criteria.delete(first.id, undefined, `Remover ${tipo}`);
+      }
+
+      const audit = await db.query<{ justificativa: string }>(
+        "SELECT justificativa FROM auditoria WHERE entidade_id = ANY($1::uuid[]) AND acao IN ('ADICIONAR_CRITERIO','REMOVER_CRITERIO','REORDENAR_CRITERIO') ORDER BY created_at, id",
+        [[epic, feature, pbi]],
+      );
+      assert.ok(audit.rows.length >= 12);
+      assert.ok(audit.rows.every((row) => row.justificativa?.trim()));
+    });
+
+    await t.test("rejeita usando o status atual mesmo que a leitura prévia tenha sido rascunho", async () => {
+      const preflight = await db.query<{ status: string }>("SELECT status FROM feature WHERE id = $1", [lateFeature]);
+      assert.equal(preflight.rows[0]?.status, "rascunho");
+      await db.query("UPDATE feature SET status = 'concluido' WHERE id = $1", [lateFeature]);
+      await assert.rejects(
+        features.update(lateFeature, { titulo: "Requisição com preflight obsoleto" }),
+        /justificativa é obrigatória/,
+      );
+    });
+  } finally {
+    await db.query("DELETE FROM auditoria WHERE entidade_id = ANY($1::uuid[])", [[epic, feature, pbi, lateFeature]]);
+    await db.query("DELETE FROM projeto WHERE id = $1", [project]);
+    if (originalConfiguration !== undefined) {
+      await db.query(
+        "UPDATE quality_configuration SET configuration = $2::jsonb WHERE id = $1",
+        [configId, JSON.stringify(originalConfiguration)],
+      );
+    }
     await db.end();
   }
 });

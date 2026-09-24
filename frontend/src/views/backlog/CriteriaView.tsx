@@ -29,12 +29,16 @@ export function CriteriaEditor({
   entidadeId,
   canEdit,
   titulo,
+  itemConcluido = false,
+  justificativaObrigatoria = false,
   onCriteriaChange,
 }: {
   entidadeTipo: CriterionEntityType;
   entidadeId: string;
   canEdit: boolean;
   titulo: string;
+  itemConcluido?: boolean;
+  justificativaObrigatoria?: boolean;
   onCriteriaChange?: (items: Criterion[]) => void;
 }) {
   const [result, setResult] = useState<Result>({
@@ -48,6 +52,7 @@ export function CriteriaEditor({
     useState(emptyCenario);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
+  const [justificativa, setJustificativa] = useState("");
 
   const [movendoId, setMovendoId] =
     useState<string | null>(null);
@@ -129,6 +134,12 @@ export function CriteriaEditor({
       return;
     }
 
+    if (justificativaObrigatoria && !justificativa.trim()) {
+      setMessage("A justificativa é obrigatória para alterar critérios de um item concluído.");
+      document.getElementById("criteria-justification")?.focus();
+      return;
+    }
+
     setBusy(true);
 
     try {
@@ -138,12 +149,18 @@ export function CriteriaEditor({
               entidade_tipo: "pbi",
               entidade_id: entidadeId,
               ...cenarioForm,
+              ...(justificativaObrigatoria
+                ? { justificativa: justificativa.trim() }
+                : {}),
             }
           : {
               entidade_tipo:
                 entidadeTipo as "epico" | "feature",
               entidade_id: entidadeId,
               ...textoForm,
+              ...(justificativaObrigatoria
+                ? { justificativa: justificativa.trim() }
+                : {}),
             },
       );
 
@@ -167,6 +184,8 @@ export function CriteriaEditor({
 
       setTextoForm(emptyTexto);
       setCenarioForm(emptyCenario);
+      setJustificativa("");
+      setMessage("");
       setFormOpen(false);
     } catch {
       setMessage(
@@ -178,6 +197,12 @@ export function CriteriaEditor({
   }
 
   async function remover(id: string) {
+    if (justificativaObrigatoria && !justificativa.trim()) {
+      setMessage("Informe uma justificativa antes de remover este critério.");
+      document.getElementById("criteria-justification")?.focus();
+      return;
+    }
+
     const confirmed = window.confirm(
       "Remover este critério? Os demais serão reordenados.",
     );
@@ -189,7 +214,10 @@ export function CriteriaEditor({
     setBusy(true);
 
     try {
-      await deleteCriterion(id);
+      await deleteCriterion(
+        id,
+        justificativaObrigatoria ? justificativa.trim() : undefined,
+      );
       versaoRef.current += 1;
 
       if (result.state === "ready") {
@@ -206,6 +234,8 @@ export function CriteriaEditor({
       } else {
         recarregar();
       }
+      setJustificativa("");
+      setMessage("");
     } catch {
       setMessage(
         "Não foi possível remover o critério.",
@@ -219,12 +249,19 @@ export function CriteriaEditor({
     id: string,
     direction: "up" | "down",
   ) {
+    if (justificativaObrigatoria && !justificativa.trim()) {
+      setMessage("Informe uma justificativa antes de reordenar estes critérios.");
+      document.getElementById("criteria-justification")?.focus();
+      return;
+    }
+
     setMovendoId(id);
 
     try {
       const items = await moveCriterion(
         id,
         direction,
+        justificativaObrigatoria ? justificativa.trim() : undefined,
       );
 
       versaoRef.current += 1;
@@ -235,6 +272,8 @@ export function CriteriaEditor({
       });
 
       onCriteriaChange?.(items);
+      setJustificativa("");
+      setMessage("");
     } catch {
       setMessage(
         "Não foi possível reordenar os critérios.",
@@ -273,6 +312,29 @@ export function CriteriaEditor({
           </button>
         )}
       </div>
+
+      {canEdit && itemConcluido && justificativaObrigatoria && (
+        <div className="project-field">
+          <label htmlFor="criteria-justification">
+            Justificativa para alterar critérios (obrigatória)
+          </label>
+          <textarea
+            id="criteria-justification"
+            rows={2}
+            disabled={busy || movendoId !== null}
+            required
+            maxLength={2000}
+            value={justificativa}
+            onChange={(event) => setJustificativa(event.target.value)}
+            aria-describedby="criteria-justification-help"
+          />
+          <small id="criteria-justification-help">
+            A justificativa será registrada no histórico da entidade junto à ação.
+          </small>
+        </div>
+      )}
+
+      {message && <p role="alert">{message}</p>}
 
       {result.state === "loading" && (
         <div
@@ -516,10 +578,6 @@ export function CriteriaEditor({
             </div>
           )}
 
-          {message && (
-            <p role="alert">{message}</p>
-          )}
-
           <div className="project-actions">
             <button
               type="submit"
@@ -546,9 +604,6 @@ export function CriteriaEditor({
         </form>
       )}
 
-      {!canEdit && message && (
-        <p role="alert">{message}</p>
-      )}
     </section>
   );
 }

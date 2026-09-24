@@ -3,6 +3,8 @@ import { Pool, PoolClient } from "pg";
 import { pool } from "../../database/db.js";
 import { CreatePbiDTO, UpdatePbiDTO, PbiQueryDTO, Pbi, PbiWithContext, PaginatedPbis } from "./pbis.types.js";
 import { auditService } from "../audit/audit.service.js";
+import { assertJustificationForCompletedItem, normalizeJustification } from "../quality/completed-item-policy.js";
+import { buildAuditChangeData } from "../audit/audit.payloads.js";
 
 const SELECT_WITH_CONTEXT = `
   SELECT
@@ -137,6 +139,12 @@ export class PbisRepository {
         await client.query("ROLLBACK");
         return null;
       }
+      await assertJustificationForCompletedItem(
+        client,
+        "pbi",
+        id,
+        data.justificativa,
+      );
 
       const updates: string[] = [];
       const values: unknown[] = [];
@@ -166,8 +174,8 @@ export class PbisRepository {
           entidade_tipo: "pbi",
           entidade_id: id,
           acao: "ATUALIZAR_PBI",
-          justificativa: data.justificativa ?? null,
-          dados_json: { alteracoes: data, anterior: { titulo: existing.titulo }, novo: { titulo: updated.titulo } },
+          justificativa: normalizeJustification(data.justificativa),
+          dados_json: buildAuditChangeData(existing, updated, data),
         },
         client,
       );
@@ -175,7 +183,7 @@ export class PbisRepository {
       await client.query(
         `INSERT INTO pbi_versao (pbi_id, versao, snapshot_json, justificativa, autor_id, created_at)
          VALUES ($1, (SELECT COALESCE(MAX(versao), 0) + 1 FROM pbi_versao WHERE pbi_id = $1), $2, $3, $4, CURRENT_TIMESTAMP)`,
-        [id, JSON.stringify(updated), data.justificativa ?? "", usuarioId ?? null],
+        [id, JSON.stringify(updated), normalizeJustification(data.justificativa) ?? "", usuarioId ?? null],
       );
 
       await client.query("COMMIT");

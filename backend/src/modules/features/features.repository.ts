@@ -3,6 +3,8 @@ import { Pool, PoolClient } from "pg";
 import { pool } from "../../database/db.js";
 import { CreateFeatureDTO, UpdateFeatureDTO, FeatureQueryDTO, Feature, FeatureWithStats, PaginatedFeatures } from "./features.types.js";
 import { auditService } from "../audit/audit.service.js";
+import { assertJustificationForCompletedItem } from "../quality/completed-item-policy.js";
+import { buildAuditChangeData } from "../audit/audit.payloads.js";
 
 const SELECT_WITH_STATS = `
   SELECT
@@ -122,6 +124,12 @@ export class FeaturesRepository {
         await client.query("ROLLBACK");
         return null;
       }
+      await assertJustificationForCompletedItem(
+        client,
+        "feature",
+        id,
+        data.justificativa,
+      );
 
       const updates: string[] = [];
       const values: unknown[] = [];
@@ -148,7 +156,7 @@ export class FeaturesRepository {
           entidade_id: id,
           acao: "ATUALIZAR_FEATURE",
           justificativa: data.justificativa ?? null,
-          dados_json: { alteracoes: data, anterior: { titulo: existing.titulo }, novo: { titulo: updated.titulo } },
+          dados_json: buildAuditChangeData(existing, updated, data),
         },
         client,
       );

@@ -1,5 +1,6 @@
-import { useState, useEffect } from "react";
-import { getItemHistory, AuditHistoryItem } from "../../api/api_backlog";
+import { useState, useEffect, useRef } from "react";
+import { getItemHistory, type AuditHistoryItem } from "../../api/api_backlog";
+import { describeAuditChanges } from "../../models/auditChanges";
 
 export interface ItemHistoryViewProps {
   entidadeTipo: "epico" | "feature" | "pbi";
@@ -15,35 +16,88 @@ export function ItemHistoryView({
   const [history, setHistory] = useState<AuditHistoryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [attempt, setAttempt] = useState(0);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [moreError, setMoreError] = useState<string | null>(null);
+  const continuationController = useRef<AbortController | null>(null);
+  const entityKey = `${entidadeTipo}:${entidadeId}`;
+  const currentEntityKey = useRef(entityKey);
+  currentEntityKey.current = entityKey;
 
   useEffect(() => {
     const controller = new AbortController();
+    continuationController.current?.abort();
     setLoading(true);
     setError(null);
+    setHistory([]);
+    setNextCursor(null);
+    setMoreError(null);
+    setLoadingMore(false);
 
     try {
       getItemHistory(entidadeTipo, entidadeId, controller.signal)
-        .then((items) => {
+        .then((page) => {
           if (!controller.signal.aborted) {
-            setHistory(items);
+            setHistory(page.items);
+            setNextCursor(page.next_cursor);
             setLoading(false);
           }
         })
         .catch(() => {
           if (!controller.signal.aborted) {
             setHistory([]);
+            setError("Não foi possível carregar o histórico. Verifique sua conexão e tente novamente.");
             setLoading(false);
           }
         });
     } catch {
       if (!controller.signal.aborted) {
         setHistory([]);
+        setError("Não foi possível carregar o histórico. Verifique sua conexão e tente novamente.");
         setLoading(false);
       }
     }
 
-    return () => controller.abort();
-  }, [entidadeTipo, entidadeId, refreshTrigger]);
+    return () => {
+      controller.abort();
+      continuationController.current?.abort();
+    };
+  }, [entidadeTipo, entidadeId, refreshTrigger, attempt]);
+
+  async function loadMore() {
+    if (!nextCursor || loadingMore) return;
+    continuationController.current?.abort();
+    const controller = new AbortController();
+    continuationController.current = controller;
+    const requestedEntityKey = entityKey;
+    setLoadingMore(true);
+    setMoreError(null);
+
+    try {
+      const page = await getItemHistory(
+        entidadeTipo,
+        entidadeId,
+        controller.signal,
+        nextCursor,
+      );
+      if (!controller.signal.aborted && currentEntityKey.current === requestedEntityKey) {
+        setHistory((items) => {
+          const existingIds = new Set(items.map((item) => item.id));
+          return [...items, ...page.items.filter((item) => !existingIds.has(item.id))];
+        });
+        setNextCursor(page.next_cursor);
+      }
+    } catch {
+      if (!controller.signal.aborted && currentEntityKey.current === requestedEntityKey) {
+        setMoreError("Não foi possível carregar os próximos registros. Tente novamente.");
+      }
+    } finally {
+      if (!controller.signal.aborted && currentEntityKey.current === requestedEntityKey) {
+        setLoadingMore(false);
+      }
+    }
+  }
 
   if (loading) {
     return <div className="glass-panel projects-state" role="status">Carregando histórico de auditoria…</div>;
@@ -53,6 +107,12 @@ export function ItemHistoryView({
     return (
       <div className="glass-panel projects-state">
         <p role="alert">{error}</p>
+        <button
+          className="btn-secondary"
+          onClick={() => setAttempt((value) => value + 1)}
+        >
+          Tentar novamente
+        </button>
       </div>
     );
   }
@@ -68,7 +128,7 @@ export function ItemHistoryView({
 
       <div className="quality-panel-body">
         <p className="quality-help-text">
-          Estes registros contêm o histórico de justificativas e alterações deste item. 
+          Estes registros contêm o histórico de justificativas e alterações deste item.
           <em>Nota: Decisões de negócio e deliberações técnicas são registradas no módulo de Decisões.</em>
         </p>
 
@@ -76,7 +136,12 @@ export function ItemHistoryView({
           <p className="projects-state">Nenhum registro de alteração encontrado para este item.</p>
         ) : (
           <ul className="history-list" role="list" style={{ listStyle: "none", padding: 0, marginTop: "1rem" }}>
-            {history.map((item) => (
+          {history.map((item) => {
+            const changes = describeAuditChanges({
+              ...item.dados_json,
+              ...(item.pbi_snapshot ? { pbi_snapshot: item.pbi_snapshot } : {}),
+            });
+            return (
               <li
                 key={item.id}
                 className="history-item-card"
@@ -96,7 +161,24 @@ export function ItemHistoryView({
                 </div>
                 <div style={{ fontSize: "0.9rem", marginBottom: "0.5rem" }}>
                   <span className="badge badge-info" style={{ marginRight: "0.5rem" }}>{item.acao}</span>
+                  {item.pbi_versao !== null && item.pbi_versao !== undefined && (
+                    <span className="badge badge-info">Versão {item.pbi_versao}</span>
+                  )}
                 </div>
+                {changes.length > 0 && (
+                  <dl className="history-change-list">
+                    {changes.map((change) => (
+                      <div key={change.field}>
+                        <dt>{change.label}</dt>
+                        <dd>
+                          {change.before !== undefined
+                            ? `${change.before} → ${change.after ?? "Não informado"}`
+                            : change.after}
+                        </dd>
+                      </div>
+                    ))}
+                  </dl>
+                )}
                 {item.justificativa ? (
                   <div className="history-justification" style={{ background: "rgba(249, 115, 22, 0.1)", borderLeft: "3px solid #F97316", padding: "0.5rem 0.75rem", borderRadius: "4px" }}>
                     <strong>Justificativa da alteração:</strong> {item.justificativa}
@@ -107,8 +189,19 @@ export function ItemHistoryView({
                   </div>
                 )}
               </li>
-            ))}
+            );
+          })}
           </ul>
+        )}
+        {moreError && <p role="alert">{moreError}</p>}
+        {nextCursor && (
+          <button
+            className="btn-secondary"
+            disabled={loadingMore}
+            onClick={loadMore}
+          >
+            {loadingMore ? "Carregando…" : "Carregar mais registros"}
+          </button>
         )}
       </div>
     </section>
