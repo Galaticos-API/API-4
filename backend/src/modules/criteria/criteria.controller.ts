@@ -32,7 +32,11 @@ export class CriteriaController {
     try {
       const id = getParamId(req.params.id);
       const usuarioId = req.auth?.id ?? null;
-      const result = await this.service.delete(id, usuarioId);
+      const result = await this.service.delete(
+        id,
+        usuarioId,
+        req.body?.justificativa,
+      );
       res.status(200).json(result);
     } catch (error) {
       next(error);

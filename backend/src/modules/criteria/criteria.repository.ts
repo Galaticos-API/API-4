@@ -4,6 +4,10 @@ import { pool } from "../../database/db.js";
 import { CreateCriterionDTO, Criterion, CriterionEntityType } from "./criteria.types.js";
 import { auditService } from "../audit/audit.service.js";
 import { ValidationError } from "../../shared/errors.js";
+import {
+  assertJustificationForCompletedItem,
+  normalizeJustification,
+} from "../quality/completed-item-policy.js";
 
 const ENTITY_TABLE: Record<CriterionEntityType, string> = {
   epico: "epico",
@@ -137,6 +141,12 @@ export class CriteriaRepository {
       await client.query("BEGIN");
       await lockHierarchy(client);
       await this.lockEntity(client, dto.entidade_tipo, dto.entidade_id);
+      await assertJustificationForCompletedItem(
+        client,
+        dto.entidade_tipo,
+        dto.entidade_id,
+        dto.justificativa,
+      );
 
       const ordemResult = await client.query<{ proxima_ordem: number }>(
         `SELECT COALESCE(MAX(ordem), 0) + 1 AS proxima_ordem FROM criterio_aceitacao WHERE entidade_tipo = $1 AND entidade_id = $2`,
@@ -170,6 +180,7 @@ export class CriteriaRepository {
           entidade_tipo: dto.entidade_tipo,
           entidade_id: dto.entidade_id,
           acao: "ADICIONAR_CRITERIO",
+          justificativa: normalizeJustification(dto.justificativa),
           dados_json: { criterio_id: created.id, ordem: created.ordem, nome: created.nome, texto: created.texto },
         },
         client,
@@ -185,7 +196,11 @@ export class CriteriaRepository {
     }
   }
 
-  async delete(id: string, usuarioId?: string | null): Promise<Criterion | null> {
+  async delete(
+    id: string,
+    usuarioId?: string | null,
+    justificativa?: string | null,
+  ): Promise<Criterion | null> {
     const client: PoolClient = await this.pool.connect();
 
     try {
@@ -211,6 +226,12 @@ export class CriteriaRepository {
       if (!(await this.entityIsWritableInTransaction(client, removed.entidade_tipo, removed.entidade_id))) {
         throw new ValidationError("Não é possível alterar critérios de uma entidade arquivada.");
       }
+      await assertJustificationForCompletedItem(
+        client,
+        removed.entidade_tipo,
+        removed.entidade_id,
+        justificativa,
+      );
       if (await this.removalBreaksCompletionInTransaction(client, removed.entidade_tipo, removed.entidade_id)) {
         throw new ValidationError("Não é possível remover o último critério de uma entidade já concluída. Reabra o item antes de remover.");
       }
@@ -228,6 +249,7 @@ export class CriteriaRepository {
           entidade_tipo: removed.entidade_tipo,
           entidade_id: removed.entidade_id,
           acao: "REMOVER_CRITERIO",
+          justificativa: normalizeJustification(justificativa),
           dados_json: { criterio_id: removed.id, ordem: removed.ordem, nome: removed.nome, texto: removed.texto },
         },
         client,
@@ -243,7 +265,12 @@ export class CriteriaRepository {
     }
   }
 
-  async move(id: string, direction: "up" | "down", usuarioId?: string | null): Promise<Criterion[] | null> {
+  async move(
+    id: string,
+    direction: "up" | "down",
+    usuarioId?: string | null,
+    justificativa?: string | null,
+  ): Promise<Criterion[] | null> {
     const client: PoolClient = await this.pool.connect();
 
     try {
@@ -283,6 +310,13 @@ export class CriteriaRepository {
         return listaSemAlteracao.rows;
       }
 
+      await assertJustificationForCompletedItem(
+        client,
+        current.entidade_tipo,
+        current.entidade_id,
+        justificativa,
+      );
+
       // Passa por uma ordem sentinela negativa para não colidir com o índice único durante a troca.
       await client.query(`UPDATE criterio_aceitacao SET ordem = -1 WHERE id = $1`, [current.id]);
       await client.query(`UPDATE criterio_aceitacao SET ordem = $1 WHERE id = $2`, [current.ordem, sibling.id]);
@@ -294,6 +328,7 @@ export class CriteriaRepository {
           entidade_tipo: current.entidade_tipo,
           entidade_id: current.entidade_id,
           acao: "REORDENAR_CRITERIO",
+          justificativa: normalizeJustification(justificativa),
           dados_json: { criterio_id: current.id, direcao: direction, ordem_anterior: current.ordem, ordem_novo: sibling.ordem },
         },
         client,

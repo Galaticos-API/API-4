@@ -3,6 +3,9 @@ import { Pool, PoolClient } from "pg";
 import { pool } from "../../database/db.js";
 import { CreateEpicDTO, UpdateEpicDTO, EpicQueryDTO, Epic, EpicWithStats, PaginatedEpics } from "./epics.types.js";
 import { auditService } from "../audit/audit.service.js";
+import { assertJustificationForCompletedItem } from "../quality/completed-item-policy.js";
+import { buildAuditChangeData } from "../audit/audit.payloads.js";
+import { getEntityTechnologyIds, replaceEntityTechnologies } from "../technologies/entity-technologies.js";
 
 export class EpicsRepository {
   private pool: Pool;
@@ -15,6 +18,7 @@ export class EpicsRepository {
     const query = `
       SELECT
         e.*,
+        COALESCE((SELECT array_agg(et.tecnologia_id ORDER BY et.tecnologia_id) FROM entidade_tecnologia et WHERE et.entidade_tipo = 'epico' AND et.entidade_id = e.id), ARRAY[]::uuid[]) AS tecnologias_ids,
         p.status AS projeto_status,
         COALESCE((SELECT COUNT(*)::int FROM feature f WHERE f.epico_id = e.id), 0) AS features_count,
         COALESCE((SELECT COUNT(*)::int FROM criterio_aceitacao c WHERE c.entidade_tipo = 'epico' AND c.entidade_id = e.id), 0) AS criterios_count
@@ -51,6 +55,7 @@ export class EpicsRepository {
 
       const result = await client.query<Epic>(insertQuery, values);
       const created = result.rows[0];
+      await replaceEntityTechnologies(client, "epico", created.id, data.tecnologias_ids);
 
       await auditService.record(
         {
@@ -58,7 +63,7 @@ export class EpicsRepository {
           entidade_tipo: "epico",
           entidade_id: created.id,
           acao: "CRIAR_EPICO",
-          dados_json: { titulo: created.titulo, projeto_id: created.projeto_id, status: created.status },
+          dados_json: { titulo: created.titulo, projeto_id: created.projeto_id, status: created.status, tecnologias_ids: data.tecnologias_ids ?? [] },
         },
         client,
       );
@@ -127,6 +132,12 @@ export class EpicsRepository {
         await client.query("ROLLBACK");
         return null;
       }
+      await assertJustificationForCompletedItem(
+        client,
+        "epico",
+        id,
+        data.justificativa,
+      );
 
       const updates: string[] = [];
       const values: unknown[] = [];
@@ -147,6 +158,13 @@ export class EpicsRepository {
         values,
       );
       const updated = result.rows[0];
+      await replaceEntityTechnologies(client, "epico", id, data.tecnologias_ids);
+      const updatedWithTechnologies = {
+        ...updated,
+        tecnologias_ids: data.tecnologias_ids === undefined
+          ? existing.tecnologias_ids ?? []
+          : await getEntityTechnologyIds(client, "epico", id),
+      };
 
       await auditService.record(
         {
@@ -155,7 +173,7 @@ export class EpicsRepository {
           entidade_id: id,
           acao: "ATUALIZAR_EPICO",
           justificativa: data.justificativa ?? null,
-          dados_json: { alteracoes: data, anterior: { titulo: existing.titulo }, novo: { titulo: updated.titulo } },
+          dados_json: buildAuditChangeData(existing, updatedWithTechnologies, data),
         },
         client,
       );

@@ -166,7 +166,8 @@ try {
       );
       const criteriaRepo = new CriteriaRepository(pool);
       const concurrentDeletes = await Promise.allSettled(
-        insertedCriteria.rows.map(({ id }) => criteriaRepo.delete(id)),
+        insertedCriteria.rows.map(({ id }) =>
+          criteriaRepo.delete(id, null, "Remoção concorrente para validar o último critério")),
       );
       assert.equal(concurrentDeletes.filter((result) => result.status === "fulfilled").length, 1);
       const rejected = concurrentDeletes.find((result) => result.status === "rejected");

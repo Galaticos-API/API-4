@@ -231,9 +231,9 @@ it("mostra erro e permite tentar novamente sem aplicar regras padrão silenciosa
   ).toBeNull();
 
   fireEvent.click(
-    screen.getByRole("button", {
+    screen.getAllByRole("button", {
       name: "Tentar novamente",
-    }),
+    })[0],
   );
 
   expect(

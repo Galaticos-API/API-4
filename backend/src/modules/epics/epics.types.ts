@@ -22,6 +22,7 @@ export const createEpicSchema = z.object({
   objetivo: z.string().trim().optional().nullable(),
   escopo_macro: z.string().trim().optional().nullable(),
   resultado_esperado: z.string().trim().optional().nullable(),
+  tecnologias_ids: z.array(z.string().uuid()).max(50).optional(),
   prioridade: z.enum(EPIC_PRIORITIES).default("Must"),
   status: z.literal("rascunho").optional(),
 });
@@ -36,6 +37,7 @@ export const updateEpicSchema = z.object({
   resultado_esperado: z.string().trim().optional().nullable(),
   prioridade: z.enum(EPIC_PRIORITIES).optional(),
   justificativa: z.string().trim().optional().nullable(),
+  tecnologias_ids: z.array(z.string().uuid()).max(50).optional(),
   status: z.never().optional(),
 });
 
@@ -58,6 +60,7 @@ export interface Epic {
   objetivo: string | null;
   escopo_macro: string | null;
   resultado_esperado: string | null;
+  tecnologias_ids?: string[];
   prioridade: EpicPriority;
   status: EpicStatus;
   created_at: Date | string;

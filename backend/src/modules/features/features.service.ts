@@ -1,12 +1,14 @@
 import { createFeatureSchema, updateFeatureSchema, featureQuerySchema, Feature, FeatureWithStats, PaginatedFeatures, FEATURE_REQUIRED_FIELDS } from "./features.types.js";
 import { FeaturesRepository, featuresRepository } from "./features.repository.js";
 import { EpicsRepository, epicsRepository } from "../epics/epics.repository.js";
+import { QualityConfigurationRepository, qualityConfigurationRepository } from "../quality/quality.configuration.repository.js";
 import { NotFoundError, ValidationError, validateUuid } from "../../shared/errors.js";
 
 export class FeaturesService {
   constructor(
     private readonly repository: FeaturesRepository = featuresRepository,
     private readonly epicsRepo: EpicsRepository = epicsRepository,
+    private readonly qualityConfigRepo: QualityConfigurationRepository = qualityConfigurationRepository,
   ) {}
 
   async create(input: unknown, usuarioId?: string | null): Promise<Feature> {
@@ -66,6 +68,13 @@ export class FeaturesService {
     if (!parseResult.success) {
       const issue = parseResult.error.issues[0];
       throw new ValidationError(issue.message, parseResult.error.format());
+    }
+
+    if (existing.status === "concluido") {
+      const config = await this.qualityConfigRepo.getPbiConfiguration();
+      if (config.exigir_justificativa_item_concluido && !parseResult.data.justificativa?.trim()) {
+        throw new ValidationError("A justificativa é obrigatória ao alterar um item concluído.", { code: "JUSTIFICATIVA_REQUERIDA", campo: "justificativa" });
+      }
     }
 
     const updated = await this.repository.update(id, parseResult.data, usuarioId);

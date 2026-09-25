@@ -11,16 +11,28 @@ const textCriterionShape = {
     .max(1000, "O texto não pode exceder 1000 caracteres."),
 };
 
+const justificationShape = {
+  justificativa: z
+    .string()
+    .trim()
+    .max(2000, "A justificativa não pode exceder 2000 caracteres.")
+    .optional(),
+};
+
+export const criterionJustificationSchema = z.object(justificationShape);
+
 const epicoCriterionSchema = z.object({
   entidade_tipo: z.literal("epico"),
   entidade_id: z.string({ required_error: "A entidade é obrigatória." }).uuid("A entidade deve ser um UUID válido."),
   ...textCriterionShape,
+  ...justificationShape,
 });
 
 const featureCriterionSchema = z.object({
   entidade_tipo: z.literal("feature"),
   entidade_id: z.string({ required_error: "A entidade é obrigatória." }).uuid("A entidade deve ser um UUID válido."),
   ...textCriterionShape,
+  ...justificationShape,
 });
 
 const pbiCriterionSchema = z.object({
@@ -34,6 +46,7 @@ const pbiCriterionSchema = z.object({
   dado: z.string({ required_error: "O bloco DADO é obrigatório." }).trim().min(1, "O bloco DADO é obrigatório."),
   quando: z.string({ required_error: "O bloco QUANDO é obrigatório." }).trim().min(1, "O bloco QUANDO é obrigatório."),
   entao: z.string({ required_error: "O bloco ENTÃO é obrigatório." }).trim().min(1, "O bloco ENTÃO é obrigatório."),
+  ...justificationShape,
 });
 
 export const createCriterionSchema = z.discriminatedUnion("entidade_tipo", [
@@ -53,6 +66,7 @@ export type CriterionQueryDTO = z.infer<typeof criterionQuerySchema>;
 
 export const moveCriterionSchema = z.object({
   direction: z.enum(["up", "down"], { required_error: "A direção do movimento é obrigatória." }),
+  justificativa: justificationShape.justificativa,
 });
 
 export type MoveCriterionDTO = z.infer<typeof moveCriterionSchema>;

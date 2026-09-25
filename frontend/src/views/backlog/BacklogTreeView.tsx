@@ -44,15 +44,16 @@ const EMPTY_FILTERS:
     technologyId: "",
   };
 
-const VALID_STATUSES =
-  new Set([
-    "",
-    "rascunho",
-    "ativo",
-    "pronto",
-    "concluido",
-    "arquivado",
-  ]);
+const STATUS_OPTIONS = [
+  { value: "rascunho", label: "Rascunho" },
+  { value: "ativo", label: "Ativo" },
+  { value: "concluido", label: "Concluído" },
+  { value: "arquivado", label: "Arquivado" },
+] as const;
+const VALID_STATUSES = new Set([
+  "",
+  ...STATUS_OPTIONS.map(({ value }) => value),
+]);
 
 function storageKey(
   projectId: string,
@@ -750,25 +751,11 @@ export function BacklogTreeView({
                   Todos os status
                 </option>
 
-                <option value="rascunho">
-                  Rascunho
-                </option>
-
-                <option value="ativo">
-                  Ativo
-                </option>
-
-                <option value="pronto">
-                  Pronto
-                </option>
-
-                <option value="concluido">
-                  Concluído
-                </option>
-
-                <option value="arquivado">
-                  Arquivado
-                </option>
+                {STATUS_OPTIONS.map(({ value, label }) => (
+                  <option value={value} key={value}>
+                    {label}
+                  </option>
+                ))}
               </select>
             </label>
 

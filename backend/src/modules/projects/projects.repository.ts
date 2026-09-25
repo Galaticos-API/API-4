@@ -104,8 +104,14 @@ export class ProjectsRepository {
   async findBacklogTree(
     id: string,
   ): Promise<ProjectBacklogTree | null> {
+    const client = await this.pool.connect();
+
+    try {
+      await client.query(
+        "BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY",
+      );
     const projectResult =
-      await this.pool.query<
+      await client.query<
         Pick<
           Project,
           "id" | "nome" | "status"
@@ -126,6 +132,7 @@ export class ProjectsRepository {
       projectResult.rows[0];
 
     if (!project) {
+      await client.query("COMMIT");
       return null;
     }
 
@@ -179,7 +186,7 @@ export class ProjectsRepository {
       featuresResult,
       pbisResult,
     ] = await Promise.all([
-      this.pool.query<ItemRow>(
+      client.query<ItemRow>(
         `
           SELECT
             e.id,
@@ -200,7 +207,7 @@ export class ProjectsRepository {
         [id],
       ),
 
-      this.pool.query<FeatureRow>(
+      client.query<FeatureRow>(
         `
           SELECT
             f.id,
@@ -224,7 +231,7 @@ export class ProjectsRepository {
         [id],
       ),
 
-      this.pool.query<PbiRow>(
+      client.query<PbiRow>(
         `
           SELECT
             p.id,
@@ -343,7 +350,7 @@ export class ProjectsRepository {
       pbisResult.rows,
     );
 
-    return {
+    const tree: ProjectBacklogTree = {
       project,
 
       epics:
@@ -406,6 +413,14 @@ export class ProjectsRepository {
           ),
       ),
     };
+      await client.query("COMMIT");
+      return tree;
+    } catch (error) {
+      await client.query("ROLLBACK");
+      throw error;
+    } finally {
+      client.release();
+    }
   }
 
   async archiveImpact(

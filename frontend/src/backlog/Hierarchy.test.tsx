@@ -322,6 +322,24 @@ describe(
     );
 
     it(
+      "descarta o status legado 'pronto' e não o oferece no filtro",
+      async () => {
+        window.sessionStorage.setItem(
+          "sinapse.backlog.filters.project-1",
+          JSON.stringify({ status: "pronto", technologyId: "" }),
+        );
+        mockTree();
+        render(<BacklogTreeView projectId="project-1" canCreate />);
+
+        await screen.findByText("Organizar requisitos");
+        const status = screen.getByLabelText("Status") as HTMLSelectElement;
+        expect(status.value).toBe("");
+        expect(screen.queryByRole("option", { name: "Pronto" })).toBeNull();
+        expect(status.querySelectorAll("option")).toHaveLength(5);
+      },
+    );
+
+    it(
       "oferece limpar filtros quando a combinação não tem resultado",
       async () => {
         mockTree();
