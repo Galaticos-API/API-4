@@ -50,29 +50,32 @@ duplicadas.
 
 ## Etapa 5 — Avaliação de escala
 
-**Teste preparado; resultado depende da CI.** O teste de integração adiciona
+**Concluída e medida na CI.** O teste de integração adiciona
 25 épicos, 125 features e 625 PBIs (além da fixture funcional mínima) e exige
 resposta em menos de 2 s e menor que 5 MiB. Os índices
 de hierarquia publicados e o novo índice único cobrem os caminhos de junção e
 associação.
+
+No PostgreSQL da CI, a consulta retornou 26 épicos, 126 features e 626 PBIs em
+10,8 ms, com payload de 105.546 bytes. Isso valida o baseline sintético, não
+substitui monitoramento de projetos reais em volumes maiores.
 
 A árvore continua sendo retornada integralmente. Se o baseline falhar ou os
 projetos reais forem maiores que esse volume, a correção apropriada é carregar
 features/PBIs progressivamente com filtros no servidor; limitar silenciosamente
 os resultados no cliente faria status/tecnologia parecerem filtros globais
 quando só considerariam os dados carregados. A máquina Windows atual não tem
-Docker nem PostgreSQL local, então este gate precisa ser confirmado no job
-PostgreSQL da CI.
+Docker nem PostgreSQL local; o gate foi executado no PostgreSQL da CI.
 
 ## Etapa 6 — QA final
 
-**Validação local concluída; validação remota pendente.** Com Node 20:
+**Concluída no commit `8f4e9f5`.** Com Node 20:
 
 - Backend: build TypeScript aprovado; 168 testes passaram, 8 testes PostgreSQL
   foram ignorados porque não há banco local disponível.
 - Frontend: build de produção aprovado; 102 testes passaram.
 - OpenAPI: YAML parseado sem erro.
 
-A CI da PR precisa rodar novamente depois de publicar esta branch e incluir as
-migrations/testes PostgreSQL novos. Só pedir nova revisão após os checks do
-commit mais recente estarem verdes. Nenhum merge está autorizado por este plano.
+CI da PR: todos os checks passaram no commit `8f4e9f5`, incluindo migration
+011 com duplicatas legadas, integração da árvore e baseline PostgreSQL. Nenhum
+merge está autorizado por este plano; a PR permanece aberta para nova revisão.
