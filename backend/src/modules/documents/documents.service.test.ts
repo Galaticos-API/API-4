@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { AppError, NotFoundError, ValidationError } from "../../shared/errors.js";
+import { ArchiveConflict } from "../projects/archive.types.js";
 import { DocumentsService } from "./documents.service.js";
 import {
   ARCHIVED_PROJECT_ID,
@@ -94,7 +95,7 @@ test("projeto inexistente, inválido ou arquivado não recebe documentos", async
   const payload = { usuarioId: USER_ID, fileName: "ok.txt", content: Buffer.from("conteudo") };
   await assert.rejects(service.upload({ ...payload, projetoId: "d0000000-0000-4000-8000-0000000000ff" }), NotFoundError);
   await assert.rejects(service.upload({ ...payload, projetoId: "nao-e-uuid" }), ValidationError);
-  await assert.rejects(service.upload({ ...payload, projetoId: ARCHIVED_PROJECT_ID }), /somente leitura/);
+  await assert.rejects(service.upload({ ...payload, projetoId: ARCHIVED_PROJECT_ID }), ArchiveConflict);
   assert.equal(storage.files.size, 0);
 });
 
@@ -134,6 +135,8 @@ test("remoção de documento indexado publica evento com identificadores estáve
   storage.files.set(caminho, pdfBuffer());
 
   await service.remove({ projetoId: PROJECT_ID, documentoId: DOCUMENT_ID, usuarioId: USER_ID });
+  assert.equal(publisher.published.length, 0, "a requisição de remoção não deve drenar a outbox");
+  await service.flushPendingEvents();
 
   assert.equal(publisher.published.length, 1);
   assert.equal(publisher.published[0].event_id, `document.removed:${DOCUMENT_ID}`);
@@ -153,6 +156,7 @@ test("repetir a remoção não falha, não duplica o evento e não afeta outro c
 
   await service.remove({ projetoId: PROJECT_ID, documentoId: DOCUMENT_ID, usuarioId: USER_ID });
   await service.remove({ projetoId: PROJECT_ID, documentoId: DOCUMENT_ID, usuarioId: USER_ID });
+  await service.flushPendingEvents();
 
   assert.deepEqual(repository.rows.map((row) => row.id), [otherId]);
   assert.ok(storage.files.has(`${PROJECT_ID}/${otherId}`));
@@ -200,7 +204,7 @@ test("falha no armazenamento ao remover mantém o documento", async () => {
   assert.equal(repository.rows.length, 1);
 });
 
-test("evento não publicado fica pendente e é reenviado na próxima remoção sem duplicar", async () => {
+test("evento não publicado fica pendente e pode ser reenviado pelo worker sem outra remoção", async () => {
   const { service, repository, storage, publisher } = setup();
   const caminho = `${PROJECT_ID}/${DOCUMENT_ID}`;
   repository.seed({ id: DOCUMENT_ID, projeto_id: PROJECT_ID, caminho, status_processamento: "processado" });
@@ -208,12 +212,73 @@ test("evento não publicado fica pendente e é reenviado na próxima remoção s
   publisher.available = false;
 
   await service.remove({ projetoId: PROJECT_ID, documentoId: DOCUMENT_ID, usuarioId: USER_ID });
+  await service.flushPendingEvents();
   assert.equal(repository.events.get(`document.removed:${DOCUMENT_ID}`)?.status, "falha");
   assert.equal(publisher.published.length, 0);
 
   publisher.available = true;
-  await service.remove({ projetoId: PROJECT_ID, documentoId: DOCUMENT_ID, usuarioId: USER_ID });
+  await service.flushPendingEvents();
   assert.equal(publisher.published.length, 1);
   assert.equal(repository.events.size, 1);
   assert.equal(repository.events.get(`document.removed:${DOCUMENT_ID}`)?.status, "publicado");
+});
+
+test("DELETE em projeto arquivado retorna conflito e preserva documento e arquivo", async () => {
+  const { service, repository, storage } = setup();
+  const caminho = `${ARCHIVED_PROJECT_ID}/${DOCUMENT_ID}`;
+  repository.seed({ id: DOCUMENT_ID, projeto_id: ARCHIVED_PROJECT_ID, caminho });
+  storage.files.set(caminho, pdfBuffer());
+
+  await assert.rejects(
+    service.remove({ projetoId: ARCHIVED_PROJECT_ID, documentoId: DOCUMENT_ID, usuarioId: USER_ID }),
+    ArchiveConflict,
+  );
+  assert.equal(repository.rows.length, 1);
+  assert.ok(storage.files.has(caminho));
+  assert.equal(repository.audit.length, 0);
+  assert.equal(repository.events.size, 0);
+});
+
+test("falha ao finalizar o arquivo fica marcada e é recuperável sem repetir o cadastro", async () => {
+  const { service, repository, storage } = setup();
+  storage.failFinalize = true;
+  const record = await service.upload({
+    projetoId: PROJECT_ID,
+    usuarioId: USER_ID,
+    fileName: "manual.txt",
+    content: Buffer.from("conteúdo"),
+  });
+  assert.equal(record.armazenamento_pendente, true);
+  assert.equal(repository.rows.length, 1);
+
+  storage.failFinalize = false;
+  await service.processPendingStorageOperations();
+  assert.equal(repository.rows[0].armazenamento_pendente, false);
+  assert.equal(storage.files.size, 1);
+});
+
+test("listagem usa cursor estável sem duplicar documentos entre páginas", async () => {
+  const { service, repository } = setup();
+  for (let index = 0; index < 23; index += 1) {
+    repository.seed({
+      id: `c0000000-0000-4000-8000-${String(index + 10).padStart(12, "0")}`,
+      projeto_id: PROJECT_ID,
+      caminho: `${PROJECT_ID}/${index}`,
+      created_at: new Date(Date.UTC(2026, 0, 1, 0, 0, index)).toISOString(),
+    });
+  }
+
+  const ids: string[] = [];
+  let cursor: string | undefined;
+  do {
+    const page = await service.list(PROJECT_ID, cursor, "10");
+    ids.push(...page.items.map((item) => item.id));
+    cursor = page.next_cursor ?? undefined;
+  } while (cursor);
+
+  assert.equal(ids.length, 23);
+  assert.equal(new Set(ids).size, 23);
+  assert.deepEqual(ids, [...ids].sort((a, b) => Number(b.slice(-12)) - Number(a.slice(-12))));
+  await assert.rejects(service.list(PROJECT_ID, "invalid-cursor"), ValidationError);
+  await assert.rejects(service.list(PROJECT_ID, undefined, "51"), ValidationError);
 });

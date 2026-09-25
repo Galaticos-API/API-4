@@ -12,6 +12,7 @@ export interface DocumentRecord {
   mime: string | null;
   tamanho_bytes: number | null;
   status_processamento: DocumentStatus;
+  armazenamento_pendente: boolean;
   autor_id: string | null;
   autor_nome: string | null;
   created_at: string;
@@ -25,7 +26,9 @@ export interface DocumentLimits {
 
 export interface DocumentList {
   items: DocumentRecord[];
+  next_cursor: string | null;
   limites: DocumentLimits;
+  paginacao: { tamanho_pagina: number; tamanho_maximo: number };
 }
 
 export interface CreateDocumentInput {
@@ -52,6 +55,7 @@ export interface RemovalResult {
   indexado: boolean;
   chunksRemovidos: number;
   eventoChave: string | null;
+  storageOperationId: string;
 }
 
 export interface RemoveDocumentInput {

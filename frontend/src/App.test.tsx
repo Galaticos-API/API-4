@@ -21,7 +21,7 @@ afterEach(() => {
 test("renders the landing page view as main default view", () => {
   render(<App />);
 
-  expect(screen.getByRole("heading", { name: "Sinapse" })).toBeInTheDocument();
+  expect(screen.getByText((_, el) => el?.classList?.contains("brand") ?? false)).toBeInTheDocument();
   expect(screen.getByRole("heading", { name: /Transforme requisitos/i })).toBeInTheDocument();
   expect(screen.getByText("Pilares do Ecossistema")).toBeInTheDocument();
 });

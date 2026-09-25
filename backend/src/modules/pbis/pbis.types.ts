@@ -29,6 +29,7 @@ export const createPbiSchema = z.object({
   tipo: z.string().trim().min(1).max(50).default("Funcional"),
   prioridade: z.enum(PBI_PRIORITIES).default("Must"),
   requer_interface: z.boolean().default(false),
+  tecnologias_ids: z.array(z.string().uuid()).max(50).optional(),
 });
 
 export type CreatePbiDTO = z.infer<typeof createPbiSchema>;
@@ -43,6 +44,7 @@ export const updatePbiSchema = z.object({
   prioridade: z.enum(PBI_PRIORITIES).optional(),
   requer_interface: z.boolean().optional(),
   justificativa: z.string().trim().optional().nullable(),
+  tecnologias_ids: z.array(z.string().uuid()).max(50).optional(),
 });
 
 export type UpdatePbiDTO = z.infer<typeof updatePbiSchema>;
@@ -68,6 +70,7 @@ export interface Pbi {
   tipo: string;
   prioridade: PbiPriority;
   requer_interface: boolean;
+  tecnologias_ids?: string[];
   prototipo_vinculado?: boolean;
   status: PbiStatus;
   score_completude: number | null;

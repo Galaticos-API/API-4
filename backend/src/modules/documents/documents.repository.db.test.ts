@@ -3,6 +3,8 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { Pool } from "pg";
 import { validateTarget } from "../../database/seed-lib.js";
+import { ArchiveConflict } from "../projects/archive.types.js";
+import { lockHierarchy } from "../projects/hierarchy-archive.js";
 import { DocumentsRepository, removalEventKey } from "./documents.repository.js";
 
 test("S1-19/S1-22: documentos, auditoria e outbox no PostgreSQL", { skip: !process.env.ARCHIVE_TEST_DATABASE_URL }, async (t) => {
@@ -33,7 +35,7 @@ test("S1-19/S1-22: documentos, auditoria e outbox no PostgreSQL", { skip: !proce
         id: foreign, projetoId: other, nome: "Outro.txt", extensao: ".txt", mime: "text/plain",
         tamanhoBytes: 10, caminho: `${other}/${foreign}`, usuarioId: user,
       });
-      assert.deepEqual((await repo.listByProject(project)).map((item) => item.id), [plain]);
+      assert.deepEqual((await repo.listByProject(project, null, 20)).items.map((item) => item.id), [plain]);
       assert.equal(await repo.findById(project, foreign), null);
       assert.equal((await repo.findById(other, foreign))?.id, foreign);
     });
@@ -89,6 +91,92 @@ test("S1-19/S1-22: documentos, auditoria e outbox no PostgreSQL", { skip: !proce
       assert.ok((await repo.listPendingEvents(50)).some((item) => item.chave_idempotencia === key));
       await repo.markEventPublished(key);
       assert.ok(!(await repo.listPendingEvents(50)).some((item) => item.chave_idempotencia === key));
+    });
+
+    await t.test("corrida arquivamento/upload: o escritor aguarda o lock e recebe conflito", async () => {
+      const archivedProject = randomUUID();
+      const attemptedDocument = randomUUID();
+      await pool.query("INSERT INTO projeto (id,nome,cliente,status) VALUES ($1::uuid,$1::text,'Teste','ativo')", [archivedProject]);
+      const archiver = await pool.connect();
+      try {
+        await archiver.query("BEGIN");
+        await lockHierarchy(archiver);
+        await archiver.query("UPDATE projeto SET status='arquivado' WHERE id=$1", [archivedProject]);
+        const write = repo.create({
+          id: attemptedDocument,
+          projetoId: archivedProject,
+          nome: "corrida.txt",
+          extensao: ".txt",
+          mime: "text/plain",
+          tamanhoBytes: 8,
+          caminho: `${archivedProject}/${attemptedDocument}`,
+          usuarioId: user,
+        });
+        const deadline = Date.now() + 2_000;
+        let waiting = false;
+        while (!waiting && Date.now() < deadline) {
+          const result = await pool.query<{ waiting: boolean }>(
+            "SELECT EXISTS (SELECT 1 FROM pg_stat_activity WHERE wait_event_type='Lock' AND query LIKE 'LOCK TABLE projeto,%') AS waiting",
+          );
+          waiting = result.rows[0].waiting;
+          if (!waiting) await new Promise((resolve) => setTimeout(resolve, 10));
+        }
+        assert.equal(waiting, true, "a gravação deve aguardar o lock do arquivamento");
+        await archiver.query("COMMIT");
+        await assert.rejects(write, ArchiveConflict);
+        assert.equal((await pool.query("SELECT count(*)::int AS total FROM documento WHERE id=$1", [attemptedDocument])).rows[0].total, 0);
+      } catch (error) {
+        await archiver.query("ROLLBACK").catch(() => undefined);
+        throw error;
+      } finally {
+        archiver.release();
+      }
+    });
+
+    await t.test("corrida arquivamento/DELETE: conflito preserva documento, chunks e auditoria", async () => {
+      const archivedProject = randomUUID();
+      const archivedDocument = randomUUID();
+      const archivedChunk = randomUUID();
+      await pool.query("INSERT INTO projeto (id,nome,cliente,status) VALUES ($1::uuid,$1::text,'Teste','ativo')", [archivedProject]);
+      await repo.create({
+        id: archivedDocument,
+        projetoId: archivedProject,
+        nome: "protegido.txt",
+        extensao: ".txt",
+        mime: "text/plain",
+        tamanhoBytes: 8,
+        caminho: `${archivedProject}/${archivedDocument}`,
+        usuarioId: user,
+      });
+      await pool.query("INSERT INTO chunk (id,projeto_id,entidade_tipo,entidade_id,texto) VALUES ($1,$2,'documento',$3,'protegido')", [archivedChunk, archivedProject, archivedDocument]);
+
+      const archiver = await pool.connect();
+      try {
+        await archiver.query("BEGIN");
+        await lockHierarchy(archiver);
+        await archiver.query("UPDATE projeto SET status='arquivado' WHERE id=$1", [archivedProject]);
+        const removal = repo.remove({ id: archivedDocument, projetoId: archivedProject, usuarioId: user });
+        const deadline = Date.now() + 2_000;
+        let waiting = false;
+        while (!waiting && Date.now() < deadline) {
+          const result = await pool.query<{ waiting: boolean }>(
+            "SELECT EXISTS (SELECT 1 FROM pg_stat_activity WHERE wait_event_type='Lock' AND query LIKE 'LOCK TABLE projeto,%') AS waiting",
+          );
+          waiting = result.rows[0].waiting;
+          if (!waiting) await new Promise((resolve) => setTimeout(resolve, 10));
+        }
+        assert.equal(waiting, true, "a remoção deve aguardar o lock do arquivamento");
+        await archiver.query("COMMIT");
+        await assert.rejects(removal, ArchiveConflict);
+        assert.equal((await repo.findById(archivedProject, archivedDocument))?.id, archivedDocument);
+        assert.equal((await pool.query("SELECT count(*)::int AS total FROM chunk WHERE id=$1", [archivedChunk])).rows[0].total, 1);
+        assert.equal((await pool.query("SELECT count(*)::int AS total FROM auditoria WHERE entidade_id=$1 AND acao='REMOVER_DOCUMENTO'", [archivedDocument])).rows[0].total, 0);
+      } catch (error) {
+        await archiver.query("ROLLBACK").catch(() => undefined);
+        throw error;
+      } finally {
+        archiver.release();
+      }
     });
   } finally {
     await pool.query("DELETE FROM evento_integracao WHERE chave_idempotencia = ANY($1::text[])", [[removalEventKey(indexed), removalEventKey(plain)]]);

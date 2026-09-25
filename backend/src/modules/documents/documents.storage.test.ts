@@ -23,6 +23,7 @@ after(async () => {
 
 test("grava, recusa sobrescrever e remove de forma idempotente", async () => {
   await storage.save(KEY, Buffer.from("conteudo"));
+  await storage.finalizeUpload(KEY);
   assert.equal((await readFile(join(directory, KEY))).toString(), "conteudo");
   await assert.rejects(storage.save(KEY, Buffer.from("outro")));
   await storage.remove(KEY);
@@ -32,6 +33,7 @@ test("grava, recusa sobrescrever e remove de forma idempotente", async () => {
 
 test("remoção em duas fases: restaura em caso de falha e descarta após confirmar", async () => {
   await storage.save(KEY, Buffer.from("conteudo"));
+  await storage.finalizeUpload(KEY);
   assert.equal(await storage.stageRemoval(KEY), true);
   await assert.rejects(stat(join(directory, KEY)));
   await storage.restore(KEY);

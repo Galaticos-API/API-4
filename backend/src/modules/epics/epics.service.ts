@@ -1,12 +1,14 @@
 import { createEpicSchema, updateEpicSchema, epicQuerySchema, Epic, EpicWithStats, PaginatedEpics, EPIC_REQUIRED_FIELDS } from "./epics.types.js";
 import { EpicsRepository, epicsRepository } from "./epics.repository.js";
 import { ProjectsRepository, projectsRepository } from "../projects/projects.repository.js";
+import { QualityConfigurationRepository, qualityConfigurationRepository } from "../quality/quality.configuration.repository.js";
 import { NotFoundError, ValidationError, validateUuid } from "../../shared/errors.js";
 
 export class EpicsService {
   constructor(
     private readonly repository: EpicsRepository = epicsRepository,
     private readonly projectsRepo: ProjectsRepository = projectsRepository,
+    private readonly qualityConfigRepo: QualityConfigurationRepository = qualityConfigurationRepository,
   ) {}
 
   private async ensureWritable(epic: Epic): Promise<void> {
@@ -80,6 +82,10 @@ export class EpicsService {
       const merged = { ...existing, ...parseResult.data };
       if (EPIC_REQUIRED_FIELDS.some((field) => !String(merged[field] ?? "").trim())) {
         throw new ValidationError("Não é possível remover campos obrigatórios de um épico concluído.");
+      }
+      const config = await this.qualityConfigRepo.getPbiConfiguration();
+      if (config.exigir_justificativa_item_concluido && !parseResult.data.justificativa?.trim()) {
+        throw new ValidationError("A justificativa é obrigatória ao alterar um item concluído.", { code: "JUSTIFICATIVA_REQUERIDA", campo: "justificativa" });
       }
     }
     const updated = await this.repository.update(id, parseResult.data, usuarioId);

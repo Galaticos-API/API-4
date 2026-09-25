@@ -21,7 +21,7 @@ const document = {
 afterEach(() => vi.unstubAllGlobals());
 
 it("lista documentos do projeto e valida o contrato", async () => {
-  const request = vi.fn(async (..._args: unknown[]) => new Response(JSON.stringify({ items: [document], limites: limits })));
+  const request = vi.fn(async (..._args: unknown[]) => new Response(JSON.stringify({ items: [document], limites: limits, next_cursor: null })));
   vi.stubGlobal("fetch", request);
   const result = await listDocuments("p-1");
   expect(request.mock.calls[0][0]).toBe("/api/v1/projects/p-1/documents");
@@ -30,9 +30,9 @@ it("lista documentos do projeto e valida o contrato", async () => {
 });
 
 it("recusa respostas fora do contrato", async () => {
-  vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ items: [{ id: "x" }], limites: limits }))));
+  vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ items: [{ id: "x" }], limites: limits, next_cursor: null }))));
   await expect(listDocuments("p-1")).rejects.toThrow("Resposta de documento inválida");
-  vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ items: [] }))));
+  vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ items: [], next_cursor: null }))));
   await expect(listDocuments("p-1")).rejects.toThrow("Limites de envio inválidos");
 });
 

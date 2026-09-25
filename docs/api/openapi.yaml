@@ -347,6 +347,55 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
+  /api/v1/projects/{id}/backlog-tree:
+    get:
+      summary: Retorna a hierarquia do backlog e tecnologias associadas (S1-16)
+      operationId: getProjectBacklogTree
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Árvore ordenada dentro de um snapshot consistente do banco
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectBacklogTreeResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Projeto não encontrado
+
+  /api/v1/technologies:
+    get:
+      summary: Lista o catálogo de tecnologias para associação ao backlog
+      operationId: listTechnologies
+      security:
+        - cookieAuth: []
+      responses:
+        '200':
+          description: Catálogo ordenado sem dados pessoais de desenvolvedores
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TechnologyOption'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
   /api/v1/epics:
     post:
       summary: Cadastra um épico dentro de um projeto (PBI-01.1.2 / S1-05)
@@ -886,13 +935,68 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
+  /api/v1/audit/{entidade_tipo}/{entidade_id}/history:
+    get:
+      summary: Consulta o histórico de auditoria paginado de uma entidade
+      operationId: getEntityAuditHistory
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: entidade_tipo
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [epico, feature, pbi]
+        - name: entidade_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 25
+        - name: cursor
+          in: query
+          description: Cursor opaco retornado pela página anterior
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Eventos ordenados do mais recente para o mais antigo
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, next_cursor]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/AuditHistoryItem'
+                  next_cursor:
+                    type: string
+                    nullable: true
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Entidade não encontrada
+
   /api/v1/criteria:
     post:
       summary: Registra um critério de aceitação polimórfico (PBI-01.2.1, PBI-01.2.2, PBI-01.2.3 / S1-10)
       operationId: createCriterion
       description: >-
         Épico e feature exigem texto livre; PBI exige nome, DADO, QUANDO e ENTÃO em conjunto.
-        Novo critério é sempre adicionado ao final da ordem existente na entidade.
+        Novo critério é sempre adicionado ao final da ordem existente na entidade. Para item concluído,
+        a política organizacional pode exigir justificativa, armazenada na auditoria da mutação.
       security:
         - cookieAuth: []
       requestBody:
@@ -955,6 +1059,7 @@ paths:
     delete:
       summary: Remove um critério de aceitação e reordena os demais da mesma entidade (PBI-01.2.1 / S1-10)
       operationId: deleteCriterion
+      description: A política organizacional pode exigir justificativa ao alterar critérios de item concluído.
       security:
         - cookieAuth: []
       parameters:
@@ -964,6 +1069,16 @@ paths:
           schema:
             type: string
             format: uuid
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                justificativa:
+                  type: string
+                  maxLength: 2000
       responses:
         '200':
           description: Critério removido
@@ -984,7 +1099,8 @@ paths:
       operationId: moveCriterion
       description: >-
         Operação idempotente: mover o primeiro item para cima (ou o último para baixo) não
-        retorna erro, apenas devolve a lista sem alteração.
+        retorna erro, apenas devolve a lista sem alteração. Para item concluído, a política
+        organizacional pode exigir justificativa para uma movimentação efetiva.
       security:
         - cookieAuth: []
       parameters:
@@ -1005,6 +1121,9 @@ paths:
                 direction:
                   type: string
                   enum: [up, down]
+                justificativa:
+                  type: string
+                  maxLength: 2000
       responses:
         '200':
           description: Lista ordenada da entidade após a movimentação
@@ -1358,6 +1477,76 @@ components:
       name: sinapse_session
 
   schemas:
+    TechnologyOption:
+      type: object
+      required: [id, nome]
+      properties:
+        id:
+          type: string
+          format: uuid
+        nome:
+          type: string
+
+    ProjectBacklogTreeResponse:
+      type: object
+      required: [project, epics, technologies]
+      properties:
+        project:
+          type: object
+          required: [id, nome, status]
+          properties:
+            id: {type: string, format: uuid}
+            nome: {type: string}
+            status: {type: string}
+        technologies:
+          type: array
+          items:
+            $ref: '#/components/schemas/TechnologyOption'
+        epics:
+          type: array
+          items:
+            $ref: '#/components/schemas/BacklogEpicNode'
+
+    BacklogEpicNode:
+      type: object
+      required: [id, titulo, status, tecnologias, features]
+      properties:
+        id: {type: string, format: uuid}
+        titulo: {type: string}
+        status: {type: string}
+        tecnologias:
+          type: array
+          items: {$ref: '#/components/schemas/TechnologyOption'}
+        features:
+          type: array
+          items: {$ref: '#/components/schemas/BacklogFeatureNode'}
+
+    BacklogFeatureNode:
+      type: object
+      required: [id, titulo, status, tecnologias, pbis]
+      properties:
+        id: {type: string, format: uuid}
+        titulo: {type: string}
+        status: {type: string}
+        tecnologias:
+          type: array
+          items: {$ref: '#/components/schemas/TechnologyOption'}
+        pbis:
+          type: array
+          items: {$ref: '#/components/schemas/BacklogPbiNode'}
+
+    BacklogPbiNode:
+      type: object
+      required: [id, codigo, titulo, status, tecnologias]
+      properties:
+        id: {type: string, format: uuid}
+        codigo: {type: string}
+        titulo: {type: string}
+        status: {type: string}
+        tecnologias:
+          type: array
+          items: {$ref: '#/components/schemas/TechnologyOption'}
+
     HierarchyArchiveImpact:
       type: object
       required: [epicos, features, pbis]
@@ -1551,6 +1740,13 @@ components:
           type: string
           enum: [Must, Should, Could]
           default: Must
+        tecnologias_ids:
+          type: array
+          maxItems: 50
+          items:
+            type: string
+            format: uuid
+          description: IDs do catálogo; associações são substituídas atomicamente. IDs repetidos são normalizados.
 
     UpdateEpicRequest:
       type: object
@@ -1577,6 +1773,13 @@ components:
           enum: [Must, Should, Could]
         justificativa:
           type: string
+        tecnologias_ids:
+          type: array
+          maxItems: 50
+          items:
+            type: string
+            format: uuid
+          description: Quando omitido, preserva as associações atuais; lista vazia remove todas.
 
     EpicResponse:
       type: object
@@ -1619,6 +1822,11 @@ components:
           type: integer
         criterios_count:
           type: integer
+        tecnologias_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
 
     PaginatedEpicsResponse:
       type: object
@@ -1656,6 +1864,12 @@ components:
           type: string
           enum: [Must, Should, Could]
           default: Must
+        tecnologias_ids:
+          type: array
+          maxItems: 50
+          items:
+            type: string
+            format: uuid
 
     UpdateFeatureRequest:
       type: object
@@ -1675,6 +1889,12 @@ components:
           enum: [Must, Should, Could]
         justificativa:
           type: string
+        tecnologias_ids:
+          type: array
+          maxItems: 50
+          items:
+            type: string
+            format: uuid
 
     FeatureResponse:
       type: object
@@ -1715,6 +1935,11 @@ components:
         projeto_id:
           type: string
           format: uuid
+        tecnologias_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
 
     PaginatedFeaturesResponse:
       type: object
@@ -1765,6 +1990,12 @@ components:
           type: boolean
           default: false
           description: Define explicitamente se a verificação de protótipo deve ser aplicada ao PBI.
+        tecnologias_ids:
+          type: array
+          maxItems: 50
+          items:
+            type: string
+            format: uuid
 
     UpdatePbiRequest:
       type: object
@@ -1794,6 +2025,12 @@ components:
           type: boolean
         justificativa:
           type: string
+        tecnologias_ids:
+          type: array
+          maxItems: 50
+          items:
+            type: string
+            format: uuid
 
     PbiResponse:
       type: object
@@ -1826,6 +2063,11 @@ components:
         requer_interface:
           type: boolean
           description: Indica se a regra de protótipo é aplicável a este PBI.
+        tecnologias_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
         prototipo_vinculado:
           type: boolean
           description: Indica se há ao menos um protótipo registrado para este PBI.
@@ -1891,6 +2133,9 @@ components:
           type: string
         entao:
           type: string
+        justificativa:
+          type: string
+          maxLength: 2000
 
     CriterionResponse:
       type: object
@@ -1926,6 +2171,47 @@ components:
         created_at:
           type: string
           format: date-time
+
+    AuditHistoryItem:
+      type: object
+      required: [id, entidade_tipo, entidade_id, acao, dados_json, created_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        usuario_id:
+          type: string
+          format: uuid
+          nullable: true
+        usuario_nome:
+          type: string
+          nullable: true
+        entidade_tipo:
+          type: string
+          enum: [epico, feature, pbi]
+        entidade_id:
+          type: string
+          format: uuid
+        acao:
+          type: string
+        justificativa:
+          type: string
+          nullable: true
+        dados_json:
+          type: object
+          additionalProperties: true
+        created_at:
+          type: string
+          format: date-time
+        pbi_versao:
+          type: integer
+          nullable: true
+          description: Versão persistida correspondente, quando o evento for uma atualização de PBI.
+        pbi_snapshot:
+          type: object
+          nullable: true
+          additionalProperties: true
+          description: Snapshot do PBI filtrado para campos permitidos pelo contrato.
 
     ValidationResultResponse:
       type: object
@@ -2042,12 +2328,15 @@ components:
           type: array
           maxItems: 100
           items: { type: string, minLength: 1, maxLength: 80 }
+        exigir_justificativa_item_concluido:
+          type: boolean
+          description: Se alterações em itens concluídos exigem justificativa; omissão preserva a configuração atual.
 
     PbiQualityConfiguration:
       allOf:
         - $ref: '#/components/schemas/PbiQualityConfigurationInput'
         - type: object
-          required: [rule_version, updated_at, updated_by]
+          required: [rule_version, updated_at, updated_by, exigir_justificativa_item_concluido]
           properties:
             rule_version: { type: string, example: pbi-quality-v2 }
             updated_at: { type: string, format: date-time }

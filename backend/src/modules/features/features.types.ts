@@ -17,6 +17,7 @@ export const createFeatureSchema = z.object({
     .max(255, "O título não pode exceder 255 caracteres."),
   descricao: z.string().trim().optional().nullable(),
   objetivo: z.string().trim().optional().nullable(),
+  tecnologias_ids: z.array(z.string().uuid()).max(50).optional(),
   prioridade: z.enum(FEATURE_PRIORITIES).default("Must"),
 });
 
@@ -28,6 +29,7 @@ export const updateFeatureSchema = z.object({
   objetivo: z.string().trim().optional().nullable(),
   prioridade: z.enum(FEATURE_PRIORITIES).optional(),
   justificativa: z.string().trim().optional().nullable(),
+  tecnologias_ids: z.array(z.string().uuid()).max(50).optional(),
 });
 
 export type UpdateFeatureDTO = z.infer<typeof updateFeatureSchema>;
@@ -47,6 +49,7 @@ export interface Feature {
   titulo: string;
   descricao: string | null;
   objetivo: string | null;
+  tecnologias_ids?: string[];
   prioridade: FeaturePriority;
   status: FeatureStatus;
   created_at: Date | string;

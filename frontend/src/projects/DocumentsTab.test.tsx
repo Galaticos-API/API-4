@@ -10,7 +10,7 @@ const doc = (overrides: Record<string, unknown> = {}) => ({
   ...overrides,
 });
 const json = (body: unknown, status = 200) => Promise.resolve(new Response(JSON.stringify(body), { status }));
-const listing = (items: unknown[]) => json({ items, limites });
+const listing = (items: unknown[]) => json({ items, limites, next_cursor: null });
 
 beforeEach(() => {
   Object.defineProperty(HTMLDialogElement.prototype, "showModal", { configurable: true, value: function (this: HTMLDialogElement) { this.setAttribute("open", ""); } });

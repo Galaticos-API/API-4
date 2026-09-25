@@ -43,6 +43,7 @@ export class FakeDocumentsRepository extends DocumentsRepository {
   public failCreate = false;
   public failRemove = false;
   public chunks = new Map<string, number>();
+  public storageOperations = new Map<string, { id: string; documento_id: string; projeto_id: string; acao: "finalizar_upload" | "descartar_remocao"; caminho: string; status: "pendente" | "concluido" }>();
 
   constructor() {
     super();
@@ -59,16 +60,24 @@ export class FakeDocumentsRepository extends DocumentsRepository {
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
       status_processamento: "pendente",
+      armazenamento_pendente: false,
       ...row,
     };
     this.rows.push(full);
     return full;
   }
 
-  async listByProject(projetoId: string): Promise<DocumentRecord[]> {
-    return this.rows
+  async listByProject(projetoId: string, cursor: { createdAt: string; id: string } | null, limit: number) {
+    const matching = this.rows
       .filter((row) => row.projeto_id === projetoId)
-      .map(({ caminho: _caminho, ...record }) => record);
+      .filter((row) => !cursor || Date.parse(row.created_at) < Date.parse(cursor.createdAt)
+        || (Date.parse(row.created_at) === Date.parse(cursor.createdAt) && row.id < cursor.id))
+      .sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at) || b.id.localeCompare(a.id));
+    const page = matching.slice(0, limit + 1);
+    return {
+      items: page.slice(0, limit).map(({ caminho: _caminho, ...record }) => record),
+      hasMore: page.length > limit,
+    };
   }
 
   async findById(projetoId: string, id: string): Promise<StoredDocument | null> {
@@ -88,6 +97,16 @@ export class FakeDocumentsRepository extends DocumentsRepository {
       tamanho_bytes: input.tamanhoBytes,
       caminho: input.caminho,
       autor_id: input.usuarioId,
+      armazenamento_pendente: true,
+    });
+    const operationId = `upload:${input.id}`;
+    this.storageOperations.set(operationId, {
+      id: operationId,
+      documento_id: input.id,
+      projeto_id: input.projetoId,
+      acao: "finalizar_upload",
+      caminho: input.caminho,
+      status: "pendente",
     });
     this.audit.push({ acao: "ENVIAR_DOCUMENTO", documentoId: input.id, dados: { nome: input.nome } });
     const { caminho: _caminho, ...record } = row;
@@ -99,6 +118,15 @@ export class FakeDocumentsRepository extends DocumentsRepository {
     const index = this.rows.findIndex((row) => row.id === input.id && row.projeto_id === input.projetoId);
     if (index < 0) return null;
     const [row] = this.rows.splice(index, 1);
+    const storageOperationId = `remove:${input.id}`;
+    this.storageOperations.set(storageOperationId, {
+      id: storageOperationId,
+      documento_id: input.id,
+      projeto_id: input.projetoId,
+      acao: "descartar_remocao",
+      caminho: row.caminho,
+      status: "pendente",
+    });
     const chunksRemovidos = this.chunks.get(row.id) ?? 0;
     const indexado = chunksRemovidos > 0 || row.status_processamento === "processado";
     let eventoChave: string | null = null;
@@ -125,7 +153,38 @@ export class FakeDocumentsRepository extends DocumentsRepository {
       indexado,
       chunksRemovidos,
       eventoChave,
+      storageOperationId,
     };
+  }
+
+  async completeUploadOperation(documentId: string): Promise<void> {
+    const row = this.rows.find((item) => item.id === documentId);
+    if (row) row.armazenamento_pendente = false;
+    const op = this.storageOperations.get(`upload:${documentId}`);
+    if (op) op.status = "concluido";
+  }
+
+  async completeStorageOperation(id: string): Promise<void> {
+    const operation = this.storageOperations.get(id);
+    if (operation) {
+      operation.status = "concluido";
+      if (operation.acao === "finalizar_upload") {
+        const row = this.rows.find((item) => item.id === operation.documento_id);
+        if (row) row.armazenamento_pendente = false;
+      }
+    }
+  }
+
+  async markStorageOperationFailed(): Promise<void> {}
+
+  async markStorageOperationFailedForDocument(): Promise<void> {}
+
+  async listPendingStorageOperations(limit: number) {
+    return [...this.storageOperations.values()].filter((item) => item.status === "pendente").slice(0, limit);
+  }
+
+  async documentExists(caminho: string): Promise<boolean> {
+    return this.rows.some((row) => row.caminho === caminho);
   }
 
   async listPendingEvents(limit: number): Promise<PendingEvent[]> {
@@ -148,17 +207,29 @@ export class FakeDocumentsRepository extends DocumentsRepository {
 
 export class FakeStorage implements DocumentStorage {
   public files = new Map<string, Buffer>();
+  public uploads = new Map<string, Buffer>();
   public staged = new Set<string>();
   public failSave = false;
   public failStage = false;
+  public failFinalize = false;
 
   async save(key: string, content: Buffer): Promise<void> {
     if (this.failSave) throw new Error("disco cheio");
-    this.files.set(key, content);
+    this.uploads.set(key, content);
+  }
+
+  async finalizeUpload(key: string): Promise<void> {
+    if (this.failFinalize) throw new Error("falha simulada");
+    const content = this.uploads.get(key);
+    if (content) {
+      this.files.set(key, content);
+      this.uploads.delete(key);
+    }
   }
 
   async remove(key: string): Promise<void> {
     this.files.delete(key);
+    this.uploads.delete(key);
   }
 
   async stageRemoval(key: string): Promise<boolean> {
@@ -176,6 +247,8 @@ export class FakeStorage implements DocumentStorage {
     this.staged.delete(key);
     this.files.delete(key);
   }
+
+  async reconcileStaged(): Promise<void> {}
 }
 
 export class FakePublisher implements DocumentEventPublisher {

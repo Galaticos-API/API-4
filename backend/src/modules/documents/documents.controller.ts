@@ -22,7 +22,9 @@ export class DocumentsController {
 
   list = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      res.status(200).json(await this.service.list(paramOf(req.params.projectId)));
+      const cursor = typeof req.query.cursor === "string" ? req.query.cursor : undefined;
+      const limit = typeof req.query.limit === "string" ? req.query.limit : undefined;
+      res.status(200).json(await this.service.list(paramOf(req.params.projectId), cursor, limit));
     } catch (error) {
       next(error);
     }

@@ -10,7 +10,7 @@ function route(archived = false) {
   return vi.fn((url: RequestInfo | URL) => {
     const path = String(url);
     if (path === "/api/v1/projects/p-1") return json({ ...project, status: archived ? "arquivado" : "ativo" });
-    if (path === "/api/v1/projects/p-1/documents") return json({ items: [], limites: { max_bytes: 1048576, extensoes_permitidas: [".pdf", ".md"] } });
+    if (path === "/api/v1/projects/p-1/documents") return json({ items: [], next_cursor: null, limites: { max_bytes: 1048576, extensoes_permitidas: [".pdf", ".md"] } });
     if (path === "/api/v1/projects/p-1/repo-analyses") return json([]);
     return json([]);
   });

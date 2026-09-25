@@ -12,6 +12,7 @@ export interface ProjectDocument {
   mime: string | null;
   tamanho_bytes: number | null;
   status_processamento: DocumentStatus;
+  armazenamento_pendente: boolean;
   autor_id: string | null;
   autor_nome: string | null;
   created_at: string;
@@ -26,6 +27,7 @@ export interface DocumentLimits {
 export interface DocumentList {
   items: ProjectDocument[];
   limites: DocumentLimits;
+  next_cursor: string | null;
 }
 
 const UPLOAD_TIMEOUT_MS = 120_000;
@@ -52,6 +54,7 @@ function parseDocument(value: unknown): ProjectDocument {
     mime: typeof value.mime === "string" ? value.mime : null,
     tamanho_bytes: typeof size === "number" ? size : null,
     status_processamento: value.status_processamento as DocumentStatus,
+    armazenamento_pendente: value.armazenamento_pendente === true,
     autor_id: typeof value.autor_id === "string" ? value.autor_id : null,
     autor_nome: typeof value.autor_nome === "string" ? value.autor_nome : null,
     created_at: value.created_at,
@@ -69,11 +72,20 @@ function parseLimits(value: unknown): DocumentLimits {
   return { max_bytes: value.max_bytes, extensoes_permitidas: value.extensoes_permitidas as string[] };
 }
 
-export async function listDocuments(projectId: string, signal?: AbortSignal): Promise<DocumentList> {
-  const response = await apiRequest(`/projects/${encodeURIComponent(projectId)}/documents`, { signal });
+export async function listDocuments(
+  projectId: string,
+  options: { cursor?: string; signal?: AbortSignal } = {},
+): Promise<DocumentList> {
+  const params = new URLSearchParams();
+  if (options.cursor) params.set("cursor", options.cursor);
+  const query = params.size ? `?${params.toString()}` : "";
+  const response = await apiRequest(`/projects/${encodeURIComponent(projectId)}/documents${query}`, { signal: options.signal });
   const data: unknown = await response.json();
-  if (!isRecord(data) || !Array.isArray(data.items)) throw new Error("Lista de documentos inválida");
-  return { items: data.items.map(parseDocument), limites: parseLimits(data.limites) };
+  if (!isRecord(data) || !Array.isArray(data.items)
+    || !(data.next_cursor === null || typeof data.next_cursor === "string")) {
+    throw new Error("Lista de documentos inválida");
+  }
+  return { items: data.items.map(parseDocument), limites: parseLimits(data.limites), next_cursor: data.next_cursor };
 }
 
 export async function uploadDocument(projectId: string, file: File, signal?: AbortSignal): Promise<ProjectDocument> {
@@ -125,7 +137,7 @@ export function describeUploadError(error: unknown): string {
     if (error.status === 401) return "Sua sessão expirou. Entre novamente para enviar o documento.";
     if (error.status === 403) return "Seu perfil não permite enviar documentos neste projeto.";
     if (error.status === 404) return "Projeto não encontrado. Volte à lista de projetos e tente novamente.";
-    if ((error.status === 400 || error.status === 413 || error.status === 503) && message) return message;
+    if ((error.status === 400 || error.status === 409 || error.status === 413 || error.status === 503) && message) return message;
   }
   return "Não foi possível enviar o arquivo. Sua seleção foi mantida; tente novamente.";
 }
@@ -135,6 +147,7 @@ export function describeRemovalError(error: unknown): string {
     const message = serverMessage(error);
     if (error.status === 403) return "Seu perfil não permite remover documentos.";
     if (error.status === 404) return "Projeto não encontrado. Atualize a página e tente novamente.";
+    if (error.status === 409) return message ?? "O projeto está arquivado e os documentos ficam somente para consulta.";
     if ((error.status === 500 || error.status === 503) && message) return message;
   }
   return "Não foi possível remover o documento. Ele continua disponível; tente novamente.";

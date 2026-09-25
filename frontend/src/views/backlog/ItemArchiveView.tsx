@@ -1,0 +1,50 @@
+import { useEffect, useRef, useState } from "react";
+import { apiRequest, ApiError } from "../../api/api_auth";
+type ArchiveImpact = { epicos: number; features: number; pbis: number };
+type Item = { id: string; titulo: string; status: string };
+
+export function ItemArchiveView({ project, kind, canWrite, onArchived }: { project: Item; kind: "epics" | "features" | "pbis"; canWrite: boolean; onArchived: () => void }) {
+  const [impact, setImpact] = useState<ArchiveImpact | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const dialog = useRef<HTMLDialogElement>(null);
+  const mounted = useRef(true);
+  const pending = useRef(false);
+  useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
+  useEffect(() => { if (impact) dialog.current?.showModal(); }, [impact]);
+  if (!canWrite || project.status === "arquivado") return null;
+  async function preview() {
+    if (pending.current) return;
+    pending.current = true; setBusy(true); setError("");
+    try { const value = await (await apiRequest(`/${kind}/${project.id}/archive-impact`)).json(); if (mounted.current) setImpact(value); }
+    catch { if (mounted.current) setError("Não foi possível consultar o impacto. Tente novamente."); }
+    finally { pending.current = false; if (mounted.current) setBusy(false); }
+  }
+  function close() { dialog.current?.close(); setImpact(null); }
+  async function confirm() {
+    if (!impact || pending.current) return;
+    pending.current = true; setBusy(true); setError("");
+    try {
+      await apiRequest(`/${kind}/${project.id}/archive`, { method: "PATCH", body: JSON.stringify({ confirmado: true, impacto: impact }) });
+      if (mounted.current) { close(); onArchived(); }
+    } catch (failure) {
+      if (!mounted.current) return;
+      close();
+      setError(failure instanceof ApiError && failure.status === 409
+        ? "O impacto mudou. Consulte a prévia novamente antes de confirmar."
+        : "Não foi possível confirmar o arquivamento. Consulte o projeto antes de tentar novamente.");
+    } finally { pending.current = false; if (mounted.current) setBusy(false); }
+  }
+  return <div className="project-actions">
+    <button className="btn-secondary" disabled={busy} onClick={preview}>{busy ? "Processando…" : "Arquivar item"}</button>
+    {error && <p role="alert">{error}</p>}
+    <dialog className="archive-dialog" ref={dialog} aria-labelledby="archive-title" onCancel={event => { if (busy) event.preventDefault(); else setImpact(null); }}>
+      <h2 id="archive-title">Arquivar {project.titulo}?</h2>
+      {impact && <><p>Serão arquivados {impact.epicos} épico(s), {impact.features} feature(s) e {impact.pbis} PBI(s).</p>
+        <p>Os registros serão preservados para consulta. Os itens já arquivados manterão suas datas.</p></>}
+      {busy && <p role="status">Arquivando…</p>}
+      <div className="project-actions"><button className="btn-secondary" autoFocus disabled={busy} onClick={close}>Cancelar</button>
+        <button className="btn-primary" disabled={busy || !impact} onClick={confirm}>Confirmar arquivamento</button></div>
+    </dialog>
+  </div>;
+}

@@ -8,6 +8,11 @@ export type BacklogStatus =
   | "concluido"
   | "arquivado";
 
+export interface TechnologyOption {
+  id: string;
+  nome: string;
+}
+
 export type Priority =
   | "Must"
   | "Should"
@@ -20,6 +25,8 @@ export interface EpicInput {
   objetivo: string;
   escopo_macro: string;
   resultado_esperado: string;
+  tecnologias_ids?: string[];
+  justificativa?: string | null;
 }
 
 export interface Epic extends EpicInput {
@@ -30,6 +37,7 @@ export interface Epic extends EpicInput {
   criterios_count: number;
   projeto_status: string;
   archived_at: string | null;
+  tecnologias_ids?: string[];
 }
 
 export interface FeatureInput {
@@ -37,6 +45,8 @@ export interface FeatureInput {
   titulo: string;
   descricao: string;
   objetivo: string;
+  tecnologias_ids?: string[];
+  justificativa?: string | null;
 }
 
 export interface Feature extends FeatureInput {
@@ -49,6 +59,7 @@ export interface Feature extends FeatureInput {
   projeto_id: string;
   projeto_status: string;
   archived_at: string | null;
+  tecnologias_ids?: string[];
 }
 
 export interface PbiInput {
@@ -58,6 +69,9 @@ export interface PbiInput {
   historia_eu_quero: string;
   historia_para_que: string;
   requer_interface: boolean;
+  regras_observacoes?: string | null;
+  justificativa?: string | null;
+  tecnologias_ids?: string[];
 }
 
 export interface Pbi extends PbiInput {
@@ -72,6 +86,7 @@ export interface Pbi extends PbiInput {
   projeto_status: string;
   score_completude: number | null;
   prototipo_vinculado?: boolean;
+  tecnologias_ids?: string[];
 }
 
 export interface CompletionError {
@@ -144,6 +159,22 @@ function asText(value: unknown): string {
     : "";
 }
 
+function parseTechnologyIds(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter((id): id is string => typeof id === "string");
+}
+
+export async function listTechnologies(signal?: AbortSignal): Promise<TechnologyOption[]> {
+  const response = await apiRequest("/technologies", { signal });
+  const data = await response.json();
+  if (!Array.isArray(data.items)) throw new Error("Catálogo de tecnologias inválido");
+  return data.items.filter((item: unknown): item is TechnologyOption => {
+    if (!item || typeof item !== "object") return false;
+    const candidate = item as Record<string, unknown>;
+    return typeof candidate.id === "string" && typeof candidate.nome === "string";
+  });
+}
+
 function parseEpic(value: unknown): Epic {
   const epic =
     value as Record<string, unknown>;
@@ -172,6 +203,7 @@ function parseEpic(value: unknown): Epic {
     resultado_esperado: asText(
       epic.resultado_esperado,
     ),
+    tecnologias_ids: parseTechnologyIds(epic.tecnologias_ids),
     prioridade:
       (epic.prioridade as Priority) ??
       "Must",
@@ -220,6 +252,7 @@ function parseFeature(
       feature.descricao,
     ),
     objetivo: asText(feature.objetivo),
+    tecnologias_ids: parseTechnologyIds(feature.tecnologias_ids),
     prioridade:
       (feature.prioridade as Priority) ??
       "Must",
@@ -281,6 +314,7 @@ function parsePbi(value: unknown): Pbi {
     ),
     requer_interface:
       pbi.requer_interface === true,
+    tecnologias_ids: parseTechnologyIds(pbi.tecnologias_ids),
     prototipo_vinculado:
       pbi.prototipo_vinculado === true,
     status:
@@ -667,6 +701,7 @@ export interface PbiQualityConfigurationRecord {
     boolean
   >;
   vague_terms: string[];
+  exigir_justificativa_item_concluido: boolean;
   updated_at?: string;
 }
 
@@ -708,7 +743,8 @@ export async function getPbiQualityConfiguration(
     data.vague_terms.some(
       (term: unknown) =>
         typeof term !== "string",
-    )
+    ) || (data.exigir_justificativa_item_concluido !== undefined
+      && typeof data.exigir_justificativa_item_concluido !== "boolean")
   ) {
     throw new Error(
       "Resposta de configuração de qualidade inválida",
@@ -724,6 +760,8 @@ export async function getPbiQualityConfiguration(
       ]),
     ) as Record<PbiQualityCheckId, boolean>,
     vague_terms: data.vague_terms,
+    exigir_justificativa_item_concluido:
+      data.exigir_justificativa_item_concluido ?? true,
     updated_at: asText(data.updated_at),
   };
 }
@@ -753,6 +791,7 @@ export interface TextCriterionInput {
   entidade_tipo: "epico" | "feature";
   entidade_id: string;
   texto: string;
+  justificativa?: string;
 }
 
 export interface ScenarioCriterionInput {
@@ -762,6 +801,7 @@ export interface ScenarioCriterionInput {
   dado: string;
   quando: string;
   entao: string;
+  justificativa?: string;
 }
 
 function parseCriterion(
@@ -854,11 +894,15 @@ export async function createCriterion(
 
 export async function deleteCriterion(
   id: string,
+  justificativa?: string,
 ): Promise<void> {
   await apiRequest(
     `/criteria/${encodeURIComponent(id)}`,
     {
       method: "DELETE",
+      ...(justificativa
+        ? { body: JSON.stringify({ justificativa }) }
+        : {}),
     },
   );
 }
@@ -866,6 +910,7 @@ export async function deleteCriterion(
 export async function moveCriterion(
   id: string,
   direction: "up" | "down",
+  justificativa?: string,
 ): Promise<Criterion[]> {
   const response = await apiRequest(
     `/criteria/${encodeURIComponent(
@@ -875,6 +920,7 @@ export async function moveCriterion(
       method: "PATCH",
       body: JSON.stringify({
         direction,
+        ...(justificativa ? { justificativa } : {}),
       }),
     },
   );
@@ -888,4 +934,53 @@ export async function moveCriterion(
   }
 
   return data.items.map(parseCriterion);
+}
+
+export interface AuditHistoryItem {
+  id: string;
+  usuario_id: string | null;
+  usuario_nome: string | null;
+  entidade_tipo: string;
+  entidade_id: string;
+  acao: string;
+  justificativa: string | null;
+  dados_json: Record<string, unknown>;
+  created_at: string;
+  pbi_versao?: number | null;
+  pbi_snapshot?: Record<string, unknown> | null;
+}
+
+export interface AuditHistoryPage {
+  items: AuditHistoryItem[];
+  next_cursor: string | null;
+}
+
+export async function getItemHistory(
+  entidadeTipo: string,
+  entidadeId: string,
+  signal?: AbortSignal,
+  cursor?: string,
+  limit = 25,
+): Promise<AuditHistoryPage> {
+  const query = new URLSearchParams({ limit: String(limit) });
+  if (cursor) query.set("cursor", cursor);
+  const response = await apiRequest(
+    `/audit/${encodeURIComponent(entidadeTipo)}/${encodeURIComponent(entidadeId)}/history?${query.toString()}`,
+    { signal },
+  );
+  const data = await response.json();
+  if (
+    !data
+    || typeof data !== "object"
+    || !Array.isArray(data.items)
+    || (data.next_cursor !== undefined
+      && data.next_cursor !== null
+      && typeof data.next_cursor !== "string")
+  ) {
+    throw new Error("Resposta do histórico de auditoria inválida");
+  }
+  return {
+    items: data.items,
+    next_cursor: data.next_cursor ?? null,
+  };
 }
