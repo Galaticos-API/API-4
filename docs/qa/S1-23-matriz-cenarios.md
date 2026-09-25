@@ -46,6 +46,6 @@ frontend, **E2E** = navegador + API real + PostgreSQL (`e2e/tests/…`).
 ## Lacunas conhecidas (não escondidas)
 
 1. Várias suítes de frontend anteriores (`Epics.test`, `Features` em `Epics.test`, `QualityPanel.test`, `ItemArchive.test`, `Projects.test`, `ProjectArchive.test`) exercitam **componentes legados** em `frontend/src/backlog/*` e `frontend/src/projects/Projects.tsx`, que a aplicação não importa mais (as telas ativas estão em `frontend/src/views/*`). As telas ativas de épico/feature/PBI/qualidade/arquivamento são provadas pelos cenários `hierarchy-ui`, `flows` e `a11y`. Recomendação: migrar ou remover os componentes e testes legados em tarefa própria.
-2. Cenários de administrador dependem de credenciais fornecidas por ambiente (o cadastro público não cria admin).
+2. Não há cenário E2E de administrador (o cadastro público não cria admin e o ambiente de teste não provisiona um); o perfil é coberto por testes de rota (`requireRole.test`, `auth.register-role.test`).
 3. Ingestão e indexação de documentos são S2-01; a matriz cobre apenas o armazenamento, listagem e remoção.
 4. O serviço de IA não é exercitado; os cenários provam o comportamento com ele indisponível.

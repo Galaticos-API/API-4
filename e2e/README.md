@@ -10,7 +10,6 @@ Não substituem os testes de unidade de cada módulo.
 - Frontend em `http://localhost:5173` (`cd frontend && npm run dev`).
 - Google Chrome instalado (ou `E2E_CHROME_PATH` apontando para um executável Chromium).
 - O serviço de IA **não** é necessário: os testes verificam o comportamento quando ele está indisponível.
-- Opcional: `E2E_ADMIN_EMAIL` e `E2E_ADMIN_PASSWORD` para os cenários de administrador (o cadastro público não cria admin).
 
 ## Suítes
 
