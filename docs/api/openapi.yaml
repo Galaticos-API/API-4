@@ -1146,6 +1146,55 @@ paths:
         '404':
           description: Critério não encontrado
 
+  /api/v1/projects/{projectId}/backlog-search:
+    get:
+      summary: Busca textual relacional no backlog do projeto (S1-17)
+      description: >
+        Pesquisa título, descrição (épico/feature), história e regras (PBI) e o
+        código do PBI, sem diferenciar acentos ou maiúsculas. Todos os termos
+        precisam aparecer (interseção) e a busca combina por interseção com
+        `status` e `tecnologia`. Nunca retorna itens de outro projeto. Não é
+        busca semântica/RAG.
+      operationId: searchProjectBacklog
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema: {type: string, format: uuid}
+        - name: q
+          in: query
+          required: true
+          description: Termo(s) com 2 a 100 caracteres
+          schema: {type: string, minLength: 2, maxLength: 100}
+        - name: status
+          in: query
+          required: false
+          schema: {type: string, enum: [rascunho, ativo, pronto, concluido, arquivado]}
+        - name: tecnologia
+          in: query
+          required: false
+          description: ID da tecnologia associada ao próprio item
+          schema: {type: string, format: uuid}
+        - name: limit
+          in: query
+          required: false
+          schema: {type: integer, minimum: 1, maximum: 100, default: 50}
+      responses:
+        '200':
+          description: Resultados ordenados (título antes de descrição, depois hierarquia)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BacklogSearchResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Projeto não encontrado
+
   /api/v1/projects/{projectId}/documents:
     parameters:
       - name: projectId
@@ -2367,6 +2416,58 @@ components:
               properties:
                 id: { type: string, format: uuid }
                 nome: { type: string }
+
+    BacklogSearchResponse:
+      type: object
+      required: [projeto_id, termo, total, limite, items]
+      properties:
+        projeto_id: {type: string, format: uuid}
+        termo: {type: string}
+        total: {type: integer, minimum: 0, description: Total de correspondências (pode exceder items)}
+        limite: {type: integer}
+        items:
+          type: array
+          items:
+            type: object
+            required: [tipo, id, titulo, status, campo, trecho, caminho, tecnologias]
+            properties:
+              tipo: {type: string, enum: [epico, feature, pbi]}
+              id: {type: string, format: uuid}
+              titulo: {type: string}
+              codigo: {type: string, nullable: true}
+              status: {type: string}
+              campo: {type: string, enum: [titulo, descricao]}
+              trecho:
+                type: object
+                required: [texto, destaques]
+                properties:
+                  texto: {type: string}
+                  destaques:
+                    type: array
+                    description: Faixas [inicio, fim) em unidades UTF-16 de `texto`
+                    items:
+                      type: array
+                      minItems: 2
+                      maxItems: 2
+                      items: {type: integer}
+              caminho:
+                type: array
+                description: Épico → Feature → PBI até o nível do item
+                items:
+                  type: object
+                  required: [tipo, id, titulo]
+                  properties:
+                    tipo: {type: string, enum: [epico, feature, pbi]}
+                    id: {type: string, format: uuid}
+                    titulo: {type: string}
+                    codigo: {type: string, nullable: true}
+              tecnologias:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id: {type: string, format: uuid}
+                    nome: {type: string}
 
     ProjectDocument:
       type: object

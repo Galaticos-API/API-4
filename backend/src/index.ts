@@ -12,6 +12,7 @@ import { criteriaRouter } from "./modules/criteria/criteria.routes.js";
 import qualityRouter from "./modules/quality/quality.routes.js";
 import { epicsCompatRouter } from "./modules/epics/epics.compat.routes.js";
 import { repoAnalysesRouter } from './modules/repo-analyses/repo-analyses.routes';
+import { backlogSearchRouter } from "./modules/backlog-search/backlog-search.routes.js";
 import { documentsRouter } from "./modules/documents/documents.routes.js";
 import { documentsService, startDocumentsBackgroundWorker } from "./modules/documents/documents.service.js";
 import { authRouter } from "./modules/auth/auth.routes.js";
@@ -79,6 +80,9 @@ app.use("/api/v1/admin", adminRouter);
 
 // Repo analyzer
 app.use('/api/v1/projects/:projectId/repo-analyses', repoAnalysesRouter);
+
+// Busca textual no backlog (S1-17)
+app.use("/api/v1/projects/:projectId/backlog-search", backlogSearchRouter);
 
 // Documentos do projeto (S1-19/S1-20/S1-22)
 app.use("/api/v1/projects/:projectId/documents", requireAuth, documentsRouter);

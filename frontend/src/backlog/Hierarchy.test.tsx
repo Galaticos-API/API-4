@@ -288,6 +288,7 @@ describe(
         ).toEqual({
           status: "rascunho",
           technologyId: "react",
+          query: "",
         });
 
         view.unmount();
