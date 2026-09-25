@@ -1,195 +1,349 @@
-import React, { useState, useEffect } from 'react';
-import { startRepoAnalysis, listRepoAnalyses, RepoAnalysis } from '../../projects/repo-analyzer.api';
+import { useCallback, useEffect, useRef, useState } from "react";
+import { ApiError } from "../../api/api_auth";
+import { serverMessage } from "../../api/api_errors";
+import {
+  ANALYSIS_STAGES,
+  STATUS_VIEW,
+  analysisDuration,
+  formatDateTime,
+  formatDuration,
+  isActive,
+  readStats,
+  repositoryLabel,
+  stageStates,
+  validateRepositoryUrl,
+} from "../../models/repoAnalyzer";
+import { listRepoAnalyses, startRepoAnalysis, type RepoAnalysis } from "../../projects/repo-analyzer.api";
+import { Alert, Badge, Button, EmptyState, Field, Progress } from "../common/ui";
+import { Markdown } from "../common/Markdown";
+import "../../assets/styles/repo-analyzer.css";
 
-interface RepoAnalyzerTabProps {
-    projectId: string;
+const POLL_INTERVAL_MS = 4000;
+
+type LoadState = { state: "loading" } | { state: "error"; message: string } | { state: "ready" };
+
+function describeLoadError(error: unknown): string {
+  if (error instanceof ApiError && error.status === 401) return "É necessário entrar para consultar as análises.";
+  if (error instanceof ApiError && error.status === 403) return "Você não tem permissão para consultar as análises deste projeto.";
+  if (error instanceof ApiError && error.status === 404) return "Projeto não encontrado.";
+  return "Não foi possível carregar as análises. Tente novamente.";
 }
 
-export const RepoAnalyzerView: React.FC<RepoAnalyzerTabProps> = ({ projectId }) => {
-    const [repoUrl, setRepoUrl] = useState<string>('');
-    const [analyses, setAnalyses] = useState<RepoAnalysis[]>([]);
-    const [selectedAnalysis, setSelectedAnalysis] = useState<RepoAnalysis | null>(null);
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState('');
+function describeStartError(error: unknown): string {
+  if (error instanceof ApiError && error.status === 401) return "Sua sessão expirou. Entre novamente para iniciar a análise.";
+  if (error instanceof ApiError && error.status === 403) return "Você não tem permissão para iniciar análises neste projeto.";
+  if (error instanceof ApiError && (error.status === 400 || error.status === 404 || error.status === 409 || error.status === 503)) {
+    return serverMessage(error) ?? "Revise a URL informada e tente novamente.";
+  }
+  return "Não foi possível iniciar a análise. Tente novamente em instantes.";
+}
 
-    const fetchAnalyses = async () => {
-        try {
-            const data = await listRepoAnalyses(projectId);
-            setAnalyses(data);
-            if (data.length > 0 && !selectedAnalysis) {
-                setSelectedAnalysis(data[0]);
-            }
-        } catch (err: any) {
-            console.error('Erro ao buscar análises:', err);
-        }
-    };
+function downloadMarkdown(content: string, repositoryName: string): void {
+  const blob = new Blob([content], { type: "text/markdown;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `relatorio-${repositoryName.replace(/[^a-zA-Z0-9]/g, "-")}.md`;
+  link.click();
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
 
-    useEffect(() => {
-        fetchAnalyses();
-        const interval = setInterval(() => {
-            if (selectedAnalysis && (selectedAnalysis.status === 'iniciado' || selectedAnalysis.status === 'em_execucao')) {
-                fetchAnalyses();
-            }
-        }, 4000);
-        return () => clearInterval(interval);
-    }, [projectId, selectedAnalysis?.status]);
+function useNow(active: boolean): number {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (!active) return;
+    const timer = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, [active]);
+  return now;
+}
 
-    const handleStart = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!repoUrl.trim()) return;
-        setLoading(true);
-        setError('');
-        try {
-            const newAnalysis = await startRepoAnalysis(projectId, repoUrl);
-            setRepoUrl('');
-            await fetchAnalyses();
-            setSelectedAnalysis(newAnalysis);
-        } catch (err: any) {
-            setError(err instanceof Error ? err.message : 'Erro ao iniciar análise');
-        } finally {
-            setLoading(false);
-        }
-    };
+export function RepoAnalyzerView({ projectId, canStart = true }: { projectId: string; canStart?: boolean }) {
+  const [load, setLoad] = useState<LoadState>({ state: "loading" });
+  const [analyses, setAnalyses] = useState<RepoAnalysis[]>([]);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [repoUrl, setRepoUrl] = useState("");
+  const [urlError, setUrlError] = useState("");
+  const [startError, setStartError] = useState("");
+  const [starting, setStarting] = useState(false);
+  const [pollFailed, setPollFailed] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const startingRef = useRef(false);
+  const mounted = useRef(true);
+  const requestId = useRef(0);
 
-    const downloadMarkdown = (content: string, repoName: string) => {
-        const blob = new Blob([content], { type: 'text/markdown;charset=utf-8' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `relatorio-${repoName.replace(/[^a-zA-Z0-9]/g, '-')}.md`;
-        a.click();
-        URL.revokeObjectURL(url);
-    };
+  useEffect(() => {
+    mounted.current = true;
+    return () => { mounted.current = false; };
+  }, []);
 
-    return (
-        <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
-            <div className="glass-panel" style={{ padding: "24px" }}>
-                <h3 style={{ fontSize: "1.15rem", fontWeight: 600, color: "var(--text-primary)", marginBottom: "8px" }}>Análise de repositório GitHub</h3>
-                <p style={{ fontSize: "0.88rem", color: "var(--text-secondary)", marginBottom: "16px" }}>
-                    Informe a URL de um repositório público do GitHub para executar a varredura inteligente e gerar o relatório técnico de arquitetura
-                </p>
-                <form onSubmit={handleStart} style={{ display: "flex", gap: "12px" }}>
-                    <input
-                        type="url"
-                        placeholder="https://github.com/usuario/repositorio"
-                        value={repoUrl}
-                        onChange={(e) => setRepoUrl(e.target.value)}
-                        required
-                        style={{
-                            flex: 1,
-                            padding: "10px 16px",
-                            borderRadius: "var(--radius-sm)",
-                            border: "1px solid var(--border-subtle)",
-                            background: "var(--bg-secondary)",
-                            color: "var(--text-primary)",
-                            outline: "none",
-                        }}
-                    />
-                    <button
-                        type="submit"
-                        disabled={loading}
-                        className="btn-primary"
-                    >
-                        {loading ? 'Iniciando...' : 'Iniciar Análise'}
-                    </button>
-                </form>
-                {error && <p style={{ color: "#fca5a5", fontSize: "0.85rem", marginTop: "8px" }}>{error}</p>}
-            </div>
+  const refresh = useCallback(async (silent: boolean) => {
+    const current = ++requestId.current;
+    if (silent) setRefreshing(true);
+    else setLoad({ state: "loading" });
+    try {
+      const data = await listRepoAnalyses(projectId);
+      if (!mounted.current || current !== requestId.current) return;
+      setAnalyses(data);
+      setSelectedId((previous) => (previous && data.some((item) => item.id === previous) ? previous : data[0]?.id ?? null));
+      setPollFailed(false);
+      setLoad({ state: "ready" });
+    } catch (error) {
+      if (!mounted.current || current !== requestId.current) return;
+      if (silent) setPollFailed(true);
+      else setLoad({ state: "error", message: describeLoadError(error) });
+    } finally {
+      if (mounted.current && current === requestId.current) setRefreshing(false);
+    }
+  }, [projectId]);
 
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: "24px" }}>
-                {/* Histórico */}
-                <div className="glass-panel" style={{ padding: "20px", display: "flex", flexDirection: "column", gap: "12px" }}>
-                    <h4 style={{ fontWeight: 600, color: "var(--text-primary)", borderBottom: "1px solid var(--border-subtle)", paddingBottom: "8px" }}>Histórico de Análises</h4>
-                    {analyses.length === 0 ? (
-                        <p style={{ fontSize: "0.88rem", color: "var(--text-secondary)" }}>Nenhuma análise realizada neste projeto.</p>
-                    ) : (
-                        <div style={{ display: "flex", flexDirection: "column", gap: "8px", maxHeight: "500px", overflowY: "auto" }}>
-                            {analyses.map((item) => (
-                                <div
-                                    key={item.id}
-                                    onClick={() => setSelectedAnalysis(item)}
-                                    style={{
-                                        padding: "12px",
-                                        borderRadius: "var(--radius-sm)",
-                                        cursor: "pointer",
-                                        border: `1px solid ${selectedAnalysis?.id === item.id ? "var(--border-active)" : "var(--border-subtle)"}`,
-                                        background: selectedAnalysis?.id === item.id ? "var(--bg-card-hover)" : "rgba(0,0,0,0.2)",
-                                        transition: "var(--transition-fast)"
-                                    }}
-                                >
-                                    <p style={{ fontSize: "0.75rem", fontWeight: 600, color: "var(--text-primary)", textOverflow: "ellipsis", overflow: "hidden", whiteSpace: "nowrap" }}>{item.repositorio_url}</p>
-                                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "8px" }}>
-                                        <span className={`badge ${item.status === 'concluido' ? 'badge-success' : item.status === 'falha' ? 'badge-warning' : 'badge-info'}`}>
-                                            {item.status}
-                                        </span>
-                                        <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>{new Date(item.created_at).toLocaleDateString()}</span>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    )}
-                </div>
+  useEffect(() => {
+    void refresh(false);
+  }, [refresh]);
 
-                {/* Detalhes */}
-                <div className="glass-panel" style={{ padding: "24px", display: "flex", flexDirection: "column", gap: "16px", gridColumn: "1 / -1" }}>
-                    {selectedAnalysis ? (
-                        <>
-                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", borderBottom: "1px solid var(--border-subtle)", paddingBottom: "12px", flexWrap: "wrap", gap: "12px" }}>
-                                <div>
-                                    <h4 style={{ fontWeight: 700, color: "var(--text-primary)", fontSize: "1rem" }}>{selectedAnalysis.repositorio_url}</h4>
-                                    <p style={{ fontSize: "0.75rem", color: "var(--text-secondary)", marginTop: "4px" }}>
-                                        Autor: <span style={{ fontWeight: 500 }}>{selectedAnalysis.autor_nome || 'PO'}</span> ({selectedAnalysis.autor_email || 'po@sinapse.local'})
-                                    </p>
-                                </div>
-                                {selectedAnalysis.status === 'concluido' && selectedAnalysis.relatorio_markdown && (
-                                    <button
-                                        onClick={() => downloadMarkdown(selectedAnalysis.relatorio_markdown!, selectedAnalysis.repositorio_url)}
-                                        className="btn-secondary"
-                                        style={{ fontSize: "0.75rem", padding: "6px 12px" }}
-                                    >
-                                        Baixar Relatório (.md)
-                                    </button>
-                                )}
-                            </div>
+  const hasActive = analyses.some(isActive);
+  const now = useNow(hasActive);
 
-                            {/* Barra de Progresso */}
-                            {(selectedAnalysis.status === 'iniciado' || selectedAnalysis.status === 'em_execucao') && (
-                                <div style={{ background: "rgba(0,0,0,0.25)", padding: "16px", borderRadius: "var(--radius-sm)", border: "1px solid var(--border-subtle)", display: "flex", flexDirection: "column", gap: "8px" }}>
-                                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.75rem", fontWeight: 500, color: "var(--text-primary)" }}>
-                                        <span>Etapa: {selectedAnalysis.etapa_label || selectedAnalysis.etapa}</span>
-                                        <span>{selectedAnalysis.progresso}%</span>
-                                    </div>
-                                    <div style={{ width: "100%", background: "var(--bg-tertiary)", borderRadius: "var(--radius-full)", height: "10px" }}>
-                                        <div style={{ background: "linear-gradient(90deg, var(--accent-secondary) 0%, var(--accent-primary) 100%)", height: "10px", borderRadius: "var(--radius-full)", transition: "width 0.5s ease", width: `${selectedAnalysis.progresso}%` }}></div>
-                                    </div>
-                                    {selectedAnalysis.mensagem && <p style={{ fontSize: "0.75rem", color: "var(--text-secondary)", fontStyle: "italic" }}>{selectedAnalysis.mensagem}</p>}
-                                </div>
-                            )}
+  useEffect(() => {
+    if (!hasActive) return;
+    const timer = window.setInterval(() => { void refresh(true); }, POLL_INTERVAL_MS);
+    return () => window.clearInterval(timer);
+  }, [hasActive, refresh]);
 
-                            {selectedAnalysis.status === 'falha' && (
-                                <div style={{ background: "rgba(245, 158, 11, 0.1)", padding: "16px", borderRadius: "var(--radius-sm)", border: "1px solid rgba(245, 158, 11, 0.3)", color: "#fbbf24", fontSize: "0.85rem" }}>
-                                    <p style={{ fontWeight: 600 }}>Falha na execução:</p>
-                                    <p>{selectedAnalysis.erro || 'Erro desconhecido durante o pipeline.'}</p>
-                                </div>
-                            )}
+  const launch = useCallback(async (url: string) => {
+    if (startingRef.current) return;
+    startingRef.current = true;
+    setStarting(true);
+    setStartError("");
+    try {
+      const created = await startRepoAnalysis(projectId, url);
+      if (!mounted.current) return;
+      setRepoUrl("");
+      setAnalyses((previous) => [created, ...previous.filter((item) => item.id !== created.id)]);
+      setSelectedId(created.id);
+      setLoad({ state: "ready" });
+      void refresh(true);
+    } catch (error) {
+      if (mounted.current) setStartError(describeStartError(error));
+    } finally {
+      startingRef.current = false;
+      if (mounted.current) setStarting(false);
+    }
+  }, [projectId, refresh]);
 
-                            {/* Renderizador do Relatório Markdown */}
-                            {selectedAnalysis.status === 'concluido' && selectedAnalysis.relatorio_markdown && (
-                                <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-                                    <h5 style={{ fontWeight: 600, color: "var(--text-primary)", fontSize: "0.85rem" }}>Relatório Técnico Gerado:</h5>
-                                    <div style={{ background: "var(--bg-tertiary)", padding: "16px", borderRadius: "var(--radius-sm)", border: "1px solid var(--border-subtle)", maxHeight: "400px", overflowY: "auto", fontSize: "0.85rem", color: "var(--text-primary)", whiteSpace: "pre-wrap", fontFamily: "var(--font-mono)" }}>
-                                        {selectedAnalysis.relatorio_markdown}
-                                    </div>
-                                </div>
-                            )}
-                        </>
-                    ) : (
-                        <div style={{ textAlign: "center", padding: "80px 0", color: "var(--text-muted)" }}>
-                            <p>Selecione uma análise ao lado ou inicie uma nova para acompanhar os detalhes.</p>
-                        </div>
-                    )}
-                </div>
-            </div>
+  const submit = (event: React.FormEvent) => {
+    event.preventDefault();
+    if (startingRef.current) return;
+    const problem = validateRepositoryUrl(repoUrl);
+    setUrlError(problem);
+    if (problem) return;
+    void launch(repoUrl.trim());
+  };
+
+  const selected = analyses.find((item) => item.id === selectedId) ?? null;
+
+  return (
+    <section className="repo-analyzer" aria-label="Análise de repositório">
+      <header className="repo-analyzer-head">
+        <div className="eyebrow">ANÁLISE DE REPOSITÓRIO</div>
+        <h2>Entenda a arquitetura de um repositório</h2>
+        <p className="muted">
+          Informe um repositório público do GitHub. O analisador clona, inventaria os arquivos e gera um relatório técnico em Markdown.
+          O acompanhamento é atualizado automaticamente.
+        </p>
+      </header>
+
+      {canStart ? (
+        <form className="card-garakis repo-analyzer-form" onSubmit={submit} noValidate>
+          <Field label="URL do repositório" error={urlError} help="Exemplo: https://github.com/usuario/repositorio">
+            <input
+              className="ds-input"
+              type="url"
+              inputMode="url"
+              autoComplete="off"
+              placeholder="https://github.com/usuario/repositorio"
+              value={repoUrl}
+              disabled={starting}
+              aria-invalid={Boolean(urlError)}
+              onChange={(event) => { setRepoUrl(event.target.value); setUrlError(""); setStartError(""); }}
+            />
+          </Field>
+          <Button type="submit" disabled={starting}>{starting ? "Iniciando…" : "Iniciar análise"}</Button>
+        </form>
+      ) : (
+        <Alert>Você pode consultar as análises, mas não pode iniciar novas neste momento (projeto arquivado ou perfil somente leitura).</Alert>
+      )}
+      {startError && <Alert tone="danger" role="alert" title="Não foi possível iniciar a análise">{startError}</Alert>}
+
+      {load.state === "loading" && <div className="card-garakis repo-analyzer-state" role="status">Carregando análises…</div>}
+
+      {load.state === "error" && (
+        <div className="card-garakis repo-analyzer-state">
+          <p role="alert">{load.message}</p>
+          <Button variant="secondary" onClick={() => void refresh(false)}>Tentar novamente</Button>
         </div>
-    );
-};
+      )}
+
+      {load.state === "ready" && (
+        <div className="repo-analyzer-layout">
+          <aside className="card-garakis analysis-history" aria-label="Histórico de análises">
+            <div className="analysis-history-header">
+              <h3>Histórico</h3>
+              <Button variant="ghost" size="sm" disabled={refreshing} aria-busy={refreshing} onClick={() => void refresh(true)}>
+                {refreshing ? "Atualizando…" : "Atualizar"}
+              </Button>
+            </div>
+            {pollFailed && <Alert tone="warning">Não foi possível atualizar agora. Tentaremos novamente em instantes.</Alert>}
+            {analyses.length === 0 ? (
+              <p className="help">Nenhuma análise realizada neste projeto.</p>
+            ) : (
+              <ul className="analysis-list">
+                {analyses.map((item) => {
+                  const view = STATUS_VIEW[item.status] ?? STATUS_VIEW.iniciado;
+                  return (
+                    <li key={item.id}>
+                      <button
+                        type="button"
+                        className="analysis-item"
+                        aria-current={item.id === selectedId}
+                        onClick={() => setSelectedId(item.id)}
+                      >
+                        <span className="analysis-item-url">{repositoryLabel(item.repositorio_url)}</span>
+                        <span className="analysis-item-meta">
+                          <Badge tone={view.tone}>{view.label}</Badge>
+                          <time dateTime={item.created_at}>{formatDateTime(item.created_at)}</time>
+                        </span>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </aside>
+
+          <div className="card-garakis analysis-details" aria-live="polite">
+            {selected ? (
+              <AnalysisDetails analysis={selected} now={now} canRetry={canStart && !starting} onRetry={() => void launch(selected.repositorio_url)} />
+            ) : (
+              <EmptyState
+                title="Nenhuma análise selecionada"
+                description="Informe a URL de um repositório para iniciar a primeira análise deste projeto."
+              />
+            )}
+          </div>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function AnalysisDetails({ analysis, now, canRetry, onRetry }: { analysis: RepoAnalysis; now: number; canRetry: boolean; onRetry: () => void }) {
+  const view = STATUS_VIEW[analysis.status] ?? STATUS_VIEW.iniciado;
+  const active = isActive(analysis);
+  const progress = analysis.progresso ?? 0;
+  const stages = stageStates(analysis);
+  const stats = readStats(analysis.metadados);
+  const duration = analysisDuration(analysis, now);
+  const [mode, setMode] = useState<"preview" | "raw">("preview");
+  const [copied, setCopied] = useState(false);
+  const report = analysis.relatorio_markdown ?? "";
+
+  useEffect(() => { setMode("preview"); setCopied(false); }, [analysis.id]);
+
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(report);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 2000);
+    } catch {
+      setCopied(false);
+    }
+  };
+
+  return (
+    <>
+      <div className="analysis-details-header">
+        <div>
+          <h3>
+            <a href={analysis.repositorio_url} target="_blank" rel="noopener noreferrer">{repositoryLabel(analysis.repositorio_url)}</a>
+          </h3>
+          <p className="help">
+            Iniciada em {formatDateTime(analysis.created_at)}
+            {analysis.autor_nome ? ` por ${analysis.autor_nome}` : ""}
+            {duration !== null ? ` · duração ${formatDuration(duration)}` : ""}
+          </p>
+        </div>
+        <Badge tone={view.tone}>{view.label}</Badge>
+      </div>
+
+      <ol className="analysis-stepper" aria-label="Etapas da análise">
+        {ANALYSIS_STAGES.map((stage, index) => (
+          <li key={stage.key} data-state={stages[index]} aria-current={stages[index] === "current" ? "step" : undefined}>
+            <span className="analysis-step-marker" aria-hidden="true">{stages[index] === "done" ? "✓" : stages[index] === "failed" ? "!" : index + 1}</span>
+            <span className="analysis-step-label">{stage.label}</span>
+            <span className="sr-only">
+              {stages[index] === "done" ? " (concluída)" : stages[index] === "current" ? " (em andamento)" : stages[index] === "failed" ? " (falhou)" : " (pendente)"}
+            </span>
+          </li>
+        ))}
+      </ol>
+
+      {active && (
+        <div className="analysis-progress">
+          <div className="analysis-progress-line">
+            <span>{analysis.etapa_label || "Na fila"}</span>
+            <span>{progress}%</span>
+          </div>
+          <Progress value={progress} label="Progresso da análise" />
+          {analysis.mensagem && <p className="help">{analysis.mensagem}</p>}
+          {stats.filesTotal !== null && stats.filesProcessed !== null && (
+            <p className="help">
+              {stats.filesProcessed} de {stats.filesTotal} arquivos analisados
+              {stats.etaSeconds ? ` · restante estimado ${formatDuration(stats.etaSeconds)}` : ""}
+            </p>
+          )}
+        </div>
+      )}
+
+      {stats.languages.length > 0 && (
+        <ul className="analysis-languages" aria-label="Linguagens encontradas">
+          {stats.languages.map((language) => (
+            <li key={language.name}><b>{language.name}</b> {language.count}</li>
+          ))}
+        </ul>
+      )}
+
+      {analysis.status === "falha" && (
+        <Alert tone="danger" role="alert" title="A análise falhou">
+          {analysis.erro || "O analisador não informou o motivo da falha."}
+        </Alert>
+      )}
+      {analysis.status === "falha" && (
+        <div>
+          <Button variant="secondary" disabled={!canRetry} onClick={onRetry}>Analisar novamente</Button>
+        </div>
+      )}
+
+      {analysis.status === "concluido" && !report && (
+        <Alert tone="warning">A análise foi concluída, mas o relatório ainda não está disponível. Use Atualizar em instantes.</Alert>
+      )}
+
+      {analysis.status === "concluido" && report && (
+        <section className="analysis-report" aria-label="Relatório técnico">
+          <div className="analysis-report-toolbar">
+            <h4>Relatório técnico</h4>
+            <div className="analysis-report-actions">
+              <div className="analysis-toggle" role="group" aria-label="Formato de exibição">
+                <button type="button" aria-pressed={mode === "preview"} onClick={() => setMode("preview")}>Leitura</button>
+                <button type="button" aria-pressed={mode === "raw"} onClick={() => setMode("raw")}>Markdown</button>
+              </div>
+              <Button variant="ghost" size="sm" onClick={() => void copy()}>{copied ? "Copiado" : "Copiar"}</Button>
+              <Button variant="secondary" size="sm" onClick={() => downloadMarkdown(report, analysis.repositorio_url)}>Baixar .md</Button>
+            </div>
+          </div>
+          {mode === "preview" ? <Markdown source={report} className="analysis-report-body" /> : <pre className="analysis-report-raw" tabIndex={0}>{report}</pre>}
+        </section>
+      )}
+    </>
+  );
+}

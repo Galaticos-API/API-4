@@ -1146,6 +1146,167 @@ paths:
         '404':
           description: Critério não encontrado
 
+  /api/v1/projects/{projectId}/documents:
+    parameters:
+      - name: projectId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      summary: Lista os documentos do projeto e os limites de envio (S1-20)
+      description: >
+        Paginação por cursor estável (created_at desc, id desc), sempre isolada
+        pelo projeto da rota. Use `next_cursor` da resposta em `cursor` para a
+        próxima página; `null` indica a última. `status_processamento` =
+        `pendente` significa **aguardando ingestão**: o arquivo está armazenado,
+        mas ainda não foi indexado (a ingestão pertence à S2-01).
+      operationId: listProjectDocuments
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: cursor
+          in: query
+          required: false
+          description: Cursor opaco devolvido em `next_cursor`
+          schema: {type: string, maxLength: 512}
+        - name: limit
+          in: query
+          required: false
+          schema: {type: integer, minimum: 1, maximum: 50, default: 20}
+      responses:
+        '200':
+          description: Documentos exclusivos do projeto, do mais recente ao mais antigo
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentList'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Projeto não encontrado
+    post:
+      summary: Envia um documento PDF, DOCX, MD ou TXT como corpo binário (S1-19)
+      description: >
+        O tipo real é verificado pelo conteúdo e pela extensão; o Content-Type
+        informado pelo cliente não é considerado. O limite de tamanho é
+        configurável (DOCUMENT_MAX_SIZE_MB) e é informado em `limites.max_bytes`
+        na listagem. Arquivos recusados não deixam arquivo nem registro.
+      operationId: uploadProjectDocument
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: X-File-Name
+          in: header
+          required: true
+          description: Nome original do arquivo, codificado com encodeURIComponent
+          schema:
+            type: string
+            maxLength: 765
+      requestBody:
+        required: true
+        content:
+          application/octet-stream:
+            schema:
+              type: string
+              format: binary
+      responses:
+        '201':
+          description: Documento armazenado com estado de processamento `pendente`
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectDocument'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Perfil sem permissão de escrita
+        '404':
+          description: Projeto não encontrado
+        '409':
+          description: Projeto arquivado é somente leitura (ARCHIVE_CONFLICT)
+        '413':
+          description: Arquivo acima do limite configurado
+        '503':
+          description: Armazenamento indisponível ou em recuperação; o envio pode ser repetido
+
+  /api/v1/projects/{projectId}/documents/{documentId}:
+    delete:
+      summary: Remove o documento, o arquivo e o conteúdo indexado de forma idempotente (S1-22)
+      description: >
+        Repetir a chamada retorna 204 sem afetar outro conteúdo. Documento que
+        não pertence ao projeto informado nunca é alterado. Quando há conteúdo
+        indexado, um evento `document.removed` é gravado na mesma transação e
+        publicado no webhook do n8n com o cabeçalho Idempotency-Key.
+      operationId: deleteProjectDocument
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: documentId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Documento removido ou já inexistente
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Perfil sem permissão de escrita
+        '404':
+          description: Projeto não encontrado
+        '409':
+          description: Projeto arquivado é somente leitura (ARCHIVE_CONFLICT); nada é removido
+        '500':
+          description: Falha na remoção; o documento permanece disponível
+        '503':
+          description: Armazenamento indisponível; o documento permanece disponível
+
+  /webhook/sinapse-document-removed:
+    servers:
+      - url: http://localhost:5678
+        description: n8n (DOCUMENT_EVENTS_WEBHOOK_URL)
+    post:
+      summary: Evento publicado pelo backend quando um documento indexado é removido (S1-22 / PRE-03)
+      description: >
+        Entrega ao menos uma vez. O consumidor deve tratar `event_id` (também
+        enviado em Idempotency-Key) como chave de deduplicação e excluir de
+        forma idempotente todo o conteúdo indexado de `document_id` no escopo de
+        `project_id`. Eventos não confirmados ficam pendentes no backend e são
+        reenviados nas remoções seguintes.
+      operationId: documentRemovedEvent
+      security: []
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DocumentRemovedEvent'
+      responses:
+        '200':
+          description: Evento aceito; qualquer 2xx confirma a entrega
+
   /ingest/document:
     post:
       summary: Solicita ingestão assíncrona de documento
@@ -2206,6 +2367,76 @@ components:
               properties:
                 id: { type: string, format: uuid }
                 nome: { type: string }
+
+    ProjectDocument:
+      type: object
+      required: [id, projeto_id, nome, status_processamento, created_at]
+      properties:
+        id: { type: string, format: uuid }
+        projeto_id: { type: string, format: uuid }
+        nome: { type: string, maxLength: 255 }
+        extensao: { type: string, nullable: true, enum: [.pdf, .docx, .md, .txt] }
+        mime: { type: string, nullable: true }
+        tamanho_bytes: { type: integer, nullable: true, minimum: 1 }
+        status_processamento:
+          type: string
+          description: pendente = armazenado e aguardando ingestão (S2-01)
+          enum: [pendente, processando, processado, falha]
+        armazenamento_pendente:
+          type: boolean
+          description: true enquanto a finalização do arquivo local ainda é reconciliada pelo worker
+        autor_id: { type: string, format: uuid, nullable: true }
+        autor_nome: { type: string, nullable: true }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    DocumentLimits:
+      type: object
+      required: [max_bytes, extensoes_permitidas]
+      properties:
+        max_bytes: { type: integer, minimum: 1 }
+        extensoes_permitidas:
+          type: array
+          items: { type: string }
+
+    DocumentList:
+      type: object
+      required: [items, next_cursor, limites, paginacao]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProjectDocument'
+        next_cursor:
+          type: string
+          nullable: true
+        limites:
+          $ref: '#/components/schemas/DocumentLimits'
+        paginacao:
+          type: object
+          required: [tamanho_pagina, tamanho_maximo]
+          properties:
+            tamanho_pagina: {type: integer}
+            tamanho_maximo: {type: integer}
+
+    DocumentRemovedEvent:
+      type: object
+      additionalProperties: false
+      required: [event_id, event_type, schema_version, occurred_at, project_id, document_id, chunks_removed]
+      properties:
+        event_id:
+          type: string
+          description: Chave estável por documento, no formato document.removed:{document_id}
+        event_type:
+          type: string
+          enum: [document.removed]
+        schema_version:
+          type: integer
+          enum: [1]
+        occurred_at: { type: string, format: date-time }
+        project_id: { type: string, format: uuid }
+        document_id: { type: string, format: uuid }
+        chunks_removed: { type: integer, minimum: 0 }
 
     IngestDocumentRequest:
       type: object

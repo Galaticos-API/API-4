@@ -1,74 +1,76 @@
-import { Router, Request, Response, NextFunction } from "express";
-import { pool } from "../../database/db.js";
-import { requireAuth } from "../../middleware/requireAuth.js";
+import express, { Router } from "express";
+import { env } from "../../config/env.js";
+import { requireRole } from "../../middleware/requireRole.js";
+import { DocumentsController, documentsController } from "./documents.controller.js";
 
-export const documentsRouter = Router({ mergeParams: true });
+const canWrite = requireRole("admin", "po");
 
-documentsRouter.use(requireAuth);
+export function createDocumentsRouter(
+  controller: DocumentsController = documentsController,
+  maxBytes: number = Math.floor(env.DOCUMENT_MAX_SIZE_MB * 1024 * 1024),
+): Router {
+  const router = Router({ mergeParams: true });
+  const binaryBody = express.raw({ type: () => true, limit: maxBytes });
 
-// GET /api/v1/projects/:projectId/documents OR /api/v1/documents
-documentsRouter.get("/", async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const projectId = req.params.projectId || (req.query.projectId as string);
-    let query = "SELECT d.id, d.projeto_id, d.nome, d.mime, d.caminho, d.status_processamento, d.created_at, d.updated_at, p.nome as projeto_nome FROM documento d JOIN projeto p ON d.projeto_id = p.id";
-    const params: unknown[] = [];
+  /**
+   * @swagger
+   * /api/v1/projects/{projectId}/documents:
+   *   get:
+   *     summary: Listar documentos do projeto
+   *     tags: [Documents]
+   *     security:
+   *       - bearerAuth: []
+   *     responses:
+   *       200:
+   *         description: Documentos do projeto e limites de envio
+   *       401:
+   *         description: Não autenticado
+   *       404:
+   *         description: Projeto não encontrado
+   */
+  router.get("/", controller.list);
 
-    if (projectId) {
-      query += " WHERE d.projeto_id = $1";
-      params.push(projectId);
-    }
-    query += " ORDER BY d.created_at DESC";
+  /**
+   * @swagger
+   * /api/v1/projects/{projectId}/documents:
+   *   post:
+   *     summary: Enviar documento (PDF, DOCX, MD ou TXT) como corpo binário
+   *     tags: [Documents]
+   *     security:
+   *       - bearerAuth: []
+   *     responses:
+   *       201:
+   *         description: Documento armazenado
+   *       400:
+   *         description: Arquivo inválido ou projeto arquivado
+   *       403:
+   *         description: Sem permissão de escrita
+   *       404:
+   *         description: Projeto não encontrado
+   *       413:
+   *         description: Arquivo acima do limite configurado
+   */
+  router.post("/", canWrite, binaryBody, controller.upload);
 
-    const result = await pool.query(query, params);
-    res.json({ items: result.rows, total: result.rowCount });
-  } catch (error) {
-    next(error);
-  }
-});
+  /**
+   * @swagger
+   * /api/v1/projects/{projectId}/documents/{documentId}:
+   *   delete:
+   *     summary: Remover documento de forma idempotente
+   *     tags: [Documents]
+   *     security:
+   *       - bearerAuth: []
+   *     responses:
+   *       204:
+   *         description: Documento removido ou já inexistente
+   *       403:
+   *         description: Sem permissão de escrita
+   *       404:
+   *         description: Projeto não encontrado
+   */
+  router.delete("/:documentId", canWrite, controller.remove);
 
-// POST /api/v1/projects/:projectId/documents
-documentsRouter.post("/", async (req: Request, res: Response, NextFunction) => {
-  try {
-    const projectId = req.params.projectId || req.body.projeto_id;
-    const { nome, mime, caminho, status_processamento } = req.body;
+  return router;
+}
 
-    if (!projectId || !nome) {
-      res.status(400).json({ error: "projeto_id e nome são obrigatórios" });
-      return;
-    }
-
-    const insertResult = await pool.query(
-      `INSERT INTO documento (projeto_id, nome, mime, caminho, status_processamento)
-       VALUES ($1, $2, $3, $4, $5)
-       RETURNING *`,
-      [projectId, nome, mime || "PDF", caminho || `/uploads/${nome}`, status_processamento || "processado"]
-    );
-
-    // Registra também um trecho em chunk para permitir busca vetorial no acervo
-    await pool.query(
-      `INSERT INTO chunk (projeto_id, entidade_tipo, entidade_id, texto, metadados_json)
-       VALUES ($1, 'documento', $2, $3, $4)`,
-      [
-        projectId,
-        insertResult.rows[0].id,
-        `Documento indexado: ${nome}. Conteúdo técnico importado do acervo do projeto.`,
-        JSON.stringify({ documento_id: insertResult.rows[0].id, nome }),
-      ]
-    );
-
-    res.status(201).json(insertResult.rows[0]);
-  } catch (error) {
-    NextFunction(error);
-  }
-});
-
-// DELETE /api/v1/documents/:id
-documentsRouter.delete("/:id", async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const { id } = req.params;
-    await pool.query("DELETE FROM documento WHERE id = $1", [id]);
-    res.status(204).send();
-  } catch (error) {
-    next(error);
-  }
-});
+export const documentsRouter = createDocumentsRouter();

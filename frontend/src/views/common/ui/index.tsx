@@ -1,15 +1,17 @@
 import React from "react";
 
 type ButtonVariant = "primary" | "secondary" | "ghost" | "danger";
+export type BadgeTone = "must" | "should" | "could" | "success" | "warning" | "danger" | "info" | "ai" | "brand";
 
 export function Button({
   variant = "primary",
+  size,
   className = "",
   ...props
-}: React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: ButtonVariant }) {
+}: React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: ButtonVariant; size?: "sm" | "md" }) {
   return (
     <button
-      className={`ds-button ds-button--${variant} ${className}`.trim()}
+      className={`ds-button ds-button--${variant}${size === "sm" ? " ds-button--sm" : ""} ${className}`.trim()}
       {...props}
     />
   );
@@ -19,13 +21,50 @@ export function Badge({
   tone,
   children,
 }: {
-  tone?: "must" | "should" | "could" | "success" | "ai";
+  tone?: BadgeTone;
   children: React.ReactNode;
 }) {
   return (
     <span className={`ds-badge${tone ? ` ds-badge--${tone}` : ""}`}>
       {children}
     </span>
+  );
+}
+
+export function Alert({
+  tone = "info",
+  title,
+  role,
+  children,
+}: {
+  tone?: "info" | "success" | "warning" | "danger";
+  title?: string;
+  role?: "status" | "alert";
+  children: React.ReactNode;
+}) {
+  return (
+    <div className={`ds-alert ds-alert--${tone}`} role={role ?? (tone === "danger" ? "alert" : "status")}>
+      {title && <strong>{title}</strong>}
+      <div>{children}</div>
+    </div>
+  );
+}
+
+export function EmptyState({
+  title,
+  description,
+  children,
+}: {
+  title: string;
+  description: string;
+  children?: React.ReactNode;
+}) {
+  return (
+    <div className="ds-empty">
+      <h3>{title}</h3>
+      <p>{description}</p>
+      {children}
+    </div>
   );
 }
 
@@ -69,7 +108,7 @@ export function Field({
       <span className="ds-label">{label}</span>
       {children}
       {error ? (
-        <span className="ds-help" role="alert" style={{ color: "var(--ds-danger-fg)" }}>
+        <span className="ds-help ds-help--error" role="alert">
           {error}
         </span>
       ) : help ? (

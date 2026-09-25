@@ -1,0 +1,13 @@
+{
+  "name": "sinapse-e2e",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Testes E2E de navegador (API real + PostgreSQL + frontend)",
+  "type": "module",
+  "scripts": {
+    "test": "node --test --test-concurrency=1 ./tests/"
+  },
+  "devDependencies": {
+    "playwright-core": "^1.55.0"
+  }
+}

@@ -66,3 +66,7 @@ n8n/local-files/*
 .coverage
 htmlcov/
 .pytest_cache/
+
+# armazenamento local de documentos enviados
+backend/storage/
+storage/

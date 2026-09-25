@@ -1,106 +1,61 @@
 :root {
-  /* PRO4TECH / Sinapse product palette */
-  --ds-brand-950: #07111f;
-  --ds-brand-900: #0b1626;
-  --ds-brand-800: #102238;
-  --ds-brand-700: #173653;
-  --ds-brand-500: #0aa7c8;
-  --ds-brand-400: #24bedb;
-  --ds-brand-300: #71d7e8;
-  --ds-brand-100: #ddf7fb;
+  /* Fonte única de tokens. Os valores de marca e superfície derivam do protótipo
+     navegável (assets/styles/garakis-prototype.css) para que a tela tenha uma só
+     cor de marca; os fallbacks seguem o mesmo protótipo. */
+  --surface-base: var(--bg, #0b0d10);
+  --brand-primary: var(--orange, #ed6a32);
+  --brand-primary-hover: color-mix(in srgb, var(--brand-primary) 82%, #000);
+  --text-primary: #ffffff;
+  --text-secondary: var(--muted, #a6aab3);
+  --text-muted: var(--dim, #8b93a1);
 
-  --ds-neutral-0: #ffffff;
-  --ds-neutral-50: #f8fafc;
-  --ds-neutral-100: #f1f5f9;
-  --ds-neutral-200: #e2e8f0;
-  --ds-neutral-300: #cbd5e1;
-  --ds-neutral-400: #94a3b8;
-  --ds-neutral-500: #64748b;
-  --ds-neutral-600: #475569;
-  --ds-neutral-700: #334155;
-  --ds-neutral-800: #1e293b;
-  --ds-neutral-900: #0f172a;
+  --step-1: #f28c68;
+  --step-2: #d97354;
+  --step-3: #bd5a40;
+  --step-4: #944230;
+  --step-5: #6e2d22;
 
-  --ds-success-bg: #e8f7ef;
-  --ds-success-fg: #157347;
-  --ds-info-bg: #e8f6fa;
-  --ds-info-fg: #087e99;
-  --ds-warning-bg: #fff7e6;
-  --ds-warning-fg: #9a6700;
-  --ds-danger-bg: #fdecec;
-  --ds-danger-fg: #b42318;
-  --ds-ai-bg: #eef2ff;
-  --ds-ai-fg: #4f46e5;
+  --font-sans: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
 
-  --ds-bg-app: var(--ds-neutral-50);
-  --ds-bg-surface: var(--ds-neutral-0);
-  --ds-bg-subtle: var(--ds-neutral-100);
-  --ds-border: var(--ds-neutral-200);
-  --ds-border-strong: var(--ds-neutral-300);
-  --ds-text: var(--ds-neutral-900);
-  --ds-text-secondary: var(--ds-neutral-600);
-  --ds-text-muted: var(--ds-neutral-500);
-  --ds-action: var(--ds-brand-500);
-  --ds-action-hover: var(--ds-brand-400);
-  --ds-focus: var(--ds-brand-300);
+  --radius-full: 9999px;
+  --radius-md: 8px;
+  --radius-sm: 6px;
+  --radius-lg: 12px;
 
-  --ds-font-sans: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  --ds-font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --bg-primary: var(--surface-base);
+  --bg-secondary: var(--surface, #111827);
+  --bg-tertiary: var(--card, #171a21);
+  --bg-card: color-mix(in srgb, var(--surface, #111827) 94%, transparent);
+  --bg-card-hover: color-mix(in srgb, var(--card, #171a21) 82%, #fff);
 
-  --ds-space-1: 4px;
-  --ds-space-2: 8px;
-  --ds-space-3: 12px;
-  --ds-space-4: 16px;
-  --ds-space-5: 20px;
-  --ds-space-6: 24px;
-  --ds-space-8: 32px;
-  --ds-space-10: 40px;
-  --ds-space-12: 48px;
-  --ds-space-16: 64px;
+  --border-subtle: var(--line, rgba(196, 199, 204, 0.18));
+  --border-strong: var(--strong, rgba(196, 199, 204, 0.3));
+  --border-active: color-mix(in srgb, var(--brand-primary) 60%, transparent);
 
-  --ds-radius-sm: 8px;
-  --ds-radius-md: 12px;
-  --ds-radius-lg: 16px;
-  --ds-radius-pill: 999px;
+  --accent-primary: var(--brand-primary);
+  --accent-secondary: color-mix(in srgb, var(--brand-primary) 72%, #fff);
+  --accent-glow: color-mix(in srgb, var(--brand-primary) 28%, transparent);
 
-  --ds-shadow-sm: 0 1px 2px rgba(15, 23, 42, .06);
-  --ds-shadow-md: 0 8px 24px rgba(15, 23, 42, .08);
+  --status-success: var(--green, #22b458);
+  --status-warning: #fbbf24;
+  --status-danger: var(--red, #f0635d);
+  --status-danger-strong: var(--red, #f0635d);
+  --accent-emerald: var(--status-success);
+  --accent-amber: var(--status-warning);
 
-  --ds-transition-fast: 120ms ease;
-  --ds-transition-normal: 180ms ease;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
 
-  /* aliases for the current frontend */
-  --bg-primary: var(--ds-bg-app);
-  --bg-secondary: var(--ds-bg-surface);
-  --bg-tertiary: var(--ds-bg-subtle);
-  --bg-card: var(--ds-bg-surface);
-  --bg-card-hover: var(--ds-neutral-50);
-  --border-subtle: var(--ds-border);
-  --border-active: var(--ds-brand-300);
-  --text-primary: var(--ds-text);
-  --text-secondary: var(--ds-text-secondary);
-  --text-muted: var(--ds-text-muted);
-  --accent-primary: var(--ds-action);
-  --accent-secondary: var(--ds-brand-400);
-  --accent-emerald: var(--ds-success-fg);
-  --accent-amber: var(--ds-warning-fg);
-  --radius-sm: var(--ds-radius-sm);
-  --radius-md: var(--ds-radius-md);
-  --radius-lg: var(--ds-radius-lg);
-  --radius-full: var(--ds-radius-pill);
-  --shadow-sm: var(--ds-shadow-sm);
-  --shadow-md: var(--ds-shadow-md);
-  --transition-fast: var(--ds-transition-fast);
-  --transition-normal: var(--ds-transition-normal);
-}
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.2);
+  --shadow-md: 0 4px 20px rgba(0, 0, 0, 0.35);
+  --shadow-glow: 0 0 24px var(--accent-glow);
 
-[data-theme="dark"] {
-  --ds-bg-app: var(--ds-brand-950);
-  --ds-bg-surface: var(--ds-brand-900);
-  --ds-bg-subtle: var(--ds-brand-800);
-  --ds-border: #22364c;
-  --ds-border-strong: #31506f;
-  --ds-text: var(--ds-neutral-50);
-  --ds-text-secondary: var(--ds-neutral-300);
-  --ds-text-muted: var(--ds-neutral-400);
+  --transition-fast: 0.15s ease;
+  --transition-normal: 0.2s ease-in-out;
 }
