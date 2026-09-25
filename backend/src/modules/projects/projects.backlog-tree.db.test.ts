@@ -142,7 +142,7 @@ test("backlog tree PostgreSQL integration", { skip: !process.env.BACKLOG_TREE_TE
       assert.deepEqual((await repository.findBacklogTree(projectId))?.epics[0].tecnologias.map((item) => item.id), [technologyIds[0]]);
     });
 
-    await t.test("baseline de escala: 25 épicos, 125 features e 625 PBIs", async () => {
+    await t.test("baseline de escala: adiciona 25 épicos, 125 features e 625 PBIs", async () => {
       const benchmarkEpicIds = Array.from({ length: 25 }, () => randomUUID());
       const benchmarkFeatureIds = Array.from({ length: 125 }, () => randomUUID());
       const benchmarkPbiIds = Array.from({ length: 625 }, () => randomUUID());
@@ -180,9 +180,9 @@ test("backlog tree PostgreSQL integration", { skip: !process.env.BACKLOG_TREE_TE
       );
       const responseBytes = Buffer.byteLength(JSON.stringify(tree));
       console.log(`[S1-16 scale] 26 epics, ${featureCount} features, ${pbiCount} PBIs; ${durationMs.toFixed(1)} ms; ${responseBytes} bytes`);
-      assert.equal(tree.epics.length, 26);
-      assert.equal(featureCount, 125);
-      assert.equal(pbiCount, 625);
+      assert.equal(tree.epics.length, 26); // 25 de benchmark + 1 da fixture funcional acima.
+      assert.equal(featureCount, 126); // 125 de benchmark + 1 da fixture funcional acima.
+      assert.equal(pbiCount, 626); // 625 de benchmark + 1 da fixture funcional acima.
       assert.ok(durationMs < 2000, `árvore levou ${durationMs.toFixed(1)} ms; limite de 2000 ms excedido`);
       assert.ok(responseBytes < 5 * 1024 * 1024, `resposta excedeu 5 MiB: ${responseBytes} bytes`);
     });

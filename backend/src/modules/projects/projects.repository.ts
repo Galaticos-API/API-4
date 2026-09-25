@@ -181,12 +181,7 @@ export class ProjectsRepository {
       ) AS tecnologias
     `;
 
-    const [
-      epicsResult,
-      featuresResult,
-      pbisResult,
-    ] = await Promise.all([
-      client.query<ItemRow>(
+      const epicsResult = await client.query<ItemRow>(
         `
           SELECT
             e.id,
@@ -205,9 +200,9 @@ export class ProjectsRepository {
             e.id ASC
         `,
         [id],
-      ),
+      );
 
-      client.query<FeatureRow>(
+      const featuresResult = await client.query<FeatureRow>(
         `
           SELECT
             f.id,
@@ -229,9 +224,9 @@ export class ProjectsRepository {
             f.id ASC
         `,
         [id],
-      ),
+      );
 
-      client.query<PbiRow>(
+      const pbisResult = await client.query<PbiRow>(
         `
           SELECT
             p.id,
@@ -256,8 +251,7 @@ export class ProjectsRepository {
             p.id ASC
         `,
         [id],
-      ),
-    ]);
+      );
 
     const pbisByFeature =
       new Map<

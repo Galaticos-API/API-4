@@ -50,9 +50,9 @@ duplicadas.
 
 ## Etapa 5 — Avaliação de escala
 
-**Teste preparado; resultado depende da CI.** O teste de integração cria um
-baseline de 26 épicos, 125 features e 625 PBIs e exige resposta em menos de 2 s
-e menor que 5 MiB. O volume inclui os dados de fixture já existentes. Os índices
+**Teste preparado; resultado depende da CI.** O teste de integração adiciona
+25 épicos, 125 features e 625 PBIs (além da fixture funcional mínima) e exige
+resposta em menos de 2 s e menor que 5 MiB. Os índices
 de hierarquia publicados e o novo índice único cobrem os caminhos de junção e
 associação.
 
