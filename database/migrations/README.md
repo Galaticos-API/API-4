@@ -39,6 +39,14 @@ histórico backlog e ambas as migrations, com repetição e rollback de auditori
 Exige `S105_TEST_DATABASE_URL` apontando para PostgreSQL local descartável cujo
 nome termina em `_s105_test`. O teste cria/remove somente schemas próprios.
 
+## S1-16: vínculos de tecnologia
+
+`011_unique_entity_technology.sql` normaliza associações duplicadas e cria a
+chave única de `(entidade_tipo, entidade_id, tecnologia_id)`. A API atualiza os
+vínculos dentro da mesma transação que cria/edita épicos, features e PBIs.
+`BACKLOG_TREE_TEST_DATABASE_URL` habilita os testes reais da árvore e dos
+vínculos; use somente um banco descartável cujo nome termine em `_test`.
+
 ## Retomada do #22 após o #23
 
 `007_criteria_polymorphic_format.sql` torna `criterio_aceitacao.texto` opcional e

@@ -347,6 +347,55 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
+  /api/v1/projects/{id}/backlog-tree:
+    get:
+      summary: Retorna a hierarquia do backlog e tecnologias associadas (S1-16)
+      operationId: getProjectBacklogTree
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Árvore ordenada dentro de um snapshot consistente do banco
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectBacklogTreeResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Projeto não encontrado
+
+  /api/v1/technologies:
+    get:
+      summary: Lista o catálogo de tecnologias para associação ao backlog
+      operationId: listTechnologies
+      security:
+        - cookieAuth: []
+      responses:
+        '200':
+          description: Catálogo ordenado sem dados pessoais de desenvolvedores
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TechnologyOption'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
   /api/v1/epics:
     post:
       summary: Cadastra um épico dentro de um projeto (PBI-01.1.2 / S1-05)
@@ -1287,6 +1336,76 @@ components:
       name: sinapse_session
 
   schemas:
+    TechnologyOption:
+      type: object
+      required: [id, nome]
+      properties:
+        id:
+          type: string
+          format: uuid
+        nome:
+          type: string
+
+    ProjectBacklogTreeResponse:
+      type: object
+      required: [project, epics, technologies]
+      properties:
+        project:
+          type: object
+          required: [id, nome, status]
+          properties:
+            id: {type: string, format: uuid}
+            nome: {type: string}
+            status: {type: string}
+        technologies:
+          type: array
+          items:
+            $ref: '#/components/schemas/TechnologyOption'
+        epics:
+          type: array
+          items:
+            $ref: '#/components/schemas/BacklogEpicNode'
+
+    BacklogEpicNode:
+      type: object
+      required: [id, titulo, status, tecnologias, features]
+      properties:
+        id: {type: string, format: uuid}
+        titulo: {type: string}
+        status: {type: string}
+        tecnologias:
+          type: array
+          items: {$ref: '#/components/schemas/TechnologyOption'}
+        features:
+          type: array
+          items: {$ref: '#/components/schemas/BacklogFeatureNode'}
+
+    BacklogFeatureNode:
+      type: object
+      required: [id, titulo, status, tecnologias, pbis]
+      properties:
+        id: {type: string, format: uuid}
+        titulo: {type: string}
+        status: {type: string}
+        tecnologias:
+          type: array
+          items: {$ref: '#/components/schemas/TechnologyOption'}
+        pbis:
+          type: array
+          items: {$ref: '#/components/schemas/BacklogPbiNode'}
+
+    BacklogPbiNode:
+      type: object
+      required: [id, codigo, titulo, status, tecnologias]
+      properties:
+        id: {type: string, format: uuid}
+        codigo: {type: string}
+        titulo: {type: string}
+        status: {type: string}
+        tecnologias:
+          type: array
+          items: {$ref: '#/components/schemas/TechnologyOption'}
+
     HierarchyArchiveImpact:
       type: object
       required: [epicos, features, pbis]
@@ -1480,6 +1599,13 @@ components:
           type: string
           enum: [Must, Should, Could]
           default: Must
+        tecnologias_ids:
+          type: array
+          maxItems: 50
+          items:
+            type: string
+            format: uuid
+          description: IDs do catálogo; associações são substituídas atomicamente. IDs repetidos são normalizados.
 
     UpdateEpicRequest:
       type: object
@@ -1506,6 +1632,13 @@ components:
           enum: [Must, Should, Could]
         justificativa:
           type: string
+        tecnologias_ids:
+          type: array
+          maxItems: 50
+          items:
+            type: string
+            format: uuid
+          description: Quando omitido, preserva as associações atuais; lista vazia remove todas.
 
     EpicResponse:
       type: object
@@ -1548,6 +1681,11 @@ components:
           type: integer
         criterios_count:
           type: integer
+        tecnologias_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
 
     PaginatedEpicsResponse:
       type: object
@@ -1585,6 +1723,12 @@ components:
           type: string
           enum: [Must, Should, Could]
           default: Must
+        tecnologias_ids:
+          type: array
+          maxItems: 50
+          items:
+            type: string
+            format: uuid
 
     UpdateFeatureRequest:
       type: object
@@ -1604,6 +1748,12 @@ components:
           enum: [Must, Should, Could]
         justificativa:
           type: string
+        tecnologias_ids:
+          type: array
+          maxItems: 50
+          items:
+            type: string
+            format: uuid
 
     FeatureResponse:
       type: object
@@ -1644,6 +1794,11 @@ components:
         projeto_id:
           type: string
           format: uuid
+        tecnologias_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
 
     PaginatedFeaturesResponse:
       type: object
@@ -1694,6 +1849,12 @@ components:
           type: boolean
           default: false
           description: Define explicitamente se a verificação de protótipo deve ser aplicada ao PBI.
+        tecnologias_ids:
+          type: array
+          maxItems: 50
+          items:
+            type: string
+            format: uuid
 
     UpdatePbiRequest:
       type: object
@@ -1723,6 +1884,12 @@ components:
           type: boolean
         justificativa:
           type: string
+        tecnologias_ids:
+          type: array
+          maxItems: 50
+          items:
+            type: string
+            format: uuid
 
     PbiResponse:
       type: object
@@ -1755,6 +1922,11 @@ components:
         requer_interface:
           type: boolean
           description: Indica se a regra de protótipo é aplicável a este PBI.
+        tecnologias_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
         prototipo_vinculado:
           type: boolean
           description: Indica se há ao menos um protótipo registrado para este PBI.

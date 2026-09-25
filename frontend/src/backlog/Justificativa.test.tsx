@@ -136,7 +136,7 @@ it("ItemHistoryView carrega páginas seguintes sem duplicar eventos", async () =
 
 it("EpicDetail exige justificativa ao alterar épico concluído", async () => {
   render(<EpicDetail projectId="project-1" epicId="epic-c1" canEdit={true} />);
-  
+
   const editBtn = await screen.findByText("Editar");
   fireEvent.click(editBtn);
 

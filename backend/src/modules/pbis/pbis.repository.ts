@@ -5,10 +5,12 @@ import { CreatePbiDTO, UpdatePbiDTO, PbiQueryDTO, Pbi, PbiWithContext, Paginated
 import { auditService } from "../audit/audit.service.js";
 import { assertJustificationForCompletedItem, normalizeJustification } from "../quality/completed-item-policy.js";
 import { buildAuditChangeData } from "../audit/audit.payloads.js";
+import { getEntityTechnologyIds, replaceEntityTechnologies } from "../technologies/entity-technologies.js";
 
 const SELECT_WITH_CONTEXT = `
   SELECT
     p.*,
+    COALESCE((SELECT array_agg(et.tecnologia_id ORDER BY et.tecnologia_id) FROM entidade_tecnologia et WHERE et.entidade_tipo = 'pbi' AND et.entidade_id = p.id), ARRAY[]::uuid[]) AS tecnologias_ids,
     f.titulo AS feature_titulo,
     e.id AS epico_id,
     e.titulo AS epico_titulo,
@@ -69,6 +71,7 @@ export class PbisRepository {
 
       const result = await client.query<Pbi>(insertQuery, values);
       const created = result.rows[0];
+      await replaceEntityTechnologies(client, "pbi", created.id, data.tecnologias_ids);
 
       await auditService.record(
         {
@@ -76,7 +79,7 @@ export class PbisRepository {
           entidade_tipo: "pbi",
           entidade_id: created.id,
           acao: "CRIAR_PBI",
-          dados_json: { codigo: created.codigo, titulo: created.titulo, feature_id: created.feature_id, status: created.status, requer_interface: created.requer_interface },
+          dados_json: { codigo: created.codigo, titulo: created.titulo, feature_id: created.feature_id, status: created.status, requer_interface: created.requer_interface, tecnologias_ids: data.tecnologias_ids ?? [] },
         },
         client,
       );
@@ -167,6 +170,13 @@ export class PbisRepository {
         values,
       );
       const updated = result.rows[0];
+      await replaceEntityTechnologies(client, "pbi", id, data.tecnologias_ids);
+      const updatedWithTechnologies = {
+        ...updated,
+        tecnologias_ids: data.tecnologias_ids === undefined
+          ? existing.tecnologias_ids ?? []
+          : await getEntityTechnologyIds(client, "pbi", id),
+      };
 
       await auditService.record(
         {
@@ -175,7 +185,7 @@ export class PbisRepository {
           entidade_id: id,
           acao: "ATUALIZAR_PBI",
           justificativa: normalizeJustification(data.justificativa),
-          dados_json: buildAuditChangeData(existing, updated, data),
+          dados_json: buildAuditChangeData(existing, updatedWithTechnologies, data),
         },
         client,
       );

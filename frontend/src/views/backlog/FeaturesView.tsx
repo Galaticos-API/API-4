@@ -8,10 +8,12 @@ import { descreverCamposFaltantes } from "../../models/fields";
 import { useUnsavedChangesGuard } from "../../viewmodels/useUnsavedChangesGuard";
 import { usePbiQualityConfiguration } from "../../viewmodels/usePbiQualityConfiguration";
 import { CriteriaEditor } from "./CriteriaView";
+import { BacklogBreadcrumb } from "./BacklogBreadcrumb";
+import { BacklogTechnologySelector } from "./BacklogTechnologySelector";
 import "../../assets/styles/projects.css";
 
 type ListResult = { state: "loading" } | { state: "error"; message: string } | { state: "ready"; features: Feature[] };
-const emptyInput: FeatureInput = { epico_id: "", titulo: "", descricao: "", objetivo: "" };
+const emptyInput: FeatureInput = { epico_id: "", titulo: "", descricao: "", objetivo: "", tecnologias_ids: [] };
 
 export function FeatureList({ projectId, epicoId, canCreate: allowedToCreate }: { projectId: string; epicoId: string; canCreate: boolean }) {
   const inheritedReadOnly = useContext(ReadOnlyContext);
@@ -64,7 +66,7 @@ export function FeatureForm({ projectId, epicoId }: { projectId: string; epicoId
   const submitting = useRef(false);
   const mounted = useRef(true);
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
-  const isDirty = [values.titulo, values.descricao, values.objetivo].some((value) => value.trim().length > 0);
+  const isDirty = [values.titulo, values.descricao, values.objetivo].some((value) => value.trim().length > 0) || (values.tecnologias_ids?.length ?? 0) > 0;
   const { confirmLeave } = useUnsavedChangesGuard(isDirty);
 
   return (
@@ -95,6 +97,11 @@ export function FeatureForm({ projectId, epicoId }: { projectId: string; epicoId
               : <input id={field} name={field} type="text" disabled={busy} value={values[field]} onChange={(e) => setValues((v) => ({ ...v, [field]: e.target.value }))} />}
           </div>
         ))}
+        <BacklogTechnologySelector
+          value={values.tecnologias_ids ?? []}
+          onChange={(tecnologias_ids) => setValues((current) => ({ ...current, tecnologias_ids }))}
+          disabled={busy}
+        />
         {message && <p role="alert">{message}</p>}
         <div className="project-actions">
           <button type="submit" className="btn-primary" disabled={busy}>{busy ? "Criando…" : "Criar feature"}</button>
@@ -107,10 +114,10 @@ export function FeatureForm({ projectId, epicoId }: { projectId: string; epicoId
 
 import { ItemHistoryView } from "./ItemHistoryView";
 
-type FeatureFields = Pick<FeatureInput, "titulo" | "descricao" | "objetivo"> & { justificativa?: string };
+type FeatureFields = Pick<FeatureInput, "titulo" | "descricao" | "objetivo" | "tecnologias_ids"> & { justificativa?: string };
 
 function toFields(feature: Feature): FeatureFields {
-  return { titulo: feature.titulo, descricao: feature.descricao, objetivo: feature.objetivo, justificativa: "" };
+  return { titulo: feature.titulo, descricao: feature.descricao, objetivo: feature.objetivo, tecnologias_ids: [...(feature.tecnologias_ids ?? [])], justificativa: "" };
 }
 
 export function FeatureDetail({ projectId, epicoId, featureId, canEdit, children }: { projectId: string; epicoId: string; featureId: string; canEdit: boolean; children?: ReactNode }) {
@@ -153,6 +160,25 @@ export function FeatureDetail({ projectId, epicoId, featureId, canEdit, children
 
   return (
     <section className="projects-page">
+      <BacklogBreadcrumb
+        segments={[
+          {
+            label: "Projeto",
+            path: `/projects/${projectId}#backlog`,
+          },
+          {
+            label: "Épico",
+            path: `/projects/${projectId}/epics/${epicoId}`,
+          },
+          {
+            label: "Feature",
+            path: `/projects/${projectId}/epics/${epicoId}/features/${featureId}`,
+          },
+        ]}
+        onNavigate={(path) => {
+          if (confirmLeave()) navigate(path);
+        }}
+      />
       <div className="projects-heading">
         <div><p className="projects-eyebrow">Épico: {feature!.epico_titulo}</p><h2>{feature!.titulo}</h2></div>
         <button className="btn-secondary" onClick={() => { if (confirmLeave()) navigate(`/projects/${projectId}/epics/${epicoId}`); }}>Voltar ao épico de origem</button>
@@ -170,6 +196,11 @@ export function FeatureDetail({ projectId, epicoId, featureId, canEdit, children
                   : <input id={`edit-${field}`} type="text" disabled={saving} value={formValues[field] ?? ""} onChange={(e) => setFormValues((v) => v && { ...v, [field]: e.target.value })} />}
               </div>
             ))}
+            <BacklogTechnologySelector
+              value={formValues.tecnologias_ids ?? []}
+              onChange={(tecnologias_ids) => setFormValues((current) => current && { ...current, tecnologias_ids })}
+              disabled={saving}
+            />
             {justificationRequired && (
               <div className="project-field" key="justificativa">
                 <label htmlFor="edit-justificativa">Justificativa da alteração (obrigatória)</label>

@@ -20,6 +20,8 @@ import { CriteriaEditor } from "./CriteriaView";
 import { ItemHistoryView } from "./ItemHistoryView";
 import { QualityPanelView as QualityPanel } from "./QualityPanelView";
 import { evaluatePbiRealtime } from "../../models/qualityEngine";
+import { BacklogBreadcrumb } from "./BacklogBreadcrumb";
+import { BacklogTechnologySelector } from "./BacklogTechnologySelector";
 import "../../assets/styles/projects.css";
 
 type ListResult =
@@ -34,6 +36,7 @@ const emptyInput: PbiInput = {
   historia_eu_quero: "",
   historia_para_que: "",
   requer_interface: false,
+  tecnologias_ids: [],
 };
 
 export function PbiList({
@@ -298,6 +301,7 @@ export function PbiForm({
 
   const isDirty =
     values.requer_interface
+    || (values.tecnologias_ids?.length ?? 0) > 0
     || [
       values.titulo,
       values.historia_como_um,
@@ -548,6 +552,12 @@ export function PbiForm({
           </label>
         </div>
 
+        <BacklogTechnologySelector
+          value={values.tecnologias_ids ?? []}
+          onChange={(tecnologias_ids) => setValues((current) => ({ ...current, tecnologias_ids }))}
+          disabled={busy}
+        />
+
         {message && (
           <p role="alert">
             {message}
@@ -608,6 +618,7 @@ type PbiFields = Pick<
   | "historia_eu_quero"
   | "historia_para_que"
   | "requer_interface"
+  | "tecnologias_ids"
 > & { justificativa?: string };
 
 function toFields(
@@ -623,6 +634,7 @@ function toFields(
       pbi.historia_para_que,
     requer_interface:
       pbi.requer_interface,
+    tecnologias_ids: [...(pbi.tecnologias_ids ?? [])],
     justificativa: "",
   };
 }
@@ -795,6 +807,29 @@ export function PbiDetail({
 
   return (
     <section className="projects-page">
+      <BacklogBreadcrumb
+        segments={[
+          {
+            label: "Projeto",
+            path: `/projects/${projectId}#backlog`,
+          },
+          {
+            label: "Épico",
+            path: `/projects/${projectId}/epics/${epicoId}`,
+          },
+          {
+            label: "Feature",
+            path: `/projects/${projectId}/epics/${epicoId}/features/${featureId}`,
+          },
+          {
+            label: "PBI",
+            path: `/projects/${projectId}/epics/${epicoId}/features/${featureId}/pbis/${pbiId}`,
+          },
+        ]}
+        onNavigate={(path) => {
+          if (confirmLeave()) navigate(path);
+        }}
+      />
       <div className="projects-heading">
         <div>
           <p className="projects-eyebrow">
@@ -1058,6 +1093,12 @@ export function PbiDetail({
                     protótipo visual
                   </label>
                 </div>
+
+                <BacklogTechnologySelector
+                  value={formValues.tecnologias_ids ?? []}
+                  onChange={(tecnologias_ids) => setFormValues((current) => current && { ...current, tecnologias_ids })}
+                  disabled={saving}
+                />
 
                 {justificationRequired && (
                   <div className="project-field" key="justificativa">

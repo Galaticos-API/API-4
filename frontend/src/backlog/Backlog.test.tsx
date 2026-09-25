@@ -125,6 +125,9 @@ it("PBI-01.1.2 Cenário 1: cria épico e navega ao seu detalhe", async () => {
       ) {
         return response(epic, 201);
       }
+      if (url === "/api/v1/technologies") {
+        return response({ items: [{ id: "technology-1", nome: "React" }] });
+      }
 
       throw new Error(
         `Requisição inesperada: ${url}`,
@@ -137,6 +140,8 @@ it("PBI-01.1.2 Cenário 1: cria épico e navega ao seu detalhe", async () => {
   render(
     <Projects pathname="/projects/project-1/epics/new" />,
   );
+
+  fireEvent.click(await screen.findByLabelText("React"));
 
   fireEvent.change(
     screen.getByLabelText(
@@ -161,14 +166,16 @@ it("PBI-01.1.2 Cenário 1: cria épico e navega ao seu detalhe", async () => {
     ),
   );
 
-  const body = JSON.parse(
-    request.mock.calls[0][1]?.body as string,
+  const createCall = request.mock.calls.find(
+    ([url, init]) => url === "/api/v1/epics" && init?.method === "POST",
   );
+  const body = JSON.parse(createCall?.[1]?.body as string);
 
   expect(body.projeto_id).toBe("project-1");
   expect(body.titulo).toBe(
     "Especificar o backlog",
   );
+  expect(body.tecnologias_ids).toEqual(["technology-1"]);
 });
 
 it("PBI-01.1.2 Cenário 3: mostra os campos faltantes quando a conclusão é recusada", async () => {

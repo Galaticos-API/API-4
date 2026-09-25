@@ -29,7 +29,7 @@ it("formulário recusa título vazio antes da chamada", () => {
   render(<EpicForm projetoId="project-1" />);
   fireEvent.click(screen.getByRole("button", { name: "Criar épico" }));
   expect(screen.getByRole("alert")).toHaveTextContent("Informe o título");
-  expect(request).not.toHaveBeenCalled();
+  expect(request.mock.calls.some(([url]) => url === "/api/v1/epics")).toBe(false);
 });
 
 it("detalhe canônico conclui quando a API aceita os campos e critérios", async () => {

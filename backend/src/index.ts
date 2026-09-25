@@ -17,6 +17,7 @@ import { documentsRouter } from "./modules/documents/documents.routes.js";
 import { searchRouter } from "./modules/search/search.routes.js";
 import { chatRouter } from "./modules/chat/chat.routes.js";
 import { developersRouter } from "./modules/developers/developers.routes.js";
+import { technologiesRouter } from "./modules/technologies/technologies.routes.js";
 import { adminRouter } from "./modules/admin/admin.routes.js";
 import { auditRouter } from "./modules/audit/audit.routes.js";
 import { errorHandler } from "./middleware/errorHandler.js";
@@ -72,6 +73,7 @@ app.use("/api/v1/chat", chatRouter);
 
 // Desenvolvedores e competências
 app.use("/api/v1/developers", developersRouter);
+app.use("/api/v1/technologies", requireAuth, technologiesRouter);
 
 // Painel administrativo
 app.use("/api/v1/admin", adminRouter);

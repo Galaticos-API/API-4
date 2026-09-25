@@ -5,10 +5,12 @@ import { CreateFeatureDTO, UpdateFeatureDTO, FeatureQueryDTO, Feature, FeatureWi
 import { auditService } from "../audit/audit.service.js";
 import { assertJustificationForCompletedItem } from "../quality/completed-item-policy.js";
 import { buildAuditChangeData } from "../audit/audit.payloads.js";
+import { getEntityTechnologyIds, replaceEntityTechnologies } from "../technologies/entity-technologies.js";
 
 const SELECT_WITH_STATS = `
   SELECT
     f.*,
+    COALESCE((SELECT array_agg(et.tecnologia_id ORDER BY et.tecnologia_id) FROM entidade_tecnologia et WHERE et.entidade_tipo = 'feature' AND et.entidade_id = f.id), ARRAY[]::uuid[]) AS tecnologias_ids,
     e.titulo AS epico_titulo,
     e.projeto_id AS projeto_id,
     p.status AS projeto_status,
@@ -54,6 +56,7 @@ export class FeaturesRepository {
 
       const result = await client.query<Feature>(insertQuery, values);
       const created = result.rows[0];
+      await replaceEntityTechnologies(client, "feature", created.id, data.tecnologias_ids);
 
       await auditService.record(
         {
@@ -61,7 +64,7 @@ export class FeaturesRepository {
           entidade_tipo: "feature",
           entidade_id: created.id,
           acao: "CRIAR_FEATURE",
-          dados_json: { titulo: created.titulo, epico_id: created.epico_id, status: created.status },
+          dados_json: { titulo: created.titulo, epico_id: created.epico_id, status: created.status, tecnologias_ids: data.tecnologias_ids ?? [] },
         },
         client,
       );
@@ -148,6 +151,13 @@ export class FeaturesRepository {
         values,
       );
       const updated = result.rows[0];
+      await replaceEntityTechnologies(client, "feature", id, data.tecnologias_ids);
+      const updatedWithTechnologies = {
+        ...updated,
+        tecnologias_ids: data.tecnologias_ids === undefined
+          ? existing.tecnologias_ids ?? []
+          : await getEntityTechnologyIds(client, "feature", id),
+      };
 
       await auditService.record(
         {
@@ -156,7 +166,7 @@ export class FeaturesRepository {
           entidade_id: id,
           acao: "ATUALIZAR_FEATURE",
           justificativa: data.justificativa ?? null,
-          dados_json: buildAuditChangeData(existing, updated, data),
+          dados_json: buildAuditChangeData(existing, updatedWithTechnologies, data),
         },
         client,
       );

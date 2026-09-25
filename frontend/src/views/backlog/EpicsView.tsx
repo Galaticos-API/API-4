@@ -8,10 +8,12 @@ import { descreverCamposFaltantes } from "../../models/fields";
 import { useUnsavedChangesGuard } from "../../viewmodels/useUnsavedChangesGuard";
 import { usePbiQualityConfiguration } from "../../viewmodels/usePbiQualityConfiguration";
 import { CriteriaEditor } from "./CriteriaView";
+import { BacklogBreadcrumb } from "./BacklogBreadcrumb";
+import { BacklogTechnologySelector } from "./BacklogTechnologySelector";
 import "../../assets/styles/projects.css";
 
 type ListResult = { state: "loading" } | { state: "error"; message: string } | { state: "ready"; epics: Epic[] };
-const emptyInput: EpicInput = { projeto_id: "", titulo: "", descricao: "", objetivo: "", escopo_macro: "", resultado_esperado: "" };
+const emptyInput: EpicInput = { projeto_id: "", titulo: "", descricao: "", objetivo: "", escopo_macro: "", resultado_esperado: "", tecnologias_ids: [] };
 
 export function EpicList({ projetoId, canCreate: allowedToCreate }: { projetoId: string; canCreate: boolean }) {
   const inheritedReadOnly = useContext(ReadOnlyContext);
@@ -64,7 +66,7 @@ export function EpicForm({ projetoId }: { projetoId: string }) {
   const submitting = useRef(false);
   const mounted = useRef(true);
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
-  const isDirty = [values.titulo, values.descricao, values.objetivo, values.escopo_macro, values.resultado_esperado].some((value) => value.trim().length > 0);
+  const isDirty = [values.titulo, values.descricao, values.objetivo, values.escopo_macro, values.resultado_esperado].some((value) => value.trim().length > 0) || (values.tecnologias_ids?.length ?? 0) > 0;
   const { confirmLeave } = useUnsavedChangesGuard(isDirty);
 
   return (
@@ -98,6 +100,11 @@ export function EpicForm({ projetoId }: { projetoId: string }) {
               : <input id={field} name={field} type="text" disabled={busy} value={values[field]} onChange={(e) => setValues((v) => ({ ...v, [field]: e.target.value }))} />}
           </div>
         ))}
+        <BacklogTechnologySelector
+          value={values.tecnologias_ids ?? []}
+          onChange={(tecnologias_ids) => setValues((current) => ({ ...current, tecnologias_ids }))}
+          disabled={busy}
+        />
         {message && <p role="alert">{message}</p>}
         <div className="project-actions">
           <button type="submit" className="btn-primary" disabled={busy}>{busy ? "Criando…" : "Criar épico"}</button>
@@ -110,10 +117,10 @@ export function EpicForm({ projetoId }: { projetoId: string }) {
 
 import { ItemHistoryView } from "./ItemHistoryView";
 
-type EpicFields = Pick<EpicInput, "titulo" | "descricao" | "objetivo" | "escopo_macro" | "resultado_esperado"> & { justificativa?: string };
+type EpicFields = Pick<EpicInput, "titulo" | "descricao" | "objetivo" | "escopo_macro" | "resultado_esperado" | "tecnologias_ids"> & { justificativa?: string };
 
 function toFields(epic: Epic): EpicFields {
-  return { titulo: epic.titulo, descricao: epic.descricao, objetivo: epic.objetivo, escopo_macro: epic.escopo_macro, resultado_esperado: epic.resultado_esperado, justificativa: "" };
+  return { titulo: epic.titulo, descricao: epic.descricao, objetivo: epic.objetivo, escopo_macro: epic.escopo_macro, resultado_esperado: epic.resultado_esperado, tecnologias_ids: [...(epic.tecnologias_ids ?? [])], justificativa: "" };
 }
 
 export function EpicDetail({ projectId, epicId, canEdit, children }: { projectId: string; epicId: string; canEdit: boolean; children?: ReactNode }) {
@@ -160,6 +167,21 @@ export function EpicDetail({ projectId, epicId, canEdit, children }: { projectId
 
   return (
     <section className="projects-page">
+      <BacklogBreadcrumb
+        segments={[
+          {
+            label: "Projeto",
+            path: `/projects/${projectId}#backlog`,
+          },
+          {
+            label: "Épico",
+            path: `/projects/${projectId}/epics/${epicId}`,
+          },
+        ]}
+        onNavigate={(path) => {
+          if (confirmLeave()) navigate(path);
+        }}
+      />
       <div className="projects-heading">
         <div><p className="projects-eyebrow">Épico</p><h2>{epic.titulo}</h2></div>
         <button className="btn-secondary" onClick={() => { if (confirmLeave()) navigate(`/projects/${projectId}`); }}>Voltar ao projeto</button>
@@ -188,6 +210,11 @@ export function EpicDetail({ projectId, epicId, canEdit, children }: { projectId
                   : <input id={`edit-${field}`} type="text" disabled={saving} value={formValues[field] ?? ""} onChange={(e) => setFormValues((v) => v && { ...v, [field]: e.target.value })} />}
               </div>
             ))}
+            <BacklogTechnologySelector
+              value={formValues.tecnologias_ids ?? []}
+              onChange={(tecnologias_ids) => setFormValues((current) => current && { ...current, tecnologias_ids })}
+              disabled={saving}
+            />
             {justificationRequired && (
               <div className="project-field" key="justificativa">
                 <label htmlFor="edit-justificativa">Justificativa da alteração (obrigatória)</label>
