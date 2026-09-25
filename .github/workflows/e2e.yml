@@ -1,0 +1,62 @@
+name: E2E (navegador)
+
+# Execução manual: o serviço de IA não é necessário; os cenários verificam o
+# comportamento com ele indisponível. Não bloqueia PRs.
+on:
+  workflow_dispatch:
+
+jobs:
+  e2e:
+    name: E2E com API real, PostgreSQL e Chrome
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: e2e
+          POSTGRES_PASSWORD: e2e_only
+          POSTGRES_DB: sinapse_e2e_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U e2e -d sinapse_e2e_test"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      POSTGRES_HOST: localhost
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: e2e
+      POSTGRES_PASSWORD: e2e_only
+      POSTGRES_DB: sinapse_e2e_test
+      DOCUMENT_STORAGE_DIR: ${{ runner.temp }}/documents
+      E2E_API_URL: http://localhost:3001/api/v1
+      E2E_APP_URL: http://localhost:5173
+      E2E_CHROME_PATH: /usr/bin/google-chrome
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Instalar dependências
+        run: |
+          npm ci --prefix backend
+          npm ci --prefix frontend
+          npm ci --prefix e2e
+      - name: Migrar o banco
+        run: npm run migrate
+        working-directory: backend
+      - name: Subir backend e frontend
+        run: |
+          (cd backend && nohup npx tsx src/index.ts > "$RUNNER_TEMP/backend.log" 2>&1 &)
+          (cd frontend && nohup npx vite --port 5173 --strictPort > "$RUNNER_TEMP/frontend.log" 2>&1 &)
+          for i in $(seq 1 30); do
+            curl -fs http://localhost:3001/health > /dev/null && curl -fs http://localhost:5173 > /dev/null && exit 0
+            sleep 2
+          done
+          cat "$RUNNER_TEMP/backend.log" "$RUNNER_TEMP/frontend.log"
+          exit 1
+      - name: Executar E2E
+        run: npm test
+        working-directory: e2e
+      - name: Logs dos serviços
+        if: failure()
+        run: cat "$RUNNER_TEMP/backend.log" "$RUNNER_TEMP/frontend.log"

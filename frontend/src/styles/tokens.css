@@ -8,6 +8,8 @@
   --text-primary: #ffffff;
   --text-secondary: var(--muted, #a6aab3);
   --text-muted: var(--dim, #8b93a1);
+  --on-brand: #17191c;
+  --brand-gradient: linear-gradient(135deg, #f1885b, var(--brand-primary));
 
   --step-1: #f28c68;
   --step-2: #d97354;

@@ -145,6 +145,7 @@ test("abas do projeto funcionam por teclado e mobile não transborda", async () 
     await page.getByRole("tab", { name: "Visão geral" }).focus();
     await page.keyboard.press("ArrowRight");
     await page.keyboard.press("ArrowRight");
+    await page.keyboard.press("ArrowRight");
     await expect(page.getByRole("tab", { name: "Documentos" })).toHaveAttribute("aria-selected", "true");
     assert.match(page.url(), /#documents$/);
     await assertNoHorizontalOverflow(page, "documentos mobile");

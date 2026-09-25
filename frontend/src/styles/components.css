@@ -13,10 +13,10 @@
 }
 
 .ds-button--primary {
-  background: var(--brand-primary);
-  color: var(--text-primary);
+  background: var(--brand-gradient);
+  color: var(--on-brand);
 }
-.ds-button--primary:hover:not(:disabled) { background: var(--brand-primary-hover); }
+.ds-button--primary:hover:not(:disabled) { opacity: 0.92; }
 
 .ds-button--secondary {
   background: var(--bg-tertiary);

@@ -116,6 +116,7 @@ export function EpicForm({ projetoId }: { projetoId: string }) {
 }
 
 import { ItemHistoryView } from "./ItemHistoryView";
+import { DecisionsPanel } from "./DecisionsPanel";
 
 type EpicFields = Pick<EpicInput, "titulo" | "descricao" | "objetivo" | "escopo_macro" | "resultado_esperado" | "tecnologias_ids"> & { justificativa?: string };
 
@@ -295,6 +296,7 @@ export function EpicDetail({ projectId, epicId, canEdit, children }: { projectId
       <ItemArchiveView project={epic} kind="epics" canWrite={canEdit && !readOnly && !editing && !saving && !completing} onArchived={() => setAttempt(v => v + 1)} />
       <CriteriaEditor entidadeTipo="epico" entidadeId={epic.id} canEdit={canWrite} titulo="Critérios do épico"
         itemConcluido={epic.status === "concluido"} justificativaObrigatoria={justificationRequired} />
+      <DecisionsPanel kind="epico" id={epic.id} canWrite={canWrite} readOnlyNote={readOnly ? "Item ou projeto arquivado: as decisões ficam disponíveis somente para consulta." : undefined} />
       <ItemHistoryView entidadeTipo="epico" entidadeId={epic.id} refreshTrigger={attempt} />
       <ReadOnlyContext.Provider value={readOnly}>{children}</ReadOnlyContext.Provider>
     </section>
