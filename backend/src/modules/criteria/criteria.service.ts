@@ -1,4 +1,4 @@
-import { createCriterionSchema, criterionQuerySchema, moveCriterionSchema, Criterion } from "./criteria.types.js";
+import { createCriterionSchema, criterionJustificationSchema, criterionQuerySchema, moveCriterionSchema, Criterion } from "./criteria.types.js";
 import { CriteriaRepository, criteriaRepository } from "./criteria.repository.js";
 import { NotFoundError, ValidationError, validateUuid } from "../../shared/errors.js";
 
@@ -36,8 +36,20 @@ export class CriteriaService {
     return await this.repository.listByEntity(entidade_tipo, entidade_id);
   }
 
-  async delete(id: string, usuarioId?: string | null): Promise<Criterion> {
+  async delete(
+    id: string,
+    usuarioId?: string | null,
+    justificationInput?: unknown,
+  ): Promise<Criterion> {
     validateUuid(id, "ID do critério");
+
+    const justificationResult = criterionJustificationSchema.safeParse({
+      justificativa: justificationInput,
+    });
+    if (!justificationResult.success) {
+      const issue = justificationResult.error.issues[0];
+      throw new ValidationError(issue.message, justificationResult.error.format());
+    }
 
     const existing = await this.repository.findById(id);
     if (!existing) {
@@ -52,7 +64,11 @@ export class CriteriaService {
       );
     }
 
-    const removed = await this.repository.delete(id, usuarioId);
+    const removed = await this.repository.delete(
+      id,
+      usuarioId,
+      justificationResult.data.justificativa,
+    );
     if (!removed) {
       throw new NotFoundError("Critério não encontrado.");
     }
@@ -77,7 +93,12 @@ export class CriteriaService {
       throw new ValidationError(`Não é possível alterar critérios de um(a) ${this.entityLabel(existing.entidade_tipo).toLowerCase()} arquivado(a).`);
     }
 
-    const lista = await this.repository.move(id, parseResult.data.direction, usuarioId);
+    const lista = await this.repository.move(
+      id,
+      parseResult.data.direction,
+      usuarioId,
+      parseResult.data.justificativa,
+    );
     if (!lista) {
       throw new NotFoundError("Critério não encontrado.");
     }

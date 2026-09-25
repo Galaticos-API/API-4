@@ -20,6 +20,7 @@ export interface EpicInput {
   objetivo: string;
   escopo_macro: string;
   resultado_esperado: string;
+  justificativa?: string | null;
 }
 
 export interface Epic extends EpicInput {
@@ -37,6 +38,7 @@ export interface FeatureInput {
   titulo: string;
   descricao: string;
   objetivo: string;
+  justificativa?: string | null;
 }
 
 export interface Feature extends FeatureInput {
@@ -58,6 +60,8 @@ export interface PbiInput {
   historia_eu_quero: string;
   historia_para_que: string;
   requer_interface: boolean;
+  regras_observacoes?: string | null;
+  justificativa?: string | null;
 }
 
 export interface Pbi extends PbiInput {
@@ -667,6 +671,7 @@ export interface PbiQualityConfigurationRecord {
     boolean
   >;
   vague_terms: string[];
+  exigir_justificativa_item_concluido: boolean;
   updated_at?: string;
 }
 
@@ -708,7 +713,8 @@ export async function getPbiQualityConfiguration(
     data.vague_terms.some(
       (term: unknown) =>
         typeof term !== "string",
-    )
+    ) || (data.exigir_justificativa_item_concluido !== undefined
+      && typeof data.exigir_justificativa_item_concluido !== "boolean")
   ) {
     throw new Error(
       "Resposta de configuração de qualidade inválida",
@@ -724,6 +730,8 @@ export async function getPbiQualityConfiguration(
       ]),
     ) as Record<PbiQualityCheckId, boolean>,
     vague_terms: data.vague_terms,
+    exigir_justificativa_item_concluido:
+      data.exigir_justificativa_item_concluido ?? true,
     updated_at: asText(data.updated_at),
   };
 }
@@ -753,6 +761,7 @@ export interface TextCriterionInput {
   entidade_tipo: "epico" | "feature";
   entidade_id: string;
   texto: string;
+  justificativa?: string;
 }
 
 export interface ScenarioCriterionInput {
@@ -762,6 +771,7 @@ export interface ScenarioCriterionInput {
   dado: string;
   quando: string;
   entao: string;
+  justificativa?: string;
 }
 
 function parseCriterion(
@@ -854,11 +864,15 @@ export async function createCriterion(
 
 export async function deleteCriterion(
   id: string,
+  justificativa?: string,
 ): Promise<void> {
   await apiRequest(
     `/criteria/${encodeURIComponent(id)}`,
     {
       method: "DELETE",
+      ...(justificativa
+        ? { body: JSON.stringify({ justificativa }) }
+        : {}),
     },
   );
 }
@@ -866,6 +880,7 @@ export async function deleteCriterion(
 export async function moveCriterion(
   id: string,
   direction: "up" | "down",
+  justificativa?: string,
 ): Promise<Criterion[]> {
   const response = await apiRequest(
     `/criteria/${encodeURIComponent(
@@ -875,6 +890,7 @@ export async function moveCriterion(
       method: "PATCH",
       body: JSON.stringify({
         direction,
+        ...(justificativa ? { justificativa } : {}),
       }),
     },
   );
@@ -888,4 +904,53 @@ export async function moveCriterion(
   }
 
   return data.items.map(parseCriterion);
+}
+
+export interface AuditHistoryItem {
+  id: string;
+  usuario_id: string | null;
+  usuario_nome: string | null;
+  entidade_tipo: string;
+  entidade_id: string;
+  acao: string;
+  justificativa: string | null;
+  dados_json: Record<string, unknown>;
+  created_at: string;
+  pbi_versao?: number | null;
+  pbi_snapshot?: Record<string, unknown> | null;
+}
+
+export interface AuditHistoryPage {
+  items: AuditHistoryItem[];
+  next_cursor: string | null;
+}
+
+export async function getItemHistory(
+  entidadeTipo: string,
+  entidadeId: string,
+  signal?: AbortSignal,
+  cursor?: string,
+  limit = 25,
+): Promise<AuditHistoryPage> {
+  const query = new URLSearchParams({ limit: String(limit) });
+  if (cursor) query.set("cursor", cursor);
+  const response = await apiRequest(
+    `/audit/${encodeURIComponent(entidadeTipo)}/${encodeURIComponent(entidadeId)}/history?${query.toString()}`,
+    { signal },
+  );
+  const data = await response.json();
+  if (
+    !data
+    || typeof data !== "object"
+    || !Array.isArray(data.items)
+    || (data.next_cursor !== undefined
+      && data.next_cursor !== null
+      && typeof data.next_cursor !== "string")
+  ) {
+    throw new Error("Resposta do histórico de auditoria inválida");
+  }
+  return {
+    items: data.items,
+    next_cursor: data.next_cursor ?? null,
+  };
 }

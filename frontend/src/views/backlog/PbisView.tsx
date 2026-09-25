@@ -7,17 +7,17 @@ import {
   updatePbi,
   getPbi,
   listPbis,
-  getPbiQualityConfiguration,
   hasCompletudeIndicator,
   camposFaltantesDe,
   type Pbi,
   type PbiInput,
-  type PbiQualityConfigurationRecord,
   type Criterion,
 } from "../../api/api_backlog";
 import { descreverCamposFaltantes } from "../../models/fields";
 import { useUnsavedChangesGuard } from "../../viewmodels/useUnsavedChangesGuard";
+import { usePbiQualityConfiguration } from "../../viewmodels/usePbiQualityConfiguration";
 import { CriteriaEditor } from "./CriteriaView";
+import { ItemHistoryView } from "./ItemHistoryView";
 import { QualityPanelView as QualityPanel } from "./QualityPanelView";
 import { evaluatePbiRealtime } from "../../models/qualityEngine";
 import "../../assets/styles/projects.css";
@@ -27,14 +27,6 @@ type ListResult =
   | { state: "error"; message: string }
   | { state: "ready"; pbis: Pbi[] };
 
-type QualityConfigurationResult =
-  | { state: "loading" }
-  | { state: "error" }
-  | {
-      state: "ready";
-      config: PbiQualityConfigurationRecord;
-    };
-
 const emptyInput: PbiInput = {
   feature_id: "",
   titulo: "",
@@ -43,50 +35,6 @@ const emptyInput: PbiInput = {
   historia_para_que: "",
   requer_interface: false,
 };
-
-function usePbiQualityConfiguration() {
-  const [result, setResult] =
-    useState<QualityConfigurationResult>({
-      state: "loading",
-    });
-
-  const [attempt, setAttempt] = useState(0);
-
-  useEffect(() => {
-    const controller = new AbortController();
-
-    setResult({
-      state: "loading",
-    });
-
-    getPbiQualityConfiguration(
-      controller.signal,
-    )
-      .then((config) => {
-        if (!controller.signal.aborted) {
-          setResult({
-            state: "ready",
-            config,
-          });
-        }
-      })
-      .catch(() => {
-        if (!controller.signal.aborted) {
-          setResult({
-            state: "error",
-          });
-        }
-      });
-
-    return () => controller.abort();
-  }, [attempt]);
-
-  return {
-    result,
-    retry: () =>
-      setAttempt((value) => value + 1),
-  };
-}
 
 export function PbiList({
   projectId,
@@ -660,7 +608,7 @@ type PbiFields = Pick<
   | "historia_eu_quero"
   | "historia_para_que"
   | "requer_interface"
->;
+> & { justificativa?: string };
 
 function toFields(
   pbi: Pbi,
@@ -675,6 +623,7 @@ function toFields(
       pbi.historia_para_que,
     requer_interface:
       pbi.requer_interface,
+    justificativa: "",
   };
 }
 
@@ -770,6 +719,9 @@ export function PbiDetail({
     result.state === "ready"
       ? result.pbi
       : null;
+  const justificationRequired = pbi?.status === "concluido"
+    && (qualityConfiguration.result.state !== "ready"
+      || qualityConfiguration.result.config.exigir_justificativa_item_concluido);
 
   const isDirty =
     editing
@@ -1107,6 +1059,30 @@ export function PbiDetail({
                   </label>
                 </div>
 
+                {justificationRequired && (
+                  <div className="project-field" key="justificativa">
+                    <label htmlFor="edit-justificativa">
+                      Justificativa da alteração (obrigatória)
+                    </label>
+                    <textarea
+                      id="edit-justificativa"
+                      rows={2}
+                      disabled={saving}
+                      placeholder="Descreva a justificativa para alterar este PBI já concluído"
+                      value={formValues.justificativa ?? ""}
+                      onChange={(event) =>
+                        setFormValues(
+                          (value) =>
+                            value && {
+                              ...value,
+                              justificativa: event.target.value,
+                            },
+                        )
+                      }
+                    />
+                  </div>
+                )}
+
                 {editMessage && (
                   <p role="alert">
                     {editMessage}
@@ -1135,14 +1111,22 @@ export function PbiDetail({
                         return;
                       }
 
+                      if (justificationRequired && !formValues.justificativa?.trim()) {
+                        setEditMessage("A justificativa é obrigatória ao alterar um item concluído.");
+                        document.getElementById("edit-justificativa")?.focus();
+                        return;
+                      }
+
                       setSaving(true);
                       setEditMessage("");
 
                       try {
+                        const payload = { ...formValues };
+                        if (!justificationRequired) delete payload.justificativa;
                         const updated =
                           await updatePbi(
                             pbi!.id,
-                            formValues,
+                            payload,
                           );
 
                         setResult({
@@ -1156,10 +1140,12 @@ export function PbiDetail({
                           (value) =>
                             value + 1,
                         );
-                      } catch {
-                        setEditMessage(
-                          "Não foi possível salvar as alterações. Tente novamente.",
-                        );
+                      } catch (error: any) {
+                        const msg = error?.message || "Não foi possível salvar as alterações. Tente novamente.";
+                        setEditMessage(msg);
+                        if (msg.includes("justificativa")) {
+                          document.getElementById("edit-justificativa")?.focus();
+                        }
                       } finally {
                         setSaving(false);
                       }
@@ -1314,6 +1300,8 @@ export function PbiDetail({
             canEdit && !readOnly
           }
           titulo="Cenários do PBI"
+          itemConcluido={pbi!.status === "concluido"}
+          justificativaObrigatoria={justificationRequired}
           onCriteriaChange={
             setScenarios
           }
@@ -1325,6 +1313,12 @@ export function PbiDetail({
         entidadeId={featureId}
         canEdit={false}
         titulo="Critérios da feature (consulta)"
+      />
+
+      <ItemHistoryView
+        entidadeTipo="pbi"
+        entidadeId={pbi!.id}
+        refreshTrigger={attempt}
       />
     </section>
   );

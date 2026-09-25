@@ -33,10 +33,12 @@ export interface PbiQualityRuleConfiguration {
 export interface PbiQualityConfigurationInput {
   checks: Record<PbiQualityCheck, boolean>;
   vague_terms: string[];
+  exigir_justificativa_item_concluido?: boolean;
 }
 
 export interface PbiQualityConfigurationRecord extends PbiQualityConfigurationInput {
   rule_version: string;
+  exigir_justificativa_item_concluido: boolean;
   updated_at: string;
   updated_by: { id: string; nome: string } | null;
 }
