@@ -2,7 +2,7 @@
 
 **Objetivo:** corrigir os desvios encontrados na regra de justificativa e no histórico de auditoria da PR #36, preservando o comportamento existente de backlog e a base atual da `main`.
 
-**Estado atual:** implementação local concluída na branch isolada `codex/qa-pr36-fixes`, criada sobre `origin/pr36`; a PR contém a `main` atual (`4df5a48`). Nenhum merge foi feito. Builds e suítes unitárias locais estão verdes; integração PostgreSQL e CI ainda precisam ser executadas após publicar a atualização.
+**Estado atual:** correções publicadas na branch da PR #36 em três commits (`f75903e`, `b46ba35`, `d79360d`). A base continua sendo a `main` atual (`4df5a48`); nenhum merge foi feito. Build/testes locais e todos os checks da CI estão verdes, incluindo as integrações PostgreSQL dedicadas.
 
 **Baseline da execução:** backend: `npm test` passou (152 aprovados, 5 ignorados por dependência de ambiente externo). Frontend: o runner local usa Node `v26.7.0`, no qual `localStorage` não foi disponibilizado pelo ambiente de teste; 73 testes falharam antes/durante renderizações (incluindo chamadas a `window.localStorage.clear`) e vários expiraram. Tratar esse resultado como limitação de baseline até repetir com a versão/runtime exigida pela CI. `npm ci` foi executado em ambos os pacotes do worktree.
 
@@ -35,7 +35,7 @@
 | ID | Prioridade | Achado | Estado |
 |---|---|---|---|
 | F1 | P1 | Critérios de item concluído podem ser alterados sem justificativa | Corrigido; cobertura unitária e de integração adicionada |
-| F2 | P1 | A validação de status/configuração pode ficar obsoleta entre serviço e transação | Corrigido com validação sob lock na transação; integração PostgreSQL pendente de ambiente/CI |
+| F2 | P1 | A validação de status/configuração pode ficar obsoleta entre serviço e transação | Corrigido com validação sob lock na transação; teste PostgreSQL dedicado passou na CI |
 | F3 | P2 | Falha ao buscar histórico é exibida como histórico vazio | Corrigido com estados de erro e retry; testes de componente verdes |
 | F4 | P2 | Salvar configuração de qualidade pode descartar a opção de justificativa | Corrigido preservando a configuração existente; testes verdes |
 | F5 | P2 | Histórico é retornado sem limite ou paginação | Corrigido com cursor e limite de 100; testes de contrato verdes |
@@ -254,14 +254,14 @@
 
 - [x] Política de justificativa respeitada para updates e mudanças de critérios em épico, feature e PBI (unitários verdes; DB integration adicionada).
 - [x] Configuração ligada/desligada permanece correta após salvar e recarregar (testes de merge/preservação).
-- [ ] Concorrência não permite bypass nem gravação parcial (teste PostgreSQL dedicado pendente de execução local/CI).
+- [x] Concorrência não permite bypass nem gravação parcial (teste PostgreSQL dedicado passou na CI).
 - [x] Histórico distingue vazio de indisponível e suporta retry (testes frontend verdes).
 - [x] Paginação tem limite máximo, ordenação estável e contrato compatível (backend/frontend verdes).
 - [x] Autorização do histórico coincide com a política de projeto existente (decisão documentada e validação de tipo/existência).
 - [x] Eventos e versões atendem ao escopo acordado e podem ser interpretados pela UI (snapshot filtrado, sem expor propriedades internas).
-- [ ] Builds, testes, typechecks, integração e CI passam (builds e testes locais passam; PostgreSQL/CI pendentes).
+- [x] Builds, testes, typechecks, integração e CI passam (backend, frontend e todos os checks PostgreSQL passaram na CI).
 - [x] Diff não contém alterações locais estranhas, segredos, artefatos ou whitespace acidental (revisão local; `git diff --check` sem erros).
-- [x] Nenhum merge realizado; solicitar nova revisão após publicar as correções.
+- [x] Nenhum merge realizado; correções publicadas e nova revisão solicitada na PR.
 
 ## Ordem e dependências
 
