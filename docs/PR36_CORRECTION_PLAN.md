@@ -2,7 +2,7 @@
 
 **Objetivo:** corrigir os desvios encontrados na regra de justificativa e no histórico de auditoria da PR #36, preservando o comportamento existente de backlog e a base atual da `main`.
 
-**Estado atual:** correções publicadas na branch da PR #36 em quatro commits (`f75903e`, `b46ba35`, `d79360d`, `3287bb3`). A base continua sendo a `main` atual (`4df5a48`); nenhum merge foi feito. Build/testes locais e todos os checks da CI estão verdes, incluindo as integrações PostgreSQL dedicadas.
+**Estado atual:** correções publicadas na branch da PR #36 em cinco commits (`f75903e`, `b46ba35`, `d79360d`, `3287bb3`, `aeb7bc2`). A base continua sendo a `main` atual (`4df5a48`); nenhum merge foi feito. Build/testes locais e todos os checks da CI estão verdes, incluindo as integrações PostgreSQL dedicadas.
 
 **Baseline da execução:** backend: `npm test` passou (152 aprovados, 5 ignorados por dependência de ambiente externo). Frontend: o runner local usa Node `v26.7.0`, no qual `localStorage` não foi disponibilizado pelo ambiente de teste; 73 testes falharam antes/durante renderizações (incluindo chamadas a `window.localStorage.clear`) e vários expiraram. Tratar esse resultado como limitação de baseline até repetir com a versão/runtime exigida pela CI. `npm ci` foi executado em ambos os pacotes do worktree.
 
