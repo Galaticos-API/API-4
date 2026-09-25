@@ -14,6 +14,11 @@
   para merge na main.
 - Não fazer merge desta PR até concluir os gates ao final deste documento e
   confirmar CI verde no HEAD atualizado.
+- CI do commit `9b4e445` concluiu parcialmente com falha: o teste PostgreSQL do
+  outbox falhou em `documents.repository.db.test.ts:91` ao verificar que o evento
+  deixa de aparecer após publicação; os testes do frontend falharam em 9 casos
+  nas suítes de abas e RepoAnalyzer (views atuais não têm o papel acessível
+  esperado pelas abas e o contrato visual/testado do Analyzer divergiu).
 
 ## Ponto de parada e validação atual (2026-09-25)
 
@@ -23,6 +28,12 @@
   `ProjectTabs.test.tsx` e `RepoAnalyzerTab.test.tsx`, cujas expectativas ainda
   correspondem à implementação antiga e precisam ser atualizadas ou a
   funcionalidade correspondente precisa ser restaurada na arquitetura atual.
+- CI no GitHub confirmou os bloqueios: além dos 9 testes frontend, o teste real
+  PostgreSQL `outbox: pendente aparece na fila e some depois de publicado` falha
+  na asserção de `documents.repository.db.test.ts:91`. Os testes concorrentes de
+  arquivamento/upload e arquivamento/DELETE passaram. O check de validação de
+  workflow/Docker e o build/typecheck do backend passaram; o estado do serviço
+  de IA estava em execução na última consulta.
 - A migração de documentos foi renomeada para `012_document_upload.sql`, mas
   falta teste PostgreSQL que prove aplicação em banco limpo e banco existente
   após `011_unique_entity_technology.sql`.
