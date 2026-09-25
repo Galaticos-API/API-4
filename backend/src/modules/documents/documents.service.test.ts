@@ -282,3 +282,21 @@ test("listagem usa cursor estável sem duplicar documentos entre páginas", asyn
   await assert.rejects(service.list(PROJECT_ID, "invalid-cursor"), ValidationError);
   await assert.rejects(service.list(PROJECT_ID, undefined, "51"), ValidationError);
 });
+
+test("health reporta filas e alerta quando o consumidor não está configurado, o evento está velho ou o armazenamento pende", async () => {
+  const { service, repository } = setup();
+  const healthy = await service.health(true);
+  assert.deepEqual(healthy.alertas, []);
+  assert.equal(healthy.webhook_configurado, true);
+
+  repository.stats = { eventos_pendentes: 2, evento_mais_antigo_segundos: 4000, operacoes_armazenamento_pendentes: 1 };
+  const degraded = await service.health(false);
+  assert.equal(degraded.alertas.length, 3);
+  assert.match(degraded.alertas.join(" "), /DOCUMENT_EVENTS_WEBHOOK_URL/);
+  assert.match(degraded.alertas.join(" "), /mais de 1 hora/);
+  assert.match(degraded.alertas.join(" "), /reconciliação/);
+  assert.ok(!JSON.stringify(degraded).includes("http"), "health não expõe URLs");
+
+  const configured = await service.health(true);
+  assert.equal(configured.alertas.length, 2);
+});

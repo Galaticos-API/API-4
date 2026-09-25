@@ -5,6 +5,7 @@ import { assertWritable, lockHierarchy } from "../projects/hierarchy-archive.js"
 import {
   DOCUMENT_REMOVED_EVENT_TYPE,
   type CreateDocumentInput,
+  type DocumentMaintenanceStats,
   type DocumentRecord,
   type DocumentRemovedEvent,
   type RemovalResult,
@@ -277,6 +278,17 @@ export class DocumentsRepository {
        WHERE documento_id = $1 AND acao = $2 AND status = 'pendente'`,
       [documentId, action],
     );
+  }
+
+  async maintenanceStats(): Promise<DocumentMaintenanceStats> {
+    const result = await this.pool.query<DocumentMaintenanceStats>(
+      `SELECT
+         (SELECT count(*)::int FROM evento_integracao WHERE status <> 'publicado') AS eventos_pendentes,
+         (SELECT COALESCE(EXTRACT(EPOCH FROM CURRENT_TIMESTAMP - min(created_at)), 0)::int
+            FROM evento_integracao WHERE status <> 'publicado') AS evento_mais_antigo_segundos,
+         (SELECT count(*)::int FROM documento_operacao_armazenamento WHERE status = 'pendente') AS operacoes_armazenamento_pendentes`,
+    );
+    return result.rows[0];
   }
 
   async documentExists(caminho: string): Promise<boolean> {

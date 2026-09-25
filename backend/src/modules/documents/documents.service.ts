@@ -7,7 +7,7 @@ import { DocumentsRepository } from "./documents.repository.js";
 import { HttpDocumentEventPublisher, type DocumentEventPublisher } from "./documents.events.js";
 import { LocalDocumentStorage, type DocumentStorage } from "./documents.storage.js";
 import { ALLOWED_EXTENSIONS, inspectDocument } from "./documents.validation.js";
-import type { DocumentLimits, DocumentList, DocumentRecord, RemovalResult } from "./documents.types.js";
+import type { DocumentLimits, DocumentList, DocumentRecord, DocumentsHealth, RemovalResult } from "./documents.types.js";
 
 export interface ProjectLookup {
   findById(id: string): Promise<{ id: string; status: string } | null>;
@@ -27,6 +27,7 @@ export interface RemoveDocumentCommand {
 }
 
 const PENDING_EVENTS_BATCH = 20;
+const STALE_EVENT_SECONDS = 3600;
 const DEFAULT_PAGE_SIZE = 20;
 const MAX_PAGE_SIZE = 50;
 
@@ -178,6 +179,15 @@ export class DocumentsService {
     } catch {
       await this.repository.markStorageOperationFailed(result.storageOperationId).catch(() => undefined);
     }
+  }
+
+  async health(webhookConfigured: boolean = Boolean(env.DOCUMENT_EVENTS_WEBHOOK_URL?.trim())): Promise<DocumentsHealth> {
+    const stats = await this.repository.maintenanceStats();
+    const alertas: string[] = [];
+    if (stats.eventos_pendentes > 0 && !webhookConfigured) alertas.push("Há eventos de remoção pendentes e DOCUMENT_EVENTS_WEBHOOK_URL não está configurada.");
+    if (stats.evento_mais_antigo_segundos > STALE_EVENT_SECONDS) alertas.push("Existe evento de remoção pendente há mais de 1 hora.");
+    if (stats.operacoes_armazenamento_pendentes > 0) alertas.push("Há operações de armazenamento aguardando reconciliação.");
+    return { ...stats, webhook_configurado: webhookConfigured, alertas };
   }
 
   async flushPendingEvents(): Promise<void> {

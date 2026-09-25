@@ -106,6 +106,10 @@
   color: var(--text-secondary);
 }
 
+.ds-badge--ai { border-color: var(--border-strong); color: var(--text-primary); background: color-mix(in srgb, var(--brand-primary) 14%, transparent); }
+.ds-badge--must { border-color: var(--status-danger); color: var(--status-danger); }
+.ds-badge--should { border-color: var(--status-warning); color: var(--status-warning); }
+.ds-badge--could { border-color: var(--border-strong); color: var(--text-secondary); }
 .ds-badge--brand { border-color: var(--brand-primary); color: var(--brand-primary); }
 .ds-badge--success { border-color: color-mix(in srgb, var(--status-success) 60%, transparent); color: var(--status-success); background: color-mix(in srgb, var(--status-success) 12%, transparent); }
 .ds-badge--warning { border-color: color-mix(in srgb, var(--status-warning) 60%, transparent); color: var(--status-warning); background: color-mix(in srgb, var(--status-warning) 12%, transparent); }
@@ -136,6 +140,7 @@
   color: var(--text-primary);
   font-size: 0.9rem;
 }
+.ds-alert--info { border-color: var(--border-strong); }
 .ds-alert--danger { border-color: color-mix(in srgb, var(--status-danger-strong) 55%, transparent); background: color-mix(in srgb, var(--status-danger-strong) 10%, transparent); }
 .ds-alert--danger strong { color: var(--status-danger); }
 .ds-alert--warning { border-color: color-mix(in srgb, var(--status-warning) 55%, transparent); background: color-mix(in srgb, var(--status-warning) 10%, transparent); }

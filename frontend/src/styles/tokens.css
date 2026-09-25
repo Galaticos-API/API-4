@@ -1,10 +1,13 @@
 :root {
-  /* DESIGN_SYSTEM.md: tokens semânticos oficiais */
-  --surface-base: #0a0d14;
-  --brand-primary: #f97316;
-  --brand-primary-hover: #ea580c;
+  /* Fonte única de tokens. Os valores de marca e superfície derivam do protótipo
+     navegável (assets/styles/garakis-prototype.css) para que a tela tenha uma só
+     cor de marca; os fallbacks seguem o mesmo protótipo. */
+  --surface-base: var(--bg, #0b0d10);
+  --brand-primary: var(--orange, #ed6a32);
+  --brand-primary-hover: color-mix(in srgb, var(--brand-primary) 82%, #000);
   --text-primary: #ffffff;
-  --text-secondary: #9ca3af;
+  --text-secondary: var(--muted, #a6aab3);
+  --text-muted: var(--dim, #8b93a1);
 
   --step-1: #f28c68;
   --step-2: #d97354;
@@ -20,28 +23,24 @@
   --radius-sm: 6px;
   --radius-lg: 12px;
 
-  /* Superfícies derivadas de surface-base */
   --bg-primary: var(--surface-base);
-  --bg-secondary: #111520;
-  --bg-tertiary: #181d2a;
-  --bg-card: rgba(17, 21, 32, 0.92);
-  --bg-card-hover: #1c2232;
+  --bg-secondary: var(--surface, #111827);
+  --bg-tertiary: var(--card, #171a21);
+  --bg-card: color-mix(in srgb, var(--surface, #111827) 94%, transparent);
+  --bg-card-hover: color-mix(in srgb, var(--card, #171a21) 82%, #fff);
 
-  --border-subtle: rgba(255, 255, 255, 0.1);
-  --border-strong: rgba(255, 255, 255, 0.22);
-  --border-active: rgba(249, 115, 22, 0.6);
-
-  --text-muted: #8b93a1;
+  --border-subtle: var(--line, rgba(196, 199, 204, 0.18));
+  --border-strong: var(--strong, rgba(196, 199, 204, 0.3));
+  --border-active: color-mix(in srgb, var(--brand-primary) 60%, transparent);
 
   --accent-primary: var(--brand-primary);
-  --accent-secondary: var(--step-1);
-  --accent-glow: rgba(249, 115, 22, 0.28);
+  --accent-secondary: color-mix(in srgb, var(--brand-primary) 72%, #fff);
+  --accent-glow: color-mix(in srgb, var(--brand-primary) 28%, transparent);
 
-  /* Estados semânticos legíveis sobre surface-base */
-  --status-success: #34d399;
+  --status-success: var(--green, #22b458);
   --status-warning: #fbbf24;
-  --status-danger: #fca5a5;
-  --status-danger-strong: #f87171;
+  --status-danger: var(--red, #f0635d);
+  --status-danger-strong: var(--red, #f0635d);
   --accent-emerald: var(--status-success);
   --accent-amber: var(--status-warning);
 

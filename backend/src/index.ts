@@ -13,7 +13,7 @@ import qualityRouter from "./modules/quality/quality.routes.js";
 import { epicsCompatRouter } from "./modules/epics/epics.compat.routes.js";
 import { repoAnalysesRouter } from './modules/repo-analyses/repo-analyses.routes';
 import { documentsRouter } from "./modules/documents/documents.routes.js";
-import { startDocumentsBackgroundWorker } from "./modules/documents/documents.service.js";
+import { documentsService, startDocumentsBackgroundWorker } from "./modules/documents/documents.service.js";
 import { authRouter } from "./modules/auth/auth.routes.js";
 import { searchRouter } from "./modules/search/search.routes.js";
 import { chatRouter } from "./modules/chat/chat.routes.js";
@@ -34,6 +34,7 @@ app.use("/api/v1/auth", authRouter);
 // Health Check Endpoint
 app.get("/health", async (_req: Request, res: Response) => {
   const dbHealthy = await checkDatabaseConnection();
+  const documents = dbHealthy ? await documentsService.health().catch(() => null) : null;
 
   res.status(dbHealthy ? 200 : 503).json({
     status: dbHealthy ? "healthy" : "degraded",
@@ -44,6 +45,7 @@ app.get("/health", async (_req: Request, res: Response) => {
       database: dbHealthy ? "connected" : "disconnected",
       aiService: env.AI_SERVICE_URL,
     },
+    documents,
   });
 });
 

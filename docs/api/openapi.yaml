@@ -1156,9 +1156,25 @@ paths:
           format: uuid
     get:
       summary: Lista os documentos do projeto e os limites de envio (S1-20)
+      description: >
+        Paginação por cursor estável (created_at desc, id desc), sempre isolada
+        pelo projeto da rota. Use `next_cursor` da resposta em `cursor` para a
+        próxima página; `null` indica a última. `status_processamento` =
+        `pendente` significa **aguardando ingestão**: o arquivo está armazenado,
+        mas ainda não foi indexado (a ingestão pertence à S2-01).
       operationId: listProjectDocuments
       security:
         - cookieAuth: []
+      parameters:
+        - name: cursor
+          in: query
+          required: false
+          description: Cursor opaco devolvido em `next_cursor`
+          schema: {type: string, maxLength: 512}
+        - name: limit
+          in: query
+          required: false
+          schema: {type: integer, minimum: 1, maximum: 50, default: 20}
       responses:
         '200':
           description: Documentos exclusivos do projeto, do mais recente ao mais antigo
@@ -1212,10 +1228,12 @@ paths:
           description: Perfil sem permissão de escrita
         '404':
           description: Projeto não encontrado
+        '409':
+          description: Projeto arquivado é somente leitura (ARCHIVE_CONFLICT)
         '413':
           description: Arquivo acima do limite configurado
         '503':
-          description: Armazenamento indisponível; o envio pode ser repetido
+          description: Armazenamento indisponível ou em recuperação; o envio pode ser repetido
 
   /api/v1/projects/{projectId}/documents/{documentId}:
     delete:
@@ -1252,6 +1270,8 @@ paths:
           description: Perfil sem permissão de escrita
         '404':
           description: Projeto não encontrado
+        '409':
+          description: Projeto arquivado é somente leitura (ARCHIVE_CONFLICT); nada é removido
         '500':
           description: Falha na remoção; o documento permanece disponível
         '503':
@@ -2360,7 +2380,11 @@ components:
         tamanho_bytes: { type: integer, nullable: true, minimum: 1 }
         status_processamento:
           type: string
+          description: pendente = armazenado e aguardando ingestão (S2-01)
           enum: [pendente, processando, processado, falha]
+        armazenamento_pendente:
+          type: boolean
+          description: true enquanto a finalização do arquivo local ainda é reconciliada pelo worker
         autor_id: { type: string, format: uuid, nullable: true }
         autor_nome: { type: string, nullable: true }
         created_at: { type: string, format: date-time }
@@ -2377,14 +2401,23 @@ components:
 
     DocumentList:
       type: object
-      required: [items, limites]
+      required: [items, next_cursor, limites, paginacao]
       properties:
         items:
           type: array
           items:
             $ref: '#/components/schemas/ProjectDocument'
+        next_cursor:
+          type: string
+          nullable: true
         limites:
           $ref: '#/components/schemas/DocumentLimits'
+        paginacao:
+          type: object
+          required: [tamanho_pagina, tamanho_maximo]
+          properties:
+            tamanho_pagina: {type: integer}
+            tamanho_maximo: {type: integer}
 
     DocumentRemovedEvent:
       type: object

@@ -231,6 +231,7 @@ export function ProjectsView({
         (isDetail ? (
           <>
             <ProjectDetail
+              initialTab={pathname.endsWith("/documents") ? "documents" : undefined}
               project={result.projects[0]}
               canCreate={
                 canCreate &&
@@ -484,39 +485,65 @@ export function ProjectsView({
   );
 }
 
+type ProjectTab = "overview" | "backlog" | "documents" | "repo-analyzer";
+
+const PROJECT_TABS: ReadonlyArray<{ id: ProjectTab; label: string }> = [
+  { id: "overview", label: "Visão geral" },
+  { id: "backlog", label: "Backlog" },
+  { id: "documents", label: "Documentos" },
+  { id: "repo-analyzer", label: "Análise de repositório" },
+];
+
+const TAB_HASH: Record<ProjectTab, string> = {
+  overview: "",
+  backlog: "#backlog",
+  documents: "#documents",
+  "repo-analyzer": "#repo-analyzer",
+};
+
+function tabFromHash(hash: string): ProjectTab {
+  const found = (Object.keys(TAB_HASH) as ProjectTab[]).find((tab) => TAB_HASH[tab] && TAB_HASH[tab] === hash);
+  return found ?? "overview";
+}
+
 function ProjectDetail({
   project,
   canCreate,
+  initialTab,
 }: {
   project: Project;
   canCreate: boolean;
+  initialTab?: ProjectTab;
 }) {
-  type ProjectTab =
-    | "overview"
-    | "backlog"
-    | "documents"
-    | "repo-analyzer";
-
-  const [activeTab, setActiveTab] =
-    useState<ProjectTab>(() =>
-      window.location.hash === "#backlog"
-        ? "backlog"
-        : window.location.hash === "#documents"
-          ? "documents"
-        : "overview",
-    );
+  const [activeTab, setActiveTab] = useState<ProjectTab>(() => initialTab ?? tabFromHash(window.location.hash));
 
   const selectTab = (tab: ProjectTab) => {
     setActiveTab(tab);
-
-    const next = tab === "backlog" ? "#backlog" : tab === "documents" ? "#documents" : window.location.pathname;
-
-    window.history.replaceState(
-      null,
-      "",
-      next,
-    );
+    const hash = TAB_HASH[tab];
+    window.history.replaceState(null, "", hash ? `${window.location.pathname}${hash}` : window.location.pathname);
   };
+
+  useEffect(() => {
+    const onHashChange = () => setActiveTab(tabFromHash(window.location.hash));
+    window.addEventListener("hashchange", onHashChange);
+    return () => window.removeEventListener("hashchange", onHashChange);
+  }, []);
+
+  const moveTab = (event: React.KeyboardEvent<HTMLButtonElement>, index: number) => {
+    const last = PROJECT_TABS.length - 1;
+    const target =
+      event.key === "ArrowRight" ? (index + 1) % PROJECT_TABS.length
+      : event.key === "ArrowLeft" ? (index - 1 + PROJECT_TABS.length) % PROJECT_TABS.length
+      : event.key === "Home" ? 0
+      : event.key === "End" ? last
+      : -1;
+    if (target < 0) return;
+    event.preventDefault();
+    selectTab(PROJECT_TABS[target].id);
+    document.getElementById(`project-tab-${PROJECT_TABS[target].id}`)?.focus();
+  };
+
+  const archived = project.status === "arquivado";
 
   return (
     <>
@@ -595,56 +622,26 @@ function ProjectDetail({
         </div>
       )}
 
-      <div className="project-tabs-garakis">
-        <button
-          className={
-            activeTab === "overview"
-              ? "active"
-              : ""
-          }
-          onClick={() => selectTab("overview")}
-        >
-          Visão geral
-        </button>
-
-        <button
-          className={
-            activeTab === "backlog"
-              ? "active"
-              : ""
-          }
-          onClick={() => selectTab("backlog")}
-        >
-          Backlog
-        </button>
-
-        <button
-          className={
-            activeTab === "documents"
-              ? "active"
-              : ""
-          }
-          onClick={() =>
-            selectTab("documents")
-          }
-        >
-          Documentos
-        </button>
-
-        <button
-          className={
-            activeTab === "repo-analyzer"
-              ? "active"
-              : ""
-          }
-          onClick={() =>
-            selectTab("repo-analyzer")
-          }
-        >
-          🔬 RepoAnalyzer
-        </button>
+      <div className="project-tabs-garakis" role="tablist" aria-label="Contexto do projeto">
+        {PROJECT_TABS.map((tab, index) => (
+          <button
+            key={tab.id}
+            id={`project-tab-${tab.id}`}
+            type="button"
+            role="tab"
+            className={activeTab === tab.id ? "active" : ""}
+            aria-selected={activeTab === tab.id}
+            aria-controls={`project-panel-${tab.id}`}
+            tabIndex={activeTab === tab.id ? 0 : -1}
+            onClick={() => selectTab(tab.id)}
+            onKeyDown={(event) => moveTab(event, index)}
+          >
+            {tab.label}
+          </button>
+        ))}
       </div>
 
+      <div id={`project-panel-${activeTab}`} role="tabpanel" aria-labelledby={`project-tab-${activeTab}`}>
       {activeTab === "overview" && (
         <div className="grid-garakis three">
           <article className="card-garakis">
@@ -713,6 +710,7 @@ function ProjectDetail({
 
       {activeTab === "documents" && (
         <DocumentsView
+          embedded
           projectId={project.id}
           projectName={project.nome}
           canWrite={canCreate}
@@ -722,9 +720,12 @@ function ProjectDetail({
 
       {activeTab === "repo-analyzer" && (
         <RepoAnalyzerView
+          key={project.id}
           projectId={project.id}
+          canStart={!archived}
         />
       )}
+      </div>
     </>
   );
 }

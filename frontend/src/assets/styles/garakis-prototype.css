@@ -600,3 +600,47 @@ h2 {
     padding-bottom: 16px;
   }
 }
+
+/* Responsivo: cabeçalho e abas não podem transbordar em telas estreitas */
+@media (max-width: 820px) {
+  .top-header {
+    height: auto;
+    min-height: 60px;
+    flex-wrap: wrap;
+    gap: 8px 16px;
+    padding: 10px 16px;
+  }
+
+  .top-header .nav-links {
+    order: 3;
+    flex: 1 1 100%;
+    overflow-x: auto;
+    scrollbar-width: none;
+    padding-bottom: 2px;
+  }
+
+  .top-header .nav-links button {
+    white-space: nowrap;
+    flex: 0 0 auto;
+  }
+
+  .top-header > div:last-child {
+    margin-left: auto;
+  }
+
+  .user-menu-btn {
+    max-width: 150px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .project-tabs-garakis {
+    overflow-x: auto;
+    scrollbar-width: thin;
+  }
+
+  .project-tabs-garakis button {
+    flex: 0 0 auto;
+    white-space: nowrap;
+  }
+}

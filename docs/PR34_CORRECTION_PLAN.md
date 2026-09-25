@@ -1,5 +1,37 @@
 # Plano de correção — PR #34 (S1-19, S1-20, S1-22)
 
+## Fechamento dos gates (2026-09-25, segunda rodada)
+
+Validação executada localmente com PostgreSQL real (instância descartável), backend real e Chrome:
+
+| Gate | Resultado | Evidência |
+|---|---|---|
+| 1. Testes de abas do projeto | Concluído | `frontend/src/views/projects/ProjectTabs.test.tsx`: papéis ARIA, clique, setas/Home/End, hash, rota `/documents`, arquivado e perfil de leitura |
+| 2. Testes do RepoAnalyzer | Concluído | `RepoAnalyzerView.test.tsx` e `models/repoAnalyzer.test.ts`; comportamentos do contrato anterior preservados e ampliados (etapas, polling, erro, URL, repetição, relatório) |
+| 3. Testes da tela de documentos | Concluído | `DocumentsView.test.tsx` (19): upload binário, limite, vazio/erro/retry, cursor, remoção, permissões, arquivado, armazenamento pendente e aviso da S2-01 |
+| 4. OpenAPI/documentação | Concluído | `cursor`, `limit`, `next_cursor`, `paginacao`, `armazenamento_pendente`, 409; `pendente` = aguardando ingestão; `docs/DOCUMENTOS_INTEGRACAO.md` |
+| 5. Migration 012 | Concluído | `backend/src/database/migration-012.db.test.ts`: banco limpo e banco na 011, idempotência, dados legados, ordem do runner |
+| 6. CI | Concluído | Etapa de PostgreSQL agora executa também backlog-tree, migrations 011/012, documentos e chat; nenhum job removido |
+| 7. PostgreSQL | Concluído | 41+ testes de banco: corrida arquivamento x upload/DELETE, lease/backoff/SKIP LOCKED, operações de armazenamento, paginação estável e isolada |
+| 8. Worker/n8n | Concluído no escopo | Worker independente de DELETE; `/health` expõe filas e alertas; consumidor n8n documentado com exemplo importável; workflow definitivo fica como pendência de integração (dependência da instância n8n e da S2-01) |
+| 9. Navegador | Concluído | `e2e/` (12 cenários): perfis PO/dev, ativo/arquivado, upload válido/inválido/limite, remoção com confirmação e Esc, paginação, teclado, mobile 390 px sem overflow horizontal |
+| 10. Suítes completas | Concluído | Backend 270+ testes e build; frontend 168+ testes, `tsc -b` e build |
+
+### Falhas do CI corrigidas
+- `documents.repository.db.test.ts:91`: o teste assumia fila sem lease/backoff. Reescrito para provar lease, backoff, retorno da fila, expiração de lease e publicação.
+- 9 testes do frontend: as suítes apontavam para telas legadas. Portadas para as views atuais; componentes órfãos (`DocumentsTab`, `RepoAnalyzerTab`) removidos.
+
+### Achados adicionais tratados nesta rodada
+- Chat: qualquer usuário autenticado lia/escrevia em conversas alheias e o fallback devolvia trechos de todos os projetos sem relação com a pergunta. Corrigido (posse, isolamento, busca textual honesta com origem).
+- Cadastro público aceitava `role: "admin"`. Agora exige sessão de administrador.
+- RepoAnalyzer (API): validação de UUID, projeto inexistente (404), arquivado (409), erro do motor (503) e sincronização concorrente.
+- Interface: tokens unificados com o protótipo (uma cor de marca), variáveis CSS órfãs corrigidas, responsivo do cabeçalho/abas.
+
+### Pendências explícitas (não bloqueiam a PR)
+- Workflow n8n definitivo de `document.removed` e `DOCUMENT_EVENTS_WEBHOOK_URL`.
+- Ingestão/indexação (S2-01).
+- CI do GitHub no HEAD publicado e nova revisão QA. Merge só com autorização separada.
+
 ## Estado e limites
 
 - PR: https://github.com/Galaticos-API/API-4/pull/34

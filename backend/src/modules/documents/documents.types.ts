@@ -75,3 +75,14 @@ export interface DocumentRemovedEvent {
 }
 
 export const DOCUMENT_REMOVED_EVENT_TYPE = "document.removed";
+
+export interface DocumentMaintenanceStats {
+  eventos_pendentes: number;
+  evento_mais_antigo_segundos: number;
+  operacoes_armazenamento_pendentes: number;
+}
+
+export interface DocumentsHealth extends DocumentMaintenanceStats {
+  webhook_configurado: boolean;
+  alertas: string[];
+}

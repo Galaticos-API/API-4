@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { AppError, ValidationError } from '../../shared/errors';
 import { env } from '../../config/env';
 import { RepoAnalysesRepository } from './repo-analyses.repository';
 import { RepoAnalysisRecord, RepoAnalysisStatus, RepoAnalysisStep } from './repo-analyses.types';
@@ -35,7 +36,7 @@ export class RepoAnalysesService {
 
     async startAnalysis(projetoId: string, usuarioId: string, repositorioUrl: string): Promise<RepoAnalysisRecord> {
         if (!this.validateGithubUrl(repositorioUrl)) {
-            throw new Error('URL do repositório GitHub inválida. Utilize o formato https://github.com/usuario/repositorio');
+            throw new ValidationError('URL do repositório GitHub inválida. Utilize o formato https://github.com/usuario/repositorio');
         }
 
         // Dispara a execução no ai-service / RepoAnalyzer
@@ -52,8 +53,9 @@ export class RepoAnalysesService {
             });
 
             return record;
-        } catch (error: any) {
-            throw new Error(`Falha ao iniciar análise no motor de IA: ${error.response?.data?.detail || error.message}`);
+        } catch (error: unknown) {
+            const detail = axios.isAxiosError(error) && typeof error.response?.data?.detail === 'string' ? error.response.data.detail : 'serviço indisponível';
+            throw new AppError(`Falha ao iniciar análise no motor de IA: ${detail}`, 503, 'ANALYZER_UNAVAILABLE');
         }
     }
 
@@ -61,11 +63,9 @@ export class RepoAnalysesService {
         const analyses = await this.repository.findByProjectId(projetoId);
 
         // Opcional: Atualizar status das análises em andamento consultando o ai-service
-        for (const analysis of analyses) {
-            if (analysis.status === 'iniciado' || analysis.status === 'em_execucao') {
-                await this.syncAnalysisStatus(analysis.run_id);
-            }
-        }
+        await Promise.all(analyses
+            .filter((analysis) => analysis.status === 'iniciado' || analysis.status === 'em_execucao')
+            .map((analysis) => this.syncAnalysisStatus(analysis.run_id)));
 
         return await this.repository.findByProjectId(projetoId);
     }
@@ -108,7 +108,7 @@ export class RepoAnalysesService {
                 metadados: stats,
             });
         } catch (error) {
-            console.error(`Erro ao sincronizar status do run ${runId}:`, error);
+            console.warn('[RepoAnalyzer] Falha ao sincronizar o status de uma análise; nova tentativa na próxima consulta.');
         }
     }
 }

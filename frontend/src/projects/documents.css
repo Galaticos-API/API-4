@@ -28,3 +28,6 @@
   .documents-table td::before { content: attr(data-label); color: var(--text-muted); font-size: .75rem; text-transform: uppercase; letter-spacing: .05em; text-align: left; }
   .documents-table tbody tr:hover td { background: transparent; }
 }
+
+.documents-head { display: flex; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+.documents-head h2 { margin: 0 0 4px; font-size: 20px; }

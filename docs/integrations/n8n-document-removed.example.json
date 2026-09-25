@@ -1,0 +1,36 @@
+{
+  "name": "Sinapse - Document Removed (exemplo)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "sinapse-document-removed",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "name": "Webhook Documento Removido",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 300],
+      "webhookId": "sinapse-document-removed"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { status: 'received', event_id: $json.body.event_id, document_id: $json.body.document_id } }}",
+        "options": {}
+      },
+      "name": "Confirmar recebimento",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [480, 300]
+    }
+  ],
+  "connections": {
+    "Webhook Documento Removido": {
+      "main": [[{ "node": "Confirmar recebimento", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": false,
+  "settings": { "executionOrder": "v1" }
+}

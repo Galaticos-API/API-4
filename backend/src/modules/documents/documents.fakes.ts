@@ -203,6 +203,12 @@ export class FakeDocumentsRepository extends DocumentsRepository {
     const event = this.events.get(chave);
     if (event) event.status = "falha";
   }
+
+  public stats = { eventos_pendentes: 0, evento_mais_antigo_segundos: 0, operacoes_armazenamento_pendentes: 0 };
+
+  async maintenanceStats() {
+    return { ...this.stats };
+  }
 }
 
 export class FakeStorage implements DocumentStorage {

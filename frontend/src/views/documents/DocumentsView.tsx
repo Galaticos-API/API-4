@@ -10,6 +10,7 @@ import {
   type DocumentLimits,
   type ProjectDocument,
 } from "../../api/api_documents";
+import { navigate } from "../../models/navigation";
 import { Alert, Badge, Button, EmptyState } from "../common/ui";
 import "../../projects/documents.css";
 
@@ -34,11 +35,13 @@ export function DocumentsView({
   projectName,
   canWrite = false,
   archived = false,
+  embedded = false,
 }: {
   projectId?: string;
   projectName?: string;
   canWrite?: boolean;
   archived?: boolean;
+  embedded?: boolean;
 }) {
   const [items, setItems] = useState<ProjectDocument[]>([]);
   const [limits, setLimits] = useState<DocumentLimits | null>(null);
@@ -205,17 +208,19 @@ export function DocumentsView({
   if (!projectId) {
     return (
       <section className="page-container">
-        <EmptyState title="Escolha um projeto" description="Abra um projeto para consultar, enviar ou remover documentos com o escopo correto." />
+        <EmptyState title="Escolha um projeto" description="Os documentos pertencem a um projeto. Abra um projeto e use a aba Documentos para consultar, enviar ou remover arquivos com o escopo correto.">
+          <Button onClick={() => navigate("/projects")}>Ver projetos</Button>
+        </EmptyState>
       </section>
     );
   }
 
   return (
-    <section className="page-container documents-tab" aria-label={`Documentos do projeto ${projectName ?? ""}`}>
-      <header className="head-section">
+    <section className={`${embedded ? "" : "page-container "}documents-tab`} aria-label={`Documentos do projeto ${projectName ?? ""}`.trim()}>
+      <header className={embedded ? "documents-head" : "head-section"}>
         <div>
-          <div className="eyebrow">ACERVO TÉCNICO</div>
-          <h1>Documentos{projectName ? ` · ${projectName}` : " do projeto"}</h1>
+          {!embedded && <div className="eyebrow">ACERVO TÉCNICO</div>}
+          {embedded ? <h2>Documentos do projeto</h2> : <h1>Documentos{projectName ? ` · ${projectName}` : " do projeto"}</h1>}
           <p className="muted">Arquivos vinculados a este projeto e seu estado de processamento.</p>
         </div>
         <Button variant="secondary" disabled={refreshing || loading} aria-busy={refreshing} onClick={() => void refresh(true)}>
@@ -229,7 +234,12 @@ export function DocumentsView({
       {notice && <Alert tone="success">{notice}</Alert>}
       {selectionError && <Alert tone="danger" title="Arquivo não aceito">{selectionError}</Alert>}
       {uploadError && <Alert tone="danger" title="Falha no envio">{uploadError}</Alert>}
-      {loadError && <Alert tone="danger" role="alert">{loadError}</Alert>}
+      {loadError && (
+        <Alert tone="danger" role="alert">
+          {loadError}{" "}
+          <Button variant="secondary" size="sm" disabled={loading || refreshing} onClick={() => void refresh(items.length > 0)}>Tentar novamente</Button>
+        </Alert>
+      )}
 
       {canWrite && !archived && limits && (
         <div className="glass-panel documents-upload">

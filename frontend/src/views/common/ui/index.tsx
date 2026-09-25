@@ -108,7 +108,7 @@ export function Field({
       <span className="ds-label">{label}</span>
       {children}
       {error ? (
-        <span className="ds-help" role="alert" style={{ color: "var(--ds-danger-fg)" }}>
+        <span className="ds-help ds-help--error" role="alert">
           {error}
         </span>
       ) : help ? (
