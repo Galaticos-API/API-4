@@ -27,7 +27,6 @@ jobs:
       POSTGRES_USER: e2e
       POSTGRES_PASSWORD: e2e_only
       POSTGRES_DB: sinapse_e2e_test
-      DOCUMENT_STORAGE_DIR: ${{ runner.temp }}/documents
       E2E_API_URL: http://localhost:3001/api/v1
       E2E_APP_URL: http://localhost:5173
       E2E_CHROME_PATH: /usr/bin/google-chrome
@@ -46,6 +45,8 @@ jobs:
         working-directory: backend
       - name: Subir backend e frontend
         run: |
+          export DOCUMENT_STORAGE_DIR="$RUNNER_TEMP/documents"
+          mkdir -p "$DOCUMENT_STORAGE_DIR"
           (cd backend && nohup npx tsx src/index.ts > "$RUNNER_TEMP/backend.log" 2>&1 &)
           (cd frontend && nohup npx vite --port 5173 --strictPort > "$RUNNER_TEMP/frontend.log" 2>&1 &)
           for i in $(seq 1 30); do
