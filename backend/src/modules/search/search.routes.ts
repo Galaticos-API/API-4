@@ -1,4 +1,5 @@
 import { Router, Request, Response, NextFunction } from "express";
+import { ValidationError, validateUuid } from "../../shared/errors.js";
 import { pool } from "../../database/db.js";
 import { requireAuth } from "../../middleware/requireAuth.js";
 
@@ -11,6 +12,9 @@ searchRouter.get("/", async (req: Request, res: Response, next: NextFunction) =>
   try {
     const q = ((req.query.q as string) || "").trim();
     const projectId = (req.query.projeto_id as string) || (req.query.projectId as string);
+
+    if (projectId) validateUuid(projectId, "ID do projeto");
+    if (q.length > 200) throw new ValidationError("A busca pode ter no máximo 200 caracteres.");
 
     if (!q) {
       // Se a query estiver vazia, retorna os chunks mais recentes
@@ -37,7 +41,7 @@ searchRouter.get("/", async (req: Request, res: Response, next: NextFunction) =>
       JOIN projeto p ON c.projeto_id = p.id
       WHERE c.texto ILIKE $1
     `;
-    const params: unknown[] = [`%${q}%`];
+    const params: unknown[] = [`%${q.replace(/[\\%_]/g, "\\$&")}%`];
 
     if (projectId) {
       sql += " AND c.projeto_id = $2";

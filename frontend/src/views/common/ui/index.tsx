@@ -8,7 +8,7 @@ export function Button({
   size,
   className = "",
   ...props
-}: React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: ButtonVariant; size?: "sm" | "md" }) {
+}: React.ComponentPropsWithRef<"button"> & { variant?: ButtonVariant; size?: "sm" | "md" }) {
   return (
     <button
       className={`ds-button ds-button--${variant}${size === "sm" ? " ds-button--sm" : ""} ${className}`.trim()}

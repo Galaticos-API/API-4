@@ -29,7 +29,7 @@ it("expõe as abas com papéis acessíveis e a visão geral selecionada", async 
   renderDetail();
 
   const tabs = await screen.findAllByRole("tab");
-  expect(tabs.map((tab) => tab.textContent)).toEqual(["Visão geral", "Backlog", "Documentos", "Análise de repositório"]);
+  expect(tabs.map((tab) => tab.textContent)).toEqual(["Visão geral", "Backlog", "Decisões", "Documentos", "Análise de repositório"]);
   expect(screen.getByRole("tab", { name: "Visão geral" })).toHaveAttribute("aria-selected", "true");
   expect(screen.getByRole("tab", { name: "Backlog" })).toHaveAttribute("tabindex", "-1");
   const panel = screen.getByRole("tabpanel");

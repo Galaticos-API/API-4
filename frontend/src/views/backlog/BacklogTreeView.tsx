@@ -20,10 +20,19 @@ import {
   navigate,
 } from "../../models/navigation";
 
+import { MIN_QUERY_LENGTH } from "../../api/api_backlog_search";
+import { isSearchQuery } from "../../models/backlogSearch";
+import { BacklogSearchResults } from "./BacklogSearchResults";
+
 export interface BacklogFilters {
   status: string;
   technologyId: string;
+  query: string;
 }
+
+const MAX_QUERY_LENGTH = 100;
+
+type TreeFilters = Pick<BacklogFilters, "status" | "technologyId">;
 
 type Result =
   | {
@@ -42,6 +51,7 @@ const EMPTY_FILTERS:
   BacklogFilters = {
     status: "",
     technologyId: "",
+    query: "",
   };
 
 const STATUS_OPTIONS = [
@@ -98,6 +108,12 @@ function readFilters(
           === "string"
           ? value.technologyId
           : "",
+
+      query:
+        typeof value.query
+          === "string"
+          ? value.query.slice(0, MAX_QUERY_LENGTH)
+          : "",
     };
   } catch {
     return EMPTY_FILTERS;
@@ -114,7 +130,7 @@ function matches(
       }>;
   },
 
-  filters: BacklogFilters,
+  filters: TreeFilters,
 ) {
   return (
     (
@@ -135,7 +151,7 @@ function matches(
 
 export function filterBacklogTree(
   tree: ProjectBacklogTree,
-  filters: BacklogFilters,
+  filters: TreeFilters,
 ): ProjectBacklogTree {
   if (
     !filters.status
@@ -639,6 +655,33 @@ export function BacklogTreeView({
     projectId,
   ]);
 
+  const [
+    debouncedQuery,
+    setDebouncedQuery,
+  ] = useState(
+    () => filters.query.trim(),
+  );
+
+  useEffect(() => {
+    const timer =
+      window.setTimeout(
+        () =>
+          setDebouncedQuery(
+            filters.query.trim(),
+          ),
+        300,
+      );
+
+    return () =>
+      window.clearTimeout(timer);
+  }, [filters.query]);
+
+  const searchMode =
+    isSearchQuery(
+      debouncedQuery,
+      MIN_QUERY_LENGTH,
+    );
+
   const filteredTree =
     useMemo(
       () =>
@@ -662,6 +705,17 @@ export function BacklogTreeView({
       Boolean(
         filters.technologyId,
       ),
+    )
+    + Number(
+      Boolean(
+        filters.query.trim(),
+      ),
+    );
+
+  const treeFiltersActive =
+    Boolean(filters.status)
+    || Boolean(
+      filters.technologyId,
     );
 
   const filtersActive =
@@ -683,10 +737,24 @@ export function BacklogTreeView({
     return next;
   };
 
-  const clearFilters = () =>
+  const clearFilters = () => {
     setFilters(
       EMPTY_FILTERS,
     );
+
+    setDebouncedQuery("");
+  };
+
+  const clearSearch = () => {
+    setFilters(
+      (current) => ({
+        ...current,
+        query: "",
+      }),
+    );
+
+    setDebouncedQuery("");
+  };
 
   return (
     <section
@@ -730,6 +798,42 @@ export function BacklogTreeView({
             className="backlog-tree-filters"
             aria-label="Filtros do backlog"
           >
+            <label className="project-filter backlog-search-field">
+              Buscar no backlog
+
+              <input
+                type="search"
+                value={filters.query}
+                maxLength={MAX_QUERY_LENGTH}
+                placeholder="Título, descrição ou código"
+                autoComplete="off"
+                aria-describedby="backlog-search-help"
+                onChange={(event) =>
+                  setFilters(
+                    (current) => ({
+                      ...current,
+
+                      query:
+                        event.target
+                          .value,
+                    }),
+                  )
+                }
+              />
+
+              <span
+                id="backlog-search-help"
+                className="help"
+              >
+                {filters.query.trim().length > 0
+                  && !searchMode
+                  && filters.query.trim().length
+                    < MIN_QUERY_LENGTH
+                  ? `Digite ao menos ${MIN_QUERY_LENGTH} caracteres.`
+                  : "Busca apenas neste projeto, combinada com os filtros."}
+              </span>
+            </label>
+
             <label className="project-filter">
               Status
 
@@ -859,6 +963,36 @@ export function BacklogTreeView({
         )}
 
       {result.state === "ready"
+        && searchMode
+        && (
+          <>
+            <p className="help">
+              Mostrando resultados da busca.
+              {" "}
+              <button
+                type="button"
+                className="backlog-search-back"
+                onClick={clearSearch}
+              >
+                Voltar à árvore
+              </button>
+            </p>
+
+            <BacklogSearchResults
+              projectId={projectId}
+              projectName={result.tree.project.nome}
+              query={debouncedQuery}
+              status={filters.status}
+              technologyId={filters.technologyId}
+              filtersActive={treeFiltersActive}
+              onClearSearch={clearSearch}
+              onClearAll={clearFilters}
+            />
+          </>
+        )}
+
+      {result.state === "ready"
+        && !searchMode
         && result.tree.epics
           .length === 0
         && (
@@ -891,6 +1025,7 @@ export function BacklogTreeView({
         )}
 
       {result.state === "ready"
+        && !searchMode
         && result.tree.epics
           .length > 0
         && filteredTree?.epics
@@ -919,6 +1054,7 @@ export function BacklogTreeView({
         )}
 
       {filteredTree
+        && !searchMode
         && filteredTree.epics
           .length > 0
         && (
@@ -939,7 +1075,7 @@ export function BacklogTreeView({
                       .has(epic.id)
                   }
                   forcedOpen={
-                    filtersActive
+                    treeFiltersActive
                   }
                   expandedFeatures={
                     expandedFeatures

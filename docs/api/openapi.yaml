@@ -265,6 +265,51 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
+    patch:
+      summary: Atualiza dados de um projeto (S1-03 / S1-08) (parcial, mesmo corpo do PUT)
+      operationId: updateProjectPartial
+      description: Escrita permitida apenas aos perfis po e admin; dev recebe 403. PATCH no mesmo caminho é um alias desta operação.
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateProjectRequest'
+      responses:
+        '200':
+          description: Projeto atualizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectResponse'
+        '403':
+          description: Perfil sem permissão de escrita
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Projeto não encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Nome duplicado ou tentativa de editar projeto arquivado (somente leitura).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
   /api/v1/projects/{id}/archive-impact:
     get:
       summary: Consulta quantidade de novos itens afetados pela cascata (S1-09)
@@ -523,6 +568,41 @@ paths:
         '404':
           description: Épico não encontrado
 
+    patch:
+      summary: Atualiza dados de um épico (S1-05) (parcial, mesmo corpo do PUT)
+      operationId: updateEpicPartial
+      description: Escrita permitida apenas aos perfis po e admin; dev recebe 403. PATCH no mesmo caminho é um alias desta operação.
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateEpicRequest'
+      responses:
+        '200':
+          description: Épico atualizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EpicResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Perfil sem permissão de escrita
+        '404':
+          description: Épico não encontrado
+
   /api/v1/epics/{id}/complete:
     patch:
       summary: Marca um épico como concluído quando os campos obrigatórios do guia e ao menos um critério existirem (PBI-01.1.2 / S1-05)
@@ -663,6 +743,35 @@ paths:
         '404':
           description: Feature não encontrada
 
+    patch:
+      summary: Atualiza dados de uma feature (S1-06) (parcial, mesmo corpo do PUT)
+      operationId: updateFeaturePartial
+      description: Escrita permitida apenas aos perfis po e admin; dev recebe 403. PATCH no mesmo caminho é um alias desta operação.
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateFeatureRequest'
+      responses:
+        '200':
+          description: Feature atualizada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FeatureResponse'
+        '404':
+          description: Feature não encontrada
+
   /api/v1/features/{id}/complete:
     patch:
       summary: Marca uma feature como concluída quando descrição e objetivo estiverem preenchidos (PBI-01.1.3 / S1-06)
@@ -773,6 +882,35 @@ paths:
     put:
       summary: Atualiza dados de um PBI (S1-07)
       operationId: updatePbi
+      description: Escrita permitida apenas aos perfis po e admin; dev recebe 403. PATCH no mesmo caminho é um alias desta operação.
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdatePbiRequest'
+      responses:
+        '200':
+          description: PBI atualizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PbiResponse'
+        '404':
+          description: PBI não encontrado
+
+    patch:
+      summary: Atualiza dados de um PBI (S1-07) (parcial, mesmo corpo do PUT)
+      operationId: updatePbiPartial
       description: Escrita permitida apenas aos perfis po e admin; dev recebe 403. PATCH no mesmo caminho é um alias desta operação.
       security:
         - cookieAuth: []
@@ -1146,6 +1284,546 @@ paths:
         '404':
           description: Critério não encontrado
 
+  /api/v1/projects/{id}/decisions:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: {type: string, format: uuid}
+    get:
+      summary: Lista as decisões do projeto e as herdadas dos ascendentes (S1-18)
+      description: >
+        Ordem cronológica (mais antiga primeiro), com autor e data. Decisões de
+        níveis acima vêm com `origem.herdada = true`; decisões de descendentes
+        nunca aparecem.
+      operationId: listProjectsDecisions
+      security:
+        - cookieAuth: []
+      responses:
+        '200':
+          description: Decisões do item e dos ascendentes
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DecisionList'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Item não encontrado
+    post:
+      summary: Registra uma decisão no projeto (S1-18)
+      description: >
+        Contexto, decisão e justificativa são obrigatórios; alternativas
+        descartadas são opcionais. Registrar decisão nunca é exigido para
+        concluir um item. Apenas admin e po.
+      operationId: createProjectsDecision
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DecisionInput'
+      responses:
+        '201':
+          description: Decisão registrada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Decision'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Perfil sem permissão de escrita
+        '404':
+          description: Item não encontrado
+        '409':
+          description: Item ou ancestral arquivado (somente leitura)
+
+  /api/v1/epics/{id}/decisions:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: {type: string, format: uuid}
+    get:
+      summary: Lista as decisões do épico e as herdadas dos ascendentes (S1-18)
+      description: >
+        Ordem cronológica (mais antiga primeiro), com autor e data. Decisões de
+        níveis acima vêm com `origem.herdada = true`; decisões de descendentes
+        nunca aparecem.
+      operationId: listEpicsDecisions
+      security:
+        - cookieAuth: []
+      responses:
+        '200':
+          description: Decisões do item e dos ascendentes
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DecisionList'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Item não encontrado
+    post:
+      summary: Registra uma decisão no épico (S1-18)
+      description: >
+        Contexto, decisão e justificativa são obrigatórios; alternativas
+        descartadas são opcionais. Registrar decisão nunca é exigido para
+        concluir um item. Apenas admin e po.
+      operationId: createEpicsDecision
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DecisionInput'
+      responses:
+        '201':
+          description: Decisão registrada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Decision'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Perfil sem permissão de escrita
+        '404':
+          description: Item não encontrado
+        '409':
+          description: Item ou ancestral arquivado (somente leitura)
+
+  /api/v1/features/{id}/decisions:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: {type: string, format: uuid}
+    get:
+      summary: Lista as decisões do feature e as herdadas dos ascendentes (S1-18)
+      description: >
+        Ordem cronológica (mais antiga primeiro), com autor e data. Decisões de
+        níveis acima vêm com `origem.herdada = true`; decisões de descendentes
+        nunca aparecem.
+      operationId: listFeaturesDecisions
+      security:
+        - cookieAuth: []
+      responses:
+        '200':
+          description: Decisões do item e dos ascendentes
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DecisionList'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Item não encontrado
+    post:
+      summary: Registra uma decisão no feature (S1-18)
+      description: >
+        Contexto, decisão e justificativa são obrigatórios; alternativas
+        descartadas são opcionais. Registrar decisão nunca é exigido para
+        concluir um item. Apenas admin e po.
+      operationId: createFeaturesDecision
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DecisionInput'
+      responses:
+        '201':
+          description: Decisão registrada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Decision'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Perfil sem permissão de escrita
+        '404':
+          description: Item não encontrado
+        '409':
+          description: Item ou ancestral arquivado (somente leitura)
+
+  /api/v1/pbis/{id}/decisions:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: {type: string, format: uuid}
+    get:
+      summary: Lista as decisões do PBI e as herdadas dos ascendentes (S1-18)
+      description: >
+        Ordem cronológica (mais antiga primeiro), com autor e data. Decisões de
+        níveis acima vêm com `origem.herdada = true`; decisões de descendentes
+        nunca aparecem.
+      operationId: listPbisDecisions
+      security:
+        - cookieAuth: []
+      responses:
+        '200':
+          description: Decisões do item e dos ascendentes
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DecisionList'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Item não encontrado
+    post:
+      summary: Registra uma decisão no PBI (S1-18)
+      description: >
+        Contexto, decisão e justificativa são obrigatórios; alternativas
+        descartadas são opcionais. Registrar decisão nunca é exigido para
+        concluir um item. Apenas admin e po.
+      operationId: createPbisDecision
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DecisionInput'
+      responses:
+        '201':
+          description: Decisão registrada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Decision'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Perfil sem permissão de escrita
+        '404':
+          description: Item não encontrado
+        '409':
+          description: Item ou ancestral arquivado (somente leitura)
+
+  /api/v1/auth/register:
+    post:
+      summary: Cria uma conta (PO ou dev); administrador exige sessão de administrador
+      operationId: registerUser
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [nome, email, password]
+              properties:
+                nome: {type: string, minLength: 2}
+                email: {type: string, format: email}
+                password: {type: string, minLength: 6}
+                role: {type: string, enum: [po, dev, admin], default: po, description: "admin só é aceito com sessão de administrador"}
+      responses:
+        '201':
+          description: Conta criada e sessão iniciada
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '403':
+          description: Tentativa de criar administrador sem sessão de administrador
+        '409':
+          description: E-mail já cadastrado
+
+  /api/v1/chat/conversations:
+    get:
+      summary: Lista as conversas do usuário autenticado
+      operationId: listChatConversations
+      security: [{cookieAuth: []}]
+      responses:
+        '200':
+          description: Conversas do usuário, da mais recente para a mais antiga
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    post:
+      summary: Cria uma conversa (opcionalmente escopada a um projeto)
+      operationId: createChatConversation
+      security: [{cookieAuth: []}]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                titulo: {type: string, maxLength: 120}
+                projeto_id: {type: string, format: uuid}
+      responses:
+        '201':
+          description: Conversa criada
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Projeto não encontrado
+
+  /api/v1/chat/conversations/{id}/messages:
+    get:
+      summary: Mensagens de uma conversa do próprio usuário
+      description: Conversa de outra pessoa retorna 404, sem revelar a existência.
+      operationId: listChatMessages
+      security: [{cookieAuth: []}]
+      parameters:
+        - {name: id, in: path, required: true, schema: {type: string, format: uuid}}
+      responses:
+        '200':
+          description: Mensagens em ordem cronológica
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Conversa não encontrada
+
+  /api/v1/chat/query:
+    post:
+      summary: Envia uma pergunta ao assistente e registra a troca
+      description: >
+        Sem evidência no acervo, responde "Informação não encontrada no acervo
+        do projeto." sem inventar fontes. `origem` informa se a resposta veio
+        do assistente, de busca textual (assistente indisponível) ou sem resultado.
+      operationId: askChatQuestion
+      security: [{cookieAuth: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [pergunta]
+              properties:
+                pergunta: {type: string, minLength: 1, maxLength: 2000}
+                conversa_id: {type: string, format: uuid}
+                projeto_id: {type: string, format: uuid}
+      responses:
+        '200':
+          description: Resposta com fontes
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [conversa_id, resposta, fontes, origem]
+                properties:
+                  conversa_id: {type: string, format: uuid}
+                  resposta: {type: string}
+                  fontes:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id: {type: string}
+                        titulo: {type: string}
+                        tipo: {type: string}
+                  origem: {type: string, enum: [assistente, busca_textual, sem_resultado]}
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Conversa (de outro usuário incluída) ou projeto não encontrado
+
+  /api/v1/projects/{projectId}/repo-analyses:
+    parameters:
+      - {name: projectId, in: path, required: true, schema: {type: string, format: uuid}}
+    get:
+      summary: Lista as análises de repositório do projeto
+      operationId: listRepoAnalyses
+      security: [{cookieAuth: []}]
+      responses:
+        '200':
+          description: Análises do projeto, da mais recente para a mais antiga
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Projeto não encontrado
+    post:
+      summary: Inicia uma análise de repositório público do GitHub
+      operationId: startRepoAnalysis
+      security: [{cookieAuth: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [repositorio_url]
+              properties:
+                repositorio_url: {type: string, example: "https://github.com/usuario/repositorio"}
+      responses:
+        '201':
+          description: Análise iniciada
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Projeto não encontrado
+        '409':
+          description: Projeto arquivado é somente leitura
+        '503':
+          description: Motor de análise indisponível
+
+  /api/v1/projects/{projectId}/repo-analyses/{id}:
+    get:
+      summary: Detalhes de uma análise do projeto
+      operationId: getRepoAnalysis
+      security: [{cookieAuth: []}]
+      parameters:
+        - {name: projectId, in: path, required: true, schema: {type: string, format: uuid}}
+        - {name: id, in: path, required: true, schema: {type: string, format: uuid}}
+      responses:
+        '200':
+          description: Análise com etapa, progresso e relatório quando concluída
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Projeto ou análise não encontrados
+
+  /api/v1/search:
+    get:
+      summary: Busca textual no acervo indexado (chunks), com escopo opcional por projeto
+      operationId: searchKnowledge
+      security: [{cookieAuth: []}]
+      parameters:
+        - {name: q, in: query, required: false, schema: {type: string}}
+        - {name: projeto_id, in: query, required: false, schema: {type: string, format: uuid}}
+      responses:
+        '200':
+          description: Trechos encontrados
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v1/developers:
+    get:
+      summary: Desenvolvedores, tecnologias e competências
+      operationId: listDevelopers
+      security: [{cookieAuth: []}]
+      responses:
+        '200':
+          description: Mapeamento de competências
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v1/admin/stats:
+    get:
+      summary: Indicadores administrativos
+      operationId: adminStats
+      security: [{cookieAuth: []}]
+      responses:
+        '200':
+          description: Contagens da base
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Somente administrador
+
+  /api/v1/admin/ingest-seed:
+    post:
+      summary: Carrega dados de demonstração no acervo (somente administrador)
+      operationId: adminIngestSeed
+      security: [{cookieAuth: []}]
+      responses:
+        '200':
+          description: Dados carregados
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Somente administrador
+
+  /api/v1:
+    get:
+      summary: Informações e módulos da API
+      operationId: apiRoot
+      security: []
+      responses:
+        '200':
+          description: Nome, versão e módulos
+
+  /api/v1/projects/{projectId}/backlog-search:
+    get:
+      summary: Busca textual relacional no backlog do projeto (S1-17)
+      description: >
+        Pesquisa título, descrição (épico/feature), história e regras (PBI) e o
+        código do PBI, sem diferenciar acentos ou maiúsculas. Todos os termos
+        precisam aparecer (interseção) e a busca combina por interseção com
+        `status` e `tecnologia`. Nunca retorna itens de outro projeto. Não é
+        busca semântica/RAG.
+      operationId: searchProjectBacklog
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema: {type: string, format: uuid}
+        - name: q
+          in: query
+          required: true
+          description: Termo(s) com 2 a 100 caracteres
+          schema: {type: string, minLength: 2, maxLength: 100}
+        - name: status
+          in: query
+          required: false
+          schema: {type: string, enum: [rascunho, ativo, pronto, concluido, arquivado]}
+        - name: tecnologia
+          in: query
+          required: false
+          description: ID da tecnologia associada ao próprio item
+          schema: {type: string, format: uuid}
+        - name: limit
+          in: query
+          required: false
+          schema: {type: integer, minimum: 1, maximum: 100, default: 50}
+      responses:
+        '200':
+          description: Resultados ordenados (título antes de descrição, depois hierarquia)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BacklogSearchResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Projeto não encontrado
+
   /api/v1/projects/{projectId}/documents:
     parameters:
       - name: projectId
@@ -1375,7 +2053,7 @@ paths:
         '502':
           description: Ollama indisponível
 
-  /epics/{id}/archive-impact:
+  /api/v1/epics/{id}/archive-impact:
     get:
       summary: Prévia do arquivamento de epics (S1-09)
       security: [{cookieAuth: []}]
@@ -1388,7 +2066,7 @@ paths:
             application/json:
               schema: {$ref: '#/components/schemas/HierarchyArchiveImpact'}
         '404': {description: Item não encontrado}
-  /epics/{id}/archive:
+  /api/v1/epics/{id}/archive:
     patch:
       summary: Arquiva epics e descendentes com auditoria (S1-09)
       description: Exclusivo de PO/admin. Não apaga conteúdo. Repetições preservam data e auditoria. Conflito exige nova prévia.
@@ -1413,7 +2091,7 @@ paths:
         '404': {description: Item não encontrado}
         '409': {description: Impacto alterado ou ancestral somente leitura}
 
-  /features/{id}/archive-impact:
+  /api/v1/features/{id}/archive-impact:
     get:
       summary: Prévia do arquivamento de features (S1-09)
       security: [{cookieAuth: []}]
@@ -1426,7 +2104,7 @@ paths:
             application/json:
               schema: {$ref: '#/components/schemas/HierarchyArchiveImpact'}
         '404': {description: Item não encontrado}
-  /features/{id}/archive:
+  /api/v1/features/{id}/archive:
     patch:
       summary: Arquiva features e descendentes com auditoria (S1-09)
       description: Exclusivo de PO/admin. Não apaga conteúdo. Repetições preservam data e auditoria. Conflito exige nova prévia.
@@ -1451,7 +2129,7 @@ paths:
         '404': {description: Item não encontrado}
         '409': {description: Impacto alterado ou ancestral somente leitura}
 
-  /pbis/{id}/archive-impact:
+  /api/v1/pbis/{id}/archive-impact:
     get:
       summary: Prévia do arquivamento de pbis (S1-09)
       security: [{cookieAuth: []}]
@@ -1464,7 +2142,7 @@ paths:
             application/json:
               schema: {$ref: '#/components/schemas/HierarchyArchiveImpact'}
         '404': {description: Item não encontrado}
-  /pbis/{id}/archive:
+  /api/v1/pbis/{id}/archive:
     patch:
       summary: Arquiva pbis e descendentes com auditoria (S1-09)
       description: Exclusivo de PO/admin. Não apaga conteúdo. Repetições preservam data e auditoria. Conflito exige nova prévia.
@@ -2367,6 +3045,118 @@ components:
               properties:
                 id: { type: string, format: uuid }
                 nome: { type: string }
+
+    DecisionNode:
+      type: object
+      required: [tipo, id, titulo]
+      properties:
+        tipo: {type: string, enum: [projeto, epico, feature, pbi]}
+        id: {type: string, format: uuid}
+        titulo: {type: string}
+        codigo: {type: string, nullable: true}
+
+    DecisionInput:
+      type: object
+      additionalProperties: false
+      required: [titulo, contexto, decisao, justificativa]
+      properties:
+        titulo: {type: string, minLength: 3, maxLength: 255}
+        contexto: {type: string, minLength: 1, maxLength: 5000}
+        decisao: {type: string, minLength: 1, maxLength: 5000}
+        justificativa: {type: string, minLength: 1, maxLength: 5000}
+        alternativas: {type: string, nullable: true, maxLength: 5000}
+
+    Decision:
+      type: object
+      required: [id, titulo, contexto, decisao, justificativa, created_at, origem]
+      properties:
+        id: {type: string, format: uuid}
+        titulo: {type: string}
+        contexto: {type: string}
+        decisao: {type: string}
+        justificativa: {type: string}
+        alternativas: {type: string, nullable: true}
+        autor:
+          type: object
+          nullable: true
+          properties:
+            id: {type: string, format: uuid}
+            nome: {type: string}
+        created_at: {type: string, format: date-time}
+        origem:
+          allOf:
+            - $ref: '#/components/schemas/DecisionNode'
+            - type: object
+              required: [herdada]
+              properties:
+                herdada: {type: boolean}
+
+    DecisionList:
+      type: object
+      required: [entidade, ancestrais, decisoes]
+      properties:
+        entidade:
+          $ref: '#/components/schemas/DecisionNode'
+        ancestrais:
+          type: array
+          items:
+            $ref: '#/components/schemas/DecisionNode'
+        decisoes:
+          type: array
+          items:
+            $ref: '#/components/schemas/Decision'
+
+    BacklogSearchResponse:
+      type: object
+      required: [projeto_id, termo, total, limite, items]
+      properties:
+        projeto_id: {type: string, format: uuid}
+        termo: {type: string}
+        total: {type: integer, minimum: 0, description: Total de correspondências (pode exceder items)}
+        limite: {type: integer}
+        items:
+          type: array
+          items:
+            type: object
+            required: [tipo, id, titulo, status, campo, trecho, caminho, tecnologias]
+            properties:
+              tipo: {type: string, enum: [epico, feature, pbi]}
+              id: {type: string, format: uuid}
+              titulo: {type: string}
+              codigo: {type: string, nullable: true}
+              status: {type: string}
+              campo: {type: string, enum: [titulo, descricao]}
+              trecho:
+                type: object
+                required: [texto, destaques]
+                properties:
+                  texto: {type: string}
+                  destaques:
+                    type: array
+                    description: Faixas [inicio, fim) em unidades UTF-16 de `texto`
+                    items:
+                      type: array
+                      minItems: 2
+                      maxItems: 2
+                      items: {type: integer}
+              caminho:
+                type: array
+                description: Épico → Feature → PBI até o nível do item
+                items:
+                  type: object
+                  required: [tipo, id, titulo]
+                  properties:
+                    tipo: {type: string, enum: [epico, feature, pbi]}
+                    id: {type: string, format: uuid}
+                    titulo: {type: string}
+                    codigo: {type: string, nullable: true}
+              tecnologias:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id: {type: string, format: uuid}
+                    nome: {type: string}
 
     ProjectDocument:
       type: object

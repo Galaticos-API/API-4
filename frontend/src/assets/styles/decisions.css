@@ -1,0 +1,20 @@
+.decisions-panel { padding: 20px; display: grid; gap: 16px; margin-top: 24px; }
+.decisions-head { display: flex; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+.decisions-head h3 { margin: 0 0 4px; font-size: 1.1rem; }
+.decisions-head p { max-width: 62ch; font-size: .88rem; }
+.decisions-group { margin: 0 0 10px; font-size: .78rem; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+.decision-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+.decision-card { padding: 14px 16px; border: 1px solid var(--line); border-left: 4px solid var(--orange); border-radius: var(--r); background: var(--bg); display: grid; gap: 8px; }
+.decision-card header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
+.decision-card h4 { margin: 0; font-size: 1rem; overflow-wrap: anywhere; }
+.decision-card--inherited { border-left-style: dashed; background: color-mix(in srgb, var(--card) 60%, transparent); }
+.decision-card--inherited[data-level="projeto"] { border-left-color: var(--step-2); }
+.decision-card--inherited[data-level="epico"] { border-left-color: var(--step-3); }
+.decision-card--inherited[data-level="feature"] { border-left-color: var(--step-4); }
+.decision-meta { margin: 0; font-size: .8rem; color: var(--dim); }
+.decision-card dl { margin: 0; display: grid; gap: 4px; }
+.decision-card dt { font-size: .72rem; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin-top: 6px; }
+.decision-card dd { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.6; }
+.decision-form { display: grid; gap: 12px; padding: 16px; border: 1px solid var(--line); border-radius: var(--r); background: var(--bg); }
+.decision-form h4 { margin: 0; }
+.decision-error { margin: 2px 0 0; color: var(--red); font-size: 12px; }

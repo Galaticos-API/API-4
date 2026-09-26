@@ -18,6 +18,7 @@ import { useUnsavedChangesGuard } from "../../viewmodels/useUnsavedChangesGuard"
 import { usePbiQualityConfiguration } from "../../viewmodels/usePbiQualityConfiguration";
 import { CriteriaEditor } from "./CriteriaView";
 import { ItemHistoryView } from "./ItemHistoryView";
+import { DecisionsPanel } from "./DecisionsPanel";
 import { QualityPanelView as QualityPanel } from "./QualityPanelView";
 import { evaluatePbiRealtime } from "../../models/qualityEngine";
 import { BacklogBreadcrumb } from "./BacklogBreadcrumb";
@@ -1354,6 +1355,13 @@ export function PbiDetail({
         entidadeId={featureId}
         canEdit={false}
         titulo="Critérios da feature (consulta)"
+      />
+
+      <DecisionsPanel
+        kind="pbi"
+        id={pbi!.id}
+        canWrite={canEdit && !readOnly}
+        readOnlyNote={readOnly ? "Item ou ancestral arquivado: as decisões ficam disponíveis somente para consulta." : undefined}
       />
 
       <ItemHistoryView

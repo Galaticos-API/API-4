@@ -1,0 +1,21 @@
+.backlog-search-field { flex: 2 1 260px; min-width: 0; }
+.backlog-search-field input { width: 100%; padding: 10px 12px; border: 1px solid var(--border-subtle); border-radius: var(--radius-md); background: var(--bg-secondary); color: var(--text-primary); font: inherit; }
+.backlog-search-back { padding: 0; background: none; border: 0; color: var(--orange); text-decoration: underline; font: inherit; }
+.backlog-search-results { display: grid; gap: 12px; }
+.backlog-search-summary { color: var(--text-secondary); font-size: .9rem; margin: 0; }
+.backlog-search-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+.backlog-search-item { padding: 16px 18px; display: grid; gap: 10px; }
+.backlog-search-item-head { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.backlog-search-code { font: 12px var(--font-mono); color: var(--text-muted); }
+.backlog-search-title { padding: 0; background: none; border: 0; color: #fff; font-size: 1rem; font-weight: 600; text-align: left; overflow-wrap: anywhere; }
+.backlog-search-title:hover { color: var(--orange); text-decoration: underline; }
+.backlog-search-snippet { margin: 0; color: var(--text-secondary); font-size: .9rem; line-height: 1.6; overflow-wrap: anywhere; }
+.backlog-search-snippet mark { background: color-mix(in srgb, var(--orange) 30%, transparent); color: #fff; border-radius: 3px; padding: 0 2px; }
+.backlog-search-path ol { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 4px; font-size: .8rem; color: var(--text-muted); }
+.backlog-search-path li:not(:last-child)::after { content: "›"; margin-left: 6px; color: var(--text-muted); }
+.backlog-search-path button { padding: 0; background: none; border: 0; color: var(--text-secondary); font: inherit; text-decoration: underline; text-decoration-color: transparent; }
+.backlog-search-path button:hover { color: var(--orange); text-decoration-color: currentColor; }
+.backlog-search-path [aria-current="page"] { color: var(--text-primary); }
+.backlog-search-tech { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
+.backlog-search-tech li { padding: 2px 10px; border: 1px solid var(--border-subtle); border-radius: 999px; font-size: .75rem; color: var(--text-secondary); }
+.backlog-search-empty .ds-empty { border: 0; }

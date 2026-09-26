@@ -84,3 +84,49 @@ export async function assertNoHorizontalOverflow(page, label) {
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
   if (overflow > 1) throw new Error(`${label}: overflow horizontal de ${overflow}px`);
 }
+
+export async function createHierarchy(account, project, labels = {}) {
+  const epic = await api("/epics", { method: "POST", token: account.token, body: { projeto_id: project.id, titulo: labels.epic ?? "Épico de autenticação", descricao: "Objetivo de acesso seguro à plataforma" } });
+  if (epic.status !== 201) throw new Error(`épico: ${epic.status} ${JSON.stringify(epic.json)}`);
+  const feature = await api("/features", { method: "POST", token: account.token, body: { epico_id: epic.json.id, titulo: labels.feature ?? "Sessão do usuário", descricao: "Controle de sessão e expiração" } });
+  if (feature.status !== 201) throw new Error(`feature: ${feature.status} ${JSON.stringify(feature.json)}`);
+  const pbi = await api("/pbis", {
+    method: "POST",
+    token: account.token,
+    body: {
+      feature_id: feature.json.id,
+      titulo: labels.pbi ?? "Validar credenciais no login",
+      historia_como_um: "usuário cadastrado",
+      historia_eu_quero: "entrar com e-mail e senha",
+      historia_para_que: "acessar meus projetos com segurança",
+    },
+  });
+  if (pbi.status !== 201) throw new Error(`pbi: ${pbi.status} ${JSON.stringify(pbi.json)}`);
+  return { epic: epic.json, feature: feature.json, pbi: pbi.json };
+}
+
+export async function addScenario(account, pbiId) {
+  return api("/criteria", {
+    method: "POST",
+    token: account.token,
+    body: { entidade_tipo: "pbi", entidade_id: pbiId, nome: "Login válido", dado: "um usuário cadastrado", quando: "informar credenciais corretas", entao: "o sistema abre a área interna" },
+  });
+}
+
+export async function runAxe(page, label, { include } = {}) {
+  const { createRequire } = await import("node:module");
+  const require = createRequire(import.meta.url);
+  await page.addScriptTag({ path: require.resolve("axe-core/axe.min.js") });
+  const result = await page.evaluate(async (scope) => {
+    // eslint-disable-next-line no-undef
+    return axe.run(scope ? { include: [scope] } : document, { runOnly: { type: "tag", values: ["wcag2a", "wcag2aa"] } });
+  }, include ?? null);
+  const blocking = result.violations.filter((violation) => violation.impact === "critical" || violation.impact === "serious");
+  return { label, blocking, all: result.violations };
+}
+
+export function formatViolations(report) {
+  return report.blocking
+    .map((violation) => `${report.label}: [${violation.impact}] ${violation.id} - ${violation.help} (${violation.nodes.length} elemento(s): ${violation.nodes.slice(0, 2).map((node) => node.target.join(" ")).join(" | ")})`)
+    .join("\n");
+}

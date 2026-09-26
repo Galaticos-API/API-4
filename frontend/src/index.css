@@ -360,8 +360,8 @@ button {
 
 /* Buttons */
 .btn-primary {
-  background: var(--brand-primary);
-  color: var(--text-primary);
+  background: var(--brand-gradient);
+  color: var(--on-brand);
   padding: 10px 24px;
   border-radius: var(--radius-full);
   font-weight: 500;
@@ -373,7 +373,7 @@ button {
 }
 
 .btn-primary:hover:not(:disabled) {
-  background: var(--brand-primary-hover);
+  opacity: 0.92;
   box-shadow: var(--shadow-glow);
 }
 

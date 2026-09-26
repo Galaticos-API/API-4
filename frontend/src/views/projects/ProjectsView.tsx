@@ -13,6 +13,7 @@ import { BacklogScreen } from "../backlog/BacklogView";
 import { BacklogTreeView } from "../backlog/BacklogTreeView";
 import { RepoAnalyzerView } from "./RepoAnalyzerView";
 import { DocumentsView } from "../documents/DocumentsView";
+import { DecisionsPanel } from "../backlog/DecisionsPanel";
 import "../../assets/styles/garakis-prototype.css";
 import "../../assets/styles/projects.css";
 import { ProjectArchiveView } from "./ProjectArchiveView";
@@ -485,11 +486,12 @@ export function ProjectsView({
   );
 }
 
-type ProjectTab = "overview" | "backlog" | "documents" | "repo-analyzer";
+type ProjectTab = "overview" | "backlog" | "decisions" | "documents" | "repo-analyzer";
 
 const PROJECT_TABS: ReadonlyArray<{ id: ProjectTab; label: string }> = [
   { id: "overview", label: "Visão geral" },
   { id: "backlog", label: "Backlog" },
+  { id: "decisions", label: "Decisões" },
   { id: "documents", label: "Documentos" },
   { id: "repo-analyzer", label: "Análise de repositório" },
 ];
@@ -497,6 +499,7 @@ const PROJECT_TABS: ReadonlyArray<{ id: ProjectTab; label: string }> = [
 const TAB_HASH: Record<ProjectTab, string> = {
   overview: "",
   backlog: "#backlog",
+  decisions: "#decisions",
   documents: "#documents",
   "repo-analyzer": "#repo-analyzer",
 };
@@ -705,6 +708,16 @@ function ProjectDetail({
           key={`${project.id}-${project.status}`}
           projectId={project.id}
           canCreate={canCreate}
+        />
+      )}
+
+      {activeTab === "decisions" && (
+        <DecisionsPanel
+          key={project.id}
+          kind="projeto"
+          id={project.id}
+          canWrite={canCreate}
+          readOnlyNote={archived ? "Projeto arquivado: as decisões ficam disponíveis somente para consulta." : undefined}
         />
       )}
 
