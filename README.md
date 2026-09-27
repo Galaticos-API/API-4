@@ -1,230 +1,428 @@
-# Sinapse
+# 🧠 Sinapse
 
-**Memória de requisitos e conhecimento para equipes de produto e desenvolvimento.**
+> **Organize requisitos. Centralize conhecimento. Desenvolva com contexto.**
 
-[![CI](https://github.com/Galaticos-API/API-4/actions/workflows/ci.yml/badge.svg)](https://github.com/Galaticos-API/API-4/actions/workflows/ci.yml)
-[![E2E](https://github.com/Galaticos-API/API-4/actions/workflows/e2e.yml/badge.svg)](https://github.com/Galaticos-API/API-4/actions/workflows/e2e.yml)
+O **Sinapse** é uma plataforma para organização e gerenciamento de requisitos de software, desenvolvida pelo **Grupo Galáticos** para a **PRO4TECH**.
 
-Sinapse ajuda Product Owners a especificar trabalho no padrão **Projeto → Épico → Feature → PBI**, registrar decisões e consultar informações vinculadas a cada projeto. Regras determinísticas orientam a qualidade dos itens; documentos e conversas mantêm contexto e rastreabilidade.
+A aplicação permite estruturar projetos em **Épicos, Features e PBIs**, acompanhar a qualidade dos requisitos e centralizar informações importantes, como documentos e decisões.
 
-> Projeto de Aprendizagem Interdisciplinar · Fatec São José dos Campos · Grupo Galáticos · PRO4TECH · 2º semestre de 2026.
+<br>
 
-## Equipe
+<div align="center">
 
-| Papel | Integrante | GitHub |
-|---|---|---|
-| Product Owner (PO) | Daniel Dias | [@DanielDPereira](https://github.com/DanielDPereira) |
-| Scrum Master | Cauan Gabriel | [@LoadCG](https://github.com/LoadCG) |
-| Development Team | Emmanuel Garakis | [@Garakis](https://github.com/Garakis) |
-| Development Team | Rafael Matesco | [@RafaMatesco](https://github.com/RafaMatesco) |
-| Development Team | Gustavo Bueno | [@Darkghostly](https://github.com/Darkghostly) |
-| Development Team | Gabriel Lasaro | [@GaelNotFound](https://github.com/GaelNotFound) |
-| Development Team | Giovanni | [@Giomoret](https://github.com/Giomoret) |
-| Development Team | Heitor | [@heitors1337](https://github.com/heitors1337) |
-| Development Team | Vitor | [@vitorpdim](https://github.com/vitorpdim) |
+![Status](https://img.shields.io/badge/Sprint%201-Conclu%C3%ADda-success?style=for-the-badge)
+![Fatec](https://img.shields.io/badge/Fatec-S%C3%A3o%20Jos%C3%A9%20dos%20Campos-blue?style=for-the-badge)
+![Projeto](https://img.shields.io/badge/API-4%C2%BA%20Semestre-purple?style=for-the-badge)
 
-Os links foram associados a integrantes por nomes públicos e autoria de commits
-neste repositório. Gabriel Lasaro aparece no histórico como Gabriel, com o e-mail
-de commit `gaelslasaro@gmail.com`, ligado ao perfil [@GaelNotFound](https://github.com/GaelNotFound).
+</div>
 
-## Metodologia ágil e andamento
+---
 
-O grupo organizou o trabalho com Scrum e backlog de produto priorizado em épicos,
-features e PBIs. A equipe planejou o trabalho em sprints, relacionando as tarefas
-técnicas aos itens do backlog e aos critérios de aceitação. A Sprint 1 foi a
-primeira sprint executada e foi encerrada em **27/09/2026**. Até esta atualização,
-nenhuma sprint posterior foi concluída; as sprints seguintes permanecem no
-planejamento.
+## 🚀 Sobre o projeto
 
-| Sprint | Período | Situação | Foco |
-|---|---|---|---|
-| Sprint 1 | 07/09/2026–27/09/2026 | Concluída em 27/09/2026 | Hierarquia do backlog, autenticação, qualidade de PBIs, decisões, documentos e consolidação de QA. |
-| Sprints seguintes | A definir no planejamento | Planejadas; ainda não executadas | Evolução do produto conforme backlog e prioridades do PO. |
+Em um projeto de software, requisitos, decisões e documentos podem acabar espalhados por diferentes ferramentas.
 
-O trabalho foi acompanhado pelo backlog, revisão de entregas e validação dos
-critérios de aceite. O [planejamento Scrum](docs/PLANEJAMENTO_SCRUM.md) detalha
-escopo e tarefas da Sprint 1. As cerimônias, duração de reuniões e métricas não
-estão formalizadas neste repositório; este resumo não presume práticas que não
-foram registradas.
+O **Sinapse** foi desenvolvido para centralizar essas informações e facilitar o trabalho entre **Product Owners e equipes de desenvolvimento**.
 
-## Veja o produto
+A organização dos requisitos segue uma estrutura hierárquica:
 
-O GIF e as capturas abaixo foram feitos no frontend real do `main`, com um banco PostgreSQL descartável e dados fictícios cadastrados pela interface. Eles não são mockups nem imagens de produção.
+```text
+📁 Projeto
+ └── 📦 Épico
+      └── 🔹 Feature
+           └── 📋 PBI
+                └── ✅ Critérios de Aceitação
+```
 
-![Navegação real de projetos até um PBI e seu checklist de qualidade](docs/media/sinapse-workflow.gif)
+Essa estrutura permite acompanhar um requisito desde sua definição até seus critérios de aceitação e validação.
 
-*Fluxo: abrir projeto → expandir backlog → consultar PBI e qualidade.*
+---
 
-<p align="center">
-  <img src="docs/media/screenshots/projects.png" alt="Lista de projetos do Sinapse" width="48%">
-  <img src="docs/media/screenshots/project-overview.png" alt="Visão geral de um projeto com backlog, documentos e conhecimento" width="48%">
+## 🎯 Sprint 1
+
+A primeira sprint teve como objetivo construir a **base funcional do Sinapse** e implementar os principais recursos relacionados ao gerenciamento de projetos e requisitos.
+
+### ✅ Principais entregas
+
+| Entrega                                  | Status |
+| ---------------------------------------- | :----: |
+| 📁 Projetos                              |    ✅   |
+| 📦 Épicos, Features e PBIs               |    ✅   |
+| 🔐 Autenticação                          |    ✅   |
+| 👥 Controle de acesso por perfil         |    ✅   |
+| 📋 Critérios de aceitação                |    ✅   |
+| 🧪 Validação da qualidade dos requisitos |    ✅   |
+| 💡 Registro de decisões                  |    ✅   |
+| 📄 Documentos                            |    ✅   |
+| 🔎 Busca no backlog                      |    ✅   |
+| 💬 Estrutura de conversas                |    ✅   |
+| 🤖 Integração com recursos de IA         |    ✅   |
+| 🧪 Testes automatizados                  |    ✅   |
+
+**Sprint 1:** `07/09/2026 → 27/09/2026`
+
+📌 [Planejamento completo da Sprint](docs/PLANEJAMENTO_SCRUM.md)
+
+---
+
+## 🖥️ Conheça o Sinapse
+
+O sistema possui uma interface voltada para a navegação entre projetos e seus respectivos requisitos.
+
+### Fluxo principal
+
+![Fluxo do Sinapse](docs/media/sinapse-workflow.gif)
+
+> **Projeto → Backlog → PBI → Qualidade do requisito**
+
+### 📸 Algumas telas
+
+<div align="center">
+
+<img src="docs/media/screenshots/projects.png" width="47%" alt="Lista de projetos">
+
+<img src="docs/media/screenshots/project-overview.png" width="47%" alt="Visão geral do projeto">
+
+<br><br>
+
+<img src="docs/media/screenshots/backlog-tree.png" width="47%" alt="Backlog hierárquico">
+
+<img src="docs/media/screenshots/backlog-pbi-quality.png" width="47%" alt="Qualidade do PBI">
+
+</div>
+
+---
+
+# 🛠️ Tecnologias
+
+O Sinapse utiliza uma arquitetura baseada em aplicações web, API REST, banco de dados relacional e serviços de IA.
+
+### 🎨 Frontend
+
+<p>
+  <img src="https://skillicons.dev/icons?i=react,ts,vite" alt="React TypeScript Vite">
 </p>
-<p align="center">
-  <img src="docs/media/screenshots/backlog-tree.png" alt="Backlog hierárquico expandido de projeto até PBI" width="48%">
-  <img src="docs/media/screenshots/backlog-pbi-quality.png" alt="Detalhe de PBI e checklist determinístico de qualidade" width="48%">
+
+* **React 19** — construção da interface
+* **TypeScript** — tipagem e desenvolvimento
+* **Vite** — build e ambiente de desenvolvimento
+* **Vitest** — testes
+* **Testing Library** — testes de interface
+* **Lucide React** — ícones
+
+### ⚙️ Backend
+
+<p>
+  <img src="https://skillicons.dev/icons?i=nodejs,express,ts" alt="Node.js Express TypeScript">
 </p>
 
-## O que o sistema oferece
+* **Node.js 20**
+* **Express**
+* **TypeScript**
+* API REST
+* Autenticação e autorização
+* Regras de negócio
 
-- **Projetos e backlog:** organize épicos, features, PBIs e critérios de aceitação com navegação hierárquica e trilha de auditoria.
-- **Qualidade de requisitos:** valide título, história, cenários DADO/QUANDO/ENTÃO, termos vagos e necessidade de protótipo. A configuração organizacional pode ser administrada e auditada.
-- **Decisões:** registre contexto, justificativa e alternativas no nível apropriado da hierarquia.
-- **Documentos:** envie arquivos para um projeto, consulte a lista paginada e remova documentos com isolamento por projeto e confirmação.
-- **Busca e conversa:** encontre itens no backlog; mantenha conversas vinculadas ao usuário e, opcionalmente, ao projeto. Quando o assistente não está disponível, a conversa tenta uma busca textual no acervo.
-- **Acesso por perfil:** `admin`, `po` e `dev` têm permissões distintas; a API verifica a sessão e não confia em papéis enviados pelo navegador.
-- **Análise de repositório:** solicita uma análise assíncrona ao serviço Python configurado.
+### 🗄️ Banco de dados
 
-### Estado da IA
+<p>
+  <img src="https://skillicons.dev/icons?i=postgres" alt="PostgreSQL">
+</p>
 
-O núcleo de requisitos, autenticação, qualidade e documentos não exige modelos de IA. Ollama e o serviço Python podem ser ligados pelo perfil `local-ai`. O serviço Python expõe endpoints de embeddings, chunking, consulta RAG e análise de repositório; o fluxo de conversa do backend mantém busca textual como fallback. Configure e valide a integração de IA separadamente antes de depender dela em uma demonstração ou implantação.
+* **PostgreSQL 16**
+* **pgvector**
+* Migrations
+* Seeds
 
-## Arquitetura em uma página
+### 🤖 Inteligência Artificial
+
+<p>
+  <img src="https://skillicons.dev/icons?i=python,fastapi" alt="Python FastAPI">
+</p>
+
+* **Python**
+* **FastAPI**
+* **Ollama**
+* Embeddings
+* RAG
+* Análise de repositórios
+
+### 🔧 Infraestrutura e ferramentas
+
+<p>
+  <img src="https://skillicons.dev/icons?i=docker,nginx,githubactions,git" alt="Docker Nginx GitHub Actions Git">
+</p>
+
+* **Docker / Docker Compose**
+* **Nginx**
+* **GitHub Actions**
+* **n8n**
+* **Git**
+
+---
+
+# 🏗️ Arquitetura
+
+A aplicação é organizada em diferentes serviços:
 
 ```mermaid
 flowchart LR
-    Browser["React + Vite"] -->|"HTTP /api/v1"| API["Node.js + Express"]
-    API -->|"dados, sessões, auditoria"| DB[("PostgreSQL 16 + pgvector")]
-    API -->|"quando configurado"| AI["FastAPI: IA e RepoAnalyzer"]
-    AI --> Ollama["Ollama: modelos locais"]
-    API -->|"eventos de integração"| N8N["n8n opcional"]
+    U["👤 Usuário"]
+
+    F["🎨 Frontend<br/>React + Vite"]
+    B["⚙️ Backend<br/>Node.js + Express"]
+    DB[("🗄️ PostgreSQL<br/>+ pgvector")]
+    AI["🤖 AI Service<br/>FastAPI"]
+    O["🧠 Ollama"]
+
+    U --> F
+    F --> B
+    B --> DB
+    B --> AI
+    AI --> O
 ```
 
-No Compose padrão, o frontend, o backend, PostgreSQL e n8n são iniciados. Ollama e o serviço Python ficam no perfil opcional `local-ai`. O backend executa migrations pendentes ao iniciar no container; migrations versionadas são a fonte de evolução do schema.
+### Componentes
 
-| Componente | Stack | Porta no host | Responsabilidade |
-|---|---|---:|---|
-| Frontend | React 19, TypeScript, Vite; Nginx no container | `5173` | Interface web e proxy de `/api` no modo de desenvolvimento. |
-| Backend | Node.js 20, Express, TypeScript | `3001` | API REST, sessões, autorização, regras de negócio e persistência. |
-| PostgreSQL | PostgreSQL 16 + pgvector | `55432` | Dados relacionais e estruturas de busca vetorial. Dentro da rede Docker, usa `5432`. |
-| n8n | n8n | `5678` | Integrações assíncronas opcionais. |
-| Ollama | Ollama | `11434` | Inferência e embeddings locais, quando o perfil de IA estiver ligado. |
-| Serviço de IA | Python 3.11+, FastAPI | `8000` | Endpoints de chunking, embeddings, RAG e RepoAnalyzer. |
+| Componente    | Tecnologia                | Função                  |
+| ------------- | ------------------------- | ----------------------- |
+| 🎨 Frontend   | React + TypeScript + Vite | Interface da aplicação  |
+| ⚙️ Backend    | Node.js + Express         | API e regras de negócio |
+| 🗄️ Banco     | PostgreSQL + pgvector     | Persistência dos dados  |
+| 🤖 AI Service | Python + FastAPI          | Recursos de IA          |
+| 🧠 Modelos    | Ollama                    | Inferência local        |
+| 🔄 Automação  | n8n                       | Integrações e workflows |
 
-## Comece com Docker
+---
 
-### Pré-requisitos
+# 🔐 Funcionalidades
 
-- Docker Desktop atualizado com Docker Compose v2.
-- Git.
-- Para desenvolvimento fora de containers: Node.js 20+ e Python 3.11+.
+### 📁 Projetos e Backlog
 
-### 1. Baixe o código e configure o ambiente
+Organização dos requisitos através da hierarquia:
+
+**Projeto → Épico → Feature → PBI**
+
+---
+
+### 🧪 Qualidade dos requisitos
+
+Os PBIs possuem verificações relacionadas à qualidade do requisito, incluindo:
+
+* estrutura da história;
+* critérios de aceitação;
+* cenários **DADO / QUANDO / ENTÃO**;
+* identificação de termos vagos;
+* necessidade de protótipo.
+
+As verificações são baseadas em regras determinísticas.
+
+---
+
+### 💡 Decisões
+
+Permite registrar decisões relacionadas aos elementos do projeto, mantendo o contexto e a justificativa das escolhas realizadas.
+
+---
+
+### 📄 Documentos
+
+Documentos podem ser associados aos projetos e posteriormente consultados ou removidos.
+
+---
+
+### 👥 Usuários e permissões
+
+O sistema possui diferentes perfis:
+
+```text
+🔴 admin
+🟡 po
+🔵 dev
+```
+
+Cada perfil possui permissões específicas dentro da aplicação.
+
+---
+
+### 🔎 Busca e conversas
+
+O Sinapse permite localizar informações do backlog e manter conversas relacionadas ao projeto.
+
+A arquitetura também permite a integração com recursos de IA para consultas e recuperação de informações.
+
+---
+
+# ▶️ Como executar
+
+## 📋 Pré-requisitos
+
+* 🐳 Docker Desktop
+* Git
+* Docker Compose v2
+
+Para executar os serviços diretamente no sistema:
+
+* Node.js 20+
+* Python 3.11+
+
+---
+
+## 1️⃣ Clone o repositório
 
 ```bash
 git clone https://github.com/Galaticos-API/API-4.git
 cd API-4
+```
+
+---
+
+## 2️⃣ Configure o ambiente
+
+### Linux / macOS
+
+```bash
 cp .env.example .env
 ```
 
-No PowerShell, use `Copy-Item .env.example .env` no lugar de `cp`.
+### Windows PowerShell
 
-`.env.example` contém valores apenas para desenvolvimento local. Troque credenciais e chaves antes de expor os serviços; nunca versione `.env` nem use os padrões do exemplo em produção.
+```powershell
+Copy-Item .env.example .env
+```
 
-### 2. Inicie o produto
+---
+
+## 3️⃣ Inicie o projeto
 
 ```bash
 docker compose up --build -d
+```
+
+Verifique os containers:
+
+```bash
 docker compose ps
 ```
 
-Abra:
+---
 
-| Serviço | URL |
-|---|---|
-| Aplicação | <http://localhost:5173> |
-| Saúde da API | <http://localhost:3001/health> |
-| Documentação interativa da API | <http://localhost:3001/docs> |
-| n8n | <http://localhost:5678> |
+## 🌐 Acessos
 
-As migrations são executadas no início do container do backend. Cadastre uma conta pela tela de login e entre na aplicação. O Compose padrão não baixa modelos; a tela pode ser usada sem Ollama.
+| Serviço         | Endereço                     |
+| --------------- | ---------------------------- |
+| 🧠 Sinapse      | http://localhost:5173        |
+| ⚙️ API          | http://localhost:3001        |
+| ❤️ Health Check | http://localhost:3001/health |
+| 📚 Swagger      | http://localhost:3001/docs   |
+| 🔄 n8n          | http://localhost:5678        |
 
-### 3. (Opcional) Ligue IA local
+---
 
-O perfil adicional inicia Ollama e o serviço Python:
+# 🧪 Testes
 
-```bash
-docker compose --profile local-ai up --build -d
-docker compose --profile local-ai exec ollama ollama pull bge-m3
-docker compose --profile local-ai exec ollama ollama pull qwen2.5:1.5b
-```
+O projeto possui testes automatizados para diferentes partes da aplicação.
 
-O download dos modelos pode ocupar vários gigabytes. Os modelos e a configuração podem ser alterados em `.env`; use o [guia de ambiente](docs/SETUP_GUIDE.md) para endereços entre containers, variáveis e diagnóstico.
-
-### Parar e preservar os dados
+### Backend
 
 ```bash
-docker compose down
+cd backend
+npm test
 ```
 
-Isso preserva volumes nomeados. `docker compose down -v` remove também os volumes persistentes, incluindo o banco local, arquivos enviados, dados do n8n e modelos do Ollama.
-
-## Desenvolvimento e qualidade
-
-Instale dependências em cada módulo antes de executar seus comandos:
+### Frontend
 
 ```bash
-npm ci --prefix backend
-npm ci --prefix frontend
-npm ci --prefix e2e
+cd frontend
+npm test
 ```
 
-| Área | Comandos | Observação |
-|---|---|---|
-| Compose | `docker compose config --quiet` | Valida o arquivo sem iniciar containers. |
-| Backend | `cd backend && npm run build` | Compila TypeScript para `dist/`. |
-| Backend | `cd backend && npm run typecheck` | Verifica tipos sem gerar arquivos. |
-| Backend | `cd backend && npm test` | Suíte unitária; integrações PostgreSQL são ativadas pelas variáveis de teste documentadas. |
-| Backend | `cd backend && npm run migrate` | Aplica migrations pendentes no banco apontado por `POSTGRES_*`. |
-| Backend | `cd backend && npm run seed:validate` | Valida o acervo curado; exige build prévio. |
-| Frontend | `cd frontend && npm test` | Testes Vitest. |
-| Frontend | `cd frontend && npm run build` | TypeScript e bundle de produção. |
-| IA | `cd ai-service && python -m py_compile main.py config.py services/chunker.py services/ollama_client.py` | Verificação sintática do serviço. |
-| IA | `cd ai-service && python -m unittest discover -s tests -v` | Testes determinísticos de chunking e análise. |
-| E2E | `cd e2e && npm test` | Chrome, frontend e API em execução; use banco descartável. |
+### E2E
 
-O workflow de CI executa builds, testes, validações do seed, compatibilidade PostgreSQL, configuração Docker e serviço Python. O workflow de navegador roda em pull requests e atualizações de `main` que alterem aplicação, banco ou E2E. Consulte [workflows do GitHub Actions](.github/workflows/).
+```bash
+cd e2e
+npm test
+```
 
-> Os testes E2E criam contas e projetos. Use sempre um banco descartável ou dedicado a testes, nunca uma base compartilhada ou de produção.
+### Build
 
-## Documentação
+Frontend:
 
-| Guia | Para quê |
-|---|---|
-| [Índice da documentação](docs/README.md) | Mapa dos guias, contratos e documentos de produto. |
-| [Instalação e desenvolvimento](docs/SETUP_GUIDE.md) | Compose, execução local, variáveis, testes e solução de problemas. |
-| [Arquitetura e estado da implementação](docs/Architecture/README.md) | Limites dos serviços, dados, fluxos e distinção entre recurso implementado e proposta. |
-| [Contrato OpenAPI](docs/api/openapi.yaml) | Rotas REST, schemas e autenticação. |
-| [PRD PRO4TECH](docs/PRD-PRO4TECH.md) | Problema, visão, requisitos e regras de produto. |
-| [Backlog de produto](docs/backlog/README.md) | Épicos e PBIs documentados. |
-| [Planejamento Scrum](docs/PLANEJAMENTO_SCRUM.md) | Objetivos e planejamento das sprints. |
-| [Migrations](database/migrations/README.md) | Evolução e validação do schema. |
-| [Seed e política de dados](database/seed/README.md) | Acervo curado, validação e regras de segurança. |
-| [Testes E2E](e2e/README.md) | Cobertura de navegador e execução local. |
-| [Protótipo e handoff de UX](figma-import/README.md) | Referências de design e protótipos. |
+```bash
+cd frontend
+npm run build
+```
 
-## Estrutura do repositório
+Backend:
+
+```bash
+cd backend
+npm run build
+```
+
+---
+
+# 📂 Estrutura do projeto
 
 ```text
 .
-├── .github/workflows/     # CI, compatibilidade do banco e E2E
-├── ai-service/            # FastAPI, embeddings, RAG e RepoAnalyzer
-├── backend/               # API, autenticação, regras e persistência
-├── database/              # baseline SQL, migrations e seeds
-├── docs/                  # guias de produto, arquitetura, API e QA
-├── e2e/                   # testes de navegador no Chrome
-├── figma-import/          # handoff de UX e protótipos
-├── frontend/              # SPA React e bundle Nginx
-└── n8n/                   # workflows versionados e arquivos locais
+├── .github/
+│   └── workflows/       # CI e automações
+│
+├── ai-service/          # 🤖 Serviço de IA
+├── backend/             # ⚙️ API e regras de negócio
+├── database/            # 🗄️ Banco, migrations e seeds
+├── docs/                # 📚 Documentação
+├── e2e/                 # 🧪 Testes End-to-End
+├── figma-import/        # 🎨 UX e protótipos
+├── frontend/            # 🖥️ Aplicação React
+└── n8n/                 # 🔄 Workflows
 ```
 
-## Segurança e dados
+---
 
-- Use dados fictícios nos ambientes de demonstração e testes.
-- O seed curado aceita apenas um banco dedicado com sufixo `_dev` ou `_test`; a execução normal valida o manifesto sem gravar dados.
-- Restrinja acesso à API e ao banco fora da máquina local; valores do `.env.example` não são segredos de produção.
-- Arquivos enviados são armazenados em volume local no Compose. Defina retenção, backup e proteção desse volume antes de uma implantação.
-- Leia [política de dados do seed](database/seed/POLITICA_DE_DADOS.md) e [guia completo de setup](docs/SETUP_GUIDE.md).
+# 👥 Equipe
 
-## Contexto acadêmico
+| Função              | Integrante       | GitHub                                               |
+| ------------------- | ---------------- | ---------------------------------------------------- |
+| 🎯 Product Owner    | Daniel Dias      | [@DanielDPereira](https://github.com/DanielDPereira) |
+| 🧭 Scrum Master     | Cauan Gabriel    | [@LoadCG](https://github.com/LoadCG)                 |
+| 💻 Development Team | Emmanuel Garakis | [@Garakis](https://github.com/Garakis)               |
+| 💻 Development Team | Rafael Matesco   | [@RafaMatesco](https://github.com/RafaMatesco)       |
+| 💻 Development Team | Gustavo Bueno    | [@Darkghostly](https://github.com/Darkghostly)       |
+| 💻 Development Team | Gabriel Lasaro   | [@GaelNotFound](https://github.com/GaelNotFound)     |
+| 💻 Development Team | Giovanni         | [@Giomoret](https://github.com/Giomoret)             |
+| 💻 Development Team | Heitor           | [@heitors1337](https://github.com/heitors1337)       |
+| 💻 Development Team | Vitor            | [@vitorpdim](https://github.com/vitorpdim)           |
 
-Projeto de Aprendizagem Interdisciplinar (API), 4º semestre de Análise e Desenvolvimento de Sistemas na Fatec São José dos Campos, desenvolvido pelo Grupo Galáticos para a PRO4TECH.
+---
+
+# 📚 Documentação
+
+Para informações mais específicas:
+
+| Documento                                           | Conteúdo                 |
+| --------------------------------------------------- | ------------------------ |
+| 📋 [Planejamento Scrum](docs/PLANEJAMENTO_SCRUM.md) | Sprints e planejamento   |
+| 📚 [Documentação](docs/README.md)                   | Índice dos documentos    |
+| ⚙️ [Setup](docs/SETUP_GUIDE.md)                     | Configuração do ambiente |
+| 🏗️ [Arquitetura](docs/Architecture/README.md)      | Arquitetura do sistema   |
+| 🔌 [OpenAPI](docs/api/openapi.yaml)                 | Contrato da API          |
+| 📋 [PRD](docs/PRD-PRO4TECH.md)                      | Requisitos do produto    |
+| 🗂️ [Backlog](docs/backlog/README.md)               | Épicos e PBIs            |
+
+---
+
+# 🎓 Contexto acadêmico
+
+O **Sinapse** é um **Projeto de Aprendizagem Interdisciplinar (API)** desenvolvido pelo **Grupo Galáticos**, no 4º semestre do curso de **Análise e Desenvolvimento de Sistemas da Fatec São José dos Campos**, para a empresa parceira **PRO4TECH**.
+
+<br>
+
+<div align="center">
+
+### 🧠 Sinapse
+
+**Grupo Galáticos · Fatec São José dos Campos · 2026**
+
+</div>
