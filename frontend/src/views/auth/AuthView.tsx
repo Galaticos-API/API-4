@@ -76,13 +76,13 @@ export function AuthScreen({ initialMode }: { initialMode: "login" | "register" 
           )}
         </div>
 
-        {mode === "login" ? <LoginOnCard onSwitch={() => switchMode("register")} /> : <RegisterOnCard onSwitch={() => switchMode("login")} />}
+        {mode === "login" ? <LoginOnCard /> : <RegisterOnCard onSwitch={() => switchMode("login")} />}
       </section>
     </main>
   );
 }
 
-export function LoginOnCard({ onSwitch }: { onSwitch: () => void }) {
+export function LoginOnCard() {
   const { login, notice } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");

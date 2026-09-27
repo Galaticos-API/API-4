@@ -45,6 +45,9 @@ jobs:
           cache-dependency-path: backend/package-lock.json
       - run: npm ci
         working-directory: backend
+      - name: Build backend scripts used by seed validation
+        run: npm run build
+        working-directory: backend
       - run: npm run migrate
         working-directory: backend
       - run: npm run seed:validate

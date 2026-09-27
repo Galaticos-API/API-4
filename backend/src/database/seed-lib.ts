@@ -58,8 +58,8 @@ export function validateTarget(url: string | undefined, environment: string | un
   }
   const target = new URL(url);
   const dbName = decodeURIComponent(target.pathname).replace(/^\//, "");
-  if (!["postgres:", "postgresql:"].includes(target.protocol) || (!/_(dev|test)$/.test(dbName) && dbName !== "sinapse")) {
-    throw new Error("Banco deve terminar em _dev, _test ou ser 'sinapse'");
+  if (!["postgres:", "postgresql:"].includes(target.protocol) || !/^[a-zA-Z0-9_-]+_(dev|test)$/.test(dbName)) {
+    throw new Error("Banco deve terminar em _dev ou _test.");
   }
   return url;
 }

@@ -15,6 +15,7 @@ export const App: React.FC = () => {
   const { session, logout } = useAuth();
   const [pathname, setPathname] = useState(window.location.pathname);
 
+  const isAdmin = session.user?.role === "admin";
   const activeTab = isProjectPath(pathname)
     ? "projects"
     : (Object.keys(routes) as Array<keyof typeof routes>).find((key) => routes[key] === pathname) || "projects";
@@ -31,7 +32,7 @@ export const App: React.FC = () => {
     <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", background: "var(--bg)", color: "var(--text)" }}>
       {/* Top Header Bar (Protótipo Garakis) */}
       <header className="top-header">
-        <a className="brand" onClick={() => navigate("/projects")}>
+        <a className="brand" href="/projects" onClick={(event) => { event.preventDefault(); navigate("/projects"); }}>
           S<b>•</b>NAPSE
         </a>
 
@@ -63,9 +64,15 @@ export const App: React.FC = () => {
         </nav>
 
         <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-          <button className="user-menu-btn" onClick={() => navigate("/admin")}>
-            {session.user?.nome || session.user?.name || "Cauan Gabriel"} · {session.user?.role?.toUpperCase() || "PO"} ▾
-          </button>
+          {isAdmin ? (
+            <button className="user-menu-btn" onClick={() => navigate("/admin")} aria-label="Abrir administração">
+              {session.user?.nome || session.user?.name || "Cauan Gabriel"} · ADMIN ▾
+            </button>
+          ) : (
+            <span className="user-menu-label">
+              {session.user?.nome || session.user?.name || "Cauan Gabriel"} · {session.user?.role?.toUpperCase() || "PO"}
+            </span>
+          )}
           <button
             className="btn-garakis secondary"
             style={{ minHeight: "34px", padding: "0 12px", fontSize: "0.8rem" }}
@@ -83,7 +90,13 @@ export const App: React.FC = () => {
         {activeTab === "documents" && <DocumentsView />}
         {activeTab === "knowledge" && <KnowledgeView />}
         {(activeTab === "chat" || activeTab === "rag") && <ChatView />}
-        {activeTab === "admin" && <AdminView />}
+        {activeTab === "admin" && (isAdmin ? <AdminView /> : (
+          <section className="page-container" role="alert" aria-labelledby="admin-access-title">
+            <h1 id="admin-access-title">Acesso restrito</h1>
+            <p>Esta área está disponível somente para administradores.</p>
+            <button className="btn-garakis secondary" onClick={() => navigate("/projects")}>Voltar para projetos</button>
+          </section>
+        ))}
         {activeTab === "architecture" && <DeveloperDashboardView />}
         {activeTab === "landing" && <LandingPageView />}
       </main>
