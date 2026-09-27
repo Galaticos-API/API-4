@@ -1,6 +1,6 @@
 # Planejamento de Tarefas por Sprint — Sinapse
 
-> Organização das tarefas de desenvolvimento e sua relação direta com as User Stories do Backlog de Produto v1.1.
+> Planejamento de produto e registro da execução da Sprint 1. Situação atualizada em 27/09/2026.
 
 ## Visão geral
 
@@ -10,11 +10,45 @@
 | Features | 18 |
 | User Stories/PBIs | 66 |
 | Tarefas técnicas | 71 |
-| Sprints | 3 |
+| Sprints previstas no plano inicial | 3 |
+| Sprints concluídas até 27/09/2026 | 1 |
 
 Este planejamento converte as 66 User Stories em tarefas técnicas executáveis. Cada tarefa está vinculada a pelo menos um PBI existente e deve ser validada contra os respectivos cenários de aceitação.
 
-A distribuição individual está em andamento. As atribuições já confirmadas aparecem abaixo; todas as demais tarefas continuam sem responsável definido.
+## Equipe do projeto
+
+| Papel | Integrante | GitHub |
+|---|---|---|
+| Product Owner (PO) | Daniel Dias | [@DanielDPereira](https://github.com/DanielDPereira) |
+| Scrum Master | Cauan Gabriel | [@LoadCG](https://github.com/LoadCG) |
+| Development Team | Emmanuel Garakis | [@Garakis](https://github.com/Garakis) |
+| Development Team | Rafael Matesco | [@RafaMatesco](https://github.com/RafaMatesco) |
+| Development Team | Gustavo Bueno | [@Darkghostly](https://github.com/Darkghostly) |
+| Development Team | Gabriel Lasaro | [@GaelNotFound](https://github.com/GaelNotFound) |
+| Development Team | Giovanni | [@Giomoret](https://github.com/Giomoret) |
+| Development Team | Heitor | [@heitors1337](https://github.com/heitors1337) |
+| Development Team | Vitor | [@vitorpdim](https://github.com/vitorpdim) |
+
+Os perfis foram associados por nomes públicos e autoria de commits neste
+repositório. Gabriel Lasaro aparece no histórico como Gabriel, com o e-mail de
+commit `gaelslasaro@gmail.com`, ligado ao perfil [@GaelNotFound](https://github.com/GaelNotFound).
+
+## Abordagem Scrum
+
+O produto foi organizado em backlog priorizado, estruturado em épicos, features
+e PBIs. O plano inicial previa três sprints. **Até 27/09/2026, somente a Sprint 1
+foi executada e concluída**; as sprints seguintes seguem como planejamento, sem
+serem apresentadas como trabalho realizado.
+
+O acompanhamento documentado foi feito por tarefas relacionadas aos PBIs,
+critérios de aceitação, revisão das entregas e consolidação de QA. Este repositório
+não registra cadência/duração de cerimônias ou métricas de velocidade, portanto
+esses detalhes não são presumidos aqui.
+
+## Distribuição parcial registrada no plano inicial
+
+As atribuições abaixo são as que constavam no plano de trabalho; não representam
+uma lista completa de autoria nem substituem os papéis atuais informados pela equipe.
 
 ## Distribuição parcial da equipe
 
@@ -71,9 +105,15 @@ A distribuição individual está em andamento. As atribuições já confirmadas
 
 **Meta:** entregar a hierarquia no padrão PRO4TECH, autenticação, validações determinísticas, decisões e anexos sem dependência de IA.
 
-### O que será entregue
+### Resultado e escopo planejado
 
-Ao final da Sprint 1, espera-se que uma pessoa autorizada consiga entrar na plataforma, criar e organizar projetos, épicos, features e PBIs, registrar critérios de aceitação e decisões, navegar pela estrutura e anexar documentos. O sistema também deverá orientar a escrita conforme o padrão da PRO4TECH.
+O objetivo planejado foi permitir que uma pessoa autorizada entre na plataforma,
+crie e organize projetos, épicos, features e PBIs, registre critérios de
+aceitação e decisões, navegue pela estrutura e anexe documentos. A Sprint 1 foi
+encerrada em 27/09/2026. O estado efetivamente implementado deve ser conferido
+no [README](../README.md), na [arquitetura](Architecture/README.md) e nos critérios
+de aceite; esta lista descreve o escopo planejado, não afirma que cada item foi
+entregue sem ressalvas.
 
 ### Habilitadores
 
@@ -118,9 +158,9 @@ Ao final da Sprint 1, espera-se que uma pessoa autorizada consiga entrar na plat
 | S1-23 | Integrar e validar os fluxos obrigatórios da Sprint 1 com testes e documentação | PBI-01.1.1, PBI-01.1.2, PBI-01.1.3, PBI-01.1.4, PBI-01.1.5, PBI-01.2.1, PBI-01.2.2, PBI-01.2.3, PBI-01.3.1, PBI-01.3.2, PBI-01.3.3, PBI-01.3.5, PBI-01.4.1, PBI-01.4.2, PBI-01.5.1, PBI-01.5.2, PBI-02.1.1, PBI-06.1.1, PBI-06.1.2, PBI-06.1.3 |
 | S1-24 | Exigir justificativa obrigatória e gravar histórico ao alterar item salvo | PBI-01.5.6 |
 
-## Sprint 2
+## Sprint 2 — planejada, não iniciada
 
-**Período:** 05/10/2026 a 25/10/2026
+**Período planejado:** 05/10/2026 a 25/10/2026
 
 **Quantidade:** 18 tarefas
 
@@ -154,9 +194,9 @@ Ao final da Sprint 2, documentos e itens concluídos deverão formar um acervo p
 | S2-20 | Permitir configurar e exibir Definição de Preparado (DoR) e Definição de Pronto (DoD) | PBI-01.6.2 |
 | S2-21 | Restringir sugestões semânticas do copiloto estritamente ao acervo do projeto e item em edição | PBI-03.2.4 |
 
-## Sprint 3
+## Sprint 3 — planejada, não iniciada
 
-**Período:** 02/11/2026 a 22/11/2026
+**Período planejado:** 02/11/2026 a 22/11/2026
 
 **Quantidade:** 17 tarefas
 
@@ -199,7 +239,7 @@ Ao final da Sprint 3, as pessoas poderão conversar com o acervo e receber respo
 
 | Sprint | Tarefas | Situação |
 |:---:|:---:|---|
-| 1 | 33 (9 PRE + 24 S1) | Todas relacionadas a PBIs existentes |
-| 2 | 21 | Todas relacionadas a PBIs existentes |
-| 3 | 17 | Todas relacionadas a PBIs existentes |
-| **Total** | **71** | **100% de cobertura (66 de 66 PBIs mapeados)** |
+| 1 | 33 (9 PRE + 24 S1) | Concluída em 27/09/2026; tarefas mapeadas a PBIs |
+| 2 | 21 | Planejada; ainda não executada |
+| 3 | 17 | Planejada; ainda não executada |
+| **Plano total** | **71** | Cobertura planejada: 66 de 66 PBIs mapeados |

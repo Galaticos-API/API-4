@@ -1,50 +1,43 @@
-# Seed de desenvolvimento
+# Seeds e dados de demonstração
 
-## PRE-06 — Acervo histórico curado
+Este diretório contém dois conjuntos com propósitos diferentes:
 
-O seed atual é `fixtures/historical-v1.json`, aplicado pelo backend. Contém três
-projetos acadêmicos API-1/API-2/API-3, seis resumos de requisitos e seis chunks sem
-vetores. As cópias curadas ficam em `curated/`. Não há pessoas, credenciais ou
-competências inventadas. Cada registro tem repositório, revisão, caminho, localização,
-hash SHA-256 do texto fonte em UTF-8 e descrição da transformação; a carga persiste
-essa origem em `auditoria` e nos metadados dos chunks.
+1. `fixtures/historical-v1.json` e `curated/` formam o **acervo histórico curado PRE-06**. A carga é aplicada pelo backend, a partir de fontes acadêmicas documentadas, em projetos, documentos, chunks sem embedding e registros de origem/auditoria.
+2. `dev_seed.sql` é um seed legado com dados fictícios determinísticos para demonstrações. Ele não faz parte da carga PRE-06 e não deve ser aplicado junto dela.
 
-Dentro de `backend`, execute `npm ci`, `npm run build`, `npm run seed:validate` e `npm run test:seed`.
-Para carregar, prepare um banco dedicado com as migrações 001–003. Configure
-`SEED_DATABASE_URL` por variável de ambiente (não em argumentos nem arquivos versionados)
-e execute `npm run seed:apply`. O nome do banco deve terminar em `_dev` ou `_test`;
-`NODE_ENV=production` é recusado. O comando de migração existente usa suas próprias
-variáveis `POSTGRES_*`; confira que apontam para o mesmo banco dedicado antes de migrar.
+Não inclua nomes, e-mails, credenciais, documentos de clientes, dados de produção ou segredos em qualquer fixture.
 
-O modo padrão só valida arquivos. A aplicação é transacional, serializada e
-idempotente: repetir não duplica registros/auditoria; colisões ou alteração de
-conteúdo/origem interrompem a operação, sem sobrescrever dados do usuário. Não há
-remoção automática. Para atualizar o acervo, criar versão revisada e migração explícita.
+## Validar o acervo curado
 
-`test:seed` verifica o manifesto sem PostgreSQL. Se `SEED_TEST_DATABASE_URL` estiver
-definida, também testa a carga duas vezes em uma transação revertida ao final e a
-recusa de divergência. A CI fornece PostgreSQL 16 + pgvector dedicado e executa as
-migrações antes desse teste. Sem a variável, o teste SQL aparece como ignorado;
-isso não equivale a validação da carga real.
+Execute dentro de `backend`:
 
-Leia [POLITICA_DE_DADOS.md](POLITICA_DE_DADOS.md) e [validation-cases.json](validation-cases.json).
-Embeddings não são fabricados: a indexação real continua pendente do pipeline da IA.
+```bash
+npm ci
+npm run build
+npm run seed:validate
+npm run test:seed
+```
 
-Validação local: manifesto e documentos aprovados pelo validador, build do backend
-concluído e 6 testes da PRE-06 passaram com PostgreSQL 16 + pgvector descartável,
-sem testes ignorados. O comando `seed:apply` também foi executado duas vezes com
-sucesso: 3 projetos, 6 documentos, 6 chunks e 15 eventos de origem, sem duplicação.
-O banco de teste foi removido; nenhuma carga foi feita na base corrente do projeto.
-A execução remota da CI e a revisão humana do PR continuam pendentes.
+O build é necessário porque os scripts `seed:validate` e `test:seed` executam arquivos compilados em `dist/`. A validação padrão inspeciona o manifesto e os documentos sem gravar dados. O teste PostgreSQL é habilitado quando `SEED_TEST_DATABASE_URL` aponta para banco descartável dedicado.
 
-## Seed fictício legado
+## Aplicar em desenvolvimento
 
-`dev_seed.sql` contém somente dados fictícios e determinísticos para desenvolvimento
-local e demonstrações. Não use este arquivo em produção e não inclua dados reais,
-tokens, senhas ou documentos de clientes.
+1. Crie um banco dedicado, separado da base de desenvolvimento compartilhada.
+2. Aplique nele as migrations necessárias (001–003 para este dataset).
+3. Configure `SEED_DATABASE_URL` no ambiente do processo, sem colocar a URL em argumentos ou arquivos versionados.
+4. Confirme que `POSTGRES_*` do comando de migration aponta para o mesmo destino.
+5. Execute `npm run seed:apply` dentro de `backend`.
 
-O seed é idempotente: pode ser executado novamente sem duplicar os registros com os
-mesmos identificadores.
+O alvo precisa usar PostgreSQL/PostgresQL e o nome do banco deve terminar em `_dev` ou `_test`. O ambiente `production` é recusado, salvo a exceção explícita de segurança prevista no código; **não use a exceção para dados de demonstração**.
 
-O arquivo legado é mantido por compatibilidade, não faz parte da carga histórica
-PRE-06 e não deve ser executado junto com ela para demonstrar o acervo curado.
+A aplicação é transacional e idempotente: repetir os mesmos dados não duplica registros. Colisões ou divergência de conteúdo/origem abortam a operação; o seed não atualiza nem remove conteúdo preexistente.
+
+## Conteúdo e proveniência
+
+Cada item curado mantém origem, URL, revisão, caminho/localização, hash SHA-256 e descrição da transformação. Os metadados permitem rastrear a origem do texto. Embeddings não são fabricados; a inclusão de vetor depende de pipeline de indexação validado.
+
+Leia a [política de dados](POLITICA_DE_DADOS.md), o [manifesto de casos de validação](validation-cases.json) e o [guia de migrations](../migrations/README.md).
+
+## Capturas e demonstrações do produto
+
+As capturas do [README principal](../../README.md) foram produzidas com registros inventados em banco descartável pela UI. Elas não usam `dev_seed.sql` nem alteram a base do Compose do desenvolvedor.

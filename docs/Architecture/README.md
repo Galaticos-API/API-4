@@ -1,321 +1,112 @@
-# Arquitetura e Diagramas do Sistema — Sinapse
+# Arquitetura do Sinapse
 
-> **PRO4TECH · Fatec São José dos Campos · Grupo Galáticos**  
-> *Base Inteligente de Requisitos — Memória Institucional da Fábrica de Software*
+> Estado da implementação no `main`, revisado em 27/09/2026. Este documento descreve o que o código e a configuração Docker fazem hoje. Requisitos ainda em validação e propostas futuras estão identificados como tal.
 
-Este documento consolida todos os diagramas arquiteturais, fluxos de execução e modelos de dados do **Sinapse**, servindo como referência visual e técnica central para a equipe de desenvolvimento e stakeholders, em conformidade com o [PRD](../PRD-PRO4TECH.md) e o [AGENTS.md](../AGENTS.md).
-
----
-
-## 📑 Índice de Diagramas
-
-1. [Visão Geral da Arquitetura e Ingestão](#1-visão-geral-da-arquitetura-e-ingestão)
-2. [Fluxo de Consulta Semântica e RAG](#2-fluxo-de-consulta-semântica-e-rag)
-3. [Diagrama Entidade-Relacionamento (ERD)](#3-diagrama-entidade-relacionamento-erd)
-4. [Resumo das Fronteiras Arquiteturais](#4-resumo-das-fronteiras-arquiteturais)
-
----
-
-## 1. Visão Geral da Arquitetura e Ingestão
-
-Representa a divisão de responsabilidades entre as 6 camadas do ecossistema Sinapse:
-- **Frontend (React SPA):** Interface do Product Owner.
-- **Backend Aplicação (Node.js):** Ponto de entrada de negócio, autenticação, CRUD e validações determinísticas (RF-08 a RF-11). É o único serviço autorizado a persistir nas tabelas de negócio.
-- **Serviço de IA (Python):** RAG Engine, chunking unificado (PRD 10.3) e Harness de alinhamento com o guia PRO4TECH.
-- **Orquestração de Ingestão (n8n):** Monitoramento de arquivos em `/files`, gatilhos de eventos e workflows versionados via `n8n-local-sync`.
-- **Banco de Dados Unificado (PostgreSQL):** Persistência relacional clássica combinada com a extensão `pgvector` (busca vetorial HNSW na tabela `chunk`).
-- **Ollama:** Runtime de IA para inferência de LLM (Qwen 2.5 / Llama 3.1) e geração de embeddings locais (`bge-m3`).
-
-### Diagrama Mermaid
+## Visão de runtime
 
 ```mermaid
-flowchart TB
-    subgraph Frontend["Frontend (React SPA)"]
-        UI["Interface PO / Usuário"]
-    end
-
-    subgraph BackendApp["Backend Aplicação (Node.js)"]
-        API["API REST / Auth / CRUD / Regras de Negócio"]
-        Valida["Validação Estrutural (RF-08 a RF-11)"]
-    end
-
-    subgraph ServiceAI["Serviço de IA (Python)"]
-        Harness["Harness (Guia PRO4TECH)"]
-        RagEngine["RAG Engine & Embeddings"]
-        LLM["LLM Aberto Local (ex: Llama / Mistral / Qwen)"]
-    end
-
-    subgraph Ingestao["Orquestração de Ingestão"]
-        N8N["n8n (Workflows versionados via n8n-local-sync)"]
-    end
-
-    subgraph Database["Banco de Dados Unificado (PostgreSQL)"]
-        Relational["Tabelas Relacionais (projeto, epico, pbi, etc.)"]
-        VectorExt["Extensão pgvector (tabela chunk + índice HNSW)"]
-    end
-
-    UI -->|"Requisições HTTP"| API
-    API -->|"Persistência e Leitura Relacional"| Relational
-    API -->|"Delegação de IA / RAG"| ServiceAI
-    N8N -->|"Dispara Ingestão de Documentos"| API
-    N8N -->|"Envia arquivos para fragmentação"| RagEngine
-    RagEngine -->|"Gera embeddings e consulta vetores"| VectorExt
-    RagEngine -->|"Monta contexto enriquecido"| Harness
-    Harness <--> LLM
+flowchart LR
+    PO["PO / DEV / Admin"] --> Browser["SPA React 19 + Vite"]
+    Browser -->|"HTTP /api/v1"| API["API Node.js + Express"]
+    API -->|"sessões, backlog, documentos, decisões, auditoria"| DB[("PostgreSQL 16 + pgvector")]
+    API -->|"chamadas opcionais"| AI["FastAPI · IA e RepoAnalyzer"]
+    AI --> Ollama["Ollama · embeddings e LLM"]
+    API -->|"evento de remoção via webhook"| N8N["n8n opcional"]
 ```
 
-<details>
-<summary>🖼️ <b>Ver imagem estática renderizada</b></summary>
+### Componentes e fronteiras
 
-![Visão Geral da Arquitetura e Ingestão](Diagrams/Visão%20Geral%20da%20Arquitetura%20e%20Ingestão.jpg)
+| Componente | Implementação | Responsabilidade atual |
+|---|---|---|
+| Frontend | `frontend/`, React + TypeScript + Vite; Nginx na imagem final | Autenticação de interface, navegação por projeto e captura de entradas. O Vite encaminha `/api` e `/health` no modo local; Nginx usa `backend:3001` no Compose. |
+| Backend | `backend/`, Express + TypeScript | API, sessões, autorização por perfil, validações, regras de domínio, acesso ao Postgres, storage de documentos e histórico de conversa. |
+| Banco | `database/init.sql` + `database/migrations/`, PostgreSQL 16 e extensão pgvector | Persistência do domínio, índices e estruturas para conteúdo de conhecimento. O backend aplica migrations pendentes ao iniciar o container. |
+| Serviço Python | `ai-service/`, FastAPI | Endpoints de saúde, chunking, embeddings, consulta RAG e execução/consulta de análises de repositório. É executado no perfil Docker `local-ai`. |
+| Ollama | container opcional | Provedor local de modelos de embedding e geração. Os modelos são baixados pelo operador; não vêm no build da imagem. |
+| n8n | container padrão, integrações opcionais | Consumidor de eventos/integrador. O evento de remoção pode ser enviado por `DOCUMENT_EVENTS_WEBHOOK_URL`; sem URL, é retido e reprocessado. |
 
-</details>
+**Diretriz de dados:** o backend é a autoridade de negócio para autenticação, regras, autorização e mutações do domínio. Os clientes web e modelos não devem contornar essas validações. Configure acesso ao PostgreSQL apenas para serviços confiáveis na rede privada.
 
----
+## Fluxos implementados
 
-## 2. Fluxo de Consulta Semântica e RAG
+### Autenticação e autorização
 
-Ilustra o ciclo de vida completo de uma pergunta realizada pelo Product Owner em linguagem natural (ex: *"Como tratamos concorrência no PIX?"*):
+1. A UI registra ou autentica a pessoa pela API.
+2. O backend gerencia sessões e valida-as em cada rota protegida.
+3. `admin`, `po` e `dev` são perfis de negócio. A autorização é validada na API; ocultar um botão no frontend não substitui a regra do backend.
+4. O modo de leitura de um projeto arquivado também é aplicado no servidor para operações de escrita.
 
-1. O **PO** envia a pergunta através da SPA em React.
-2. O **Backend Node.js** recebe a requisição, autentica o usuário e valida o `projeto_id` para garantir o isolamento por metadados.
-3. O **Serviço Python de IA** gera o embedding vetorial da query utilizando o modelo configurado no Ollama (`bge-m3`).
-4. O Python executa a busca híbrida no **PostgreSQL com pgvector**, aplicando filtro estrito por `projeto_id` e ordenação por distância de cosseno (`<=>`).
-5. Os top-5 chunks mais relevantes retornam do banco para o Python.
-6. O Python injeta os chunks no prompt controlado do **Harness** (com regras para não alucinar e citar fontes obrigatoriamente).
-7. O **LLM local** processa o contexto e gera a resposta estruturada com citações exatas.
-8. A resposta com metadados de proveniência é enviada de volta ao Node.js e renderizada na interface do PO com links rastreáveis para os requisitos e documentos de origem.
+Veja [contrato da API](../api/openapi.yaml) e [guia de setup](../SETUP_GUIDE.md).
 
-### Diagrama de Sequência Mermaid
+### Backlog e qualidade
 
 ```mermaid
-sequenceDiagram
-    autonumber
-    actor PO as Product Owner
-    participant Web as React Frontend
-    participant Node as Node.js Backend
-    participant Py as Python IA Service
-    participant PG as PostgreSQL + pgvector
-    participant LLM as LLM Local (Ollama)
-
-    PO->>Web: Pergunta: "Como tratamos concorrência no PIX?"
-    Web->>Node: POST /api/chat/consulta (com projeto_id e pergunta)
-    Node->>Py: POST /rag/retrieve (pergunta, projeto_id)
-    Py->>Py: Gera embedding vetorial da pergunta
-    Py->>PG: SELECT texto, fonte FROM chunk WHERE projeto_id = $1 ORDER BY embedding <=> $2 LIMIT 5
-    PG-->>Py: Retorna top-5 chunks com maior similaridade
-    Py->>LLM: Injeta chunks recuperados no prompt do Harness
-    LLM-->>Py: Resposta estruturada com citação exata das fontes
-    Py-->>Node: Retorna resposta + metadados de proveniência
-    Node-->>Web: Exibe resposta com links para requisitos/documentos
+flowchart LR
+    P["Projeto"] --> E["Épico"] --> F["Feature"] --> B["PBI"] --> C["Critérios DADO / QUANDO / ENTÃO"]
+    API["Backend: validação e autorização"] --> DB[("PostgreSQL")]
+    P --> API
+    E --> API
+    F --> API
+    B --> API
+    C --> API
 ```
 
-<details>
-<summary>🖼️ <b>Ver imagem estática renderizada</b></summary>
+O backlog suporta leitura, escrita por perfis autorizados, relações de tecnologia, busca textual no projeto, decisões em diferentes níveis, arquivamento e auditoria. O painel de qualidade calcula verificações determinísticas e a aplicabilidade da regra de protótipo. A configuração de regras é versionada e alterações administrativas são atribuídas e auditadas.
 
-![Fluxo de Consulta Semântica (RAG)](Diagrams/Fluxo%20de%20Consulta%20Semântica%20(RAG).jpg)
+### Documentos
 
-</details>
+1. A API valida nome, formato, tamanho, existência do projeto e estado de arquivamento.
+2. O arquivo é salvo no storage configurado; metadados, auditoria e operação pendente são persistidos no banco.
+3. Um worker retenta operações de storage e eventos de integração até concluir ou atingir a política configurada.
+4. A listagem é paginada por cursor e sempre delimitada ao projeto.
 
----
+O upload grava o arquivo e seus metadados; **isso não significa que o conteúdo já foi extraído ou indexado**. A extração, geração de embeddings e persistência de chunks dependem do pipeline de conhecimento configurado. Consulte [documentação de integração](../DOCUMENTOS_INTEGRACAO.md).
 
-## 3. Diagrama Entidade-Relacionamento (ERD)
+### Busca e conversa
 
-Descreve a modelagem de dados relacional e vetorial unificada no PostgreSQL. 
+O backend guarda conversas e mensagens por usuário, valida a posse da conversa e, quando informado, limita a consulta ao projeto escolhido. Tenta consultar o cliente HTTP de IA configurado; diante de indisponibilidade ou resposta inválida, procura trechos existentes no Postgres usando os termos da pergunta e devolve as fontes encontradas. Sem evidência, responde que a informação não foi encontrada.
 
-### Destaques da Modelagem
-- **Hierarquia de Requisitos:** `PROJETO` &rarr; `EPICO` &rarr; `FEATURE` &rarr; `PBI` &rarr; `CRITERIO_ACEITACAO`.
-- **Rastreabilidade e Proveniência:** Critérios de aceitação com formato BDD (`dado`, `quando`, `entao`) e campos específicos para histórias de usuário (`historia_como_um`, `historia_eu_quero`, `historia_para_que`).
-- **Isolamento de Conhecimento:** A tabela `CHUNK` armazena `projeto_id` desnormalizado para garantir que as buscas vetoriais não vazem informações entre projetos diferentes. A coluna `embedding` utiliza o tipo nativo `vector` do `pgvector`.
-- **Mapeamento de Competências:** Relação `USUARIO` &rarr; `DESENVOLVEDOR` &rarr; `COMPETENCIA` &rarr; `TECNOLOGIA` para identificação de especialistas na equipe.
-- **Registro de Decisões:** A entidade `DECISAO` (armazenamento de contexto, justificativa e alternativas descartadas em qualquer nível da hierarquia) está planejada para implementação no DDL na tarefa `S1-18`.
+**Integração em validação:** o serviço Python e o cliente HTTP do backend evoluíram contratos de requisição/resposta independentes. O fluxo de IA deve ser validado de ponta a ponta (backend → FastAPI → Ollama) antes de ser anunciado como funcional em um ambiente. Os testes E2E cobrem o chat com serviço indisponível e seu fallback; eles não certificam inferência local.
 
-### Diagrama ERD Mermaid
+### Análise de repositório
 
-```mermaid
-erDiagram
-    PROJETO ||--o{ EPICO : contem
-    PROJETO ||--o{ DOCUMENTO : possui
-    PROJETO ||--o{ CHUNK : escopo_isolamento
-    PROJETO ||--o{ ALOCACAO : aloca
+O backend valida o projeto e a URL do GitHub, pede ao FastAPI para iniciar uma execução e persiste o identificador recebido. Consultas seguintes sincronizam estágio, progresso e relatório. O acesso ao projeto e o estado de arquivamento são revalidados nas rotas.
 
-    EPICO ||--o{ FEATURE : divide
-    FEATURE ||--o{ PBI : decompoe
+## Dados e evolução do schema
 
-    EPICO ||--o{ CRITERIO_ACEITACAO : possui
-    FEATURE ||--o{ CRITERIO_ACEITACAO : possui
-    PBI ||--o{ CRITERIO_ACEITACAO : possui
+- `database/init.sql` é o baseline aplicado quando um volume PostgreSQL é inicializado pela primeira vez.
+- `database/migrations/NNN_*.sql` contém alterações posteriores. O runner aplica arquivos pendentes em transação e registra os nomes completos em `_schema_migrations`.
+- As duas migrations `004` e as duas migrations `005` são histórico publicado; não as renomeie. A ordenação lexicográfica atual é intencional.
+- PostgreSQL armazena usuários/sessões, projetos, hierarquia do backlog, critérios, decisões, documentos, chunks, conversas, configurações de qualidade e auditoria.
+- `pgvector` está disponível para embeddings; a existência da coluna ou extensão, isoladamente, não prova que um pipeline de ingestão está ativo.
 
-    PBI ||--o{ PROTOTIPO : anexa
-    PBI ||--o{ PBI_RELACAO : relaciona
+Para alterações, crie uma nova migration idempotente quando possível. Não reescreva `init.sql` para reparar volumes já existentes. Consulte [guia de migrations](../../database/migrations/README.md).
 
-    USUARIO ||--o| DESENVOLVEDOR : perfil
-    DESENVOLVEDOR ||--o{ COMPETENCIA : domina
-    TECNOLOGIA ||--o{ COMPETENCIA : categoriza
-    TECNOLOGIA ||--o{ ENTIDADE_TECNOLOGIA : taggeia
+## Deploy local
 
-    USUARIO ||--o{ CONVERSA : cria
-    CONVERSA ||--o{ MENSAGEM : contem
-
-    DOCUMENTO ||--o{ CHUNK : fragmentado_em
-
-    PROJETO {
-        uuid id PK
-        varchar nome
-        varchar cliente
-        text descricao
-        varchar status
-        timestamp data_inicio
-    }
-
-    EPICO {
-        uuid id PK
-        uuid projeto_id FK
-        varchar titulo
-        text objetivo
-        text escopo_macro
-        varchar prioridade
-    }
-
-    FEATURE {
-        uuid id PK
-        uuid epico_id FK
-        varchar titulo
-        text objetivo
-        varchar prioridade
-    }
-
-    PBI {
-        uuid id PK
-        uuid feature_id FK
-        varchar codigo
-        varchar titulo
-        text historia_como_um
-        text historia_eu_quero
-        text historia_para_que
-        text regras_observacoes
-        varchar tipo
-        varchar prioridade
-        int score_completude
-    }
-
-    CRITERIO_ACEITACAO {
-        uuid id PK
-        varchar entidade_tipo
-        uuid entidade_id
-        text texto
-        text dado
-        text quando
-        text entao
-    }
-
-    DOCUMENTO {
-        uuid id PK
-        uuid projeto_id FK
-        varchar nome
-        varchar mime
-        varchar caminho
-        varchar status_processamento
-    }
-
-    CHUNK {
-        uuid id PK
-        uuid projeto_id FK "Desnormalizado para isolamento rapido"
-        varchar entidade_tipo
-        uuid entidade_id
-        text texto
-        jsonb metadados_json
-        vector embedding "Coluna vetorial pgvector"
-    }
-
-    DESENVOLVEDOR {
-        uuid id PK
-        uuid usuario_id FK
-        varchar senioridade
-        text bio
-    }
-
-    COMPETENCIA {
-        uuid id PK
-        uuid desenvolvedor_id FK
-        uuid tecnologia_id FK
-        varchar nivel
-        text evidencia
-    }
+```text
+Compose padrão:  frontend + backend + PostgreSQL/pgvector + n8n
+Perfil local-ai: Ollama + FastAPI
 ```
 
-<details>
-<summary>🖼️ <b>Ver imagem estática renderizada</b></summary>
+No Compose, o backend acessa `postgres:5432` e a interface usa Nginx para encaminhar `/api` a `backend:3001`. Processos locais no host usam portas publicadas — PostgreSQL `55432`, API `3001` e frontend `5173` por padrão. URLs e credenciais estão em `.env`; `.env.example` serve apenas a ambientes locais.
 
-![Diagrama Entidade-Relacionamento (ERD)](Diagrams/Diagrama%20Entidade-Relacionamento%20(ERD).jpg)
+## Qualidade e operações
 
-</details>
+- CI: build/typecheck, suites backend/frontend, testes PostgreSQL, validação do seed, configuração Compose e testes Python.
+- E2E: cenários de navegador com API e PostgreSQL reais, incluindo autorização, isolamento, documentos, hierarquia e acessibilidade.
+- Healthchecks: `/health` no backend e serviço Python.
+- Logs e migrations: use `docker compose logs -f backend` e consulte `_schema_migrations` antes de investigar divergência de schema.
 
----
+Comandos completos e variáveis ficam no [guia de setup](../SETUP_GUIDE.md). Matriz de cobertura no [README E2E](../../e2e/README.md).
 
-## 4. Resumo das Fronteiras Arquiteturais
+## Propostas e referências históricas
 
-| Camada | Tecnologia | O que faz | O que NÃO faz |
-|---|---|---|---|
-| **Frontend** | React 19 / Vite / TS | Coleta entradas do PO, exibe acervo, renderiza chat e marca proveniência visualmente. | Não valida regras de negócio nem conversa direto com o banco ou Ollama. |
-| **Backend** | Node.js 20+ / Express / TS | Autenticação, CRUD, validações determinísticas de conformidade (regex, termos vagos) e **única escrita nas tabelas de negócio**. | Não calcula embeddings nem executa RAG. |
-| **Serviço de IA** | Python 3.11+ / FastAPI | **Fonte única da verdade para chunking**, gera embeddings, monta o contexto do Harness e consulta o LLM. | **Nunca grava diretamente nas tabelas de negócio** (devolve sugestões para confirmação humana). |
-| **Ingestão** | n8n | Watch de pastas em `/files`, conversão de arquivos e gatilhos de disparo para `POST /ingest`. | Não define o tamanho dos chunks nem calcula vetores internamente. |
-| **Banco** | PostgreSQL 16 + pgvector | Armazena dados relacionais estruturados e vetores de chunks indexados por HNSW. | Não expõe acesso direto para o cliente web. |
-| **IA Local** | Ollama | Executa modelos de LLM e Embeddings localmente via API HTTP. | Não gerencia permissões de projeto ou regras de negócio da PRO4TECH. |
+GraphRAG, extração de relações em grafo e os benchmarks de embeddings são propostas/experimentos de evolução; não são componentes que o Compose padrão instala. Mantenha essas hipóteses vinculadas às referências e atualize este status quando houver implementação e validação correspondentes.
 
----
-
-## 5. Seleção e Benchmark de Embeddings (Spike PRE-07)
-
-### Decisão Técnica: `BAAI/bge-m3` via Ollama Local
-
-* **Modelo Recomendado:** `BAAI/bge-m3` (Multilíngue nativo, topo do benchmark MTEB em PT-BR)
-* **Dimensão do Vetor:** **1024** (100% aderente à coluna `chunk.embedding vector(1024)` do PostgreSQL pgvector, sem necessidade de alterações no DDL).
-* **Janela de Contexto:** 8.192 tokens por chunk.
-* **Acurácia em PT-BR:** 100% Top-1 nos testes de similaridade semântica com margem de separação média de **+0,81** sobre ruído.
-
-### Comparativo dos Modelos Avaliados:
-
-| Modelo | Dimensão Vetorial | Compatibilidade `pgvector(1024)` | Acurácia Top-1 | Margem Média contra Distrator | Latência Média | Consumo RAM/VRAM |
-|---|:---:|:---:|:---:|:---:|:---:|:---:|
-| **`bge-m3`** | **1024** | **COMPATÍVEL** | **100%** | **+0,81** | **~142 ms** | ~3,0 GB |
-| **`multilingual-e5-large`** | 1024 | COMPATÍVEL | 100% | +0,74 | ~158 ms | ~3,1 GB |
-| **`nomic-embed-text`** | 768 | INCOMPATÍVEL | 100% | +0,59 | ~48 ms | ~1,1 GB |
-| **`all-MiniLM-L6-v2`** | 384 | INCOMPATÍVEL | 100% | +0,35 | ~22 ms | ~0,4 GB |
-
----
-
-## 6. Evolução Técnica: Proposta GraphRAG Híbrido
-
-O GraphRAG (Graph Retrieval-Augmented Generation) evolui o RAG vetorial unindo busca semântica por embeddings e navegação em grafo de conhecimento relacional.
-
-### Eixos do Grafo no Sinapse:
-- **`PROJETO`** $\leftrightarrow$ **`PESSOAS`** $\leftrightarrow$ **`TECNOLOGIAS / STACKS`** $\leftrightarrow$ **`DECISÕES`** $\leftrightarrow$ **`DOCUMENTOS`**
-
-### Modelo Relacional do Grafo no PostgreSQL:
-```sql
-CREATE TABLE knowledge_entity (
-    id UUID PRIMARY KEY,
-    project_id UUID NOT NULL REFERENCES projeto(id) ON DELETE CASCADE,
-    entity_type VARCHAR(50) NOT NULL, -- TECHNOLOGY, PERSON, PROJECT, DECISION
-    name TEXT NOT NULL,
-    normalized_name TEXT NOT NULL
-);
-
-CREATE TABLE knowledge_relation (
-    id UUID PRIMARY KEY,
-    project_id UUID NOT NULL REFERENCES projeto(id) ON DELETE CASCADE,
-    source_entity_id UUID NOT NULL REFERENCES knowledge_entity(id),
-    relation_type VARCHAR(80) NOT NULL, -- USES, WORKED_ON, DEPENDS_ON, JUSTIFIES
-    target_entity_id UUID NOT NULL REFERENCES knowledge_entity(id),
-    source_chunk_id UUID REFERENCES chunk(id),
-    confidence REAL
-);
-```
-
-### Pipeline GraphRAG de Consulta:
-1. **Filtro Estrito por Projeto:** Aplica `project_id` antes do traversal.
-2. **Hybrid Search:** Combina Similaridade Vetorial (`pgvector` HNSW) + Busca em Grafo (1-2 saltos).
-3. **Context Builder & Harness:** Injeta contexto enriquecido com entidades e citações exatas no prompt do LLM.
-
+- [Diagramas Mermaid](Diagrams/Architecture.mmd)
+- [Diagrama de arquitetura e ingestão](Diagrams/Vis%C3%A3o%20Geral%20da%20Arquitetura%20e%20Ingest%C3%A3o.jpg)
+- [Fluxo conceitual RAG](Diagrams/RAG.mmd)
+- [ERD](Diagrams/ERD.mmd)
+- [PRD e requisitos de produto](../PRD-PRO4TECH.md)
+- [PRD](../PRD-PRO4TECH.md)
