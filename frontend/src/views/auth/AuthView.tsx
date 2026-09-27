@@ -128,17 +128,6 @@ export function LoginOnCard({ onSwitch }: { onSwitch: () => void }) {
           {busy ? "Entrando…" : "Entrar"}
         </button>
       </form>
-
-      <div style={{ textAlign: "center", marginTop: "8px", fontSize: "0.85rem", color: "var(--text-muted)" }}>
-        Não tem uma conta?{" "}
-        <button
-          type="button"
-          onClick={onSwitch}
-          style={{ background: "none", border: "none", color: "var(--accent-secondary)", cursor: "pointer", textDecoration: "underline", font: "inherit" }}
-        >
-          Cadastre-se gratuitamente
-        </button>
-      </div>
     </>
   );
 }

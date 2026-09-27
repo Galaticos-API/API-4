@@ -5,14 +5,17 @@ import { pool } from "./db.js";
 
 // npm runs scripts with backend/ as the working directory, including when
 // invoked from the repository root via `npm --prefix backend run migrate`.
-const migrationsDir = resolve(process.cwd(), "../database/migrations");
+const migrationsDir = process.env.MIGRATIONS_DIR
+  ? resolve(process.env.MIGRATIONS_DIR)
+  : resolve(process.cwd(), "../database/migrations");
 
 async function loadMigration(file: string): Promise<string> {
   const path = join(migrationsDir, file);
   const sql = await readFile(path, "utf8");
-  // The baseline intentionally reuses the Docker bootstrap schema. Expand the
-  // psql include here so the same migration can run through the Node CLI.
-  return sql.replaceAll("\\ir ../init.sql", await readFile(join(migrationsDir, "../init.sql"), "utf8"));
+  const initSqlPath = process.env.INIT_SQL_PATH
+    ? resolve(process.env.INIT_SQL_PATH)
+    : join(migrationsDir, "../init.sql");
+  return sql.replaceAll("\\ir ../init.sql", await readFile(initSqlPath, "utf8"));
 }
 
 async function migrate(): Promise<void> {

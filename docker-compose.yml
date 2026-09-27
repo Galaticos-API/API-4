@@ -68,7 +68,9 @@ services:
       - sinapse-network
 
   backend:
-    build: ./backend
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
     container_name: sinapse-backend
     restart: unless-stopped
     ports:
@@ -85,8 +87,13 @@ services:
       - DOCUMENT_MAX_SIZE_MB=${DOCUMENT_MAX_SIZE_MB:-20}
       - DOCUMENT_STORAGE_DIR=/data/documents
       - DOCUMENT_EVENTS_WEBHOOK_URL=${DOCUMENT_EVENTS_WEBHOOK_URL:-}
+      - MIGRATIONS_DIR=/database/migrations
+      - INIT_SQL_PATH=/database/init.sql
     volumes:
       - documents_data:/data/documents
+      - ./database/migrations:/database/migrations:ro
+      - ./database/init.sql:/database/init.sql:ro
+      - ./database/seed:/database/seed:ro
     depends_on:
       postgres:
         condition: service_healthy

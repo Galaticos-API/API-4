@@ -5,9 +5,9 @@
   "private": true,
   "main": "dist/index.js",
   "scripts": {
-    "seed:validate": "tsx src/database/seed.ts --validate",
-    "seed:apply": "tsx src/database/seed.ts --apply",
-    "test:seed": "tsx --test src/database/seed.test.ts",
+    "seed:validate": "node dist/database/seed.js --validate",
+    "seed:apply": "node dist/database/seed.js --apply",
+    "test:seed": "node --test dist/database/seed.test.js",
     "dev": "tsx watch src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js",

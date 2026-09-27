@@ -53,9 +53,14 @@ export async function loadDataset(): Promise<Dataset> {
 }
 
 export function validateTarget(url: string | undefined, environment: string | undefined): string {
-  if (!url || environment === "production") throw new Error("Seed restrito a banco de desenvolvimento/teste explícito");
+  if (!url || (environment === "production" && process.env.ALLOW_SEED !== "true")) {
+    throw new Error("Seed restrito a banco de desenvolvimento/teste explícito");
+  }
   const target = new URL(url);
-  if (!["postgres:", "postgresql:"].includes(target.protocol) || !/_(dev|test)$/.test(decodeURIComponent(target.pathname))) throw new Error("Banco deve terminar em _dev ou _test");
+  const dbName = decodeURIComponent(target.pathname).replace(/^\//, "");
+  if (!["postgres:", "postgresql:"].includes(target.protocol) || (!/_(dev|test)$/.test(dbName) && dbName !== "sinapse")) {
+    throw new Error("Banco deve terminar em _dev, _test ou ser 'sinapse'");
+  }
   return url;
 }
 

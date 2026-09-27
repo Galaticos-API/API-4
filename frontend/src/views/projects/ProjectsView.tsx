@@ -23,10 +23,10 @@ type Result =
   | { state: "loading" }
   | { state: "error"; message: string }
   | {
-      state: "ready";
-      projects: Project[];
-      total: number;
-    };
+    state: "ready";
+    projects: Project[];
+    total: number;
+  };
 
 const empty: ProjectInput = {
   nome: "",
@@ -82,9 +82,9 @@ export function ProjectsView({
 
     const request = isDetail
       ? getProject(id, signal).then((project) => ({
-          projects: [project],
-          total: 1,
-        }))
+        projects: [project],
+        total: 1,
+      }))
       : listProjects(signal, offset, status);
 
     request
@@ -171,10 +171,6 @@ export function ProjectsView({
               : "Projetos"}
           </h1>
 
-          <p className="muted">
-            Cada projeto concentra seu backlog,
-            documentos e decisões.
-          </p>
         </div>
 
         {(isDetail || canCreate) && (
@@ -237,7 +233,7 @@ export function ProjectsView({
               canCreate={
                 canCreate &&
                 result.projects[0].status !==
-                  "arquivado"
+                "arquivado"
               }
             />
 
@@ -315,11 +311,10 @@ export function ProjectsView({
                 >
                   <div>
                     <span
-                      className={`badge-garakis ${
-                        project.status === "ativo"
+                      className={`badge-garakis ${project.status === "ativo"
                           ? "green"
                           : ""
-                      }`}
+                        }`}
                     >
                       {project.status}
                     </span>
@@ -343,7 +338,7 @@ export function ProjectsView({
                     >
                       Cliente: {project.cliente}{" "}
                       {project.documentos_count !==
-                      undefined
+                        undefined
                         ? `· ${project.documentos_count} documentos`
                         : ""}
                     </p>
@@ -380,22 +375,22 @@ export function ProjectsView({
 
                     {project.status ===
                       "arquivado" && (
-                      <p
-                        className="help"
-                        style={{
-                          marginTop: "4px",
-                        }}
-                      >
-                        Arquivado em:{" "}
-                        {project.archived_at
-                          ? new Date(
+                        <p
+                          className="help"
+                          style={{
+                            marginTop: "4px",
+                          }}
+                        >
+                          Arquivado em:{" "}
+                          {project.archived_at
+                            ? new Date(
                               project.archived_at,
                             ).toLocaleString(
                               "pt-BR",
                             )
-                          : "data não registrada"}
-                      </p>
-                    )}
+                            : "data não registrada"}
+                        </p>
+                      )}
                   </div>
                 </article>
               ))}
@@ -536,10 +531,10 @@ function ProjectDetail({
     const last = PROJECT_TABS.length - 1;
     const target =
       event.key === "ArrowRight" ? (index + 1) % PROJECT_TABS.length
-      : event.key === "ArrowLeft" ? (index - 1 + PROJECT_TABS.length) % PROJECT_TABS.length
-      : event.key === "Home" ? 0
-      : event.key === "End" ? last
-      : -1;
+        : event.key === "ArrowLeft" ? (index - 1 + PROJECT_TABS.length) % PROJECT_TABS.length
+          : event.key === "Home" ? 0
+            : event.key === "End" ? last
+              : -1;
     if (target < 0) return;
     event.preventDefault();
     selectTab(PROJECT_TABS[target].id);
@@ -565,11 +560,10 @@ function ProjectDetail({
       <div className="head-section">
         <div>
           <span
-            className={`badge-garakis ${
-              project.status === "ativo"
+            className={`badge-garakis ${project.status === "ativo"
                 ? "green"
                 : ""
-            }`}
+              }`}
           >
             {project.status}
           </span>
@@ -619,8 +613,8 @@ function ProjectDetail({
           Somente leitura · Arquivado em:{" "}
           {project.archived_at
             ? new Date(
-                project.archived_at,
-              ).toLocaleString("pt-BR")
+              project.archived_at,
+            ).toLocaleString("pt-BR")
             : "data não registrada"}
         </div>
       )}
@@ -645,99 +639,99 @@ function ProjectDetail({
       </div>
 
       <div id={`project-panel-${activeTab}`} role="tabpanel" aria-labelledby={`project-tab-${activeTab}`}>
-      {activeTab === "overview" && (
-        <div className="grid-garakis three">
-          <article className="card-garakis">
-            <h2>Backlog</h2>
+        {activeTab === "overview" && (
+          <div className="grid-garakis three">
+            <article className="card-garakis">
+              <h2>Backlog</h2>
 
-            <p className="muted">
-              Épicos, features e comportamentos
-              testáveis em PBIs.
-            </p>
+              <p className="muted">
+                Épicos, features e comportamentos
+                testáveis em PBIs.
+              </p>
 
-            <button
-              className="btn-garakis ghost"
-              onClick={() =>
-                selectTab("backlog")
-              }
-            >
-              Ver itens de trabalho →
-            </button>
-          </article>
+              <button
+                className="btn-garakis ghost"
+                onClick={() =>
+                  selectTab("backlog")
+                }
+              >
+                Ver itens de trabalho →
+              </button>
+            </article>
 
-          <article className="card-garakis">
-            <h2>Documentos</h2>
+            <article className="card-garakis">
+              <h2>Documentos</h2>
 
-            <p className="muted">
-              Referências e documentos de
-              especificação indexados.
-            </p>
+              <p className="muted">
+                Referências e documentos de
+                especificação indexados.
+              </p>
 
-            <button
-              className="btn-garakis ghost"
-              onClick={() =>
-                selectTab("documents")
-              }
-            >
-              Ver documentos →
-            </button>
-          </article>
+              <button
+                className="btn-garakis ghost"
+                onClick={() =>
+                  selectTab("documents")
+                }
+              >
+                Ver documentos →
+              </button>
+            </article>
 
-          <article className="card-garakis">
-            <h2>Conhecimento</h2>
+            <article className="card-garakis">
+              <h2>Conhecimento</h2>
 
-            <p className="muted">
-              O conteúdo processado pode ser
-              pesquisado e consultado.
-            </p>
+              <p className="muted">
+                O conteúdo processado pode ser
+                pesquisado e consultado.
+              </p>
 
-            <button
-              className="btn-garakis ghost"
-              onClick={() =>
-                navigate("/knowledge")
-              }
-            >
-              Pesquisar acervo →
-            </button>
-          </article>
-        </div>
-      )}
+              <button
+                className="btn-garakis ghost"
+                onClick={() =>
+                  navigate("/knowledge")
+                }
+              >
+                Pesquisar acervo →
+              </button>
+            </article>
+          </div>
+        )}
 
-      {activeTab === "backlog" && (
-        <BacklogTreeView
-          key={`${project.id}-${project.status}`}
-          projectId={project.id}
-          canCreate={canCreate}
-        />
-      )}
+        {activeTab === "backlog" && (
+          <BacklogTreeView
+            key={`${project.id}-${project.status}`}
+            projectId={project.id}
+            canCreate={canCreate}
+          />
+        )}
 
-      {activeTab === "decisions" && (
-        <DecisionsPanel
-          key={project.id}
-          kind="projeto"
-          id={project.id}
-          canWrite={canCreate}
-          readOnlyNote={archived ? "Projeto arquivado: as decisões ficam disponíveis somente para consulta." : undefined}
-        />
-      )}
+        {activeTab === "decisions" && (
+          <DecisionsPanel
+            key={project.id}
+            kind="projeto"
+            id={project.id}
+            canWrite={canCreate}
+            readOnlyNote={archived ? "Projeto arquivado: as decisões ficam disponíveis somente para consulta." : undefined}
+          />
+        )}
 
-      {activeTab === "documents" && (
-        <DocumentsView
-          embedded
-          projectId={project.id}
-          projectName={project.nome}
-          canWrite={canCreate}
-          archived={project.status === "arquivado"}
-        />
-      )}
+        {activeTab === "documents" && (
+          <DocumentsView
+            embedded
+            projectId={project.id}
+            projectName={project.nome}
+            canWrite={canCreate}
+            archived={project.status === "arquivado"}
+          />
+        )}
 
-      {activeTab === "repo-analyzer" && (
-        <RepoAnalyzerView
-          key={project.id}
-          projectId={project.id}
-          canStart={!archived}
-        />
-      )}
+        {activeTab === "repo-analyzer" && (
+          <RepoAnalyzerView
+            key={project.id}
+            projectId={project.id}
+            canStart={!archived}
+          />
+        )}
       </div>
     </>
   );
@@ -890,14 +884,14 @@ function ProjectForm() {
                     error.status === 401
                     ? "É necessário entrar para criar projetos."
                     : error instanceof
-                          ApiError &&
-                        error.status === 403
+                      ApiError &&
+                      error.status === 403
                       ? "Você não tem permissão para criar projetos. Entre em contato com o administrador."
                       : error instanceof
-                            ApiError &&
-                          [400, 422].includes(
-                            error.status,
-                          )
+                        ApiError &&
+                        [400, 422].includes(
+                          error.status,
+                        )
                         ? "Revise os dados informados. O servidor recusou o cadastro."
                         : "Não foi possível confirmar a criação. Consulte a lista de projetos antes de tentar novamente.",
                 );
