@@ -113,6 +113,7 @@ export function FeatureForm({ projectId, epicoId }: { projectId: string; epicoId
 }
 
 import { ItemHistoryView } from "./ItemHistoryView";
+import { DecisionsPanel } from "./DecisionsPanel";
 
 type FeatureFields = Pick<FeatureInput, "titulo" | "descricao" | "objetivo" | "tecnologias_ids"> & { justificativa?: string };
 
@@ -279,6 +280,7 @@ export function FeatureDetail({ projectId, epicoId, featureId, canEdit, children
       <ItemArchiveView project={feature!} kind="features" canWrite={canEdit && !readOnly && !editing && !saving && !completing} onArchived={() => setAttempt(v => v + 1)} />
       <CriteriaEditor entidadeTipo="feature" entidadeId={feature!.id} canEdit={canEdit && !readOnly} titulo="Critérios da feature"
         itemConcluido={feature!.status === "concluido"} justificativaObrigatoria={justificationRequired} />
+      <DecisionsPanel kind="feature" id={feature!.id} canWrite={canEdit && !readOnly} readOnlyNote={readOnly ? "Item ou ancestral arquivado: as decisões ficam disponíveis somente para consulta." : undefined} />
       <ItemHistoryView entidadeTipo="feature" entidadeId={feature!.id} refreshTrigger={attempt} />
       <ReadOnlyContext.Provider value={readOnly}>{children}</ReadOnlyContext.Provider>
     </section>

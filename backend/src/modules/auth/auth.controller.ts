@@ -15,6 +15,7 @@ import {
   SessionService,
 } from "./session.service.js";
 import { loginSchema, registerSchema } from "./auth.types.js";
+import { extractSessionToken } from "../../middleware/requireAuth.js";
 
 export class AuthController {
   constructor(
@@ -37,6 +38,18 @@ export class AuthController {
           details: parsed.error.flatten(),
         });
         return;
+      }
+
+      if (parsed.data.role === "admin") {
+        const token = extractSessionToken(req);
+        const session = token ? await this.sessions.validateSession(token) : null;
+        if (!session?.valid || session.user.role !== "admin") {
+          res.status(403).json({
+            error: "Somente administradores podem criar contas de administrador.",
+            code: "FORBIDDEN",
+          });
+          return;
+        }
       }
 
       const result = await this.service.register(parsed.data);

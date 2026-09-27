@@ -25,6 +25,11 @@ const envSchema = z.object({
   AUTH_LOCKOUT_MINUTES: z.coerce.number().int().min(1).default(15),
   AUTH_SESSION_IDLE_MINUTES: z.coerce.number().int().min(1).default(30),
   AUTH_SESSION_MAX_HOURS: z.coerce.number().int().min(1).default(12),
+
+  // S1-19/S1-22 — Documentos
+  DOCUMENT_MAX_SIZE_MB: z.coerce.number().positive().max(100).default(20),
+  DOCUMENT_STORAGE_DIR: z.string().min(1).default("storage/documents"),
+  DOCUMENT_EVENTS_WEBHOOK_URL: z.string().optional(),
 });
 
 export const env = envSchema.parse(process.env);

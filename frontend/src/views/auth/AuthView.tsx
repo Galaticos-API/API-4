@@ -149,7 +149,7 @@ export function RegisterOnCard({ onSwitch }: { onSwitch: () => void }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [role, setRole] = useState<"po" | "dev" | "admin">("po");
+  const [role, setRole] = useState<"po" | "dev">("po");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -196,10 +196,9 @@ export function RegisterOnCard({ onSwitch }: { onSwitch: () => void }) {
         <input id="reg-email" type="email" autoComplete="username" required value={email} onChange={e => setEmail(e.target.value)} disabled={busy} placeholder="seu.email@empresa.com" />
 
         <label htmlFor="reg-role" style={{ fontSize: "0.85rem", fontWeight: 600 }}>Função no Projeto</label>
-        <select id="reg-role" value={role} onChange={e => setRole(e.target.value as "po" | "dev" | "admin")} disabled={busy}>
+        <select id="reg-role" value={role} onChange={e => setRole(e.target.value as "po" | "dev")} disabled={busy}>
           <option value="po">Product Owner (PO)</option>
           <option value="dev">Desenvolvedor (DEV)</option>
-          <option value="admin">Administrador (ADMIN)</option>
         </select>
 
         <label htmlFor="reg-password" style={{ fontSize: "0.85rem", fontWeight: 600 }}>Senha (mínimo 6 caracteres)</label>

@@ -1,23 +1,25 @@
 import { apiRequest } from "../api/api_auth";
 
+export type RepoAnalysisStatus = "iniciado" | "em_execucao" | "concluido" | "falha";
+
 export interface RepoAnalysis {
     id: string;
     projeto_id: string;
     repositorio_url: string;
-    run_id: string;
-    status: "iniciado" | "em_execucao" | "concluido" | "falha";
-    etapa: string;
-    etapa_label: string;
-    progresso: number;
-    mensagem?: string;
-    erro?: string;
-    relatorio_markdown?: string;
-    metadados?: Record<string, any>;
+    run_id: string | null;
+    status: RepoAnalysisStatus;
+    etapa: string | null;
+    etapa_label: string | null;
+    progresso: number | null;
+    mensagem?: string | null;
+    erro?: string | null;
+    relatorio_markdown?: string | null;
+    metadados?: Record<string, unknown> | null;
     created_at: string;
     updated_at: string;
-    concluido_em?: string;
-    autor_nome?: string;
-    autor_email?: string;
+    concluido_em?: string | null;
+    autor_nome?: string | null;
+    autor_email?: string | null;
 }
 
 export async function startRepoAnalysis(projectId: string, repositoryUrl: string, signal?: AbortSignal): Promise<RepoAnalysis> {
@@ -34,9 +36,9 @@ export async function listRepoAnalyses(projectId: string, signal?: AbortSignal):
         method: "GET",
         signal,
     });
-    const data = await response.json();
+    const data: unknown = await response.json();
     if (!Array.isArray(data)) throw new Error("Lista de análises de repositório inválida");
-    return data;
+    return data as RepoAnalysis[];
 }
 
 export async function getRepoAnalysis(projectId: string, analysisId: string, signal?: AbortSignal): Promise<RepoAnalysis> {

@@ -30,6 +30,16 @@ export function errorHandler(
     return;
   }
 
+  if ((err as { type?: string }).type === "entity.too.large") {
+    const limit = (err as { limit?: unknown }).limit;
+    res.status(413).json({
+      error: "O arquivo excede o tamanho máximo permitido.",
+      code: "PAYLOAD_TOO_LARGE",
+      details: typeof limit === "number" ? { max_bytes: limit } : undefined,
+    });
+    return;
+  }
+
   if (err instanceof SyntaxError && (err as { type?: string }).type === "entity.parse.failed") {
     res.status(400).json({
       error: "Corpo JSON inválido.",

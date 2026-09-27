@@ -12,8 +12,11 @@ import { criteriaRouter } from "./modules/criteria/criteria.routes.js";
 import qualityRouter from "./modules/quality/quality.routes.js";
 import { epicsCompatRouter } from "./modules/epics/epics.compat.routes.js";
 import { repoAnalysesRouter } from './modules/repo-analyses/repo-analyses.routes';
-import { authRouter } from "./modules/auth/auth.routes.js";
+import { epicDecisionsRouter, featureDecisionsRouter, pbiDecisionsRouter, projectDecisionsRouter } from "./modules/decisions/decisions.routes.js";
+import { backlogSearchRouter } from "./modules/backlog-search/backlog-search.routes.js";
 import { documentsRouter } from "./modules/documents/documents.routes.js";
+import { documentsService, startDocumentsBackgroundWorker } from "./modules/documents/documents.service.js";
+import { authRouter } from "./modules/auth/auth.routes.js";
 import { searchRouter } from "./modules/search/search.routes.js";
 import { chatRouter } from "./modules/chat/chat.routes.js";
 import { developersRouter } from "./modules/developers/developers.routes.js";
@@ -33,6 +36,7 @@ app.use("/api/v1/auth", authRouter);
 // Health Check Endpoint
 app.get("/health", async (_req: Request, res: Response) => {
   const dbHealthy = await checkDatabaseConnection();
+  const documents = dbHealthy ? await documentsService.health().catch(() => null) : null;
 
   res.status(dbHealthy ? 200 : 503).json({
     status: dbHealthy ? "healthy" : "degraded",
@@ -43,6 +47,7 @@ app.get("/health", async (_req: Request, res: Response) => {
       database: dbHealthy ? "connected" : "disconnected",
       aiService: env.AI_SERVICE_URL,
     },
+    documents,
   });
 });
 
@@ -61,10 +66,6 @@ app.use("/api/v1/criteria", requireAuth, criteriaRouter);
 app.use("/api/v1/quality", qualityRouter);
 app.use("/api/v1/audit", auditRouter);
 
-// Documentos do projeto
-app.use("/api/v1/projects/:projectId/documents", documentsRouter);
-app.use("/api/v1/documents", documentsRouter);
-
 // Busca híbrida e acervo
 app.use("/api/v1/search", searchRouter);
 
@@ -80,6 +81,18 @@ app.use("/api/v1/admin", adminRouter);
 
 // Repo analyzer
 app.use('/api/v1/projects/:projectId/repo-analyses', repoAnalysesRouter);
+
+// Decisões em qualquer nível da hierarquia (S1-18)
+app.use("/api/v1/projects/:entityId/decisions", projectDecisionsRouter);
+app.use("/api/v1/epics/:entityId/decisions", epicDecisionsRouter);
+app.use("/api/v1/features/:entityId/decisions", featureDecisionsRouter);
+app.use("/api/v1/pbis/:entityId/decisions", pbiDecisionsRouter);
+
+// Busca textual no backlog (S1-17)
+app.use("/api/v1/projects/:projectId/backlog-search", backlogSearchRouter);
+
+// Documentos do projeto (S1-19/S1-20/S1-22)
+app.use("/api/v1/projects/:projectId/documents", requireAuth, documentsRouter);
 
 // Swagger Documentation
 app.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
@@ -108,6 +121,10 @@ app.use(errorHandler);
 
 const PORT = env.PORT;
 if (env.NODE_ENV !== "test") {
+  startDocumentsBackgroundWorker();
+  if (!env.DOCUMENT_EVENTS_WEBHOOK_URL?.trim()) {
+    console.warn("[Documents] DOCUMENT_EVENTS_WEBHOOK_URL is not configured; removal events will retry until a consumer is configured.");
+  }
   app.listen(PORT, () => {
     console.log(`[Sinapse Backend] Servidor iniciado na porta ${PORT}`);
     console.log(`[Sinapse Backend] Healthcheck em http://localhost:${PORT}/health`);
