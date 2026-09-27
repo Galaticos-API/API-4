@@ -118,7 +118,8 @@ h2 {
   color: #fff;
 }
 
-.user-menu-btn {
+.user-menu-btn,
+.user-menu-label {
   color: var(--muted);
   border: 0;
   background: transparent;
@@ -126,6 +127,13 @@ h2 {
   font-weight: 600;
   padding: 6px 12px;
   border-radius: 8px;
+}
+
+.user-menu-label {
+  cursor: default;
+}
+
+.user-menu-btn {
   transition: background 0.15s ease;
 }
 
@@ -579,7 +587,8 @@ h2 {
   .top-header {
     padding: 0 18px;
   }
-  .user-menu-btn {
+  .user-menu-btn,
+  .user-menu-label {
     display: none;
   }
   .nav-links {
@@ -628,7 +637,8 @@ h2 {
     margin-left: auto;
   }
 
-  .user-menu-btn {
+  .user-menu-btn,
+  .user-menu-label {
     max-width: 150px;
     overflow: hidden;
     text-overflow: ellipsis;

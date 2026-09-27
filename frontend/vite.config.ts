@@ -1,9 +1,12 @@
 /// <reference types="vitest/config" />
 import { defineConfig } from "vitest/config";
+import { loadEnv } from "vite";
 import react from "@vitejs/plugin-react";
 
 // https://vite.dev/config/
-export default defineConfig({
+export default defineConfig(({ mode }) => {
+  const env = loadEnv(mode, ".", "VITE_");
+  return {
   plugins: [react()],
   test: {
     environment: "jsdom",
@@ -14,13 +17,14 @@ export default defineConfig({
     port: 5173,
     proxy: {
       "/api": {
-        target: "http://localhost:3001",
+        target: env.VITE_API_PROXY_TARGET ?? "http://localhost:3001",
         changeOrigin: true,
       },
       "/health": {
-        target: "http://localhost:3001",
+        target: env.VITE_API_PROXY_TARGET ?? "http://localhost:3001",
         changeOrigin: true,
       },
     },
   },
+  };
 });

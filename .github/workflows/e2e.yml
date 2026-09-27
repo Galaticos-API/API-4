@@ -1,8 +1,26 @@
 name: E2E (navegador)
 
-# Execução manual: o serviço de IA não é necessário; os cenários verificam o
-# comportamento com ele indisponível. Não bloqueia PRs.
+# O serviço de IA não é necessário: os cenários cobrem seu estado indisponível.
+# Executa a regressão de navegador em mudanças de aplicação, dados e testes.
 on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "backend/**"
+      - "frontend/**"
+      - "database/**"
+      - "e2e/**"
+      - "docker-compose.yml"
+      - ".github/workflows/e2e.yml"
+  push:
+    branches: [main]
+    paths:
+      - "backend/**"
+      - "frontend/**"
+      - "database/**"
+      - "e2e/**"
+      - "docker-compose.yml"
+      - ".github/workflows/e2e.yml"
   workflow_dispatch:
 
 jobs:

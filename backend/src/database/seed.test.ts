@@ -28,6 +28,7 @@ test("recusa produção, destino ausente e banco não dedicado", () => {
   assert.throws(() => validateTarget(undefined, "test"));
   assert.throws(() => validateTarget("postgresql://localhost/acervo_test", "production"));
   assert.throws(() => validateTarget("postgresql://localhost/sinapse", "development"));
+  assert.throws(() => validateTarget("postgresql://localhost/acervo", "development"));
   assert.equal(validateTarget("postgresql://localhost/acervo_test", "test"), "postgresql://localhost/acervo_test");
 });
 test("carga SQL é idempotente e recusa sobrescrita", { skip: !process.env.SEED_TEST_DATABASE_URL }, async () => {

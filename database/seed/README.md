@@ -9,7 +9,7 @@ competências inventadas. Cada registro tem repositório, revisão, caminho, loc
 hash SHA-256 do texto fonte em UTF-8 e descrição da transformação; a carga persiste
 essa origem em `auditoria` e nos metadados dos chunks.
 
-Dentro de `backend`, execute `npm ci`, `npm run seed:validate` e `npm run test:seed`.
+Dentro de `backend`, execute `npm ci`, `npm run build`, `npm run seed:validate` e `npm run test:seed`.
 Para carregar, prepare um banco dedicado com as migrações 001–003. Configure
 `SEED_DATABASE_URL` por variável de ambiente (não em argumentos nem arquivos versionados)
 e execute `npm run seed:apply`. O nome do banco deve terminar em `_dev` ou `_test`;
