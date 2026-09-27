@@ -1,5 +1,10 @@
 # Documentos: upload, remoção, outbox e escopo (S1-19, S1-20, S1-22)
 
+> Estado revisado em 27/09/2026. Este guia detalha o contrato de documentos da
+> Sprint 1. O upload persiste o arquivo e seus metadados; extração, chunking e
+> indexação não são prometidos como concluídos. Veja também a [arquitetura](Architecture/README.md)
+> e a [referência da API](api/openapi.yaml).
+
 ## Escopo desta entrega x Sprint 2
 
 | Item | Entregue (Sprint 1) | Fica para a S2-01 |
@@ -74,10 +79,9 @@ Os `chunk` no PostgreSQL já são removidos pelo backend na mesma transação; o
 ## Como validar
 
 ```bash
-cd backend && npm test && npm run build
-# Com PostgreSQL descartável (nome terminando em _test):
-ARCHIVE_TEST_DATABASE_URL=postgresql://user:pass@localhost:5432/sinapse_x_test \
-BACKLOG_TREE_TEST_DATABASE_URL=$ARCHIVE_TEST_DATABASE_URL npm test
+cd backend
+npm test
+npm run build
 ```
 
-Os testes de banco cobrem migração 012 (banco limpo e já na 011, idempotência e dados legados), corrida arquivamento x upload/remoção, lease e backoff da outbox, operações de armazenamento e paginação estável isolada por projeto. Os testes E2E de navegador estão em `e2e/` (ver `e2e/README.md`).
+Os testes de banco cobrem migração 012 (banco limpo e já na 011, idempotência e dados legados), corrida arquivamento x upload/remoção, lease e backoff da outbox, operações de armazenamento e paginação estável isolada por projeto. Para habilitar as suítes PostgreSQL, configure URLs de banco descartável documentadas no [guia de setup](SETUP_GUIDE.md); no PowerShell use `$env:NOME_DA_VARIAVEL = '...'`. Nunca aponte essas variáveis para uma base compartilhada ou produção. Os testes E2E de navegador estão em `e2e/` (ver [README E2E](../e2e/README.md)).

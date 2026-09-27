@@ -4,6 +4,11 @@ As alterações estruturais do banco devem ser numeradas e aplicadas em ordem
 (`001_...sql`, `002_...sql`, etc.). Cada arquivo deve ser idempotente quando
 possível e conter apenas a alteração daquela versão.
 
+O baseline inicial é `database/init.sql`. Em volumes já existentes, o backend
+executa migrations pendentes ao iniciar o container e registra o resultado em
+`_schema_migrations`. Para executar no host, use `npm --prefix backend run migrate`
+com as variáveis corretas. Consulte o [guia de setup](../../docs/SETUP_GUIDE.md).
+
 ## Baseline atual
 
 `database/init.sql` é o baseline inicial do projeto e é executado pelo
@@ -32,7 +37,7 @@ O runner registra o nome completo. `004_z_prepare_criteria_order.sql` precisa
 ordenar antes de `005_backlog_hierarchy_domain.sql` para preparar critérios
 legados antes da criação do índice único. `006_reconcile_epic_status.sql`
 uniformiza a constraint preservando os estados legados como somente leitura
-na API de épicos. Veja [execução e recuperação](../CONSOLIDACAO_S1_05.md).
+na API de épicos. Veja também a documentação de execução e recuperação nesta seção.
 
 `npm run test:integration:s105` no backend valida banco vazio, histórico antigo,
 histórico backlog e ambas as migrations, com repetição e rollback de auditoria.
@@ -79,3 +84,17 @@ incrementa sua versão ao introduzir a nova regra. A atualização da política 
 registrada em `auditoria` como alteração de migration (sem atribuir a um admin).
 O teste PostgreSQL de compatibilidade verifica aplicabilidade, presença/ausência
 de protótipo e reexecução idempotente.
+
+## Registro de decisões (S1)
+
+`013_decision_records.sql` cria o armazenamento de decisões vinculadas aos
+níveis do backlog e seus índices de consulta. Rotas e schemas estão no
+[OpenAPI](../../docs/api/openapi.yaml); o backend valida o vínculo com o projeto
+e registra auditoria.
+
+## Testes PostgreSQL descartáveis
+
+Testes de integração devem apontar para bases descartáveis com os sufixos
+exigidos por cada script (`_test`, `_s105_test` etc.). Não use a base local
+compartilhada. Consulte os comandos e as proteções no [guia de setup](../../docs/SETUP_GUIDE.md)
+e nos scripts de `backend/package.json`.

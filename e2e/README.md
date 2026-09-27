@@ -1,38 +1,47 @@
-# Testes E2E (navegador + API real + PostgreSQL)
+# Testes E2E de navegador
 
-Cobrem os fluxos autenticados de ponta a ponta com o backend real, o PostgreSQL e o frontend no Chrome.
-Não substituem os testes de unidade de cada módulo.
+Os cenários exercitam a aplicação no Chrome usando frontend, backend e PostgreSQL reais. Eles complementam, mas não substituem, os testes unitários e de integração dos módulos.
 
 ## Pré-requisitos
 
-- PostgreSQL com todas as migrations aplicadas (`cd backend && npm run migrate`).
-- Backend em `http://localhost:3001` (`cd backend && npm run dev`) com `DOCUMENT_STORAGE_DIR` gravável.
-- Frontend em `http://localhost:5173` (`cd frontend && npm run dev`).
-- Google Chrome instalado (ou `E2E_CHROME_PATH` apontando para um executável Chromium).
-- O serviço de IA **não** é necessário: os testes verificam o comportamento quando ele está indisponível.
+- PostgreSQL/pgvector dedicado com migrations aplicadas.
+- Backend acessível em `http://localhost:3001` e `DOCUMENT_STORAGE_DIR` gravável.
+- Frontend acessível em `http://localhost:5173` e encaminhando `/api` ao backend.
+- Chrome ou Chromium instalado.
+- Node.js 20+.
 
-## Suítes
+O serviço de IA não é necessário: o conjunto valida também o comportamento quando o serviço está indisponível. Não rode a suíte sobre banco compartilhado ou de produção; cada cenário cria usuários, projetos e dados próprios.
 
-| Arquivo | Cobre |
+## Cobertura
+
+| Arquivo | Principais fluxos |
 |---|---|
-| `tests/documents.e2e.mjs` | Upload/lista/remoção, perfis, arquivado, isolamento, limite, cursor, abas |
-| `tests/assistants.e2e.mjs` | RepoAnalyzer, chat, cadastro público sem admin |
-| `tests/flows.e2e.mjs` | Projetos, arquivamento, hierarquia, critérios/qualidade, busca S1-17, decisões S1-18, autorização |
-| `tests/hierarchy-ui.e2e.mjs` | Épico → feature → PBI e arquivamento pelas telas ativas |
-| `tests/a11y.e2e.mjs` | axe (WCAG 2 A/AA) em 10 telas e foco visível por teclado |
+| `tests/documents.e2e.mjs` | Upload, lista, remoção, perfis, projeto arquivado, isolamento, limite, cursor e abas. |
+| `tests/assistants.e2e.mjs` | RepoAnalyzer, chat e limites de cadastro público. |
+| `tests/flows.e2e.mjs` | Projetos, arquivamento, hierarquia, qualidade, busca, decisões e autorização. |
+| `tests/hierarchy-ui.e2e.mjs` | Criação de épico → feature → PBI, critérios e arquivamento pelas telas. |
+| `tests/a11y.e2e.mjs` | axe WCAG 2 A/AA em telas principais e navegação/foco por teclado. |
 
-No GitHub há o workflow manual **E2E (navegador)** (`.github/workflows/e2e.yml`).
+## Executar localmente
 
-## Execução
+Configure as URLs para os serviços ativos (os padrões já são os da tabela de pré-requisitos):
 
 ```bash
 cd e2e
 npm ci
-npm test                          # todos os cenários
-node --test tests/documents.e2e.mjs  # uma suíte
+npm test
 ```
 
-Variáveis: `E2E_API_URL`, `E2E_APP_URL`, `E2E_CHROME_PATH`, `E2E_TIMEOUT_MS`.
+Para executar um arquivo isolado:
 
-Cada cenário cria usuários e projetos próprios (nomes únicos), então pode rodar repetidamente no mesmo banco de desenvolvimento.
-Use um banco descartável em ambientes compartilhados.
+```bash
+node --test tests/documents.e2e.mjs
+```
+
+Variáveis opcionais: `E2E_API_URL`, `E2E_APP_URL`, `E2E_CHROME_PATH` e `E2E_TIMEOUT_MS`. `E2E_API_URL` deve incluir o prefixo `/api/v1`.
+
+## GitHub Actions
+
+O workflow [E2E (navegador)](../.github/workflows/e2e.yml) roda automaticamente em pull requests para `main` e em pushes para `main` quando mudanças afetam backend, frontend, banco, E2E, Compose ou o próprio workflow. Também pode ser iniciado manualmente pelo `workflow_dispatch`.
+
+Cada execução de CI provisiona PostgreSQL descartável, aplica migrations, inicia frontend/backend e executa os cenários no Chrome. O job publica logs dos serviços quando falha.
