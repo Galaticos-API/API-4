@@ -1,3 +1,4 @@
+import { ApiError } from "../../api/api_auth";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   MAX_QUESTION_LENGTH,
@@ -9,11 +10,10 @@ import {
   type ChatMessage,
   type ChatOrigin,
 } from "../../api/api_chat";
-import { listProjects } from "../../api/api_projects";
+import { listChatProjects } from "../../api/api_chat";
 import { ORIGIN_BADGE, SUGGESTED_PROMPTS, formatClock, formatRelative, remainingCharacters } from "../../models/chat";
 import { Alert, Badge, Button } from "../common/ui";
 import { Markdown } from "../common/Markdown";
-import "../../assets/styles/garakis-prototype.css";
 import "../../assets/styles/chat.css";
 
 interface ProjectOption {
@@ -70,8 +70,8 @@ export function ChatView() {
   useEffect(() => {
     void loadConversations(true);
     const controller = new AbortController();
-    void listProjects(AbortSignal.any([controller.signal, AbortSignal.timeout(15000)]))
-      .then((page) => { if (mounted.current) setProjects(page.projects.map((project) => ({ id: project.id, nome: project.nome }))); })
+    void listChatProjects(AbortSignal.any([controller.signal, AbortSignal.timeout(15000)]))
+      .then((page) => { if (mounted.current) setProjects(page.map((project) => ({ id: project.id, nome: project.nome }))); })
       .catch(() => undefined);
     return () => controller.abort();
   }, [loadConversations]);
@@ -128,7 +128,7 @@ export function ChatView() {
 
   const send = useCallback(async (text: string, retryId?: string) => {
     const question = text.trim();
-    if (!question || sendLock.current) return;
+    if (!question || sendLock.current || !scopeId) return;
     sendLock.current = true;
     setSending(true);
     setSendError("");
@@ -152,12 +152,16 @@ export function ChatView() {
     } catch (error) {
       if (!mounted.current) return;
       setMessages((current) => current.map((item) => (item.id === pendingId ? { ...item, failed: true } : item)));
+      if (error instanceof ApiError && error.details && typeof error.details === "object" && "details" in error.details) {
+        const detail = error.details.details as { conversa_id?: string };
+        if (detail?.conversa_id) { setActiveId(detail.conversa_id); void loadMessages(detail.conversa_id); void loadConversations(false); }
+      }
       setSendError(describeChatError(error));
     } finally {
       sendLock.current = false;
       if (mounted.current) setSending(false);
     }
-  }, [activeId, scopeId, loadConversations]);
+  }, [activeId, scopeId, loadConversations, loadMessages]);
 
   const copy = async (message: ThreadMessage) => {
     try {
@@ -170,7 +174,7 @@ export function ChatView() {
   };
 
   const remaining = remainingCharacters(draft, MAX_QUESTION_LENGTH);
-  const canSend = draft.trim().length > 0 && remaining >= 0 && !sending;
+  const canSend = Boolean(scopeId) && draft.trim().length > 0 && remaining >= 0 && !sending;
   const failedMessage = messages.find((item) => item.failed);
 
   return (
@@ -184,7 +188,7 @@ export function ChatView() {
       </header>
 
       <div className="chatx-layout">
-        <aside className="card-garakis chat-sidebar" aria-label="Conversas">
+        <aside className="ds-card chat-sidebar" aria-label="Conversas">
           <Button onClick={startNewConversation}>Nova conversa</Button>
 
           <div className="ds-field">
@@ -197,7 +201,7 @@ export function ChatView() {
               onChange={(event) => setScopeId(event.target.value)}
               aria-describedby="chat-scope-help"
             >
-              <option value="">Todos os projetos</option>
+              <option value="">Selecione um projeto</option>
               {projects.map((project) => <option key={project.id} value={project.id}>{project.nome}</option>)}
             </select>
             <span id="chat-scope-help" className="ds-help">
@@ -234,7 +238,7 @@ export function ChatView() {
           </nav>
         </aside>
 
-        <section className="card-garakis chat-thread" aria-label="Conversa atual">
+        <section className="ds-card chat-thread" aria-label="Conversa atual">
           <div className="chat-thread-header">
             <h2>{activeConversation?.titulo ?? "Nova conversa"}</h2>
             <Badge tone={scopeName ? "brand" : "info"}>{scopeName ?? "Todos os projetos"}</Badge>

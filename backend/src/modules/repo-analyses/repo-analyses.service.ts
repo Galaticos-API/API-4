@@ -1,3 +1,4 @@
+import { serviceHeaders } from "../../shared/service-auth.js";
 import axios from 'axios';
 import { AppError, ValidationError } from '../../shared/errors';
 import { env } from '../../config/env';
@@ -41,7 +42,7 @@ export class RepoAnalysesService {
 
         // Dispara a execução no ai-service / RepoAnalyzer
         try {
-            const response = await axios.post(`${this.analyzerBaseUrl}/api/analyze`, { url: repositorioUrl }, { timeout: 15_000 });
+            const response = await axios.post(`${this.analyzerBaseUrl}/api/analyze`, { url: repositorioUrl }, { headers: serviceHeaders(), timeout: 15_000 });
 
             const { run_id } = response.data;
 
@@ -81,7 +82,7 @@ export class RepoAnalysesService {
 
     private async syncAnalysisStatus(runId: string): Promise<void> {
         try {
-            const response = await axios.get(`${this.analyzerBaseUrl}/api/runs/${runId}`, { timeout: 15_000 });
+            const response = await axios.get(`${this.analyzerBaseUrl}/api/runs/${runId}`, { headers: serviceHeaders(), timeout: 15_000 });
             const data = response.data;
             const status = mapAnalyzerStatus(data.status);
             const etapa = (data.stage || 'queued') as RepoAnalysisStep;
@@ -90,7 +91,7 @@ export class RepoAnalysesService {
             let relatorioMarkdown = undefined;
             if (status === 'concluido') {
                 try {
-                    const reportRes = await axios.get(`${this.analyzerBaseUrl}/api/runs/${runId}/report`, { timeout: 15_000 });
+                    const reportRes = await axios.get(`${this.analyzerBaseUrl}/api/runs/${runId}/report`, { headers: serviceHeaders(), timeout: 15_000 });
                     relatorioMarkdown = reportRes.data.report || reportRes.data;
                 } catch (e) {
                     // Ignora se o relatório ainda não estiver pronto

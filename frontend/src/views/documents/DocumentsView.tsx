@@ -5,6 +5,7 @@ import {
   formatBytes,
   listDocuments,
   removeDocument,
+  reprocessDocument,
   uploadDocument,
   validateSelection,
   type DocumentLimits,
@@ -12,7 +13,7 @@ import {
 } from "../../api/api_documents";
 import { navigate } from "../../models/navigation";
 import { Alert, Badge, Button, EmptyState } from "../common/ui";
-import "../../projects/documents.css";
+import "../../assets/styles/documents.css";
 
 const STATUS_VIEW = {
   pendente: { label: "Aguardando ingestão", tone: "warning" as const },
@@ -57,6 +58,7 @@ export function DocumentsView({
   const [removalError, setRemovalError] = useState("");
   const [notice, setNotice] = useState("");
   const [uploading, setUploading] = useState(false);
+  const [reprocessing, setReprocessing] = useState<string | null>(null);
   const [removing, setRemoving] = useState(false);
   const [target, setTarget] = useState<ProjectDocument | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
@@ -103,7 +105,15 @@ export function DocumentsView({
     return () => { active = false; controller.abort(); };
   }, [projectId]);
 
-  const hasProcessing = items.some((item) => item.status_processamento === "processando");
+  const reprocess = async (id: string) => {
+    if (!projectId || reprocessing || archived || !canWrite) return;
+    setReprocessing(id);
+    try { await reprocessDocument(projectId, id); setNotice("Documento enviado para reprocessamento."); await refresh(true); }
+    catch { setNotice("Não foi possível reprocessar o documento. Tente novamente."); }
+    finally { setReprocessing(null); }
+  };
+
+  const hasProcessing = items.some((item) => item.nova_tentativa_pendente || ["pendente", "processando"].includes(item.status_processamento));
   useEffect(() => {
     if (!hasProcessing) return;
     const timer = window.setInterval(() => { void refresh(true); }, 10_000);
@@ -242,7 +252,7 @@ export function DocumentsView({
       )}
 
       {canWrite && !archived && limits && (
-        <div className="glass-panel documents-upload">
+        <div className="ds-card ds-card--glass documents-upload">
           <div
             className="documents-dropzone"
             onDragOver={(event) => event.preventDefault()}
@@ -278,9 +288,9 @@ export function DocumentsView({
       )}
 
       {loading ? (
-        <div className="glass-panel projects-state" role="status">Carregando documentos…</div>
+        <div className="ds-card ds-card--glass projects-state" role="status">Carregando documentos…</div>
       ) : !loadError && items.length === 0 ? (
-        <div className="glass-panel documents-list">
+        <div className="ds-card ds-card--glass documents-list">
           <EmptyState
             title="Nenhum documento neste projeto"
             description={canWrite && !archived
@@ -289,7 +299,7 @@ export function DocumentsView({
           />
         </div>
       ) : items.length > 0 ? (
-        <div className="glass-panel documents-list">
+        <div className="ds-card ds-card--glass documents-list">
           <div className="documents-list-header">
             <h2 ref={heading} tabIndex={-1}>Documentos ({items.length})</h2>
           </div>
@@ -308,7 +318,9 @@ export function DocumentsView({
             </thead>
             <tbody>
               {items.map((item) => {
-                const status = STATUS_VIEW[item.status_processamento];
+                const status = item.status_processamento === "falha" && item.nova_tentativa_pendente
+                  ? { label: "Aguardando nova tentativa", tone: "warning" as const }
+                  : STATUS_VIEW[item.status_processamento];
                 return (
                   <tr key={item.id}>
                     <td data-label="Documento" className="documents-name">{item.nome}</td>
@@ -323,6 +335,7 @@ export function DocumentsView({
                     </td>
                     {canWrite && !archived && (
                       <td data-label="Ações">
+                        {item.status_processamento === "falha" && <Button variant="secondary" size="sm" disabled={Boolean(reprocessing)} onClick={() => void reprocess(item.id)}>Reprocessar</Button>}
                         <Button variant="danger" size="sm" aria-label={`Remover ${item.nome}`} onClick={() => { setNotice(""); setTarget(item); }}>Remover</Button>
                       </td>
                     )}

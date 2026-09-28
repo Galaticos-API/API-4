@@ -3,553 +3,37 @@ import {
   useMemo,
   useState,
 } from "react";
-
 import {
   ApiError,
 } from "../../api/api_auth";
-
+import { MIN_QUERY_LENGTH } from "../../api/api_backlog_search";
 import {
   getProjectBacklogTree,
-  type BacklogEpicNode,
-  type BacklogFeatureNode,
-  type BacklogPbiNode,
-  type ProjectBacklogTree,
+  type ProjectBacklogTree
 } from "../../api/api_backlog_tree";
-
+import { isSearchQuery } from "../../models/backlogSearch";
 import {
   navigate,
 } from "../../models/navigation";
-
-import { MIN_QUERY_LENGTH } from "../../api/api_backlog_search";
-import { isSearchQuery } from "../../models/backlogSearch";
+import { Button } from "../common/ui";
 import { BacklogSearchResults } from "./BacklogSearchResults";
-
-export interface BacklogFilters {
-  status: string;
-  technologyId: string;
-  query: string;
-}
-
-const MAX_QUERY_LENGTH = 100;
-
-type TreeFilters = Pick<BacklogFilters, "status" | "technologyId">;
+import { TreeEpic } from "./BacklogTreeNodes";
+import { EMPTY_FILTERS, MAX_QUERY_LENGTH, STATUS_OPTIONS, filterBacklogTree, readFilters, storageKey, type BacklogFilters } from "./backlogTreeFilters";
+export { filterBacklogTree } from "./backlogTreeFilters";
+export type { BacklogFilters } from "./backlogTreeFilters";
 
 type Result =
   | {
-      state: "loading";
-    }
+    state: "loading";
+  }
   | {
-      state: "error";
-      message: string;
-    }
+    state: "error";
+    message: string;
+  }
   | {
-      state: "ready";
-      tree: ProjectBacklogTree;
-    };
-
-const EMPTY_FILTERS:
-  BacklogFilters = {
-    status: "",
-    technologyId: "",
-    query: "",
+    state: "ready";
+    tree: ProjectBacklogTree;
   };
-
-const STATUS_OPTIONS = [
-  { value: "rascunho", label: "Rascunho" },
-  { value: "ativo", label: "Ativo" },
-  { value: "concluido", label: "Concluído" },
-  { value: "arquivado", label: "Arquivado" },
-] as const;
-const VALID_STATUSES = new Set([
-  "",
-  ...STATUS_OPTIONS.map(({ value }) => value),
-]);
-
-function storageKey(
-  projectId: string,
-) {
-  return (
-    "sinapse.backlog.filters."
-    + projectId
-  );
-}
-
-function readFilters(
-  projectId: string,
-): BacklogFilters {
-  try {
-    const stored =
-      window.sessionStorage
-        .getItem(
-          storageKey(projectId),
-        );
-
-    if (!stored) {
-      return EMPTY_FILTERS;
-    }
-
-    const value =
-      JSON.parse(
-        stored,
-      ) as Partial<BacklogFilters>;
-
-    return {
-      status:
-        typeof value.status
-          === "string"
-        && VALID_STATUSES.has(
-          value.status,
-        )
-          ? value.status
-          : "",
-
-      technologyId:
-        typeof value.technologyId
-          === "string"
-          ? value.technologyId
-          : "",
-
-      query:
-        typeof value.query
-          === "string"
-          ? value.query.slice(0, MAX_QUERY_LENGTH)
-          : "",
-    };
-  } catch {
-    return EMPTY_FILTERS;
-  }
-}
-
-function matches(
-  item: {
-    status: string;
-
-    tecnologias:
-      Array<{
-        id: string;
-      }>;
-  },
-
-  filters: TreeFilters,
-) {
-  return (
-    (
-      !filters.status
-      || item.status
-        === filters.status
-    )
-    && (
-      !filters.technologyId
-      || item.tecnologias.some(
-        (technology) =>
-          technology.id
-          === filters.technologyId,
-      )
-    )
-  );
-}
-
-export function filterBacklogTree(
-  tree: ProjectBacklogTree,
-  filters: TreeFilters,
-): ProjectBacklogTree {
-  if (
-    !filters.status
-    && !filters.technologyId
-  ) {
-    return tree;
-  }
-
-  const epics =
-    tree.epics.flatMap(
-      (epic) => {
-        const features =
-          epic.features.flatMap(
-            (feature) => {
-              const pbis =
-                feature.pbis.filter(
-                  (pbi) =>
-                    matches(
-                      pbi,
-                      filters,
-                    ),
-                );
-
-              return (
-                matches(
-                  feature,
-                  filters,
-                )
-                || pbis.length > 0
-              )
-                ? [
-                    {
-                      ...feature,
-                      pbis,
-                    },
-                  ]
-                : [];
-            },
-          );
-
-        return (
-          matches(
-            epic,
-            filters,
-          )
-          || features.length > 0
-        )
-          ? [
-              {
-                ...epic,
-                features,
-              },
-            ]
-          : [];
-      },
-    );
-
-  return {
-    ...tree,
-    epics,
-  };
-}
-
-const statusLabels:
-  Record<string, string> = {
-    rascunho: "Rascunho",
-    ativo: "Ativo",
-    pronto: "Pronto",
-    concluido: "Concluído",
-    arquivado: "Arquivado",
-  };
-
-function Technologies({
-  values,
-}: {
-  values:
-    Array<{
-      id: string;
-      nome: string;
-    }>;
-}) {
-  if (values.length === 0) {
-    return null;
-  }
-
-  return (
-    <span className="backlog-tree-technologies">
-      {values.map(
-        (item) => (
-          <span key={item.id}>
-            {item.nome}
-          </span>
-        ),
-      )}
-    </span>
-  );
-}
-
-function ItemMeta({
-  item,
-}: {
-  item: {
-    status: string;
-
-    tecnologias:
-      Array<{
-        id: string;
-        nome: string;
-      }>;
-  };
-}) {
-  return (
-    <span className="backlog-tree-meta">
-      <span
-        className={
-          `badge-garakis ${
-            item.status
-              === "concluido"
-              ? "green"
-              : ""
-          }`
-        }
-      >
-        {statusLabels[item.status]
-          ?? item.status}
-      </span>
-
-      <Technologies
-        values={item.tecnologias}
-      />
-    </span>
-  );
-}
-
-function TreePbi({
-  projectId,
-  epicId,
-  featureId,
-  pbi,
-}: {
-  projectId: string;
-  epicId: string;
-  featureId: string;
-  pbi: BacklogPbiNode;
-}) {
-  const path =
-    `/projects/${projectId}`
-    + `/epics/${epicId}`
-    + `/features/${featureId}`
-    + `/pbis/${pbi.id}`;
-
-  return (
-    <li className="backlog-tree-pbi">
-      <span
-        className="backlog-tree-marker"
-        aria-hidden="true"
-      >
-        PBI
-      </span>
-
-      <button
-        className="backlog-tree-link"
-        type="button"
-        onClick={() =>
-          navigate(path)
-        }
-      >
-        {pbi.codigo
-          ? `${pbi.codigo} — `
-          : ""}
-
-        {pbi.titulo}
-      </button>
-
-      <ItemMeta item={pbi} />
-    </li>
-  );
-}
-
-function TreeFeature({
-  projectId,
-  epicId,
-  feature,
-  open,
-  forcedOpen,
-  onToggle,
-}: {
-  projectId: string;
-  epicId: string;
-  feature: BacklogFeatureNode;
-  open: boolean;
-  forcedOpen: boolean;
-  onToggle: () => void;
-}) {
-  const isOpen =
-    forcedOpen || open;
-
-  const path =
-    `/projects/${projectId}`
-    + `/epics/${epicId}`
-    + `/features/${feature.id}`;
-
-  return (
-    <li className="backlog-tree-feature">
-      <div className="backlog-tree-row">
-        <button
-          className="backlog-tree-toggle"
-          type="button"
-          aria-expanded={isOpen}
-          aria-label={
-            `${
-              isOpen
-                ? "Recolher"
-                : "Expandir"
-            } feature ${feature.titulo}`
-          }
-          onClick={onToggle}
-          disabled={forcedOpen}
-        >
-          <span aria-hidden="true">
-            {isOpen ? "▾" : "▸"}
-          </span>
-        </button>
-
-        <span
-          className="backlog-tree-marker"
-          aria-hidden="true"
-        >
-          Feature
-        </span>
-
-        <button
-          className="backlog-tree-link"
-          type="button"
-          onClick={() =>
-            navigate(path)
-          }
-        >
-          {feature.titulo}
-        </button>
-
-        <ItemMeta item={feature} />
-      </div>
-
-      {isOpen && (
-        feature.pbis.length > 0
-          ? (
-              <ul
-                className="backlog-tree-children"
-                aria-label={
-                  `PBIs de ${feature.titulo}`
-                }
-              >
-                {feature.pbis.map(
-                  (pbi) => (
-                    <TreePbi
-                      key={pbi.id}
-                      projectId={
-                        projectId
-                      }
-                      epicId={epicId}
-                      featureId={
-                        feature.id
-                      }
-                      pbi={pbi}
-                    />
-                  ),
-                )}
-              </ul>
-            )
-          : (
-              <p className="backlog-tree-empty-branch">
-                Nenhum PBI corresponde
-                nesta feature.
-              </p>
-            )
-      )}
-    </li>
-  );
-}
-
-function TreeEpic({
-  projectId,
-  epic,
-  open,
-  forcedOpen,
-  expandedFeatures,
-  onToggle,
-  onToggleFeature,
-}: {
-  projectId: string;
-  epic: BacklogEpicNode;
-  open: boolean;
-  forcedOpen: boolean;
-  expandedFeatures: Set<string>;
-  onToggle: () => void;
-  onToggleFeature:
-    (id: string) => void;
-}) {
-  const isOpen =
-    forcedOpen || open;
-
-  return (
-    <li className="backlog-tree-epic">
-      <div className="backlog-tree-row">
-        <button
-          className="backlog-tree-toggle"
-          type="button"
-          aria-expanded={isOpen}
-          aria-label={
-            `${
-              isOpen
-                ? "Recolher"
-                : "Expandir"
-            } épico ${epic.titulo}`
-          }
-          onClick={onToggle}
-          disabled={forcedOpen}
-        >
-          <span aria-hidden="true">
-            {isOpen ? "▾" : "▸"}
-          </span>
-        </button>
-
-        <span
-          className="backlog-tree-marker"
-          aria-hidden="true"
-        >
-          Épico
-        </span>
-
-        <button
-          className="backlog-tree-link"
-          type="button"
-          onClick={() =>
-            navigate(
-              `/projects/${projectId}`
-              + `/epics/${epic.id}`,
-            )
-          }
-        >
-          {epic.titulo}
-        </button>
-
-        <ItemMeta item={epic} />
-      </div>
-
-      {isOpen && (
-        epic.features.length > 0
-          ? (
-              <ul
-                className="backlog-tree-children"
-                aria-label={
-                  `Features de ${epic.titulo}`
-                }
-              >
-                {epic.features.map(
-                  (feature) => (
-                    <TreeFeature
-                      key={feature.id}
-                      projectId={
-                        projectId
-                      }
-                      epicId={
-                        epic.id
-                      }
-                      feature={
-                        feature
-                      }
-                      open={
-                        expandedFeatures
-                          .has(
-                            feature.id,
-                          )
-                      }
-                      forcedOpen={
-                        forcedOpen
-                      }
-                      onToggle={() =>
-                        onToggleFeature(
-                          feature.id,
-                        )
-                      }
-                    />
-                  ),
-                )}
-              </ul>
-            )
-          : (
-              <p className="backlog-tree-empty-branch">
-                Nenhuma feature
-                corresponde neste épico.
-              </p>
-            )
-      )}
-    </li>
-  );
-}
 
 export function BacklogTreeView({
   projectId,
@@ -625,7 +109,7 @@ export function BacklogTreeView({
 
           message:
             error instanceof ApiError
-            && error.status === 404
+              && error.status === 404
               ? "Projeto não encontrado."
               : "Não foi possível carregar a árvore do backlog.",
         });
@@ -687,9 +171,9 @@ export function BacklogTreeView({
       () =>
         result.state === "ready"
           ? filterBacklogTree(
-              result.tree,
-              filters,
-            )
+            result.tree,
+            filters,
+          )
           : null,
       [
         result,
@@ -778,8 +262,8 @@ export function BacklogTreeView({
         </div>
 
         {canCreate && (
-          <button
-            className="btn-garakis primary"
+          <Button
+            variant="primary"
             onClick={() =>
               navigate(
                 `/projects/${projectId}`
@@ -788,7 +272,7 @@ export function BacklogTreeView({
             }
           >
             + Novo épico
-          </button>
+          </Button>
         )}
       </div>
 
@@ -828,7 +312,7 @@ export function BacklogTreeView({
                 {filters.query.trim().length > 0
                   && !searchMode
                   && filters.query.trim().length
-                    < MIN_QUERY_LENGTH
+                  < MIN_QUERY_LENGTH
                   ? `Digite ao menos ${MIN_QUERY_LENGTH} caracteres.`
                   : "Busca apenas neste projeto, combinada com os filtros."}
               </span>
@@ -917,15 +401,15 @@ export function BacklogTreeView({
             </span>
 
             {filtersActive && (
-              <button
-                className="btn-garakis secondary"
+              <Button
+                variant="secondary"
                 type="button"
                 onClick={
                   clearFilters
                 }
               >
                 Limpar filtros
-              </button>
+              </Button>
             )}
           </div>
         )}
@@ -933,7 +417,7 @@ export function BacklogTreeView({
       {result.state === "loading"
         && (
           <div
-            className="card-garakis projects-state"
+            className="ds-card projects-state"
             role="status"
           >
             Carregando árvore
@@ -943,13 +427,13 @@ export function BacklogTreeView({
 
       {result.state === "error"
         && (
-          <div className="card-garakis projects-state">
+          <div className="ds-card projects-state">
             <p role="alert">
               {result.message}
             </p>
 
-            <button
-              className="btn-garakis secondary"
+            <Button
+              variant="secondary"
               onClick={() =>
                 setAttempt(
                   (value) =>
@@ -958,7 +442,7 @@ export function BacklogTreeView({
               }
             >
               Tentar novamente
-            </button>
+            </Button>
           </div>
         )}
 
@@ -996,7 +480,7 @@ export function BacklogTreeView({
         && result.tree.epics
           .length === 0
         && (
-          <div className="card-garakis projects-state">
+          <div className="ds-card projects-state">
             <h3>
               Este projeto ainda
               não possui épicos
@@ -1009,8 +493,8 @@ export function BacklogTreeView({
             </p>
 
             {canCreate && (
-              <button
-                className="btn-garakis primary"
+              <Button
+                variant="primary"
                 onClick={() =>
                   navigate(
                     `/projects/${projectId}`
@@ -1019,7 +503,7 @@ export function BacklogTreeView({
                 }
               >
                 Criar primeiro épico
-              </button>
+              </Button>
             )}
           </div>
         )}
@@ -1031,7 +515,7 @@ export function BacklogTreeView({
         && filteredTree?.epics
           .length === 0
         && (
-          <div className="card-garakis projects-state">
+          <div className="ds-card projects-state">
             <h3>
               Nenhum item corresponde
               aos filtros
@@ -1043,13 +527,13 @@ export function BacklogTreeView({
               ou limpe os critérios.
             </p>
 
-            <button
-              className="btn-garakis primary"
+            <Button
+              variant="primary"
               type="button"
               onClick={clearFilters}
             >
               Limpar filtros
-            </button>
+            </Button>
           </div>
         )}
 

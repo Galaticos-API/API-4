@@ -1,3 +1,8 @@
+import hmac
+import math
+from fastapi import Request
+from fastapi.responses import JSONResponse
+from document_text import extract_document_text
 from contextlib import asynccontextmanager
 from typing import Any
 from fastapi import FastAPI, HTTPException, status
@@ -25,6 +30,18 @@ app = FastAPI(
     version="0.2.0",
     lifespan=lifespan,
 )
+
+@app.middleware("http")
+async def authenticate_service(request: Request, call_next):
+    if request.url.path != "/health":
+        expected = settings.AI_SERVICE_TOKEN
+        supplied = request.headers.get("x-service-token", "")
+        if not expected:
+            return JSONResponse(status_code=503, content={"detail": "Autenticação interna não configurada"})
+        if not hmac.compare_digest(supplied.encode(), expected.encode()):
+            return JSONResponse(status_code=401, content={"detail": "Autenticação interna necessária"})
+    return await call_next(request)
+
 
 app.add_middleware(
     CORSMiddleware,
@@ -86,28 +103,37 @@ async def ingest_document(req: IngestDocumentRequest):
     """
     chunks = chunk_document_text(req.text_content)
     
-    # Process each chunk with embedding
+    if not req.project_id or not chunks:
+        raise HTTPException(status_code=422, detail="Projeto e texto são obrigatórios")
     processed = []
     for idx, chunk in enumerate(chunks):
         try:
             vector = await ollama_client.get_embedding(chunk)
-            vector_dim = len(vector)
+            if len(vector) != 1024:
+                raise ValueError("Dimensão de vetor inválida")
         except Exception:
-            vector_dim = 0
-            
-        processed.append({
-            "chunk_index": idx,
-            "text": chunk,
-            "vector_dimension": vector_dim,
-            "project_id": req.project_id,
-        })
-        
-    return {
-        "document_id": req.document_id,
-        "total_chunks": len(chunks),
-        "status": "chunked_and_indexed",
-        "chunks": processed,
-    }
+            raise HTTPException(status_code=502, detail="Não foi possível gerar embeddings")
+        processed.append({"chunk_index": idx, "text": chunk, "embedding": vector,
+                          "vector_dimension": len(vector), "project_id": req.project_id})
+    return {"document_id": req.document_id, "project_id": req.project_id,
+            "total_chunks": len(chunks), "status": "prepared", "chunks": processed}
+
+
+class IngestFileRequest(BaseModel):
+    document_id: str
+    project_id: str
+    file_name: str
+    content_base64: str
+
+
+@app.post("/ingest/file")
+async def ingest_file(req: IngestFileRequest):
+    try:
+        text = extract_document_text(req.file_name, req.content_base64)
+    except Exception:
+        raise HTTPException(status_code=422, detail="Não foi possível extrair texto do documento")
+    return await ingest_document(IngestDocumentRequest(document_id=req.document_id,
+        project_id=req.project_id, text_content=text))
 
 
 @app.post("/ingest/entity", status_code=status.HTTP_200_OK)
@@ -119,15 +145,18 @@ async def ingest_structured_entity(req: IngestEntityRequest):
     chunk = create_structured_chunk(req.entity_type, req.data)
     try:
         vector = await ollama_client.get_embedding(chunk["content"])
+        if len(vector) != 1024 or not all(math.isfinite(v) for v in vector) or not any(vector):
+            raise ValueError("Embedding inválido")
         vector_dim = len(vector)
     except Exception:
-        vector_dim = 0
+        raise HTTPException(status_code=502, detail="Não foi possível gerar embeddings")
 
     return {
         "entity_type": req.entity_type,
         "content": chunk["content"],
         "metadata": chunk["metadata"],
         "vector_dimension": vector_dim,
+        "embedding": vector,
     }
 
 
@@ -155,9 +184,13 @@ async def query_rag(req: RagQueryRequest):
         "Você é o assistente inteligente do Sinapse (memória da fábrica de software PRO4TECH). "
         "Suas respostas devem ser estritamente baseadas no contexto fornecido. "
         "Se a evidência não estiver no contexto, responda honestamente que a informação não foi encontrada no acervo. "
-        "Sempre cite a fonte (ID do projeto, requisito ou documento) ao justificar uma resposta."
+        "Cite os trechos usados com seus IDs exatamente entre colchetes, como [ID], conforme o contexto. Nunca invente IDs."
     )
     
+    if not req.project_id:
+        raise HTTPException(status_code=422, detail="Projeto obrigatório")
+    if not req.context_chunks:
+        return {"response": "Informação não encontrada no acervo do projeto.", "project_id": req.project_id}
     context_str = "\n\n---\n\n".join(req.context_chunks) if req.context_chunks else "Nenhum contexto recuperado."
     user_prompt = f"Contexto do Acervo:\n{context_str}\n\nPergunta do Product Owner:\n{req.query}"
     

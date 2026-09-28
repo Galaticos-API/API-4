@@ -1,11 +1,13 @@
-import { lockHierarchy, assertWritable } from "../projects/hierarchy-archive.js";
+import { projectAccessSql } from "../projects/project-access.js";
 import { Pool, PoolClient } from "pg";
 import { pool } from "../../database/db.js";
-import { CreatePbiDTO, UpdatePbiDTO, PbiQueryDTO, Pbi, PbiWithContext, PaginatedPbis } from "./pbis.types.js";
-import { auditService } from "../audit/audit.service.js";
-import { assertJustificationForCompletedItem, normalizeJustification } from "../quality/completed-item-policy.js";
+import { withTransaction } from "../../database/transaction.js";
 import { buildAuditChangeData } from "../audit/audit.payloads.js";
+import { auditService } from "../audit/audit.service.js";
+import { assertWritable, lockHierarchy } from "../projects/hierarchy-archive.js";
+import { assertJustificationForCompletedItem, normalizeJustification } from "../quality/completed-item-policy.js";
 import { getEntityTechnologyIds, replaceEntityTechnologies } from "../technologies/entity-technologies.js";
+import { CreatePbiDTO, PaginatedPbis, Pbi, PbiQueryDTO, PbiWithContext, UpdatePbiDTO } from "./pbis.types.js";
 
 const SELECT_WITH_CONTEXT = `
   SELECT
@@ -31,17 +33,15 @@ export class PbisRepository {
     this.pool = customPool ?? pool;
   }
 
-  async findById(id: string): Promise<PbiWithContext | null> {
-    const result = await this.pool.query<PbiWithContext>(`${SELECT_WITH_CONTEXT} WHERE p.id = $1`, [id]);
+  async findById(id: string, executor: Pool | PoolClient = this.pool): Promise<PbiWithContext | null> {
+    const result = await executor.query<PbiWithContext>(`${SELECT_WITH_CONTEXT} WHERE p.id = $1`, [id]);
     return result.rows[0] ?? null;
   }
 
   async create(data: CreatePbiDTO, usuarioId?: string | null): Promise<Pbi> {
-    const client: PoolClient = await this.pool.connect();
+    return withTransaction(this.pool, async (client) => {
 
-    try {
-      await client.query("BEGIN");
-      await lockHierarchy(client);
+      await lockHierarchy(client, "feature", data.feature_id);
       await assertWritable(client, "feature", data.feature_id);
 
       const seqResult = await client.query<{ proxima_sequencia: number }>(
@@ -84,20 +84,19 @@ export class PbisRepository {
         client,
       );
 
-      await client.query("COMMIT");
       return created;
-    } catch (error) {
-      await client.query("ROLLBACK");
-      throw error;
-    } finally {
-      client.release();
-    }
+
+    });
   }
 
-  async findAll(query: PbiQueryDTO): Promise<PaginatedPbis> {
+  async findAll(query: PbiQueryDTO, userId?: string): Promise<PaginatedPbis> {
     const whereConditions: string[] = [];
     const params: unknown[] = [];
     let paramIndex = 1;
+    if (userId) {
+      whereConditions.push(projectAccessSql("(SELECT access_epic.projeto_id FROM feature access_feature JOIN epico access_epic ON access_epic.id=access_feature.epico_id WHERE access_feature.id=p.feature_id)", "$" + paramIndex++));
+      params.push(userId);
+    }
 
     if (query.feature_id) {
       whereConditions.push(`p.feature_id = $${paramIndex}`);
@@ -130,16 +129,14 @@ export class PbisRepository {
   }
 
   async update(id: string, data: UpdatePbiDTO, usuarioId?: string | null): Promise<PbiWithContext | null> {
-    const client: PoolClient = await this.pool.connect();
+    return withTransaction(this.pool, async (client) => {
 
-    try {
-      await client.query("BEGIN");
-      await lockHierarchy(client);
+      await lockHierarchy(client, "pbi", id);
       await assertWritable(client, "pbi", id);
 
-      const existing = await this.findById(id);
+      const existing = await this.findById(id, client);
       if (!existing) {
-        await client.query("ROLLBACK");
+
         return null;
       }
       await assertJustificationForCompletedItem(
@@ -196,29 +193,30 @@ export class PbisRepository {
         [id, JSON.stringify(updated), normalizeJustification(data.justificativa) ?? "", usuarioId ?? null],
       );
 
-      await client.query("COMMIT");
-      return await this.findById(id);
-    } catch (error) {
-      await client.query("ROLLBACK");
-      throw error;
-    } finally {
-      client.release();
-    }
+      const saved = await this.findById(id, client);
+
+      return saved;
+
+    });
   }
 
-  async markConcluded(id: string, usuarioId?: string | null): Promise<PbiWithContext | null> {
-    const client: PoolClient = await this.pool.connect();
+  async markConcluded(id: string, validate: (client: PoolClient) => Promise<void>, usuarioId?: string | null): Promise<PbiWithContext | null> {
+    return withTransaction(this.pool, async (client) => {
 
-    try {
-      await client.query("BEGIN");
-      await lockHierarchy(client);
+      await lockHierarchy(client, "pbi", id);
       await assertWritable(client, "pbi", id);
 
-      const existing = await this.findById(id);
+      const existing = await this.findById(id, client);
       if (!existing) {
-        await client.query("ROLLBACK");
+
         return null;
       }
+
+      if (existing.status === "concluido") {
+
+        return existing;
+      }
+      await validate(client);
 
       await client.query(`UPDATE pbi SET status = 'concluido', updated_at = CURRENT_TIMESTAMP WHERE id = $1`, [id]);
 
@@ -233,14 +231,11 @@ export class PbisRepository {
         client,
       );
 
-      await client.query("COMMIT");
-      return await this.findById(id);
-    } catch (error) {
-      await client.query("ROLLBACK");
-      throw error;
-    } finally {
-      client.release();
-    }
+      const saved = await this.findById(id, client);
+
+      return saved;
+
+    });
   }
 
 }

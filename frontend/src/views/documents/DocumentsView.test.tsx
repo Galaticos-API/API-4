@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { DocumentsView } from "./DocumentsView";
 
 const limites = { max_bytes: 1024 * 1024, extensoes_permitidas: [".pdf", ".docx", ".md", ".txt"] };
@@ -296,4 +296,20 @@ it("modo incorporado usa cabeçalho de seção e não um segundo título de pág
   view({ embedded: true });
   expect(await screen.findByRole("heading", { level: 2, name: "Documentos do projeto" })).toBeInTheDocument();
   expect(screen.queryByRole("heading", { level: 1 })).toBeNull();
+});
+
+
+it("acompanha a recuperação automática de um documento em falha", async () => {
+  const request=vi.fn().mockImplementationOnce(()=>listing([doc({status_processamento:"falha",nova_tentativa_pendente:true})]))
+    .mockImplementation(()=>listing([doc({status_processamento:"processado",nova_tentativa_pendente:false})]));
+  vi.stubGlobal("fetch",request);
+  let poll: (()=>void) | undefined;
+  const timer=vi.spyOn(window,"setInterval").mockImplementation((handler)=>{poll=handler as ()=>void;return 123});
+  const clear=vi.spyOn(window,"clearInterval").mockImplementation(()=>{});
+  try {
+    view();await screen.findByText("Aguardando nova tentativa");
+    await act(async()=>{poll!()});
+    expect(await screen.findByText("Disponível no acervo")).toBeTruthy();
+    expect(clear).toHaveBeenCalledWith(123);
+  } finally {timer.mockRestore();clear.mockRestore();}
 });

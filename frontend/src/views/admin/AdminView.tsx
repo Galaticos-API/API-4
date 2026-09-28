@@ -1,6 +1,7 @@
+import { Button } from "../common/ui";
 import React, { useState, useEffect } from "react";
-import { apiRequest } from "../../api/api_auth";
-import "../../assets/styles/garakis-prototype.css";
+import { listProjects, type Project } from "../../api/api_projects";
+import { ApiError, apiRequest } from "../../api/api_auth";
 
 interface Stats {
   projetos: number;
@@ -13,6 +14,9 @@ interface Stats {
 }
 
 export const AdminView: React.FC = () => {
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [projectId, setProjectId] = useState("");
+  const [projectsLoading, setProjectsLoading] = useState(true);
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
   const [ingesting, setIngesting] = useState(false);
@@ -35,23 +39,44 @@ export const AdminView: React.FC = () => {
 
   useEffect(() => {
     void loadStats();
+    const controller = new AbortController();
+    async function loadProjects() {
+      try {
+        const items: Project[] = [];
+        let offset = 0;
+        while (!controller.signal.aborted) {
+          const page = await listProjects(controller.signal, offset);
+          items.push(...page.projects.filter(project => project.status !== "arquivado"));
+          offset += page.limit;
+          if (offset >= page.total) break;
+        }
+        if (!controller.signal.aborted) setProjects(items);
+      } catch {
+        if (!controller.signal.aborted) setError("Não foi possível carregar os projetos de destino. Atualize a página para tentar novamente.");
+      } finally {
+        if (!controller.signal.aborted) setProjectsLoading(false);
+      }
+    }
+    void loadProjects();
+    return () => controller.abort();
   }, []);
 
-  const handleIngestSeed = async () => {
+  const handleLoadDemo = async () => {
+    if (!projectId || ingesting) return;
     setIngesting(true);
-    setMessage("Disparando reindexação de acervo no backend...");
+    setMessage("Carregando exemplos no projeto selecionado...");
     setError("");
 
     try {
-      const res = await apiRequest("/admin/ingest-seed", { method: "POST" });
+      const res = await apiRequest("/admin/demo-seed", { method: "POST", body: JSON.stringify({ projeto_id: projectId }) });
       const data = await res.json();
 
-      if (!res.ok) throw new Error(data.error || "Falha na reindexação");
-
-      setMessage(data.message || "Acervo reindexado com sucesso!");
+      setMessage(data.message || "Dados demonstrativos carregados.");
       void loadStats();
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Erro ao reindexar acervo.");
+      const details = err instanceof ApiError ? err.details as { error?: string } | undefined : undefined;
+      setError(details?.error ?? "Não foi possível carregar os dados demonstrativos.");
+      setMessage("");
     } finally {
       setIngesting(false);
     }
@@ -61,37 +86,37 @@ export const AdminView: React.FC = () => {
     <div className="page-container" style={{ paddingBottom: "40px" }}>
       <div className="head-section">
         <div>
-          <div className="eyebrow">OPERACIONALE & GOVERNANÇA</div>
+          <div className="eyebrow">OPERAÇÃO & GOVERNANÇA</div>
           <h1>Administração & Carga Inicial do Acervo</h1>
           <p className="muted">
-            Monitore contadores reais de entidades persistidas no PostgreSQL e reindexe o acervo vetorial do repositório.
+            Acompanhe os dados do sistema e carregue exemplos em um projeto escolhido.
           </p>
         </div>
       </div>
 
       {message && (
-        <div className="card-garakis" style={{ background: "rgba(59, 130, 246, 0.1)", borderColor: "rgba(59, 130, 246, 0.3)", margin: "16px 0", color: "#93c5fd" }}>
+        <div role="status" className="ds-card" style={{ background: "rgba(59, 130, 246, 0.1)", borderColor: "rgba(59, 130, 246, 0.3)", margin: "16px 0", color: "#93c5fd" }}>
           {message}
         </div>
       )}
 
       {error && (
-        <div className="card-garakis" style={{ background: "rgba(239, 68, 68, 0.1)", borderColor: "rgba(239, 68, 68, 0.3)", margin: "16px 0", color: "#fca5a5" }}>
+        <div role="alert" className="ds-card" style={{ background: "rgba(239, 68, 68, 0.1)", borderColor: "rgba(239, 68, 68, 0.3)", margin: "16px 0", color: "#fca5a5" }}>
           {error}
         </div>
       )}
 
       {/* Grid de Estatísticas */}
-      <div className="grid-garakis three" style={{ marginTop: "20px" }}>
-        <article className="card-garakis">
+      <div className="ds-grid ds-grid--three" style={{ marginTop: "20px" }}>
+        <article className="ds-card">
           <span className="muted" style={{ fontSize: "0.85rem" }}>Projetos no Banco</span>
-          <h2 style={{ fontSize: "2rem", margin: "8px 0", color: "var(--orange)" }}>
+          <h2 style={{ fontSize: "2rem", margin: "8px 0", color: "var(--brand-primary)" }}>
             {loading ? "..." : stats?.projetos ?? 0}
           </h2>
           <p className="muted" style={{ fontSize: "0.85rem" }}>Espaços de trabalho cadastrados</p>
         </article>
 
-        <article className="card-garakis">
+        <article className="ds-card">
           <span className="muted" style={{ fontSize: "0.85rem" }}>Requisitos & PBIs</span>
           <h2 style={{ fontSize: "2rem", margin: "8px 0", color: "#fff" }}>
             {loading ? "..." : stats?.pbis ?? 0}
@@ -99,29 +124,37 @@ export const AdminView: React.FC = () => {
           <p className="muted" style={{ fontSize: "0.85rem" }}>PBIs com critérios em BDD</p>
         </article>
 
-        <article className="card-garakis">
-          <span className="muted" style={{ fontSize: "0.85rem" }}>Trechos Indexados (RAG)</span>
+        <article className="ds-card">
+          <span className="muted" style={{ fontSize: "0.85rem" }}>Trechos com vetor</span>
           <h2 style={{ fontSize: "2rem", margin: "8px 0", color: "#34d399" }}>
             {loading ? "..." : stats?.chunksIndexados ?? 0}
           </h2>
-          <p className="muted" style={{ fontSize: "0.85rem" }}>Vetores bge-m3 no pgvector</p>
+          <p className="muted" style={{ fontSize: "0.85rem" }}>Somente trechos com embedding armazenado</p>
         </article>
       </div>
 
       {/* Painel de Ações Administrativas */}
-      <div className="card-garakis" style={{ marginTop: "24px", padding: "24px" }}>
+      <div className="ds-card" style={{ marginTop: "24px", padding: "24px" }}>
         <h3>Operações de Acervo</h3>
         <p className="muted" style={{ margin: "8px 0 20px" }}>
-          Execute a carga inicial dos documentos de referência e reindexação de vetores do ecossistema.
+          Adicione dois exemplos identificados como demonstração ao projeto escolhido. Repetir a ação não duplica os exemplos. Esta operação não indexa documentos nem gera vetores.
         </p>
 
+        <div className="ds-field ds-field--spaced">
+          <label htmlFor="demo-project">Projeto de destino</label>
+          <select id="demo-project" className="ds-input" value={projectId} onChange={event => setProjectId(event.target.value)} disabled={projectsLoading || ingesting}>
+            <option value="">{projectsLoading ? "Carregando projetos…" : "Selecione um projeto"}</option>
+            {projects.map(project => <option key={project.id} value={project.id}>{project.nome}</option>)}
+          </select>
+          {!projectsLoading && projects.length === 0 && <p>Crie um projeto ativo para receber os exemplos.</p>}
+        </div>
         <div style={{ display: "flex", gap: "16px", flexWrap: "wrap" }}>
-          <button className="btn-garakis primary" onClick={handleIngestSeed} disabled={ingesting}>
-            {ingesting ? "Reindexando acervo..." : "⚡ Carga Inicial & Reindexação"}
-          </button>
-          <button className="btn-garakis secondary" onClick={loadStats} disabled={loading}>
+          <Button variant="primary" onClick={handleLoadDemo} disabled={ingesting || projectsLoading || !projectId}>
+            {ingesting ? "Carregando exemplos..." : "Carregar demonstração"}
+          </Button>
+          <Button variant="secondary" onClick={loadStats} disabled={loading}>
             Atualizar Métricas
-          </button>
+          </Button>
         </div>
       </div>
     </div>

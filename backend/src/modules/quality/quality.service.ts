@@ -1,3 +1,4 @@
+import type { PoolClient } from "pg";
 import { CriteriaRepository, criteriaRepository } from "../criteria/criteria.repository.js";
 import { PbisRepository, pbisRepository } from "../pbis/pbis.repository.js";
 import { Pbi } from "../pbis/pbis.types.js";
@@ -41,7 +42,7 @@ export function calculateCompleteness(checks: QualityCheckResult[]): number | nu
  * singleton below uses the persisted, organization-wide S2-19 configuration.
  */
 export class DefaultQualityRuleConfigurationProvider implements QualityRuleConfigurationProvider {
-  async getCurrentPbiConfiguration(): Promise<PbiQualityRuleConfiguration> {
+  async getCurrentPbiConfiguration(client?: PoolClient): Promise<PbiQualityRuleConfiguration> {
     return {
       rule_version: "pbi-quality-v1",
       checks: PBI_QUALITY_CHECKS.map((check_id) => ({
@@ -56,8 +57,8 @@ export class DefaultQualityRuleConfigurationProvider implements QualityRuleConfi
 export class DatabaseQualityRuleConfigurationProvider implements QualityRuleConfigurationProvider {
   constructor(private readonly configurationRepository = qualityConfigurationRepository) {}
 
-  async getCurrentPbiConfiguration(): Promise<PbiQualityRuleConfiguration> {
-    const current = await this.configurationRepository.getPbiConfiguration();
+  async getCurrentPbiConfiguration(client?: PoolClient): Promise<PbiQualityRuleConfiguration> {
+    const current = await this.configurationRepository.getPbiConfiguration(client, { lock: Boolean(client) });
     return {
       rule_version: current.rule_version,
       checks: PBI_QUALITY_CHECKS
@@ -110,12 +111,12 @@ export class QualityService {
   }
 
   /** Computes the backlog indicator from the same rules used by the detail report. */
-  async validatePbi(pbiId: string): Promise<QualityReport> {
-    const pbi = await this.pbisRepo.findById(pbiId);
+  async validatePbi(pbiId: string, client?: PoolClient): Promise<QualityReport> {
+    const pbi = await this.pbisRepo.findById(pbiId, client);
     if (!pbi) throw new NotFoundError("PBI não encontrado.");
 
-    const criteria = await this.criteriaRepo.listByEntity("pbi", pbiId);
-    const configuration = await this.rulesProvider.getCurrentPbiConfiguration();
+    const criteria = await this.criteriaRepo.listByEntity("pbi", pbiId, client);
+    const configuration = await this.rulesProvider.getCurrentPbiConfiguration(client);
     return this.buildCompletenessReport(pbi, this.buildDetailedReport(pbi, criteria, configuration.vague_terms ?? TERMOS_VAGOS_PADRAO), configuration);
   }
 

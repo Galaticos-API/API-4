@@ -37,6 +37,10 @@ export interface DocumentPage {
 
 const SELECT_COLUMNS = `
   d.id, d.projeto_id, d.nome, d.extensao, d.mime, d.tamanho_bytes, d.status_processamento,
+  d.ingest_attempts AS tentativas_processamento, d.ingest_error_code AS erro_processamento_codigo,
+  (d.status_processamento <> 'processado' AND d.ingest_retryable AND d.ingest_attempts < 5
+    AND EXISTS (SELECT 1 FROM projeto processing_project WHERE processing_project.id=d.projeto_id AND processing_project.status <> 'arquivado')) AS nova_tentativa_pendente,
+  d.ingest_next_attempt_at::text AS proxima_tentativa_em,
   d.usuario_id AS autor_id, u.nome AS autor_nome,
   EXISTS (
     SELECT 1 FROM documento_operacao_armazenamento op
@@ -89,7 +93,7 @@ export class DocumentsRepository {
     const client = await this.pool.connect();
     try {
       await client.query("BEGIN");
-      await lockHierarchy(client);
+      await lockHierarchy(client, "projeto", input.projetoId);
       await assertWritable(client, "projeto", input.projetoId);
       await client.query(
         `INSERT INTO documento (id, projeto_id, nome, extensao, mime, tamanho_bytes, caminho, usuario_id, status_processamento)
@@ -128,7 +132,7 @@ export class DocumentsRepository {
     const client = await this.pool.connect();
     try {
       await client.query("BEGIN");
-      await lockHierarchy(client);
+      await lockHierarchy(client, "projeto", input.projetoId);
       await assertWritable(client, "projeto", input.projetoId);
       const deleted = await client.query<StoredDocument>(
         `DELETE FROM documento WHERE id = $1 AND projeto_id = $2

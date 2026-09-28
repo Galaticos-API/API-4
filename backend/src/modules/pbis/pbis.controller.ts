@@ -21,7 +21,7 @@ export class PbisController {
 
   list = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const result = await this.service.list(req.query);
+      const result = await this.service.list(req.query, req.auth!.id);
       res.status(200).json(result);
     } catch (error) {
       next(error);

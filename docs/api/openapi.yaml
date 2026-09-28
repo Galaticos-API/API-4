@@ -1544,7 +1544,7 @@ paths:
                 nome: {type: string, minLength: 2}
                 email: {type: string, format: email}
                 password: {type: string, minLength: 6}
-                role: {type: string, enum: [po, dev, admin], default: po, description: "admin só é aceito com sessão de administrador"}
+                role: {type: string, enum: [po, dev, admin], default: dev, description: "po e admin só são aceitos com sessão de administrador"}
       responses:
         '201':
           description: Conta criada e sessão iniciada
@@ -1554,6 +1554,30 @@ paths:
           description: Tentativa de criar administrador sem sessão de administrador
         '409':
           description: E-mail já cadastrado
+
+  /api/v1/chat/projects:
+    get:
+      summary: Lista projetos permitidos no chat (admin/PO ou alocação ativa do desenvolvedor)
+      operationId: listChatProjects
+      security: [{cookieAuth: []}]
+      responses:
+        '200': {description: Lista items com id e nome dos projetos}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+  /api/v1/projects/{projectId}/documents/{documentId}/reprocess:
+    parameters:
+      - {name: projectId, in: path, required: true, schema: {type: string, format: uuid}}
+      - {name: documentId, in: path, required: true, schema: {type: string, format: uuid}}
+    post:
+      summary: Reenfileira a ingestão de um documento (admin ou PO)
+      operationId: reprocessDocument
+      security: [{cookieAuth: []}]
+      responses:
+        '202': {description: Documento pendente para reprocessamento}
+        '400': {$ref: '#/components/responses/ValidationError'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {description: Sem permissão de escrita}
+        '404': {description: Projeto ou documento inexistente}
+        '409': {description: Projeto arquivado ou documento ainda em processamento}
 
   /api/v1/chat/conversations:
     get:
@@ -1609,6 +1633,8 @@ paths:
     post:
       summary: Envia uma pergunta ao assistente e registra a troca
       description: >
+        Projeto obrigatório em novas conversas; em conversas existentes o projeto é imutável.
+        Somente admin/PO ou desenvolvedor com alocação ativa pode consultar o projeto.
         Sem evidência no acervo, responde "Informação não encontrada no acervo
         do projeto." sem inventar fontes. `origem` informa se a resposta veio
         do assistente, de busca textual (assistente indisponível) ou sem resultado.
@@ -1753,18 +1779,84 @@ paths:
         '403':
           description: Somente administrador
 
-  /api/v1/admin/ingest-seed:
+  /api/v1/admin/demo-seed:
     post:
-      summary: Carrega dados de demonstração no acervo (somente administrador)
-      operationId: adminIngestSeed
+      summary: Carrega exemplos demonstrativos em um projeto explícito (somente administrador)
+      description: Carga idempotente e auditada. Não gera vetores nem reindexa documentos. Projetos arquivados são rejeitados.
+      operationId: adminLoadDemo
       security: [{cookieAuth: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [projeto_id]
+              additionalProperties: false
+              properties:
+                projeto_id: {type: string, format: uuid}
       responses:
         '200':
-          description: Dados carregados
+          description: Carga concluída; inseridos é zero quando já aplicada
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  projeto_id: {type: string, format: uuid}
+                  inseridos: {type: integer, minimum: 0, maximum: 2}
+                  status: {type: string, enum: [sucesso]}
+                  message: {type: string}
+        '400':
+          description: Projeto de destino ausente ou inválido
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
           description: Somente administrador
+        '404':
+          description: Projeto não encontrado
+        '409':
+          description: Projeto arquivado
+
+  /api/v1/admin/ingest-seed:
+    post:
+      deprecated: true
+      summary: Carrega exemplos demonstrativos em um projeto explícito (somente administrador)
+      description: Carga idempotente e auditada. Não gera vetores nem reindexa documentos. Projetos arquivados são rejeitados.
+      operationId: adminIngestSeed
+      security: [{cookieAuth: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [projeto_id]
+              additionalProperties: false
+              properties:
+                projeto_id: {type: string, format: uuid}
+      responses:
+        '200':
+          description: Carga concluída; inseridos é zero quando já aplicada
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  projeto_id: {type: string, format: uuid}
+                  inseridos: {type: integer, minimum: 0, maximum: 2}
+                  status: {type: string, enum: [sucesso]}
+                  message: {type: string}
+        '400':
+          description: Projeto de destino ausente ou inválido
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Somente administrador
+        '404':
+          description: Projeto não encontrado
+        '409':
+          description: Projeto arquivado
 
   /api/v1:
     get:
@@ -3172,6 +3264,18 @@ components:
           type: string
           description: pendente = armazenado e aguardando ingestão (S2-01)
           enum: [pendente, processando, processado, falha]
+        nova_tentativa_pendente:
+          type: boolean
+          description: Existe nova tentativa automática pendente em projeto ativo.
+        tentativas_processamento:
+          type: integer
+        proxima_tentativa_em:
+          type: string
+          nullable: true
+        erro_processamento_codigo:
+          type: string
+          nullable: true
+          description: Código técnico sanitizado; não contém o conteúdo do documento.
         armazenamento_pendente:
           type: boolean
           description: true enquanto a finalização do arquivo local ainda é reconciliada pelo worker

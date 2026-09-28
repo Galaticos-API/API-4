@@ -1,6 +1,7 @@
+import { Button } from "./views/common/ui";
 import React, { useState, useEffect } from "react";
 import { isProjectPath, navigate, routes } from "./models/navigation";
-import { useAuth } from "./auth/Auth";
+import { useAuth } from "./viewmodels/useAuthViewModel";
 import { ProjectsView } from "./views/projects/ProjectsView";
 import { LandingPageView } from "./views/landing/LandingPageView";
 import { DeveloperDashboardView } from "./views/dashboard/DeveloperDashboardView";
@@ -9,7 +10,6 @@ import { KnowledgeView } from "./views/knowledge/KnowledgeView";
 import { ChatView } from "./views/chat/ChatView";
 import { AdminView } from "./views/admin/AdminView";
 import { RequirementsView } from "./views/backlog/RequirementsView";
-import "./assets/styles/garakis-prototype.css";
 
 export const App: React.FC = () => {
   const { session, logout } = useAuth();
@@ -29,8 +29,7 @@ export const App: React.FC = () => {
   }, []);
 
   return (
-    <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", background: "var(--bg)", color: "var(--text)" }}>
-      {/* Top Header Bar (Protótipo Garakis) */}
+    <div className="app-shell">
       <header className="top-header">
         <a className="brand" href="/projects" onClick={(event) => { event.preventDefault(); navigate("/projects"); }}>
           S<b>•</b>NAPSE
@@ -63,28 +62,28 @@ export const App: React.FC = () => {
           </button>
         </nav>
 
-        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+        <div className="app-user-actions">
           {isAdmin ? (
             <button className="user-menu-btn" onClick={() => navigate("/admin")} aria-label="Abrir administração">
-              {session.user?.nome || session.user?.name || "Cauan Gabriel"} · ADMIN ▾
+              {session.user?.nome || session.user?.name || "Usuário"} · ADMIN ▾
             </button>
           ) : (
             <span className="user-menu-label">
-              {session.user?.nome || session.user?.name || "Cauan Gabriel"} · {session.user?.role?.toUpperCase() || "PO"}
+              {session.user?.nome || session.user?.name || "Usuário"} · {session.user?.role?.toUpperCase() || "PO"}
             </span>
           )}
-          <button
-            className="btn-garakis secondary"
-            style={{ minHeight: "34px", padding: "0 12px", fontSize: "0.8rem" }}
+          <Button
+            variant="secondary"
+            className="app-sign-out"
             onClick={() => void logout()}
           >
             Sair
-          </button>
+          </Button>
         </div>
       </header>
 
       {/* Main Content Area */}
-      <main style={{ flex: 1 }}>
+      <main className="app-content">
         {activeTab === "projects" && <ProjectsView key={pathname} pathname={pathname} canCreate={session.user?.role === "po" || session.user?.role === "admin"} />}
         {activeTab === "requirements" && <RequirementsView canCreate={session.user?.role === "po" || session.user?.role === "admin"} />}
         {activeTab === "documents" && <DocumentsView />}
@@ -94,7 +93,7 @@ export const App: React.FC = () => {
           <section className="page-container" role="alert" aria-labelledby="admin-access-title">
             <h1 id="admin-access-title">Acesso restrito</h1>
             <p>Esta área está disponível somente para administradores.</p>
-            <button className="btn-garakis secondary" onClick={() => navigate("/projects")}>Voltar para projetos</button>
+            <Button variant="secondary" onClick={() => navigate("/projects")}>Voltar para projetos</Button>
           </section>
         ))}
         {activeTab === "architecture" && <DeveloperDashboardView />}
@@ -102,7 +101,7 @@ export const App: React.FC = () => {
       </main>
 
       {/* Footer */}
-      <footer style={{ borderTop: "1px solid var(--line)", padding: "20px 36px", textAlign: "center", fontSize: "0.8rem", color: "var(--dim)" }}>
+      <footer style={{ borderTop: "1px solid var(--border-subtle)", padding: "20px 36px", textAlign: "center", fontSize: "0.8rem", color: "var(--text-muted)" }}>
         Sinapse &middot; PRO4TECH &middot; Fatec São José dos Campos &middot; Grupo Galáticos &middot; 2º Semestre/2026
       </footer>
     </div>

@@ -60,7 +60,7 @@ test("S1-09: arquivamento direto, preservação, filtros e escrita concorrente",
           // Simulate a request that passed its service check before an archive committed.
           const blocker = await db.connect();
           await blocker.query("BEGIN");
-          await lockHierarchy(blocker);
+          await lockHierarchy(blocker, "projeto", project);
           const writer = new FeaturesRepository(db).create({ epico_id: epic, titulo: "Tardia", prioridade: "Must" });
           const rejected = assert.rejects(writer, ArchiveConflict);
           await blocker.query("COMMIT"); blocker.release();

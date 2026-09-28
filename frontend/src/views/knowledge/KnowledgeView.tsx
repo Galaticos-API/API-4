@@ -1,7 +1,7 @@
+import { Button } from "../common/ui";
 import React, { useState, useEffect, useCallback } from "react";
 import { apiRequest } from "../../api/api_auth";
 import { SearchField } from "../common/SearchField";
-import "../../assets/styles/garakis-prototype.css";
 
 interface SearchItem {
   id: string;
@@ -75,7 +75,7 @@ export const KnowledgeView: React.FC = () => {
         </div>
       </div>
 
-      <div className="card-garakis" style={{ marginTop: "16px", padding: "24px" }}>
+      <div className="ds-card" style={{ marginTop: "16px", padding: "24px" }}>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 240px auto", gap: "16px", alignItems: "flex-end" }}>
           <SearchField
             label="Pesquisar no acervo"
@@ -84,11 +84,11 @@ export const KnowledgeView: React.FC = () => {
             placeholder="Ex: autenticação JWT, integração PIX, regras de completude..."
           />
 
-          <div className="field-garakis" style={{ margin: 0 }}>
+          <div className="ds-field ds-field--spaced" style={{ margin: 0 }}>
             <label htmlFor="select-project-scope">Escopo do Projeto</label>
             <select
               id="select-project-scope"
-              className="input-garakis"
+              className="ds-input"
               value={selectedProject}
               onChange={(e) => setSelectedProject(e.target.value)}
             >
@@ -101,20 +101,20 @@ export const KnowledgeView: React.FC = () => {
             </select>
           </div>
 
-          <button className="btn-garakis primary" onClick={handleSearch} disabled={loading} style={{ height: "42px" }}>
+          <Button variant="primary" onClick={handleSearch} disabled={loading} style={{ height: "42px" }}>
             {loading ? "Buscando..." : "Pesquisar"}
-          </button>
+          </Button>
         </div>
       </div>
 
       {/* Resultados */}
       <div style={{ marginTop: "24px" }}>
         {loading ? (
-          <div className="card-garakis" role="status" style={{ textAlign: "center", padding: "32px" }}>
+          <div className="ds-card" role="status" style={{ textAlign: "center", padding: "32px" }}>
             Consultando acervo indexado do banco de dados...
           </div>
         ) : results.length === 0 ? (
-          <div className="card-garakis" style={{ textAlign: "center", padding: "48px 24px" }}>
+          <div className="ds-card" style={{ textAlign: "center", padding: "48px 24px" }}>
             <h3>{searched ? "Nenhum resultado encontrado" : "Digite um termo para pesquisar"}</h3>
             <p className="muted">
               {searched
@@ -123,12 +123,12 @@ export const KnowledgeView: React.FC = () => {
             </p>
           </div>
         ) : (
-          <div className="grid-garakis one" style={{ gap: "16px" }}>
+          <div className="ds-grid ds-grid--one" style={{ gap: "16px" }}>
             {results.map((item) => (
-              <article className="card-garakis" key={item.id}>
+              <article className="ds-card" key={item.id}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "12px" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                    <span className="badge-garakis green">{item.entidade_tipo}</span>
+                    <span className="ds-badge ds-badge--success">{item.entidade_tipo}</span>
                     {item.projeto_nome && <span className="muted" style={{ fontSize: "0.85rem" }}>Projeto: {item.projeto_nome}</span>}
                   </div>
                   <span className="muted" style={{ fontSize: "0.8rem" }}>
@@ -141,7 +141,7 @@ export const KnowledgeView: React.FC = () => {
                 </p>
 
                 {item.metadados_json && Object.keys(item.metadados_json).length > 0 && (
-                  <div style={{ fontSize: "0.8rem", color: "var(--dim)", background: "rgba(0,0,0,0.2)", padding: "8px 12px", borderRadius: "6px" }}>
+                  <div style={{ fontSize: "0.8rem", color: "var(--text-muted)", background: "rgba(0,0,0,0.2)", padding: "8px 12px", borderRadius: "6px" }}>
                     Origem: {JSON.stringify(item.metadados_json)}
                   </div>
                 )}

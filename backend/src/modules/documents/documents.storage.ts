@@ -1,4 +1,4 @@
-import { access, mkdir, readdir, rename, rm, stat, writeFile } from "node:fs/promises";
+import { readFile, access, mkdir, readdir, rename, rm, stat, writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 
 const STORAGE_KEY = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
@@ -30,6 +30,8 @@ export class LocalDocumentStorage implements DocumentStorage {
     if (!STORAGE_KEY.test(key)) throw new Error("Identificador de armazenamento inválido.");
     return join(this.baseDir, key);
   }
+
+  async read(key: string): Promise<Buffer> { return readFile(this.pathOf(key)); }
 
   async save(key: string, content: Buffer): Promise<void> {
     const path = this.pathOf(key);

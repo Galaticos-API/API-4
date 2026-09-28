@@ -4,6 +4,7 @@ import { AppError, NotFoundError, ValidationError, validateUuid } from "../../sh
 import { ArchiveConflict } from "../projects/archive.types.js";
 import { ProjectsRepository } from "../projects/projects.repository.js";
 import { DocumentsRepository } from "./documents.repository.js";
+import { DocumentIngestionRepository } from "./documents.ingestion.js";
 import { HttpDocumentEventPublisher, type DocumentEventPublisher } from "./documents.events.js";
 import { LocalDocumentStorage, type DocumentStorage } from "./documents.storage.js";
 import { ALLOWED_EXTENSIONS, inspectDocument } from "./documents.validation.js";
@@ -61,10 +62,17 @@ export class DocumentsService {
     private readonly events: DocumentEventPublisher = new HttpDocumentEventPublisher(),
     private readonly projects: ProjectLookup = new ProjectsRepository(),
     private readonly maxBytes: number = Math.floor(env.DOCUMENT_MAX_SIZE_MB * 1024 * 1024),
+    private readonly ingestion: DocumentIngestionRepository = new DocumentIngestionRepository(),
   ) {}
 
   get limits(): DocumentLimits {
     return { max_bytes: this.maxBytes, extensoes_permitidas: [...ALLOWED_EXTENSIONS] };
+  }
+
+  async reprocess(projetoId: string, documentoId: string): Promise<void> {
+    validateUuid(projetoId, "Projeto");
+    validateUuid(documentoId, "Documento");
+    await this.ingestion.retry(projetoId, documentoId);
   }
 
   private async requireProject(projetoId: string): Promise<{ id: string; status: string }> {

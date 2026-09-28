@@ -45,6 +45,13 @@ export class DocumentsController {
     }
   };
 
+  reprocess = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      await this.service.reprocess(paramOf(req.params.projectId), paramOf(req.params.documentId));
+      res.status(202).json({ status: "pendente" });
+    } catch (error) { next(error); }
+  };
+
   remove = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       await this.service.remove({

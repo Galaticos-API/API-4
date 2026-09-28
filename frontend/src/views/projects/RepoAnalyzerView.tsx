@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ApiError } from "../../api/api_auth";
 import { serverMessage } from "../../api/api_errors";
+import { listRepoAnalyses, startRepoAnalysis, type RepoAnalysis } from "../../api/api_repo_analyzer";
+import "../../assets/styles/repo-analyzer.css";
 import {
   ANALYSIS_STAGES,
   STATUS_VIEW,
@@ -13,10 +15,8 @@ import {
   stageStates,
   validateRepositoryUrl,
 } from "../../models/repoAnalyzer";
-import { listRepoAnalyses, startRepoAnalysis, type RepoAnalysis } from "../../projects/repo-analyzer.api";
-import { Alert, Badge, Button, EmptyState, Field, Progress } from "../common/ui";
 import { Markdown } from "../common/Markdown";
-import "../../assets/styles/repo-analyzer.css";
+import { Alert, Badge, Button, EmptyState, Field, Progress } from "../common/ui";
 
 const POLL_INTERVAL_MS = 4000;
 
@@ -154,7 +154,7 @@ export function RepoAnalyzerView({ projectId, canStart = true }: { projectId: st
       </header>
 
       {canStart ? (
-        <form className="card-garakis repo-analyzer-form" onSubmit={submit} noValidate>
+        <form className="ds-card repo-analyzer-form" onSubmit={submit} noValidate>
           <Field label="URL do repositório" error={urlError} help="Exemplo: https://github.com/usuario/repositorio">
             <input
               className="ds-input"
@@ -175,10 +175,10 @@ export function RepoAnalyzerView({ projectId, canStart = true }: { projectId: st
       )}
       {startError && <Alert tone="danger" role="alert" title="Não foi possível iniciar a análise">{startError}</Alert>}
 
-      {load.state === "loading" && <div className="card-garakis repo-analyzer-state" role="status">Carregando análises…</div>}
+      {load.state === "loading" && <div className="ds-card repo-analyzer-state" role="status">Carregando análises…</div>}
 
       {load.state === "error" && (
-        <div className="card-garakis repo-analyzer-state">
+        <div className="ds-card repo-analyzer-state">
           <p role="alert">{load.message}</p>
           <Button variant="secondary" onClick={() => void refresh(false)}>Tentar novamente</Button>
         </div>
@@ -186,7 +186,7 @@ export function RepoAnalyzerView({ projectId, canStart = true }: { projectId: st
 
       {load.state === "ready" && (
         <div className="repo-analyzer-layout">
-          <aside className="card-garakis analysis-history" aria-label="Histórico de análises">
+          <aside className="ds-card analysis-history" aria-label="Histórico de análises">
             <div className="analysis-history-header">
               <h3>Histórico</h3>
               <Button variant="ghost" size="sm" disabled={refreshing} aria-busy={refreshing} onClick={() => void refresh(true)}>
@@ -221,7 +221,7 @@ export function RepoAnalyzerView({ projectId, canStart = true }: { projectId: st
             )}
           </aside>
 
-          <div className="card-garakis analysis-details" aria-live="polite">
+          <div className="ds-card analysis-details" aria-live="polite">
             {selected ? (
               <AnalysisDetails analysis={selected} now={now} canRetry={canStart && !starting} onRetry={() => void launch(selected.repositorio_url)} />
             ) : (

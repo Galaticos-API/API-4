@@ -13,6 +13,10 @@ export interface DocumentRecord {
   tamanho_bytes: number | null;
   status_processamento: DocumentStatus;
   armazenamento_pendente: boolean;
+  nova_tentativa_pendente?: boolean;
+  tentativas_processamento?: number;
+  proxima_tentativa_em?: string | null;
+  erro_processamento_codigo?: string | null;
   autor_id: string | null;
   autor_nome: string | null;
   created_at: string;

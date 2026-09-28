@@ -21,7 +21,7 @@ interface Routes {
 function api(routes: Routes = {}) {
   return vi.fn((url: RequestInfo | URL, init?: RequestInit) => {
     const path = String(url);
-    if (path.startsWith("/api/v1/projects")) return json({ items: [PROJECT], total: 1, limit: 50, offset: 0 });
+    if (path.startsWith("/api/v1/chat/projects")) return json({ items: [PROJECT], total: 1, limit: 50, offset: 0 });
     if (path === "/api/v1/chat/conversations") {
       return routes.conversations === "error" ? json({ error: "x" }, 500) : json({ items: routes.conversations ?? [], total: 0 });
     }
@@ -67,6 +67,7 @@ it("sem conversas mostra orientação, sugestões preenchem o campo e o escopo �
   expect(screen.getByRole("heading", { name: "Como posso ajudar?" })).toBeInTheDocument();
   fireEvent.click(screen.getByRole("button", { name: /Quais decisões já foram tomadas/ }));
   expect(composer().value).toMatch(/Quais decisões já foram tomadas/);
+  expect(screen.getByRole("button", { name: "Enviar" })).toBeDisabled();
   expect(await screen.findByRole("option", { name: "Sinapse" })).toBeInTheDocument();
   expect(screen.getByLabelText("Escopo da consulta")).toBeEnabled();
 });
@@ -97,6 +98,8 @@ it("Shift+Enter não envia e o limite de caracteres bloqueia o envio", async () 
   vi.stubGlobal("fetch", request);
   render(<ChatView />);
   await screen.findByText(/Nenhuma conversa ainda/);
+  await screen.findByRole("option", { name: "Sinapse" });
+  fireEvent.change(screen.getByLabelText("Escopo da consulta"), { target: { value: "p-1" } });
 
   fireEvent.change(composer(), { target: { value: "linha 1" } });
   fireEvent.keyDown(composer(), { key: "Enter", shiftKey: true });
@@ -131,6 +134,8 @@ it("falha ao enviar marca a mensagem, explica e permite tentar novamente sem dup
   render(<ChatView />);
   await screen.findByText(/Nenhuma conversa ainda/);
 
+  await screen.findByRole("option", { name: "Sinapse" });
+  fireEvent.change(screen.getByLabelText("Escopo da consulta"), { target: { value: "p-1" } });
   fireEvent.change(composer(), { target: { value: "Pergunta importante" } });
   fireEvent.click(screen.getByRole("button", { name: "Enviar" }));
 
@@ -148,6 +153,8 @@ it("erro 400 do servidor exibe a mensagem específica", async () => {
   vi.stubGlobal("fetch", api({ query: () => json({ error: "A pergunta pode ter no máximo 2000 caracteres." }, 400) }));
   render(<ChatView />);
   await screen.findByText(/Nenhuma conversa ainda/);
+  await screen.findByRole("option", { name: "Sinapse" });
+  fireEvent.change(screen.getByLabelText("Escopo da consulta"), { target: { value: "p-1" } });
   fireEvent.change(composer(), { target: { value: "oi" } });
   fireEvent.click(screen.getByRole("button", { name: "Enviar" }));
   expect(await screen.findByText("A pergunta pode ter no máximo 2000 caracteres.")).toBeInTheDocument();
@@ -162,6 +169,8 @@ it("marca respostas vindas de busca textual e mantém o texto padrão quando nã
   render(<ChatView />);
   await screen.findByText(/Nenhuma conversa ainda/);
 
+  await screen.findByRole("option", { name: "Sinapse" });
+  fireEvent.change(screen.getByLabelText("Escopo da consulta"), { target: { value: "p-1" } });
   fireEvent.change(composer(), { target: { value: "primeira pergunta" } });
   fireEvent.click(screen.getByRole("button", { name: "Enviar" }));
   expect(await screen.findByText("Busca textual")).toBeInTheDocument();

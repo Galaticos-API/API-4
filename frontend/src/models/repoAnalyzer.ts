@@ -1,4 +1,4 @@
-import type { RepoAnalysis, RepoAnalysisStatus } from "../projects/repo-analyzer.api";
+import type { RepoAnalysis, RepoAnalysisStatus } from "../api/api_repo_analyzer";
 
 export const ANALYSIS_STAGES: ReadonlyArray<{ key: string; label: string }> = [
   { key: "ollama", label: "Verificar IA local" },

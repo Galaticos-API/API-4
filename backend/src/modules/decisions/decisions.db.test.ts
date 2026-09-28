@@ -63,7 +63,7 @@ test("S1-18: decisões em qualquer nível, herança, isolamento e arquivamento n
       const archiver = await pool.connect();
       try {
         await archiver.query("BEGIN");
-        await lockHierarchy(archiver);
+        await lockHierarchy(archiver, "projeto", archivedProject);
         await archiver.query("UPDATE projeto SET status='arquivado' WHERE id=$1", [archivedProject]);
         const attempt = service.create("projeto", archivedProject, user, body("Corrida"));
         await new Promise((resolve) => setTimeout(resolve, 150));

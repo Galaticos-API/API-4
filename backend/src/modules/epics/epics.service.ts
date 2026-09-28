@@ -42,14 +42,14 @@ export class EpicsService {
     return await this.repository.create(dto, usuarioId);
   }
 
-  async list(queryInput: unknown): Promise<PaginatedEpics> {
+  async list(queryInput: unknown, userId?: string): Promise<PaginatedEpics> {
     const parseResult = epicQuerySchema.safeParse(queryInput);
     if (!parseResult.success) {
       const issue = parseResult.error.issues[0];
       throw new ValidationError(issue.message, parseResult.error.format());
     }
 
-    return await this.repository.findAll(parseResult.data);
+    return await this.repository.findAll(parseResult.data, userId);
   }
 
   async getById(id: string): Promise<EpicWithStats> {

@@ -30,6 +30,8 @@ services:
       - "${N8N_PORT:-5678}:5678"
     environment:
       - N8N_PORT=5678
+      # Supports the base64 envelope for uploads up to the backend maximum (100 MiB).
+      - N8N_PAYLOAD_SIZE_MAX=150
       - N8N_ENCRYPTION_KEY=${N8N_ENCRYPTION_KEY:-sinapse-shared-dev-encryption-key-2026}
       - GENERIC_TIMEZONE=${GENERIC_TIMEZONE:-America/Sao_Paulo}
       - TZ=${TZ:-America/Sao_Paulo}
@@ -53,7 +55,7 @@ services:
     container_name: sinapse-ollama
     restart: unless-stopped
     ports:
-      - "${OLLAMA_PORT:-11434}:11434"
+      - "127.0.0.1:${OLLAMA_PORT:-11434}:11434"
     volumes:
       - ollama_data:/root/.ollama
     environment:
@@ -84,9 +86,12 @@ services:
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-sinapse_dev_password}
       - POSTGRES_DB=${POSTGRES_DB:-sinapse}
       - AI_SERVICE_URL=http://ai-service:8000
+      - REPO_ANALYZER_URL=http://ai-service:8000
+      - AI_SERVICE_TOKEN=${AI_SERVICE_TOKEN:?Configure AI_SERVICE_TOKEN in .env}
       - DOCUMENT_MAX_SIZE_MB=${DOCUMENT_MAX_SIZE_MB:-20}
       - DOCUMENT_STORAGE_DIR=/data/documents
-      - DOCUMENT_EVENTS_WEBHOOK_URL=${DOCUMENT_EVENTS_WEBHOOK_URL:-}
+      - DOCUMENT_EVENTS_WEBHOOK_URL=${DOCUMENT_EVENTS_WEBHOOK_URL:-http://n8n:5678/webhook/sinapse-document-removed}
+      - DOCUMENT_INGEST_WEBHOOK_URL=${DOCUMENT_INGEST_WEBHOOK_URL:-http://n8n:5678/webhook/sinapse-ingest}
       - MIGRATIONS_DIR=/database/migrations
       - INIT_SQL_PATH=/database/init.sql
     volumes:
@@ -105,9 +110,10 @@ services:
     build: ./ai-service
     container_name: sinapse-ai-service
     restart: unless-stopped
-    ports:
-      - "${AI_SERVICE_PORT:-8000}:8000"
+    expose:
+      - "8000"
     environment:
+      - AI_SERVICE_TOKEN=${AI_SERVICE_TOKEN:?Configure AI_SERVICE_TOKEN in .env}
       - AI_SERVICE_PORT=8000
       - AI_SERVICE_HOST=0.0.0.0
       - OLLAMA_BASE_URL=http://ollama:11434

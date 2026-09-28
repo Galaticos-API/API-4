@@ -48,7 +48,7 @@ export function createEpicsCompatRouter(service: EpicsService = epicsService) {
     const items: EpicWithStats[] = [];
     // The old contract is an unpaginated array; never silently truncate it to 100 records.
     for (let offset = 0; ; offset += 100) {
-      const page = await service.list({ projeto_id: projectId, limit: 100, offset });
+      const page = await service.list({ projeto_id: projectId, limit: 100, offset }, req.auth!.id);
       items.push(...page.items);
       if (page.items.length < 100 || items.length >= page.total) break;
     }

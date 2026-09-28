@@ -8,8 +8,8 @@ import {
   type DecisionKind,
   type DecisionList,
 } from "../../api/api_decisions";
-import { Alert, Badge, Button, EmptyState } from "../common/ui";
 import "../../assets/styles/decisions.css";
+import { Alert, Badge, Button, EmptyState } from "../common/ui";
 
 const LEVEL_LABEL: Record<DecisionKind, string> = {
   projeto: "Projeto",
@@ -159,7 +159,7 @@ export function DecisionsPanel({
   const inherited = state.state === "ready" ? state.data.decisoes.filter((item) => item.origem.herdada) : [];
 
   return (
-    <section className="decisions-panel card-garakis" aria-labelledby={`decisions-title-${id}`}>
+    <section className="decisions-panel ds-card" aria-labelledby={`decisions-title-${id}`}>
       <div className="decisions-head">
         <div>
           <h3 id={`decisions-title-${id}`}>Decisões</h3>
@@ -187,13 +187,13 @@ export function DecisionsPanel({
               ["alternativas", "Alternativas consideradas e descartadas (opcional)", "textarea"],
             ] as const
           ).map(([field, label, control]) => (
-            <div className="field-garakis" key={field}>
+            <div className="ds-field ds-field--spaced" key={field}>
               <label htmlFor={`decision-${id}-${field}`}>{label}</label>
               {control === "input" ? (
                 <input
                   id={`decision-${id}-${field}`}
                   name={field}
-                  className="input-garakis"
+                  className="ds-input"
                   value={values[field]}
                   disabled={saving}
                   maxLength={255}
@@ -205,7 +205,7 @@ export function DecisionsPanel({
                 <textarea
                   id={`decision-${id}-${field}`}
                   name={field}
-                  className="input-garakis"
+                  className="ds-input"
                   rows={3}
                   value={values[field]}
                   disabled={saving}
