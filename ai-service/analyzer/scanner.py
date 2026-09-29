@@ -110,6 +110,8 @@ def is_probably_binary(path: Path) -> bool:
     try:
         with open(path, "rb") as handle:
             data = handle.read(4096)
+        if data.startswith((b"\xff\xfe", b"\xfe\xff", b"\x00\x00\xfe\xff", b"\xff\xfe\x00\x00")):
+            return False
         return b"\x00" in data
     except OSError:
         return True

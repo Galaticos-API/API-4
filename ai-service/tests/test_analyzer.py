@@ -6,6 +6,7 @@ from analyzer.pipeline import Analyzer, STAGE_KEYS, STAGE_LABELS
 from analyzer.config import AnalyzerSettings
 from analyzer.scanner import detect_language, python_symbols, is_probably_binary, select_analysis_files
 from analyzer.models import FileInfo, RunState
+from analyzer.prompts import project_synthesis_prompt
 
 
 class TestAnalyzer(unittest.TestCase):
@@ -43,6 +44,12 @@ class TestAnalyzer(unittest.TestCase):
         self.assertEqual(detect_language(Path("App.tsx")), "TypeScript/React")
         self.assertEqual(detect_language(Path("Dockerfile")), "Dockerfile")
         self.assertEqual(detect_language(Path("unknown.xyz")), "Unknown")
+
+    def test_utf16_text_manifest_is_not_misclassified_as_binary(self):
+        with TemporaryDirectory() as directory:
+            manifest = Path(directory) / "requirements.txt"
+            manifest.write_text("Flask==3.1.0\n", encoding="utf-16")
+            self.assertFalse(is_probably_binary(manifest))
 
     def test_python_symbols_extraction(self):
         code = """
@@ -86,6 +93,13 @@ def standalone_func():
         self.assertIn("done", STAGE_KEYS)
         for key in STAGE_KEYS:
             self.assertIn(key, STAGE_LABELS)
+
+    def test_quick_project_synthesis_requires_evidence_for_stack_and_findings(self):
+        prompt = project_synthesis_prompt("manifest: requirements.txt", "src/app.py: imports flask", compact=True)
+        self.assertIn("até 350 palavras", prompt)
+        self.assertIn("cite o arquivo", prompt)
+        self.assertIn("não são dependências separadas", prompt)
+        self.assertIn("não invente bibliotecas", prompt)
 
     def test_analysis_profiles_prioritize_core_files_and_bound_llm_scope(self):
         files = [

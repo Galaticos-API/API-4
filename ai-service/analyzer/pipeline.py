@@ -639,7 +639,15 @@ class Analyzer:
         succeeded = False
         try:
             path = repo_dir / info.path
-            text = path.read_text(encoding="utf-8", errors="replace")
+            raw = path.read_bytes()
+            if raw.startswith((b"\x00\x00\xfe\xff", b"\xff\xfe\x00\x00")):
+                text = raw.decode("utf-32", errors="replace")
+            elif raw.startswith((b"\xff\xfe", b"\xfe\xff")):
+                text = raw.decode("utf-16", errors="replace")
+            elif raw.startswith(b"\xef\xbb\xbf"):
+                text = raw.decode("utf-8-sig", errors="replace")
+            else:
+                text = raw.decode("utf-8", errors="replace")
             chunks = self._chunks(text, self.settings.max_chunk_chars)
             symbols_json = json.dumps(info.symbols, ensure_ascii=False)
             state = self.runs[run_id]

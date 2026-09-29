@@ -142,13 +142,13 @@ ANÁLISES DOS ARQUIVOS:
 Escreva uma síntese concisa em Markdown, com estas seções e nesta ordem:
 # Visão Geral
 # Objetivo Inferido
-# Stack Tecnológica
+        # Stack Tecnológica
 # Arquitetura e Estrutura
 # Funcionalidades Observadas
 # Qualidade e Possíveis Problemas
 # Limitações da Análise
 
-Use no máximo 2 frases por seção e até 700 palavras no total. Não repita listas de arquivos nem invente fatos. Separe fatos observados de recomendações. Quando faltar evidência, diga isso claramente."""
+Use até 2 frases por seção e até 350 palavras no total. Para cada tecnologia, cite o arquivo que comprova seu uso ou declaração; imports padrão da linguagem/framework não são dependências separadas. Liste dependências externas somente quando aparecerem no inventário/manifests fornecidos. Para cada possível problema, cite arquivo e trecho/função que o demonstra e descreva a condição de falha; se não houver evidência suficiente, não inclua o item. Não transforme hipóteses em funcionalidades, não repita itens e não invente bibliotecas. Separe fatos observados de inferências e recomendações. Quando faltar evidência, escreva “não determinado pelas evidências disponíveis”."""
 
     return f"""Você é o analista principal do repositório.
 
