@@ -56,17 +56,17 @@ export class RepoAnalysesRepository {
     ): Promise<void> {
         const query = `
       UPDATE analise_repositorio
-      SET status = $1,
-          etapa = $2,
-          etapa_label = $3,
-          progresso = $4,
-          mensagem = $5,
-          erro = $6,
-          relatorio_markdown = COALESCE($7, relatorio_markdown),
-          metadados = COALESCE($8, metadados),
+      SET status = $1::varchar,
+          etapa = $2::varchar,
+          etapa_label = $3::varchar,
+          progresso = $4::integer,
+          mensagem = $5::text,
+          erro = $6::text,
+          relatorio_markdown = COALESCE($7::text, relatorio_markdown),
+          metadados = COALESCE($8::jsonb, metadados),
           updated_at = NOW(),
-          concluido_em = CASE WHEN $1 IN ('concluido', 'falha') THEN NOW() ELSE concluido_em END
-      WHERE run_id = $9;
+          concluido_em = CASE WHEN $1::varchar IN ('concluido', 'falha', 'cancelada') THEN NOW() ELSE concluido_em END
+      WHERE run_id = $9::varchar;
     `;
         await pool.query(query, [
             statusData.status,

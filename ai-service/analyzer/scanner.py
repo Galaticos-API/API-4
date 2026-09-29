@@ -65,6 +65,38 @@ IMPORTANT_FILENAMES = {
     ".env.example", ".gitignore"
 }
 
+def select_analysis_files(files: list[FileInfo], profile: str, quick_limit: int = 8,
+                          balanced_limit: int = 80) -> list[FileInfo]:
+    """Pick the most useful files first while keeping selection deterministic."""
+    limits = {"quick": max(1, quick_limit), "balanced": max(1, balanced_limit), "complete": None}
+    if profile not in limits:
+        raise ValueError("Perfil de análise inválido. Use quick, balanced ou complete.")
+
+    def priority(info: FileInfo) -> tuple[int, str]:
+        name = Path(info.path).name
+        lower = info.path.lower()
+        score = 0
+        if name.upper().startswith("README"):
+            score += 100
+        if name in {"package.json", "pyproject.toml", "requirements.txt", "Cargo.toml", "go.mod",
+                    "pom.xml", "build.gradle", "Dockerfile", "docker-compose.yml", "docker-compose.yaml"}:
+            score += 80
+        if info.language not in {"Unknown", "Markdown", "Text", "JSON", "YAML", "TOML", "XML"}:
+            score += 50
+        if any(part in lower for part in ("/test/", "/tests/", "_test.", ".test.", ".spec.")):
+            score -= 15
+        if info.kind == "documentation":
+            score -= 20
+        if name.lower() in {"package-lock.json", "yarn.lock", "pnpm-lock.yaml"}:
+            score -= 40
+        if lower.startswith(("examples/", "fixtures/", "samples/")):
+            score -= 20
+        return score, info.path
+
+    ranked = sorted(files, key=lambda info: (-priority(info)[0], priority(info)[1]))
+    limit = limits[profile]
+    return ranked if limit is None else ranked[:limit]
+
 
 def detect_language(path: Path) -> str:
     if path.name == "Dockerfile":
@@ -78,6 +110,8 @@ def is_probably_binary(path: Path) -> bool:
     try:
         with open(path, "rb") as handle:
             data = handle.read(4096)
+        if data.startswith((b"\xff\xfe", b"\xfe\xff", b"\x00\x00\xfe\xff", b"\xff\xfe\x00\x00")):
+            return False
         return b"\x00" in data
     except OSError:
         return True

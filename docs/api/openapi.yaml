@@ -1681,6 +1681,11 @@ paths:
               required: [repositorio_url]
               properties:
                 repositorio_url: {type: string, example: "https://github.com/usuario/repositorio"}
+                perfil:
+                  type: string
+                  enum: [quick, balanced, complete]
+                  default: quick
+                  description: Limite priorizado de arquivos para análise; quick e balanced reduzem chamadas ao modelo local.
       responses:
         '201':
           description: Análise iniciada
@@ -1712,6 +1717,48 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '404':
           description: Projeto ou análise não encontrados
+
+  /api/v1/projects/{projectId}/repo-analyses/{id}/pause:
+    post:
+      summary: Pausar após concluir o arquivo atual e salvar checkpoint
+      operationId: pauseRepoAnalysis
+      security: [{cookieAuth: []}]
+      parameters:
+        - {name: projectId, in: path, required: true, schema: {type: string, format: uuid}}
+        - {name: id, in: path, required: true, schema: {type: string, format: uuid}}
+      responses:
+        '200': {description: Análise pausada ou aguardando o ponto seguro de pausa}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '404': {description: Projeto ou análise não encontrados}
+        '409': {description: Estado da análise não permite pausa}
+
+  /api/v1/projects/{projectId}/repo-analyses/{id}/resume:
+    post:
+      summary: Retomar análise a partir do checkpoint salvo
+      operationId: resumeRepoAnalysis
+      security: [{cookieAuth: []}]
+      parameters:
+        - {name: projectId, in: path, required: true, schema: {type: string, format: uuid}}
+        - {name: id, in: path, required: true, schema: {type: string, format: uuid}}
+      responses:
+        '200': {description: Análise retomada}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '404': {description: Projeto ou análise não encontrados}
+        '409': {description: Estado da análise não permite retomada}
+
+  /api/v1/projects/{projectId}/repo-analyses/{id}/cancel:
+    post:
+      summary: Cancelar definitivamente a análise
+      operationId: cancelRepoAnalysis
+      security: [{cookieAuth: []}]
+      parameters:
+        - {name: projectId, in: path, required: true, schema: {type: string, format: uuid}}
+        - {name: id, in: path, required: true, schema: {type: string, format: uuid}}
+      responses:
+        '200': {description: Análise cancelada ou aguardando o ponto seguro de cancelamento}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '404': {description: Projeto ou análise não encontrados}
+        '409': {description: Estado da análise não permite cancelamento}
 
   /api/v1/search:
     get:

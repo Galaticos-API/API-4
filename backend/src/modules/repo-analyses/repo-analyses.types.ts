@@ -1,4 +1,4 @@
-export type RepoAnalysisStatus = 'iniciado' | 'em_execucao' | 'concluido' | 'falha';
+export type RepoAnalysisStatus = 'iniciado' | 'em_execucao' | 'pausando' | 'pausada' | 'cancelando' | 'cancelada' | 'concluido' | 'falha';
 export type RepoAnalysisStep = 'ollama' | 'clone' | 'scan' | 'files' | 'synthesis' | 'done' | 'error' | 'queued';
 
 export interface RepoAnalysisRecord {
@@ -24,4 +24,5 @@ export interface RepoAnalysisRecord {
 
 export interface StartAnalysisDTO {
     repositorio_url: string;
+    perfil?: 'quick' | 'balanced' | 'complete';
 }

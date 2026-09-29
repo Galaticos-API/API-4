@@ -7,9 +7,15 @@ import { RepoAnalysisRecord, RepoAnalysisStatus, RepoAnalysisStep } from './repo
 const ANALYZER_STATUS: Record<string, RepoAnalysisStatus> = {
     queued: 'iniciado',
     running: 'em_execucao',
+    pausing: 'pausando',
+    paused: 'pausada',
+    cancelling: 'cancelando',
+    cancelled: 'cancelada',
     completed: 'concluido',
     failed: 'falha',
 };
+
+const ACTIVE_STATUSES: RepoAnalysisStatus[] = ['iniciado', 'em_execucao', 'pausando', 'cancelando'];
 
 export function mapAnalyzerStatus(status: string): RepoAnalysisStatus {
     const mapped = ANALYZER_STATUS[status];
@@ -17,10 +23,19 @@ export function mapAnalyzerStatus(status: string): RepoAnalysisStatus {
     return mapped;
 }
 
-export function mapAnalyzerProgress(stageIndex: number, stageCount: number, status: RepoAnalysisStatus): number {
+export function mapAnalyzerProgress(
+    stageIndex: number,
+    stageCount: number,
+    status: RepoAnalysisStatus,
+    stats?: Record<string, unknown>,
+): number {
     if (status === 'concluido') return 100;
     if (!Number.isFinite(stageIndex) || !Number.isFinite(stageCount) || stageCount <= 0) return 0;
-    return Math.max(0, Math.min(99, Math.round((stageIndex / stageCount) * 100)));
+    const completedStages = Math.max(0, Math.min(stageCount, stageIndex - 1));
+    const stageProgress = stageIndex === 4 && typeof stats?.calls_progress_percent === 'number'
+        ? Math.max(0, Math.min(100, stats.calls_progress_percent)) / 100
+        : 0;
+    return Math.max(0, Math.min(99, Math.round(((completedStages + stageProgress) / stageCount) * 100)));
 }
 
 export class RepoAnalysesService {
@@ -34,14 +49,14 @@ export class RepoAnalysesService {
         return githubRegex.test(url.trim());
     }
 
-    async startAnalysis(projetoId: string, usuarioId: string, repositorioUrl: string): Promise<RepoAnalysisRecord> {
+    async startAnalysis(projetoId: string, usuarioId: string, repositorioUrl: string, profile: 'quick' | 'balanced' | 'complete' = 'quick'): Promise<RepoAnalysisRecord> {
         if (!this.validateGithubUrl(repositorioUrl)) {
             throw new ValidationError('URL do repositório GitHub inválida. Utilize o formato https://github.com/usuario/repositorio');
         }
 
         // Dispara a execução no ai-service / RepoAnalyzer
         try {
-            const response = await axios.post(`${this.analyzerBaseUrl}/api/analyze`, { url: repositorioUrl }, { timeout: 15_000 });
+            const response = await axios.post(`${this.analyzerBaseUrl}/api/analyze`, { url: repositorioUrl, profile }, { timeout: 15_000 });
 
             const { run_id } = response.data;
 
@@ -64,7 +79,7 @@ export class RepoAnalysesService {
 
         // Opcional: Atualizar status das análises em andamento consultando o ai-service
         await Promise.all(analyses
-            .filter((analysis) => analysis.status === 'iniciado' || analysis.status === 'em_execucao')
+            .filter((analysis) => ACTIVE_STATUSES.includes(analysis.status))
             .map((analysis) => this.syncAnalysisStatus(analysis.run_id)));
 
         return await this.repository.findByProjectId(projetoId);
@@ -72,11 +87,28 @@ export class RepoAnalysesService {
 
     async getById(projetoId: string, id: string): Promise<RepoAnalysisRecord | null> {
         const analysis = await this.repository.findById(id, projetoId);
-        if (analysis && (analysis.status === 'iniciado' || analysis.status === 'em_execucao')) {
+        if (analysis && ACTIVE_STATUSES.includes(analysis.status)) {
             await this.syncAnalysisStatus(analysis.run_id);
             return await this.repository.findById(id, projetoId);
         }
         return analysis;
+    }
+
+    async controlAnalysis(projetoId: string, id: string, action: 'pause' | 'resume' | 'cancel'): Promise<RepoAnalysisRecord | null> {
+        const analysis = await this.repository.findById(id, projetoId);
+        if (!analysis) return null;
+        if (!analysis.run_id) throw new AppError('Esta análise não possui execução retomável.', 409, 'ANALYSIS_NOT_RESUMABLE');
+        try {
+            await axios.post(`${this.analyzerBaseUrl}/api/runs/${encodeURIComponent(analysis.run_id)}/${action}`, {}, { timeout: 15_000 });
+            await this.syncAnalysisStatus(analysis.run_id);
+            return await this.repository.findById(id, projetoId);
+        } catch (error: unknown) {
+            const status = axios.isAxiosError(error) ? error.response?.status : undefined;
+            const detail = axios.isAxiosError(error) && typeof error.response?.data?.detail === 'string'
+                ? error.response.data.detail : 'serviço indisponível';
+            if (status === 409) throw new AppError(detail, 409, 'ANALYSIS_CONTROL_CONFLICT');
+            throw new AppError(`Falha ao ${action === 'pause' ? 'pausar' : action === 'resume' ? 'retomar' : 'cancelar'} análise: ${detail}`, 503, 'ANALYZER_UNAVAILABLE');
+        }
     }
 
     private async syncAnalysisStatus(runId: string): Promise<void> {
@@ -101,13 +133,24 @@ export class RepoAnalysesService {
                 status,
                 etapa,
                 etapaLabel: data.stage_label || etapa,
-                progresso: mapAnalyzerProgress(Number(data.stage_index), Number(data.stage_count), status),
+                progresso: mapAnalyzerProgress(Number(data.stage_index), Number(data.stage_count), status, stats),
                 mensagem: data.message,
                 erro: data.error,
                 relatorioMarkdown,
                 metadados: stats,
             });
         } catch (error) {
+            if (axios.isAxiosError(error) && error.response?.status === 404) {
+                await this.repository.updateStatus(runId, {
+                    status: 'falha',
+                    etapa: 'error',
+                    etapaLabel: 'Execução indisponível',
+                    progresso: 0,
+                    mensagem: 'O motor de análise não encontrou esta execução. Inicie uma nova análise para continuar.',
+                    erro: 'Execução não encontrada no serviço de análise.',
+                });
+                return;
+            }
             console.warn('[RepoAnalyzer] Falha ao sincronizar o status de uma análise; nova tentativa na próxima consulta.');
         }
     }

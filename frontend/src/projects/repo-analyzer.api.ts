@@ -1,6 +1,8 @@
 import { apiRequest } from "../api/api_auth";
 
-export type RepoAnalysisStatus = "iniciado" | "em_execucao" | "concluido" | "falha";
+export type RepoAnalysisStatus = "iniciado" | "em_execucao" | "pausando" | "pausada" | "cancelando" | "cancelada" | "concluido" | "falha";
+export type RepoAnalysisProfile = "quick" | "balanced" | "complete";
+export type RepoAnalysisAction = "pause" | "resume" | "cancel";
 
 export interface RepoAnalysis {
     id: string;
@@ -22,10 +24,19 @@ export interface RepoAnalysis {
     autor_email?: string | null;
 }
 
-export async function startRepoAnalysis(projectId: string, repositoryUrl: string, signal?: AbortSignal): Promise<RepoAnalysis> {
+export async function startRepoAnalysis(projectId: string, repositoryUrl: string, profile: RepoAnalysisProfile = "quick", signal?: AbortSignal): Promise<RepoAnalysis> {
     const response = await apiRequest(`/projects/${encodeURIComponent(projectId)}/repo-analyses`, {
         method: "POST",
-        body: JSON.stringify({ repositorio_url: repositoryUrl }),
+        body: JSON.stringify({ repositorio_url: repositoryUrl, perfil: profile }),
+        signal,
+    });
+    return await response.json();
+}
+
+export async function controlRepoAnalysis(projectId: string, analysisId: string, action: RepoAnalysisAction, signal?: AbortSignal): Promise<RepoAnalysis> {
+    const response = await apiRequest(`/projects/${encodeURIComponent(projectId)}/repo-analyses/${encodeURIComponent(analysisId)}/${action}`, {
+        method: "POST",
+        body: JSON.stringify({}),
         signal,
     });
     return await response.json();

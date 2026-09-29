@@ -202,7 +202,7 @@ CREATE TABLE IF NOT EXISTS analise_repositorio (
     usuario_id UUID NOT NULL REFERENCES usuario(id) ON DELETE CASCADE,
     repositorio_url VARCHAR(500) NOT NULL,
     run_id VARCHAR(100),
-    status VARCHAR(50) NOT NULL DEFAULT 'iniciado', -- 'iniciado', 'em_execucao', 'concluido', 'falha'
+    status VARCHAR(50) NOT NULL DEFAULT 'iniciado', -- iniciado, em_execucao, pausando, pausada, cancelando, cancelada, concluido, falha
     etapa VARCHAR(50) DEFAULT 'queued',
     etapa_label VARCHAR(100) DEFAULT 'Na fila',
     progresso INT DEFAULT 0,

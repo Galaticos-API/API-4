@@ -58,12 +58,35 @@ export function createRepoAnalysesRouter(
             }
             const url = req.body?.repositorio_url;
             if (typeof url !== 'string') throw new ValidationError('Informe a URL do repositório.');
-            const analysis = await service.startAnalysis(String(req.params.projectId), req.auth?.id ?? '', url);
+            const profile = req.body?.perfil ?? 'quick';
+            if (!['quick', 'balanced', 'complete'].includes(profile)) {
+                throw new ValidationError('Perfil inválido. Use quick, balanced ou complete.');
+            }
+            const analysis = await service.startAnalysis(String(req.params.projectId), req.auth?.id ?? '', url, profile);
             res.status(201).json(analysis);
         } catch (error) {
             next(error);
         }
     });
+
+    const control = (action: 'pause' | 'resume' | 'cancel') => async (req: Request, res: Response, next: NextFunction) => {
+        try {
+            const id = String(req.params.id);
+            validateUuid(id, 'ID da análise');
+            if (action === 'resume' && res.locals.projectStatus === 'arquivado') {
+                throw new ArchiveConflict('Projeto arquivado é somente leitura e não retoma análises.');
+            }
+            const analysis = await service.controlAnalysis(String(req.params.projectId), id, action);
+            if (!analysis) throw new NotFoundError('Análise não encontrada.');
+            res.json(analysis);
+        } catch (error) {
+            next(error);
+        }
+    };
+
+    router.post('/:id/pause', control('pause'));
+    router.post('/:id/resume', control('resume'));
+    router.post('/:id/cancel', control('cancel'));
 
     /**
      * @swagger

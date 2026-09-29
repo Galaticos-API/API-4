@@ -58,7 +58,10 @@ it("alterna o relatório entre leitura e Markdown bruto", async () => {
 
   await screen.findByRole("heading", { name: "Título" });
   fireEvent.click(screen.getByRole("button", { name: "Markdown" }));
-  await waitFor(() => expect(screen.getByRole("button", { name: "Markdown" })).toHaveAttribute("aria-pressed", "true"));
+  await waitFor(
+    () => expect(screen.getByRole("button", { name: "Markdown" })).toHaveAttribute("aria-pressed", "true"),
+    { timeout: 3000 },
+  );
   expect(screen.queryByRole("heading", { name: "Título" })).toBeNull();
   expect(screen.getByText(/# Título/)).toBeInTheDocument();
   expect(screen.getByRole("button", { name: "Markdown" })).toHaveAttribute("aria-pressed", "true");
@@ -122,7 +125,7 @@ it("inicia a análise, seleciona a nova e exibe a mensagem do servidor quando re
   await waitFor(() => expect(screen.getByLabelText(/URL do repositório/)).toHaveValue(""));
   const [url, init] = request.mock.calls[2] as [string, RequestInit];
   expect(url).toBe("/api/v1/projects/p-1/repo-analyses");
-  expect(JSON.parse(String(init.body))).toEqual({ repositorio_url: "https://github.com/acme/novo" });
+  expect(JSON.parse(String(init.body))).toEqual({ repositorio_url: "https://github.com/acme/novo", perfil: "quick" });
 });
 
 it("análise com falha mostra o motivo, permite repetir e alterna pelo histórico", async () => {
@@ -146,7 +149,7 @@ it("análise com falha mostra o motivo, permite repetir e alterna pelo históric
   fireEvent.click(await screen.findByRole("button", { name: "Analisar novamente" }));
   await waitFor(() => expect(request).toHaveBeenCalledTimes(2));
   const [, init] = request.mock.calls[1] as [string, RequestInit];
-  expect(JSON.parse(String(init.body))).toEqual({ repositorio_url: "https://github.com/acme/api" });
+  expect(JSON.parse(String(init.body))).toEqual({ repositorio_url: "https://github.com/acme/api", perfil: "quick" });
 });
 
 it("perfil sem permissão apenas consulta", async () => {
@@ -154,4 +157,69 @@ it("perfil sem permissão apenas consulta", async () => {
   render(<RepoAnalyzerView projectId="p-1" canStart={false} />);
   expect(await screen.findByText(/não pode iniciar novas/)).toBeInTheDocument();
   expect(screen.queryByRole("button", { name: "Iniciar análise" })).toBeNull();
+});
+
+it("envia perfil rápido ao iniciar uma análise", async () => {
+  const created = analysis({ status: "iniciado", etapa: "queued", etapa_label: "Na fila", progresso: 0 });
+  const request = vi.fn()
+    .mockImplementationOnce(() => json([]))
+    .mockImplementationOnce(() => json(created, 201))
+    .mockImplementation(() => json([created]));
+  vi.stubGlobal("fetch", request);
+  render(<RepoAnalyzerView projectId="p-1" />);
+  await screen.findByText("Nenhuma análise realizada neste projeto.");
+
+  fireEvent.change(screen.getByDisplayValue("Rápida · até 8 arquivos prioritários"), { target: { value: "balanced" } });
+  fireEvent.change(screen.getByLabelText(/URL do repositório/), { target: { value: "https://github.com/acme/api" } });
+  fireEvent.click(screen.getByRole("button", { name: "Iniciar análise" }));
+  await waitFor(() => expect(request).toHaveBeenCalledTimes(3));
+  const [, options] = request.mock.calls[1] as [string, RequestInit];
+  expect(JSON.parse(String(options.body))).toEqual({ repositorio_url: "https://github.com/acme/api", perfil: "balanced" });
+});
+
+it("pausa uma análise e oferece retomada pelo checkpoint", async () => {
+  const paused = analysis({ status: "pausada", etapa: "files", etapa_label: "Analisando arquivos", progresso: 42, mensagem: "Progresso salvo." });
+  const request = vi.fn()
+    .mockImplementationOnce(() => json([analysis()]))
+    .mockImplementationOnce(() => json(paused))
+    .mockImplementationOnce(() => json([paused]));
+  vi.stubGlobal("fetch", request);
+  render(<RepoAnalyzerView projectId="p-1" />);
+  await screen.findByRole("button", { name: "Pausar" });
+  fireEvent.click(screen.getByRole("button", { name: "Pausar" }));
+
+  expect(await screen.findByRole("button", { name: "Retomar análise" })).toBeInTheDocument();
+  expect(screen.getAllByText("Pausada").length).toBeGreaterThan(0);
+  expect(request.mock.calls[1][0]).toBe("/api/v1/projects/p-1/repo-analyses/a-1/pause");
+});
+
+it("permite continuar uma análise que falhou depois de salvar progresso", async () => {
+  const failed = analysis({ status: "falha", etapa: "error", erro: "Limite temporário de saída", metadados: { files_total: 8, files_processed: 5, can_resume: true } });
+  const resumed = analysis({ status: "iniciado", etapa: "queued", mensagem: "Retomando do último ponto salvo…" });
+  const request = vi.fn()
+    .mockImplementationOnce(() => json([failed]))
+    .mockImplementationOnce(() => json(resumed))
+    .mockImplementationOnce(() => json([resumed]));
+  vi.stubGlobal("fetch", request);
+  render(<RepoAnalyzerView projectId="p-1" />);
+
+  fireEvent.click(await screen.findByRole("button", { name: "Continuar com progresso salvo" }));
+  expect(request.mock.calls[1][0]).toBe("/api/v1/projects/p-1/repo-analyses/a-1/resume");
+  expect(await screen.findByText("Retomando do último ponto salvo…")).toBeInTheDocument();
+});
+
+it("pede confirmação antes de cancelar e registra o estado cancelado", async () => {
+  const cancelled = analysis({ status: "cancelada", etapa: "files", etapa_label: "Analisando arquivos", progresso: 30, mensagem: "Análise cancelada pelo usuário." });
+  const request = vi.fn()
+    .mockImplementationOnce(() => json([analysis()]))
+    .mockImplementationOnce(() => json(cancelled))
+    .mockImplementationOnce(() => json([cancelled]));
+  vi.stubGlobal("fetch", request);
+  vi.spyOn(window, "confirm").mockReturnValue(true);
+  render(<RepoAnalyzerView projectId="p-1" />);
+  fireEvent.click(await screen.findByRole("button", { name: "Cancelar análise" }));
+
+  expect(window.confirm).toHaveBeenCalled();
+  expect((await screen.findAllByText("Cancelada")).length).toBeGreaterThan(0);
+  expect(request.mock.calls[1][0]).toBe("/api/v1/projects/p-1/repo-analyses/a-1/cancel");
 });

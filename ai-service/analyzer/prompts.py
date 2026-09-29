@@ -16,7 +16,18 @@ Responda em português técnico, claro e objetivo.
 """
 
 
-def chunk_prompt(path, language, chunk_index, total_chunks, content, symbols):
+def chunk_prompt(path, language, chunk_index, total_chunks, content, symbols, compact=False):
+    if compact:
+        return f"""Analise o bloco {chunk_index}/{total_chunks} do arquivo `{path}` ({language}).
+
+Símbolos conhecidos: {symbols}
+Conteúdo:
+```text
+{content}
+```
+
+Em português, resuma propósito e fatos principais em até 180 palavras. Liste só funções/dependências relevantes e um possível problema se houver evidência. Não repita o conteúdo nem invente fatos."""
+
     return f"""Analise o bloco {chunk_index}/{total_chunks} do arquivo `{path}`.
 
 Linguagem: {language}
@@ -41,11 +52,24 @@ Produza:
 Não invente informações ausentes."""
 
 
-def single_chunk_prompt(path, language, symbols, content):
+def single_chunk_prompt(path, language, symbols, content, compact=False):
     """Usado quando o arquivo inteiro cabe em um único bloco: produz
     diretamente a análise consolidada do arquivo em UMA chamada ao modelo,
     em vez de uma chamada por bloco seguida de uma chamada de consolidação.
     """
+    if compact:
+        return f"""Analise o arquivo `{path}` ({language}) por completo.
+
+Símbolos conhecidos:
+{symbols}
+
+Conteúdo:
+```text
+{content}
+```
+
+Em português, descreva finalidade, funcionamento e evidências principais em até 250 palavras. Cite funções/imports relevantes e possíveis problemas apenas quando houver evidência. Não invente fatos."""
+
     return f"""Analise o arquivo `{path}` ({language}) por completo - ele cabe
 integralmente em um único bloco, então esta é a análise final e consolidada
 do arquivo (não apenas de um trecho).
@@ -71,8 +95,17 @@ Escreva uma análise única contendo:
 Não invente informações ausentes."""
 
 
-def file_synthesis_prompt(path, language, symbols, chunk_summaries):
+def file_synthesis_prompt(path, language, symbols, chunk_summaries, compact=False):
     joined = "\n\n--- BLOCO ---\n\n".join(chunk_summaries)
+    if compact:
+        return f"""Consolide em até 300 palavras a análise de `{path}` ({language}).
+
+Estrutura estática: {symbols}
+Resumo dos blocos:
+{joined}
+
+Use seções curtas para finalidade, responsabilidades, funcionamento e evidências. Identifique possíveis problemas só se houver evidência; declare quando algo não puder ser determinado."""
+
     return f"""Consolide a análise do arquivo `{path}` ({language}).
 
 Estrutura estática:
@@ -94,8 +127,28 @@ Escreva uma análise única contendo:
 Não introduza fatos que não apareçam nas evidências."""
 
 
-def project_synthesis_prompt(inventory, file_summaries):
+def project_synthesis_prompt(inventory, file_summaries, compact=False):
     joined = "\n\n===== ARQUIVO =====\n\n".join(file_summaries)
+
+    if compact:
+        return f"""Você é o analista principal do repositório.
+
+INVENTÁRIO:
+{inventory}
+
+ANÁLISES DOS ARQUIVOS:
+{joined}
+
+Escreva uma síntese concisa em Markdown, com estas seções e nesta ordem:
+# Visão Geral
+# Objetivo Inferido
+        # Stack Tecnológica
+# Arquitetura e Estrutura
+# Funcionalidades Observadas
+# Qualidade e Possíveis Problemas
+# Limitações da Análise
+
+Use até 2 frases por seção e até 350 palavras no total. Para cada tecnologia, cite o arquivo que comprova seu uso ou declaração; imports padrão da linguagem/framework não são dependências separadas. Liste dependências externas somente quando aparecerem no inventário/manifests fornecidos. Para cada possível problema, cite arquivo e trecho/função que o demonstra e descreva a condição de falha; se não houver evidência suficiente, não inclua o item. Não transforme hipóteses em funcionalidades, não repita itens e não invente bibliotecas. Separe fatos observados de inferências e recomendações. Quando faltar evidência, escreva “não determinado pelas evidências disponíveis”."""
 
     return f"""Você é o analista principal do repositório.
 
@@ -127,4 +180,6 @@ Inclua:
 # Evidências Concretas
 
 Se alguma seção não puder ser determinada, declare explicitamente isso.
-Não invente tecnologias, funcionalidades ou arquitetura."""
+Não invente tecnologias, funcionalidades ou arquitetura.
+Mantenha cada seção objetiva e evite repetir a lista de arquivos do inventário.
+Use apenas evidências que aparecem nas análises fornecidas."""

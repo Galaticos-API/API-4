@@ -84,6 +84,7 @@ services:
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-sinapse_dev_password}
       - POSTGRES_DB=${POSTGRES_DB:-sinapse}
       - AI_SERVICE_URL=http://ai-service:8000
+      - REPO_ANALYZER_URL=${REPO_ANALYZER_URL:-http://ai-service:8000}
       - DOCUMENT_MAX_SIZE_MB=${DOCUMENT_MAX_SIZE_MB:-20}
       - DOCUMENT_STORAGE_DIR=/data/documents
       - DOCUMENT_EVENTS_WEBHOOK_URL=${DOCUMENT_EVENTS_WEBHOOK_URL:-}
@@ -107,12 +108,21 @@ services:
     restart: unless-stopped
     ports:
       - "${AI_SERVICE_PORT:-8000}:8000"
+    volumes:
+      - repo_analysis_data:/app/workspace_analyzer
     environment:
       - AI_SERVICE_PORT=8000
       - AI_SERVICE_HOST=0.0.0.0
       - OLLAMA_BASE_URL=http://ollama:11434
       - OLLAMA_LLM_MODEL=${OLLAMA_LLM_MODEL:-qwen2.5:1.5b}
+      - OLLAMA_NUM_PREDICT=${OLLAMA_NUM_PREDICT:-1024}
+      - OLLAMA_NUM_CTX=${OLLAMA_NUM_CTX:-8192}
+      - OLLAMA_FILE_NUM_PREDICT=${OLLAMA_FILE_NUM_PREDICT:-512}
+      - OLLAMA_SYNTHESIS_NUM_PREDICT=${OLLAMA_SYNTHESIS_NUM_PREDICT:-3072}
       - OLLAMA_EMBEDDING_MODEL=${OLLAMA_EMBEDDING_MODEL:-bge-m3}
+      - MAX_FILES=${MAX_FILES:-1000}
+      - ANALYZER_QUICK_FILES=${ANALYZER_QUICK_FILES:-8}
+      - ANALYZER_BALANCED_FILES=${ANALYZER_BALANCED_FILES:-80}
       - POSTGRES_HOST=postgres
       - POSTGRES_PORT=5432
       - POSTGRES_USER=${POSTGRES_USER:-sinapse}
@@ -146,6 +156,8 @@ volumes:
     name: sinapse_ollama_data
   documents_data:
     name: sinapse_documents_data
+  repo_analysis_data:
+    name: sinapse_repo_analysis_data
 
 networks:
   sinapse-network:
