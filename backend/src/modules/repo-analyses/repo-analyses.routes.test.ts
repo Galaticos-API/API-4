@@ -17,19 +17,25 @@ const ANALYSIS = 'e0000000-0000-4000-8000-000000000001';
 const record = { id: ANALYSIS, projeto_id: ACTIVE, status: 'iniciado', run_id: 'r1' } as RepoAnalysisRecord;
 
 class FakeService extends RepoAnalysesService {
-    public started: Array<{ projectId: string; userId: string; url: string }> = [];
+    public started: Array<{ projectId: string; userId: string; url: string; profile: string }> = [];
     public lookups: Array<{ projectId: string; id: string }> = [];
+    public controls: Array<{ projectId: string; id: string; action: string }> = [];
     public engineDown = false;
 
     constructor() {
         super({} as never, 'http://localhost:0');
     }
 
-    async startAnalysis(projectId: string, userId: string, url: string): Promise<RepoAnalysisRecord> {
+    async startAnalysis(projectId: string, userId: string, url: string, profile = 'quick'): Promise<RepoAnalysisRecord> {
         if (!/^https:\/\/github\.com\/[\w.-]+\/[\w.-]+$/.test(url)) throw new ValidationError('URL do repositório GitHub inválida.');
         if (this.engineDown) throw new AppError('Falha ao iniciar análise no motor de IA: serviço indisponível', 503, 'ANALYZER_UNAVAILABLE');
-        this.started.push({ projectId, userId, url });
+        this.started.push({ projectId, userId, url, profile });
         return { ...record, projeto_id: projectId };
+    }
+
+    async controlAnalysis(projectId: string, id: string, action: 'pause' | 'resume' | 'cancel'): Promise<RepoAnalysisRecord | null> {
+        this.controls.push({ projectId, id, action });
+        return projectId === ACTIVE && id === ANALYSIS ? record : null;
     }
 
     async listByProject(projectId: string): Promise<RepoAnalysisRecord[]> {
@@ -94,7 +100,14 @@ test('id de projeto malformado retorna 400 e projeto inexistente retorna 404 ant
 test('inicia análise no projeto ativo com o usuário autenticado', async () => {
     const response = await call(`/${ACTIVE}/repo-analyses`, { method: 'POST', json: { repositorio_url: 'https://github.com/acme/api' } });
     assert.equal(response.status, 201);
-    assert.deepEqual(service.started.at(-1), { projectId: ACTIVE, userId: 'b0000000-0000-4000-8000-000000000001', url: 'https://github.com/acme/api' });
+    assert.deepEqual(service.started.at(-1), { projectId: ACTIVE, userId: 'b0000000-0000-4000-8000-000000000001', url: 'https://github.com/acme/api', profile: 'quick' });
+});
+
+test('aceita perfil configurável e rejeita perfil desconhecido', async () => {
+    const response = await call(`/${ACTIVE}/repo-analyses`, { method: 'POST', json: { repositorio_url: 'https://github.com/acme/api', perfil: 'quick' } });
+    assert.equal(response.status, 201);
+    assert.equal(service.started.at(-1)?.profile, 'quick');
+    assert.equal((await call(`/${ACTIVE}/repo-analyses`, { method: 'POST', json: { repositorio_url: 'https://github.com/acme/api', perfil: 'turbo' } })).status, 400);
 });
 
 test('URL inválida retorna 400 e falha do motor retorna 503 com mensagem legível', async () => {
@@ -121,4 +134,17 @@ test('consulta por id respeita o projeto da rota e valida o formato', async () =
     assert.deepEqual(service.lookups.at(-1), { projectId: OTHER, id: ANALYSIS });
     assert.equal((await call(`/${ACTIVE}/repo-analyses/abc`)).status, 400);
     assert.deepEqual(await (await call(`/${OTHER}/repo-analyses`)).json(), []);
+});
+
+test('pausa, retoma e cancela uma análise autenticada e vinculada ao projeto', async () => {
+    for (const action of ['pause', 'resume', 'cancel'] as const) {
+        assert.equal((await call(`/${ACTIVE}/repo-analyses/${ANALYSIS}/${action}`, { method: 'POST', json: {} })).status, 200);
+    }
+    assert.deepEqual(service.controls.slice(-3), [
+        { projectId: ACTIVE, id: ANALYSIS, action: 'pause' },
+        { projectId: ACTIVE, id: ANALYSIS, action: 'resume' },
+        { projectId: ACTIVE, id: ANALYSIS, action: 'cancel' },
+    ]);
+    assert.equal((await call(`/${OTHER}/repo-analyses/${ANALYSIS}/cancel`, { method: 'POST', json: {} })).status, 404);
+    assert.equal((await call(`/${ARCHIVED}/repo-analyses/${ANALYSIS}/resume`, { method: 'POST', json: {} })).status, 409);
 });

@@ -13,7 +13,7 @@ import {
   stageStates,
   validateRepositoryUrl,
 } from "../../models/repoAnalyzer";
-import { listRepoAnalyses, startRepoAnalysis, type RepoAnalysis } from "../../projects/repo-analyzer.api";
+import { controlRepoAnalysis, listRepoAnalyses, startRepoAnalysis, type RepoAnalysis, type RepoAnalysisAction, type RepoAnalysisProfile } from "../../projects/repo-analyzer.api";
 import { Alert, Badge, Button, EmptyState, Field, Progress } from "../common/ui";
 import { Markdown } from "../common/Markdown";
 import "../../assets/styles/repo-analyzer.css";
@@ -63,11 +63,14 @@ export function RepoAnalyzerView({ projectId, canStart = true }: { projectId: st
   const [analyses, setAnalyses] = useState<RepoAnalysis[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [repoUrl, setRepoUrl] = useState("");
+  const [profile, setProfile] = useState<RepoAnalysisProfile>("quick");
   const [urlError, setUrlError] = useState("");
   const [startError, setStartError] = useState("");
   const [starting, setStarting] = useState(false);
   const [pollFailed, setPollFailed] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [controlBusy, setControlBusy] = useState(false);
+  const [controlError, setControlError] = useState("");
   const startingRef = useRef(false);
   const mounted = useRef(true);
   const requestId = useRef(0);
@@ -110,13 +113,13 @@ export function RepoAnalyzerView({ projectId, canStart = true }: { projectId: st
     return () => window.clearInterval(timer);
   }, [hasActive, refresh]);
 
-  const launch = useCallback(async (url: string) => {
+  const launch = useCallback(async (url: string, selectedProfile: RepoAnalysisProfile = profile) => {
     if (startingRef.current) return;
     startingRef.current = true;
     setStarting(true);
     setStartError("");
     try {
-      const created = await startRepoAnalysis(projectId, url);
+      const created = await startRepoAnalysis(projectId, url, selectedProfile);
       if (!mounted.current) return;
       setRepoUrl("");
       setAnalyses((previous) => [created, ...previous.filter((item) => item.id !== created.id)]);
@@ -129,7 +132,25 @@ export function RepoAnalyzerView({ projectId, canStart = true }: { projectId: st
       startingRef.current = false;
       if (mounted.current) setStarting(false);
     }
-  }, [projectId, refresh]);
+  }, [projectId, profile, refresh]);
+
+  const control = useCallback(async (analysisId: string, action: RepoAnalysisAction) => {
+    if (controlBusy) return;
+    if (action === "cancel" && !window.confirm("Cancelar esta análise? O progresso salvo será mantido, mas ela não poderá ser retomada.")) return;
+    setControlBusy(true);
+    setControlError("");
+    try {
+      const updated = await controlRepoAnalysis(projectId, analysisId, action);
+      if (mounted.current) {
+        setAnalyses((previous) => previous.map((item) => item.id === updated.id ? updated : item));
+        void refresh(true);
+      }
+    } catch (error) {
+      if (mounted.current) setControlError(error instanceof Error ? error.message : "Não foi possível controlar a análise. Tente novamente.");
+    } finally {
+      if (mounted.current) setControlBusy(false);
+    }
+  }, [controlBusy, projectId, refresh]);
 
   const submit = (event: React.FormEvent) => {
     event.preventDefault();
@@ -167,6 +188,13 @@ export function RepoAnalyzerView({ projectId, canStart = true }: { projectId: st
               aria-invalid={Boolean(urlError)}
               onChange={(event) => { setRepoUrl(event.target.value); setUrlError(""); setStartError(""); }}
             />
+          </Field>
+          <Field label="Escopo da análise" help="Os arquivos são priorizados por relevância. A inventariação continua considerando o repositório todo.">
+            <select className="ds-input" value={profile} disabled={starting} onChange={(event) => setProfile(event.target.value as RepoAnalysisProfile)}>
+              <option value="quick">Rápida · até 8 arquivos prioritários</option>
+              <option value="balanced">Equilibrada · até 80 arquivos prioritários</option>
+              <option value="complete">Completa · todos os arquivos elegíveis</option>
+            </select>
           </Field>
           <Button type="submit" disabled={starting}>{starting ? "Iniciando…" : "Iniciar análise"}</Button>
         </form>
@@ -223,7 +251,16 @@ export function RepoAnalyzerView({ projectId, canStart = true }: { projectId: st
 
           <div className="card-garakis analysis-details" aria-live="polite">
             {selected ? (
-              <AnalysisDetails analysis={selected} now={now} canRetry={canStart && !starting} onRetry={() => void launch(selected.repositorio_url)} />
+              <AnalysisDetails
+                analysis={selected}
+                now={now}
+                canRetry={canStart && !starting}
+                canControl={canStart}
+                controlBusy={controlBusy}
+                controlError={controlError}
+                onRetry={() => void launch(selected.repositorio_url)}
+                onControl={(action) => void control(selected.id, action)}
+              />
             ) : (
               <EmptyState
                 title="Nenhuma análise selecionada"
@@ -237,7 +274,16 @@ export function RepoAnalyzerView({ projectId, canStart = true }: { projectId: st
   );
 }
 
-function AnalysisDetails({ analysis, now, canRetry, onRetry }: { analysis: RepoAnalysis; now: number; canRetry: boolean; onRetry: () => void }) {
+function AnalysisDetails({ analysis, now, canRetry, canControl, controlBusy, controlError, onRetry, onControl }: {
+  analysis: RepoAnalysis;
+  now: number;
+  canRetry: boolean;
+  canControl: boolean;
+  controlBusy: boolean;
+  controlError: string;
+  onRetry: () => void;
+  onControl: (action: RepoAnalysisAction) => void;
+}) {
   const view = STATUS_VIEW[analysis.status] ?? STATUS_VIEW.iniciado;
   const active = isActive(analysis);
   const progress = analysis.progresso ?? 0;
@@ -288,7 +334,7 @@ function AnalysisDetails({ analysis, now, canRetry, onRetry }: { analysis: RepoA
         ))}
       </ol>
 
-      {active && (
+      {((active) || analysis.status === "pausada" || analysis.status === "cancelada") && (
         <div className="analysis-progress">
           <div className="analysis-progress-line">
             <span>{analysis.etapa_label || "Na fila"}</span>
@@ -299,11 +345,29 @@ function AnalysisDetails({ analysis, now, canRetry, onRetry }: { analysis: RepoA
           {stats.filesTotal !== null && stats.filesProcessed !== null && (
             <p className="help">
               {stats.filesProcessed} de {stats.filesTotal} arquivos analisados
+              {typeof analysis.metadados?.files_candidates === "number" && analysis.metadados.files_candidates > stats.filesTotal
+                ? ` · ${analysis.metadados.files_candidates - stats.filesTotal} fora do escopo` : ""}
               {stats.etaSeconds ? ` · restante estimado ${formatDuration(stats.etaSeconds)}` : ""}
             </p>
           )}
+          {canControl && (active || analysis.status === "pausada") && (
+            <div className="analysis-controls" aria-label="Controles da análise">
+              {(analysis.status === "em_execucao" || analysis.status === "iniciado") && (
+                <Button variant="secondary" size="sm" disabled={controlBusy} onClick={() => onControl("pause")}>{controlBusy ? "Salvando…" : "Pausar"}</Button>
+              )}
+              {analysis.status === "pausada" && (
+                <Button variant="primary" size="sm" disabled={controlBusy} onClick={() => onControl("resume")}>{controlBusy ? "Retomando…" : "Retomar análise"}</Button>
+              )}
+              {analysis.status !== "pausando" && analysis.status !== "cancelando" && (
+                <Button variant="danger" size="sm" disabled={controlBusy} onClick={() => onControl("cancel")}>Cancelar análise</Button>
+              )}
+            </div>
+          )}
+          {analysis.status === "pausando" && <p className="help" role="status">A pausa será aplicada após a chamada atual ao modelo.</p>}
+          {analysis.status === "cancelando" && <p className="help" role="status">O cancelamento será aplicado após a chamada atual ao modelo.</p>}
         </div>
       )}
+      {controlError && <Alert tone="danger" role="alert">{controlError}</Alert>}
 
       {stats.languages.length > 0 && (
         <ul className="analysis-languages" aria-label="Linguagens encontradas">
