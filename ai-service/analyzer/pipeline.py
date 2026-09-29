@@ -481,7 +481,9 @@ class Analyzer:
             state.language_counts = inventory["language_counts"]
             state.files_total = total
             state.files_processed = sum(1 for item in files if item.path in state.completed_summaries)
-            llm_calls_estimated = self._estimate_llm_calls([item for item in files if item.path not in state.completed_summaries])
+            llm_calls_estimated = state.llm_calls_done + self._estimate_llm_calls(
+                [item for item in files if item.path not in state.completed_summaries]
+            )
 
             self._push(
                 run_id,
@@ -537,6 +539,7 @@ class Analyzer:
                     ),
                     should_cancel=lambda: self._check_control(run_id),
                     num_predict=self.settings.ollama_synthesis_num_predict,
+                    accept_truncated=state.profile == "quick",
                 )
                 self._note_llm_call(run_id)
                 with self.lock:

@@ -192,6 +192,7 @@ def standalone_func():
             class FakeClient:
                 def __init__(self):
                     self.calls = []
+                    self.truncation_policies = []
                     self.pause_on_first_call = True
 
                 def check(self):
@@ -199,6 +200,7 @@ def standalone_func():
 
                 def chat(self, _system, prompt, should_cancel=None, num_predict=None, accept_truncated=False):
                     self.calls.append(prompt)
+                    self.truncation_policies.append(accept_truncated)
                     if self.pause_on_first_call:
                         self.pause_on_first_call = False
                         analyzer.pause(state.run_id)
@@ -224,6 +226,7 @@ def standalone_func():
             self.assertFalse(state.worker_thread.is_alive())
             self.assertEqual(analyzer.status(state.run_id)["status"], "completed")
             self.assertEqual(len(client.calls), 3)  # Refaz a chamada interrompida e depois sintetiza o projeto.
+            self.assertEqual(client.truncation_policies, [True, True, True])
 
 
 if __name__ == "__main__":
