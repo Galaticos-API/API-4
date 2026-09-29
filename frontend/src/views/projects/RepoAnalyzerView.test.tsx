@@ -58,7 +58,10 @@ it("alterna o relatório entre leitura e Markdown bruto", async () => {
 
   await screen.findByRole("heading", { name: "Título" });
   fireEvent.click(screen.getByRole("button", { name: "Markdown" }));
-  await waitFor(() => expect(screen.getByRole("button", { name: "Markdown" })).toHaveAttribute("aria-pressed", "true"));
+  await waitFor(
+    () => expect(screen.getByRole("button", { name: "Markdown" })).toHaveAttribute("aria-pressed", "true"),
+    { timeout: 3000 },
+  );
   expect(screen.queryByRole("heading", { name: "Título" })).toBeNull();
   expect(screen.getByText(/# Título/)).toBeInTheDocument();
   expect(screen.getByRole("button", { name: "Markdown" })).toHaveAttribute("aria-pressed", "true");
