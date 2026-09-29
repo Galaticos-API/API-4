@@ -73,6 +73,35 @@ class TestOllamaClient(TestCase):
         limits = [payload["options"]["num_predict"] for payload in payloads]
         self.assertEqual(limits, [128, 256])
 
+    @patch("analyzer.ollama_client.httpx.Client")
+    def test_chat_keeps_expanding_truncated_output_until_safe_ceiling(self, client_factory):
+        client = client_factory.return_value
+        limits = []
+        streams = []
+        for index in range(5):
+            response = Mock()
+            if index < 4:
+                response.iter_lines.return_value = [
+                    '{"message":{"content":"parcial"},"done":true,"done_reason":"length"}'
+                ]
+            else:
+                response.iter_lines.return_value = [
+                    '{"message":{"content":"completa"},"done":true,"done_reason":"stop"}'
+                ]
+            stream = MagicMock()
+            stream.__enter__.return_value = response
+            streams.append(stream)
+
+        def stream(*_args, **kwargs):
+            limits.append(kwargs["json"]["options"]["num_predict"])
+            return streams.pop(0)
+
+        client.stream.side_effect = stream
+        ollama = OllamaClient("http://ollama:11434", "qwen", 300, "5m", max_retries=0, num_predict=512)
+
+        self.assertEqual(ollama.chat("sistema", "prompt"), "completa")
+        self.assertEqual(limits, [512, 1024, 2048, 4096, 8192])
+
     def test_chat_uses_safe_default_token_limit(self):
         with patch("analyzer.ollama_client.httpx.Client"):
             ollama = OllamaClient("http://ollama:11434", "qwen", 300, "5m")

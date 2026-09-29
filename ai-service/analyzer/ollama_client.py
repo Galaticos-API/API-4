@@ -75,7 +75,9 @@ class OllamaClient:
         }
 
         last_error: Exception | None = None
-        for attempt in range(self.max_retries + 1):
+        output_limit_retries = 0
+        http_retries = 0
+        while True:
             try:
                 content_parts: list[str] = []
                 done_reason = ""
@@ -94,8 +96,10 @@ class OllamaClient:
                             done_reason = data.get("done_reason", "")
                             break
                 if done_reason == "length":
-                    if attempt < self.max_retries and output_limit < 8192:
+                    if output_limit_retries < 4 and output_limit < 8192:
                         output_limit = min(8192, output_limit * 2)
+                        output_limit_retries += 1
+                        http_retries = 0
                         payload["options"]["num_predict"] = output_limit
                         continue
                     raise OllamaError(
@@ -106,8 +110,9 @@ class OllamaClient:
                 break
             except httpx.HTTPError as exc:
                 last_error = exc
-                if attempt < self.max_retries:
-                    time.sleep(self.retry_backoff_seconds * (attempt + 1))
+                if http_retries < self.max_retries:
+                    http_retries += 1
+                    time.sleep(self.retry_backoff_seconds * http_retries)
                     continue
                 raise OllamaError(
                     f"Não foi possível acessar o Ollama em {self.base_url} "
