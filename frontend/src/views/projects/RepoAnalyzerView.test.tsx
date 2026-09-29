@@ -193,6 +193,21 @@ it("pausa uma análise e oferece retomada pelo checkpoint", async () => {
   expect(request.mock.calls[1][0]).toBe("/api/v1/projects/p-1/repo-analyses/a-1/pause");
 });
 
+it("permite continuar uma análise que falhou depois de salvar progresso", async () => {
+  const failed = analysis({ status: "falha", etapa: "error", erro: "Limite temporário de saída", metadados: { files_total: 8, files_processed: 5, can_resume: true } });
+  const resumed = analysis({ status: "iniciado", etapa: "queued", mensagem: "Retomando do último ponto salvo…" });
+  const request = vi.fn()
+    .mockImplementationOnce(() => json([failed]))
+    .mockImplementationOnce(() => json(resumed))
+    .mockImplementationOnce(() => json([resumed]));
+  vi.stubGlobal("fetch", request);
+  render(<RepoAnalyzerView projectId="p-1" />);
+
+  fireEvent.click(await screen.findByRole("button", { name: "Continuar com progresso salvo" }));
+  expect(request.mock.calls[1][0]).toBe("/api/v1/projects/p-1/repo-analyses/a-1/resume");
+  expect(await screen.findByText("Retomando do último ponto salvo…")).toBeInTheDocument();
+});
+
 it("pede confirmação antes de cancelar e registra o estado cancelado", async () => {
   const cancelled = analysis({ status: "cancelada", etapa: "files", etapa_label: "Analisando arquivos", progresso: 30, mensagem: "Análise cancelada pelo usuário." });
   const request = vi.fn()

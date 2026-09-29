@@ -286,6 +286,7 @@ function AnalysisDetails({ analysis, now, canRetry, canControl, controlBusy, con
 }) {
   const view = STATUS_VIEW[analysis.status] ?? STATUS_VIEW.iniciado;
   const active = isActive(analysis);
+  const canResume = analysis.status === "pausada" || analysis.metadados?.can_resume === true;
   const progress = analysis.progresso ?? 0;
   const stages = stageStates(analysis);
   const stats = readStats(analysis.metadados);
@@ -334,7 +335,7 @@ function AnalysisDetails({ analysis, now, canRetry, canControl, controlBusy, con
         ))}
       </ol>
 
-      {((active) || analysis.status === "pausada" || analysis.status === "cancelada") && (
+      {((active) || canResume || analysis.status === "cancelada") && (
         <div className="analysis-progress">
           <div className="analysis-progress-line">
             <span>{analysis.etapa_label || "Na fila"}</span>
@@ -350,21 +351,22 @@ function AnalysisDetails({ analysis, now, canRetry, canControl, controlBusy, con
               {stats.etaSeconds ? ` · restante estimado ${formatDuration(stats.etaSeconds)}` : ""}
             </p>
           )}
-          {canControl && (active || analysis.status === "pausada") && (
+          {canControl && (active || canResume) && (
             <div className="analysis-controls" aria-label="Controles da análise">
               {(analysis.status === "em_execucao" || analysis.status === "iniciado") && (
                 <Button variant="secondary" size="sm" disabled={controlBusy} onClick={() => onControl("pause")}>{controlBusy ? "Salvando…" : "Pausar"}</Button>
               )}
-              {analysis.status === "pausada" && (
-                <Button variant="primary" size="sm" disabled={controlBusy} onClick={() => onControl("resume")}>{controlBusy ? "Retomando…" : "Retomar análise"}</Button>
+              {canResume && (
+                <Button variant="primary" size="sm" disabled={controlBusy} onClick={() => onControl("resume")}>{controlBusy ? "Retomando…" : analysis.status === "pausada" ? "Retomar análise" : "Continuar com progresso salvo"}</Button>
               )}
-              {analysis.status !== "pausando" && analysis.status !== "cancelando" && (
+              {(active || analysis.status === "pausada") && analysis.status !== "pausando" && analysis.status !== "cancelando" && (
                 <Button variant="danger" size="sm" disabled={controlBusy} onClick={() => onControl("cancel")}>Cancelar análise</Button>
               )}
             </div>
           )}
           {analysis.status === "pausando" && <p className="help" role="status">A pausa será aplicada após a chamada atual ao modelo.</p>}
           {analysis.status === "cancelando" && <p className="help" role="status">O cancelamento será aplicado após a chamada atual ao modelo.</p>}
+          {analysis.status === "falha" && canResume && <p className="help" role="status">O checkpoint preservou os arquivos já concluídos; você pode continuar sem analisá-los novamente.</p>}
         </div>
       )}
       {controlError && <Alert tone="danger" role="alert">{controlError}</Alert>}

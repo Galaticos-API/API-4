@@ -22,6 +22,7 @@ class TestOllamaClient(TestCase):
 
         payload = client.stream.call_args.kwargs["json"]
         self.assertEqual(payload["options"]["num_predict"], 700)
+        self.assertEqual(payload["options"]["num_ctx"], 8192)
         self.assertTrue(payload["stream"])
 
     @patch("analyzer.ollama_client.httpx.Client")
@@ -101,6 +102,22 @@ class TestOllamaClient(TestCase):
 
         self.assertEqual(ollama.chat("sistema", "prompt"), "completa")
         self.assertEqual(limits, [512, 1024, 2048, 4096, 8192])
+
+    @patch("analyzer.ollama_client.httpx.Client")
+    def test_quick_file_summary_keeps_partial_output_instead_of_retrying_slowly(self, client_factory):
+        client = client_factory.return_value
+        response = Mock()
+        response.iter_lines.return_value = [
+            '{"message":{"content":"Resumo útil"},"done":true,"done_reason":"length"}'
+        ]
+        client.stream.return_value.__enter__.return_value = response
+        ollama = OllamaClient("http://ollama:11434", "qwen", 300, "5m")
+
+        result = ollama.chat("sistema", "prompt", num_predict=512, accept_truncated=True)
+
+        self.assertIn("Resumo útil", result)
+        self.assertIn("trate este trecho como parcial", result)
+        self.assertEqual(client.stream.call_count, 1)
 
     def test_chat_uses_safe_default_token_limit(self):
         with patch("analyzer.ollama_client.httpx.Client"):

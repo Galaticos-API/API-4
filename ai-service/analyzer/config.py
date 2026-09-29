@@ -21,6 +21,7 @@ class AnalyzerSettings:
     request_timeout_seconds: int = int(os.getenv("REQUEST_TIMEOUT_SECONDS", "300"))
     ollama_keep_alive: str = os.getenv("OLLAMA_KEEP_ALIVE", "5m")
     ollama_num_predict: int = max(128, int(os.getenv("OLLAMA_NUM_PREDICT", "1024")))
+    ollama_num_ctx: int = max(2048, int(os.getenv("OLLAMA_NUM_CTX", "8192")))
     ollama_file_num_predict: int = max(128, int(os.getenv("OLLAMA_FILE_NUM_PREDICT", "512")))
     ollama_synthesis_num_predict: int = max(128, int(os.getenv("OLLAMA_SYNTHESIS_NUM_PREDICT", "3072")))
     ollama_think: bool = False

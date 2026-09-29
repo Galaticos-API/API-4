@@ -1,4 +1,5 @@
 import unittest
+from unittest.mock import patch
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from analyzer.pipeline import Analyzer, STAGE_KEYS, STAGE_LABELS
@@ -107,6 +108,25 @@ def standalone_func():
         ]
         self.assertEqual(len(select_analysis_files(files, "quick")), 8)
 
+    def test_failed_analysis_with_saved_summaries_can_resume_without_repeating_them(self):
+        state = RunState(
+            run_id="failedresume1", url="https://github.com/acme/api", status="failed",
+            profile="quick", stage="files", files_total=2, files_processed=1,
+            selected_paths=["README.md", "src/app.py"],
+            completed_summaries={"README.md": "resumo salvo"},
+        )
+        self.analyzer.runs[state.run_id] = state
+        state.stats = self.analyzer._snapshot(state)
+        self.assertTrue(self.analyzer.status(state.run_id)["can_resume"])
+        self.assertTrue(self.analyzer.status(state.run_id)["stats"]["can_resume"])
+
+        with patch.object(self.analyzer, "_start_worker") as start_worker:
+            result = self.analyzer.resume(state.run_id)
+
+        self.assertEqual(result["status"], "queued")
+        self.assertEqual(self.analyzer.runs[state.run_id].error, "")
+        start_worker.assert_called_once_with(state)
+
     def test_checkpoint_restores_running_analysis_as_resumable_and_keeps_finished_summaries(self):
         with TemporaryDirectory() as workspace:
             settings = AnalyzerSettings(workspace_dir=Path(workspace))
@@ -177,7 +197,7 @@ def standalone_func():
                 def check(self):
                     return None
 
-                def chat(self, _system, prompt, should_cancel=None, num_predict=None):
+                def chat(self, _system, prompt, should_cancel=None, num_predict=None, accept_truncated=False):
                     self.calls.append(prompt)
                     if self.pause_on_first_call:
                         self.pause_on_first_call = False

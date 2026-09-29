@@ -33,6 +33,7 @@ class OllamaClient:
         max_retries: int = 2,
         retry_backoff_seconds: float = 3.0,
         num_predict: int = 1024,
+        num_ctx: int = 8192,
     ):
         self.base_url = base_url.rstrip("/")
         self.model = model
@@ -42,6 +43,7 @@ class OllamaClient:
         self.max_retries = max(0, max_retries)
         self.retry_backoff_seconds = retry_backoff_seconds
         self.num_predict = max(128, num_predict)
+        self.num_ctx = max(2048, num_ctx)
         self._client = httpx.Client(timeout=timeout)
 
     def close(self) -> None:
@@ -54,6 +56,7 @@ class OllamaClient:
         temperature: float = 0.1,
         should_cancel: Callable[[], None] | None = None,
         num_predict: int | None = None,
+        accept_truncated: bool = False,
     ) -> str:
         if not system.strip().startswith(("/nothink", "/no_think")):
             system = f"/nothink\n{system}"
@@ -71,6 +74,7 @@ class OllamaClient:
             "options": {
                 "temperature": temperature,
                 "num_predict": output_limit,
+                "num_ctx": self.num_ctx,
             }
         }
 
@@ -96,6 +100,10 @@ class OllamaClient:
                             done_reason = data.get("done_reason", "")
                             break
                 if done_reason == "length":
+                    if accept_truncated:
+                        data = {"message": {"content": "".join(content_parts) +
+                            "\n\n[Análise resumida limitada pelo teto de tokens; trate este trecho como parcial.]"}}
+                        break
                     if output_limit_retries < 4 and output_limit < 8192:
                         output_limit = min(8192, output_limit * 2)
                         output_limit_retries += 1

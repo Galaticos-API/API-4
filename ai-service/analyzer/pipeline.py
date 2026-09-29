@@ -61,6 +61,7 @@ class Analyzer:
             max_retries=settings.ollama_max_retries,
             retry_backoff_seconds=settings.ollama_retry_backoff_seconds,
             num_predict=settings.ollama_num_predict,
+            num_ctx=settings.ollama_num_ctx,
         )
         self.runs: dict[str, RunState] = {}
         self.lock = threading.Lock()
@@ -101,11 +102,12 @@ class Analyzer:
 
     def resume(self, run_id: str) -> dict:
         state = self._get_run(run_id)
-        if state.status != "paused":
-            raise AnalysisError("A análise não está pausada.")
+        has_progress = bool(state.completed_summaries or state.partial_chunk_summaries or state.project_summary)
+        if state.status != "paused" and not (state.status == "failed" and has_progress):
+            raise AnalysisError("A análise não está pausada ou não possui progresso recuperável.")
         state.pause_event.clear()
         state.cancel_event.clear()
-        self._push(run_id, status="queued", message="Retomando do último ponto salvo…")
+        self._push(run_id, status="queued", error="", message="Retomando do último ponto salvo…")
         self._start_worker(state)
         return self.status(run_id)
 
@@ -271,7 +273,9 @@ class Analyzer:
             "error": state.error,
             "report_path": state.report_path,
             "profile": state.profile,
-            "can_resume": state.status == "paused",
+            "can_resume": state.status == "paused" or (
+                state.status == "failed" and bool(state.completed_summaries or state.partial_chunk_summaries or state.project_summary)
+            ),
             "can_cancel": state.status in {"queued", "running", "pausing", "paused"},
             "stats": state.stats,
         }
@@ -343,6 +347,9 @@ class Analyzer:
             "files_selected": state.files_total,
             "files_skipped_by_scope": state.files_skipped_by_scope,
             "profile": state.profile,
+            "can_resume": state.status == "paused" or (
+                state.status == "failed" and bool(state.completed_summaries or state.partial_chunk_summaries or state.project_summary)
+            ),
             "files_progress_percent": files_progress_percent,
             "language_counts": state.language_counts,
             "current_files": list(state.current_files),
@@ -646,6 +653,7 @@ class Analyzer:
                     ),
                     should_cancel=lambda: self._check_control(run_id),
                     num_predict=self.settings.ollama_file_num_predict,
+                    accept_truncated=state.profile == "quick",
                 )
                 self._note_llm_call(run_id)
             else:
@@ -666,6 +674,7 @@ class Analyzer:
                         prompt,
                         should_cancel=lambda: self._check_control(run_id),
                         num_predict=self.settings.ollama_file_num_predict,
+                        accept_truncated=state.profile == "quick",
                     ))
                     self._note_llm_call(run_id)
                     with self.lock:
@@ -688,6 +697,7 @@ class Analyzer:
                     ),
                     should_cancel=lambda: self._check_control(run_id),
                     num_predict=self.settings.ollama_file_num_predict,
+                    accept_truncated=state.profile == "quick",
                 )
                 self._note_llm_call(run_id)
 
