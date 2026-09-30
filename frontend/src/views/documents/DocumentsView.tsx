@@ -75,6 +75,7 @@ function ProjectDocuments({
   const scope = useRef(new AbortController());
   const pages = useRef(1);
   const listLock = useRef(false);
+  const refreshPending = useRef(false);
   const mutationRevision = useRef(0);
   useEffect(() => {
     const controller = new AbortController();
@@ -84,7 +85,9 @@ function ProjectDocuments({
   const requestSignal = (timeout = 15_000) => AbortSignal.any([scope.current.signal, AbortSignal.timeout(timeout)]);
 
   const refresh = useCallback(async (quiet = false) => {
-    if (!projectId || listLock.current || scope.current.signal.aborted) return;
+    if (!projectId || scope.current.signal.aborted) return;
+    if (listLock.current) { refreshPending.current = true; return; }
+    refreshPending.current = false;
     listLock.current = true;
     const signal = requestSignal();
     const revision = mutationRevision.current;
@@ -114,6 +117,7 @@ function ProjectDocuments({
       if (scope.current.signal.aborted) return;
       setLoading(false);
       setRefreshing(false);
+      if (refreshPending.current) void refresh(true);
     }
   }, [projectId]);
 
@@ -144,6 +148,7 @@ function ProjectDocuments({
     try {
       await reprocessDocument(projectId, id, signal);
       if (signal.aborted) return;
+      mutationRevision.current += 1;
       setNotice("Documento enviado para reprocessamento."); await refresh(true);
     }
     catch { if (!scope.current.signal.aborted) setNotice("Não foi possível reprocessar o documento. Tente novamente."); }
@@ -184,6 +189,7 @@ function ProjectDocuments({
       listLock.current = false;
       if (scope.current.signal.aborted) return;
       setLoadingMore(false);
+      if (refreshPending.current) void refresh(true);
     }
   };
 

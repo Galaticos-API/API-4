@@ -2,6 +2,7 @@ export type RepoAnalysisStatus = 'iniciado' | 'em_execucao' | 'pausando' | 'paus
 export type RepoAnalysisStep = 'ollama' | 'clone' | 'scan' | 'files' | 'synthesis' | 'done' | 'error' | 'queued';
 
 export interface RepoAnalysisRecord {
+    revision?: number;
     id: string;
     projeto_id: string;
     usuario_id: string;

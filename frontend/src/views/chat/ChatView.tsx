@@ -36,15 +36,20 @@ export function ChatView() {
   const [messages, setMessages] = useState<ThreadMessage[]>([]);
   const [messagesState, setMessagesState] = useState<LoadState>("idle");
   const [draft, setDraft] = useState("");
-  const [sending, setSending] = useState(false);
+  const [pendingKeys, setPendingKeys] = useState<string[]>([]);
   const [sendError, setSendError] = useState("");
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const bottom = useRef<HTMLDivElement>(null);
   const composer = useRef<HTMLTextAreaElement>(null);
   const mounted = useRef(true);
   const messagesRequest = useRef(0);
-  const sendLock = useRef(false);
+  const sendLocks = useRef(new Set<string>());
   const skipReload = useRef<string | null>(null);
+  const conversationRevision = useRef(0);
+  const selectedConversation = useRef(activeId);
+  selectedConversation.current = activeId;
+  const sendKey = activeId ?? `draft-${conversationRevision.current}`;
+  const sending = pendingKeys.includes(sendKey);
 
   useEffect(() => {
     mounted.current = true;
@@ -113,6 +118,8 @@ export function ChatView() {
   const scopeLocked = Boolean(activeId);
 
   const startNewConversation = () => {
+    conversationRevision.current += 1;
+    messagesRequest.current += 1;
     setActiveId(null);
     setMessages([]);
     setSendError("");
@@ -121,6 +128,11 @@ export function ChatView() {
   };
 
   const openConversation = (conversation: ChatConversation) => {
+    if (conversation.id === activeId) return;
+    conversationRevision.current += 1;
+    messagesRequest.current += 1;
+    setMessages([]);
+    setDraft("");
     setSendError("");
     setActiveId(conversation.id);
     setScopeId(conversation.projeto_id ?? "");
@@ -128,9 +140,10 @@ export function ChatView() {
 
   const send = useCallback(async (text: string, retryId?: string) => {
     const question = text.trim();
-    if (!question || sendLock.current || !scopeId) return;
-    sendLock.current = true;
-    setSending(true);
+    if (!question || sendLocks.current.has(sendKey) || !scopeId) return;
+    sendLocks.current.add(sendKey);
+    const revision = conversationRevision.current;
+    setPendingKeys(current => [...current, sendKey]);
     setSendError("");
     const pendingId = retryId ?? `local-${Date.now()}`;
     setMessages((current) => retryId
@@ -140,6 +153,11 @@ export function ChatView() {
     try {
       const answer = await askQuestion({ pergunta: question, conversaId: activeId, projetoId: activeId ? null : scopeId });
       if (!mounted.current) return;
+      void loadConversations(false);
+      if (revision !== conversationRevision.current) {
+        if (selectedConversation.current === answer.conversa_id) void loadMessages(answer.conversa_id);
+        return;
+      }
       setMessages((current) => [
         ...current,
         { id: `assistant-${Date.now()}`, remetente: "assistant", conteudo: answer.resposta, fontes: answer.fontes, created_at: new Date().toISOString(), origem: answer.origem },
@@ -148,9 +166,12 @@ export function ChatView() {
         skipReload.current = answer.conversa_id;
         setActiveId(answer.conversa_id);
       }
-      void loadConversations(false);
     } catch (error) {
       if (!mounted.current) return;
+      if (revision !== conversationRevision.current) {
+        if (activeId && selectedConversation.current === activeId) void loadMessages(activeId);
+        return;
+      }
       setMessages((current) => current.map((item) => (item.id === pendingId ? { ...item, failed: true } : item)));
       if (error instanceof ApiError && error.details && typeof error.details === "object" && "details" in error.details) {
         const detail = error.details.details as { conversa_id?: string };
@@ -158,10 +179,10 @@ export function ChatView() {
       }
       setSendError(describeChatError(error));
     } finally {
-      sendLock.current = false;
-      if (mounted.current) setSending(false);
+      sendLocks.current.delete(sendKey);
+      if (mounted.current) setPendingKeys(current => current.filter(key => key !== sendKey));
     }
-  }, [activeId, scopeId, loadConversations, loadMessages]);
+  }, [activeId, scopeId, sendKey, loadConversations, loadMessages]);
 
   const copy = async (message: ThreadMessage) => {
     try {
@@ -198,7 +219,7 @@ export function ChatView() {
               className="ds-input"
               value={scopeId}
               disabled={scopeLocked}
-              onChange={(event) => setScopeId(event.target.value)}
+              onChange={(event) => { conversationRevision.current += 1; setMessages([]); setSendError(""); setScopeId(event.target.value); }}
               aria-describedby="chat-scope-help"
             >
               <option value="">Selecione um projeto</option>

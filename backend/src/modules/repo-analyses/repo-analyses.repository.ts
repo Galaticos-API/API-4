@@ -123,7 +123,8 @@ export class RepoAnalysesRepository {
             erro?: string;
             relatorioMarkdown?: string;
             metadados?: any;
-        }
+        },
+        expectedRevision: number,
     ): Promise<void> {
         const query = `
       UPDATE analise_repositorio
@@ -137,7 +138,7 @@ export class RepoAnalysesRepository {
           metadados = COALESCE($8::jsonb, metadados),
           updated_at = NOW(),
           concluido_em = CASE WHEN $1::varchar IN ('concluido', 'falha', 'cancelada') THEN COALESCE(concluido_em, NOW()) ELSE concluido_em END
-      WHERE run_id = $9::varchar;
+      WHERE run_id = $9::varchar AND revision = $10 AND NOT dispatch_pending;
     `;
         await this.db.query(query, [
             statusData.status,
@@ -149,6 +150,7 @@ export class RepoAnalysesRepository {
             statusData.relatorioMarkdown || null,
             statusData.metadados ? JSON.stringify(statusData.metadados) : null,
             runId,
+            expectedRevision,
         ]);
     }
 }

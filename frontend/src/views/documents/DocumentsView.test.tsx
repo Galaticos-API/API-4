@@ -372,3 +372,23 @@ for (const operation of ['refresh', 'more', 'upload', 'remove', 'reprocess'] as 
     expect(screen.getByText('Projeto B.txt')).toBeInTheDocument();
   });
 }
+
+it('reprocessamento agenda novo refresh se a lista ainda estiver sendo carregada', async () => {
+  let finish!: (response: Response) => void;
+  let reads = 0;
+  vi.stubGlobal('fetch', vi.fn((url: RequestInfo | URL) => {
+    if (String(url).includes('/reprocess')) return json({});
+    reads++;
+    if (reads === 2) return new Promise<Response>(resolve => { finish = resolve; });
+    return listing([doc({ status_processamento: reads > 2 ? 'processado' : 'falha' })]);
+  }));
+  view();
+  await screen.findByText('Escopo.pdf');
+  fireEvent.click(screen.getByRole('button', { name: 'Atualizar' }));
+  await waitFor(() => expect(finish).toBeDefined());
+  fireEvent.click(screen.getByRole('button', { name: 'Reprocessar' }));
+  await screen.findByText('Documento enviado para reprocessamento.');
+  await act(async () => { finish(await listing([doc({status_processamento:'falha'})])); });
+  expect(await screen.findByText('Disponível no acervo')).toBeInTheDocument();
+  expect(reads).toBe(3);
+});

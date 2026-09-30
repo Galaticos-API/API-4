@@ -29,6 +29,17 @@ test('solicitação idempotente, lease exclusiva e bloqueio com arquivamento', {
     const resumed = await repository.queueResume(a.id, project);
     assert.equal(resumed?.resume_requested,true);
     assert.equal(resumed?.dispatch_pending,true);
+    const stale = { status: 'falha', etapa: 'error', etapaLabel: 'Resposta antiga', progresso: 0 };
+    await repository.updateStatus(a.run_id, stale, a.revision ?? 0);
+    assert.equal((await repository.findById(a.id,project))?.status,'iniciado');
+    // Even after dispatch finishes, an earlier HTTP response cannot overwrite the resumed run.
+    await db.query('UPDATE analise_repositorio SET dispatch_pending=FALSE WHERE id=$1',[a.id]);
+    await repository.updateStatus(a.run_id, stale, a.revision ?? 0);
+    assert.equal((await repository.findById(a.id,project))?.status,'iniciado');
+    const fresh = (await repository.findById(a.id,project))!;
+    await repository.updateStatus(a.run_id, { ...stale, status: 'em_execucao' }, fresh.revision!);
+    assert.equal((await repository.findById(a.id,project))?.status,'em_execucao');
+    await db.query('UPDATE analise_repositorio SET dispatch_pending=TRUE WHERE id=$1',[a.id]);
     await assert.rejects(new ProjectArchiveRepository(db).archive(project), /cancele/);
     const cancelling = await repository.cancelPending(a.id,project);
     assert.equal(cancelling?.status,'cancelando');

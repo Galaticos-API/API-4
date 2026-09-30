@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { ChatView } from "./ChatView";
 
 const PROJECT = { id: "p-1", nome: "Sinapse", cliente: "C", descricao: "", status: "ativo" };
@@ -240,4 +240,37 @@ it("copia a resposta do assistente", async () => {
   fireEvent.click(screen.getByRole("button", { name: "Copiar resposta" }));
   await waitFor(() => expect(writeText).toHaveBeenCalledWith("Resposta **importante**"));
   expect(await screen.findByRole("button", { name: "Copiado" })).toBeInTheDocument();
+});
+
+it("permite enviar em B enquanto A responde e recupera A ao retornar", async () => {
+  let finish!: (response: Response) => void;
+  const routes: Routes = {
+    conversations: [conversation(), conversation({ id: 'c-2', titulo: 'Conversa B' })],
+    messages: { 'c-1': [message()], 'c-2': [] },
+    query: body => body.conversa_id === 'c-1'
+      ? new Promise(resolve => { finish = resolve; })
+      : json({ conversa_id: 'c-2', resposta: 'Resposta B', fontes: [], origem: 'assistente' }),
+  };
+  const request = api(routes);
+  vi.stubGlobal('fetch', request);
+  render(<ChatView />);
+  await screen.findByText('importante');
+  fireEvent.change(composer(), { target: { value: 'Pergunta A' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Enviar' }));
+  await waitFor(() => expect(finish).toBeDefined());
+  fireEvent.click(screen.getByRole('button', { name: /Conversa B/ }));
+  expect(composer()).toBeEnabled();
+  fireEvent.change(composer(), { target: { value: 'Pergunta B' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Enviar' }));
+  await screen.findByText('Resposta B');
+  fireEvent.click(screen.getByRole('button', { name: /Decisões do login/ }));
+  await screen.findByText('importante');
+  expect(composer()).toBeDisabled();
+  routes.messages!['c-1'] = [message({ conteudo: 'Resposta A concluída' })];
+  await act(async () => {
+    finish(await json({ conversa_id: 'c-1', resposta: 'Resposta A concluída', fontes: [], origem: 'assistente' }));
+  });
+  expect(await screen.findByText('Resposta A concluída')).toBeInTheDocument();
+  expect(screen.queryByText('Resposta B')).not.toBeInTheDocument();
+  expect(composer()).toBeEnabled();
 });

@@ -82,7 +82,7 @@ export class RepoAnalysesService {
                     code !== undefined && [400, 409, 422].includes(code));
             }
         }
-        for (const analysis of await this.repository.findSyncable()) await this.syncAnalysisStatus(analysis.run_id);
+        for (const analysis of await this.repository.findSyncable()) await this.syncAnalysisStatus(analysis);
     }
 
     private needsSync(analysis: RepoAnalysisRecord): boolean {
@@ -96,7 +96,7 @@ export class RepoAnalysesService {
         // Opcional: Atualizar status das análises em andamento consultando o ai-service
         await Promise.all(analyses
             .filter((analysis) => this.needsSync(analysis))
-            .map((analysis) => this.syncAnalysisStatus(analysis.run_id)));
+            .map((analysis) => this.syncAnalysisStatus(analysis)));
 
         return await this.repository.findByProjectId(projetoId);
     }
@@ -104,7 +104,7 @@ export class RepoAnalysesService {
     async getById(projetoId: string, id: string): Promise<RepoAnalysisRecord | null> {
         const analysis = await this.repository.findById(id, projetoId);
         if (analysis && this.needsSync(analysis)) {
-            await this.syncAnalysisStatus(analysis.run_id);
+            await this.syncAnalysisStatus(analysis);
             return await this.repository.findById(id, projetoId);
         }
         return analysis;
@@ -121,7 +121,7 @@ export class RepoAnalysesService {
         if (!analysis.run_id) throw new AppError('Esta análise não possui execução retomável.', 409, 'ANALYSIS_NOT_RESUMABLE');
         try {
             await axios.post(`${this.analyzerBaseUrl}/api/runs/${encodeURIComponent(analysis.run_id)}/${action}`, {}, { headers: serviceHeaders(), timeout: 15_000 });
-            await this.syncAnalysisStatus(analysis.run_id);
+            await this.syncAnalysisStatus(analysis);
             return await this.repository.findById(id, projetoId);
         } catch (error: unknown) {
             const status = axios.isAxiosError(error) ? error.response?.status : undefined;
@@ -132,7 +132,8 @@ export class RepoAnalysesService {
         }
     }
 
-    private async syncAnalysisStatus(runId: string): Promise<void> {
+    private async syncAnalysisStatus(analysis: RepoAnalysisRecord): Promise<void> {
+        const runId = analysis.run_id;
         try {
             const response = await axios.get(`${this.analyzerBaseUrl}/api/runs/${runId}`, { headers: serviceHeaders(), timeout: 15_000 });
             const data = response.data;
@@ -160,7 +161,7 @@ export class RepoAnalysesService {
                 erro: data.error,
                 relatorioMarkdown,
                 metadados: stats,
-            });
+            }, analysis.revision ?? 0);
         } catch (error) {
             if (axios.isAxiosError(error) && error.response?.status === 404) {
                 await this.repository.updateStatus(runId, {
@@ -170,7 +171,7 @@ export class RepoAnalysesService {
                     progresso: 0,
                     mensagem: 'O motor de análise não encontrou esta execução. Inicie uma nova análise para continuar.',
                     erro: 'Execução não encontrada no serviço de análise.',
-                });
+                }, analysis.revision ?? 0);
                 return;
             }
             console.warn('[RepoAnalyzer] Falha ao sincronizar o status de uma análise; nova tentativa na próxima consulta.');
