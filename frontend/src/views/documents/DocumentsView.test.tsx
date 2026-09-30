@@ -313,3 +313,62 @@ it("acompanha a recuperação automática de um documento em falha", async () =>
     expect(clear).toHaveBeenCalledWith(123);
   } finally {timer.mockRestore();clear.mockRestore();}
 });
+
+it("polling atualiza todas as páginas carregadas sem perder itens nem duplicar", async () => {
+  let poll: (() => void) | undefined;
+  const nativeInterval = window.setInterval.bind(window);
+  const interval = vi.spyOn(window, 'setInterval').mockImplementation((fn, delay, ...args) => {
+    if (delay === 10_000) { poll = fn as () => void; return 1; }
+    return nativeInterval(fn, delay, ...args);
+  });
+  const request = vi.fn((_url: RequestInfo | URL) => String(_url).includes('cursor=')
+    ? listing([doc({ id: 'd-2', nome: 'Segunda.txt' })])
+    : listing([doc()], 'page-2'));
+  vi.stubGlobal('fetch', request);
+  try {
+    view();
+    await screen.findByText('Escopo.pdf');
+    fireEvent.click(screen.getByRole('button', { name: 'Carregar mais' }));
+    await screen.findByText('Segunda.txt');
+    await act(async () => { poll!(); });
+    await waitFor(() => expect(request).toHaveBeenCalledTimes(4));
+    expect(screen.getAllByText('Segunda.txt')).toHaveLength(1);
+    expect(screen.getByText('Documentos (2)')).toBeInTheDocument();
+  } finally { interval.mockRestore(); }
+});
+
+for (const operation of ['refresh', 'more', 'upload', 'remove', 'reprocess'] as const) {
+  it(`descarta ${operation} atrasado após trocar o projeto e cancela a requisição`, async () => {
+    let finish!: (value: Response) => void;
+    let pendingSignal: AbortSignal | undefined;
+    let postpone = false;
+    vi.stubGlobal('fetch', vi.fn((url: RequestInfo | URL, init?: RequestInit) => {
+      if (String(url).includes('/p-2/')) return listing([doc({ id: 'b', projeto_id: 'p-2', nome: 'Projeto B.txt' })]);
+      if (postpone) {
+        pendingSignal = init?.signal as AbortSignal;
+        return new Promise<Response>(resolve => { finish = resolve; });
+      }
+      return listing([doc({ status_processamento: 'falha' })], 'next');
+    }));
+    const rendered = view();
+    await screen.findByText('Escopo.pdf');
+    if (operation === 'upload') pick(new File(['text'], 'Upload A.txt', { type: 'text/plain' }));
+    if (operation === 'remove') fireEvent.click(screen.getByRole('button', { name: 'Remover Escopo.pdf' }));
+    postpone = true;
+    fireEvent.click(screen.getByRole('button', { name: {
+      refresh: 'Atualizar', more: 'Carregar mais', upload: 'Enviar documento',
+      remove: 'Confirmar remoção', reprocess: 'Reprocessar',
+    }[operation] }));
+    await waitFor(() => expect(finish).toBeDefined());
+    rendered.rerender(<DocumentsView projectId="p-2" projectName="B" canWrite />);
+    await screen.findByText('Projeto B.txt');
+    expect(pendingSignal?.aborted).toBe(true);
+    await act(async () => {
+      finish(new Response(JSON.stringify(operation === 'upload' ? doc({nome:'Upload A.txt'}) : { items:[doc()], next_cursor:null, limites }), {status:200}));
+    });
+    expect(screen.queryByText('Escopo.pdf')).not.toBeInTheDocument();
+    expect(screen.queryByText('Upload A.txt')).not.toBeInTheDocument();
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(screen.getByText('Projeto B.txt')).toBeInTheDocument();
+  });
+}

@@ -1,4 +1,4 @@
-import { Pool } from "pg";
+import { Pool, type PoolClient } from "pg";
 import { env } from "../config/env.js";
 
 export const pool = new Pool({
@@ -12,14 +12,18 @@ export const pool = new Pool({
   connectionTimeoutMillis: 2000,
 });
 
-export async function checkDatabaseConnection(): Promise<boolean> {
+export async function checkDatabaseConnection(db: Pick<Pool, "connect"> = pool): Promise<boolean> {
+  let client: PoolClient | undefined;
+  let failed = false;
   try {
-    const client = await pool.connect();
+    client = await db.connect();
     await client.query("SELECT 1");
-    client.release();
     return true;
   } catch (error) {
+    failed = true;
     console.error("[Database] Failed to connect to PostgreSQL:", error);
     return false;
+  } finally {
+    client?.release(failed);
   }
 }

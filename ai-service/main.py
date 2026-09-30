@@ -4,7 +4,7 @@ from fastapi import Request
 from fastapi.responses import JSONResponse
 from document_text import extract_document_text
 from contextlib import asynccontextmanager
-from typing import Any
+from typing import Any, Literal
 from fastapi import FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import PlainTextResponse
@@ -14,6 +14,7 @@ from config import settings
 from services.ollama_client import ollama_client
 from services.chunker import chunk_document_text, create_structured_chunk
 from analyzer import Analyzer, AnalysisError, AnalyzerSettings
+from analyzer.pipeline import AnalysisBusy
 
 analyzer = Analyzer(AnalyzerSettings())
 
@@ -215,18 +216,50 @@ async def query_rag(req: RagQueryRequest):
 
 class AnalyzeRequest(BaseModel):
     url: str = Field(..., description="URL pública do repositório GitHub")
+    run_id: str | None = Field(None, pattern=r"^[A-Za-z0-9-]{1,64}$")
+    profile: Literal["quick", "balanced", "complete"] = Field(
+        "quick", description="Quantidade e prioridade dos arquivos enviados ao modelo local"
+    )
 
 
 @app.post("/api/analyze", status_code=status.HTTP_200_OK)
 def analyze_repository(req: AnalyzeRequest):
     """Inicia a análise assíncrona de um repositório GitHub."""
     try:
-        run_id = analyzer.start(str(req.url))
+        run_id = analyzer.start(str(req.url), req.profile, req.run_id)
         return {"run_id": run_id, "status": "started"}
+    except AnalysisBusy as exc:
+        raise HTTPException(status_code=429, detail=str(exc))
     except AnalysisError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
     except Exception as exc:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc))
+
+
+@app.post("/api/runs/{run_id}/pause")
+def pause_analysis(run_id: str):
+    try:
+        return analyzer.pause(run_id)
+    except AnalysisError as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc))
+
+
+@app.post("/api/runs/{run_id}/resume")
+def resume_analysis(run_id: str):
+    try:
+        return analyzer.resume(run_id)
+    except AnalysisBusy as exc:
+        raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail=str(exc))
+    except AnalysisError as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc))
+
+
+@app.post("/api/runs/{run_id}/cancel")
+def cancel_analysis(run_id: str):
+    try:
+        return analyzer.cancel(run_id)
+    except AnalysisError as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc))
 
 
 @app.get("/api/runs")

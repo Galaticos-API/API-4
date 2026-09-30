@@ -53,3 +53,15 @@ PO/admin podem consultar todos os projetos. Desenvolvedores precisam de alocaç�
 Defina `AI_SERVICE_TOKEN` com um segredo aleatório em `.env`. O Compose exige a configuração e não publica a porta do Python. O workflow n8n deve ser atualizado para encaminhar `X-Service-Token`. Não versione esse segredo.
 
 O chat somente apresenta IDs explicitamente citados que pertencem ao contexto recuperado. Respostas sem citações válidas usam o fallback textual; essa validação não comprova semanticamente cada afirmação.
+
+## Fila de análise de repositórios
+
+A migration 016 registra a solicitação antes de chamar o Python. O worker usa lease e um run_id estável; perda de resposta HTTP repete a solicitação sem iniciar outro trabalho. Clientes podem enviar Idempotency-Key (UUID) e devem reutilizá-la no retry do mesmo formulário. Retomadas também são enfileiradas sob o bloqueio do projeto. Nenhuma chamada HTTP mantém transação aberta.
+
+Há no máximo uma análise não finalizada por projeto e três por usuário. O arquivamento pede que a análise seja concluída ou cancelada primeiro; solicitação e arquivamento usam o mesmo lock. Cancelar antes do primeiro despacho dispensa o Python. Depois de um despacho incerto, o cancelamento é durável e será entregue quando o serviço voltar.
+
+Conclusão e disponibilidade do relatório são separadas: análises concluídas sem relatório continuam sendo sincronizadas pelo worker e pela tela. Execução inexistente no Python torna-se falha explícita. O volume repo_analysis_data preserva checkpoints; um clone sem marcador de conclusão é refeito, descartando resumos incompatíveis.
+
+O Analyzer no container Linux usa abertura de arquivos sem seguir links (inclusive diretórios intermediários), aceita apenas arquivos regulares e mantém o suporte a UTF-8/16/32. Há dois workers ativos e seis posições de espera por processo Python. Execute uma única instância de Uvicorn por volume de workspace.
+
+O clone tem limites de memória virtual, CPU, tamanho por arquivo e duração; seu grupo de processos é encerrado em cancelamento ou excesso. O espaço por repositório e pelo workspace é monitorado a cada 100 ms durante o clone: pode haver excesso transitório entre medições, portanto isso não substitui uma quota de filesystem para um teto estrito de bytes. Compose limita o serviço Python a 2 CPUs, 1 GiB e 128 processos. Ollama é um serviço separado. Os valores de fila/clone estão em .env.example.

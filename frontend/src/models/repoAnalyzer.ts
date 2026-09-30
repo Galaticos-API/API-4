@@ -21,15 +21,19 @@ export function stageStates(analysis: Pick<RepoAnalysis, "status" | "etapa">): S
   });
 }
 
-export const STATUS_VIEW: Record<RepoAnalysisStatus, { label: string; tone: "info" | "brand" | "success" | "danger" }> = {
+export const STATUS_VIEW: Record<RepoAnalysisStatus, { label: string; tone: "info" | "brand" | "success" | "warning" | "danger" }> = {
   iniciado: { label: "Na fila", tone: "info" },
   em_execucao: { label: "Em execução", tone: "brand" },
+  pausando: { label: "Pausando", tone: "warning" },
+  pausada: { label: "Pausada", tone: "warning" },
+  cancelando: { label: "Cancelando", tone: "warning" },
+  cancelada: { label: "Cancelada", tone: "danger" },
   concluido: { label: "Concluída", tone: "success" },
   falha: { label: "Falhou", tone: "danger" },
 };
 
 export function isActive(analysis: Pick<RepoAnalysis, "status">): boolean {
-  return analysis.status === "iniciado" || analysis.status === "em_execucao";
+  return ["iniciado", "em_execucao", "pausando", "cancelando"].includes(analysis.status);
 }
 
 export function repositoryLabel(url: string): string {
@@ -56,7 +60,8 @@ export function formatDuration(seconds: number): string {
 export function analysisDuration(analysis: Pick<RepoAnalysis, "created_at" | "concluido_em" | "updated_at" | "status">, now: number = Date.now()): number | null {
   const start = Date.parse(analysis.created_at);
   if (Number.isNaN(start)) return null;
-  const finishedAt = analysis.concluido_em ? Date.parse(analysis.concluido_em) : analysis.status === "falha" ? Date.parse(analysis.updated_at) : now;
+  const terminal = ["falha", "pausada", "cancelada"].includes(analysis.status);
+  const finishedAt = analysis.concluido_em ? Date.parse(analysis.concluido_em) : terminal ? Date.parse(analysis.updated_at) : now;
   if (Number.isNaN(finishedAt)) return null;
   return Math.max(0, (finishedAt - start) / 1000);
 }

@@ -1,6 +1,9 @@
 import { spawnSync } from "node:child_process";
 import { readdirSync } from "node:fs";
 import { join } from "node:path";
+import { setup } from './setup.mjs';
+
+await setup();
 
 const files = readdirSync("tests").filter((file) => file.endsWith(".e2e.mjs")).sort().map((file) => join("tests", file));
 if (files.length === 0) throw new Error("Nenhum teste E2E encontrado.");

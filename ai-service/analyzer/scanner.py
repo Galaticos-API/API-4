@@ -1,5 +1,7 @@
 import ast
 import os
+import stat
+from contextlib import contextmanager
 from pathlib import Path
 from collections import Counter
 
@@ -65,6 +67,38 @@ IMPORTANT_FILENAMES = {
     ".env.example", ".gitignore"
 }
 
+def select_analysis_files(files: list[FileInfo], profile: str, quick_limit: int = 8,
+                          balanced_limit: int = 80) -> list[FileInfo]:
+    """Pick the most useful files first while keeping selection deterministic."""
+    limits = {"quick": max(1, quick_limit), "balanced": max(1, balanced_limit), "complete": None}
+    if profile not in limits:
+        raise ValueError("Perfil de análise inválido. Use quick, balanced ou complete.")
+
+    def priority(info: FileInfo) -> tuple[int, str]:
+        name = Path(info.path).name
+        lower = info.path.lower()
+        score = 0
+        if name.upper().startswith("README"):
+            score += 100
+        if name in {"package.json", "pyproject.toml", "requirements.txt", "Cargo.toml", "go.mod",
+                    "pom.xml", "build.gradle", "Dockerfile", "docker-compose.yml", "docker-compose.yaml"}:
+            score += 80
+        if info.language not in {"Unknown", "Markdown", "Text", "JSON", "YAML", "TOML", "XML"}:
+            score += 50
+        if any(part in lower for part in ("/test/", "/tests/", "_test.", ".test.", ".spec.")):
+            score -= 15
+        if info.kind == "documentation":
+            score -= 20
+        if name.lower() in {"package-lock.json", "yarn.lock", "pnpm-lock.yaml"}:
+            score -= 40
+        if lower.startswith(("examples/", "fixtures/", "samples/")):
+            score -= 20
+        return score, info.path
+
+    ranked = sorted(files, key=lambda info: (-priority(info)[0], priority(info)[1]))
+    limit = limits[profile]
+    return ranked if limit is None else ranked[:limit]
+
 
 def detect_language(path: Path) -> str:
     if path.name == "Dockerfile":
@@ -72,14 +106,54 @@ def detect_language(path: Path) -> str:
     return LANGUAGES.get(path.suffix.lower(), "Unknown")
 
 
-def is_probably_binary(path: Path) -> bool:
+@contextmanager
+def open_repository_file(root: Path, path: Path):
+    """Walk with no-follow descriptors: reject symlinks, special files and escapes."""
+    root = root.resolve(strict=True)
+    relative = path.absolute().relative_to(root)
+    if not relative.parts or any(part in {"..", "."} for part in relative.parts):
+        raise ValueError("Invalid repository path")
+    # Analyzer runs on Linux; descriptor-relative opens also prevent replacement races.
+    descriptors = []
+    try:
+        current = os.open(root, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+        descriptors.append(current)
+        for part in relative.parts[:-1]:
+            current = os.open(part, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=current)
+            descriptors.append(current)
+        fd = os.open(relative.parts[-1], os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=current)
+        descriptors.append(fd)
+        if not stat.S_ISREG(os.fstat(fd).st_mode):
+            raise ValueError("Not a regular repository file")
+        with os.fdopen(os.dup(fd), "rb") as handle:
+            yield handle
+    finally:
+        for fd in reversed(descriptors):
+            os.close(fd)
+
+
+def read_repository_text(root: Path, path: Path, max_bytes: int) -> str:
+    with open_repository_file(root, path) as handle:
+        data = handle.read(max_bytes + 1)
+    if len(data) > max_bytes:
+        raise ValueError("Repository file exceeds size limit")
+    if data.startswith((b"\x00\x00\xfe\xff", b"\xff\xfe\x00\x00")):
+        return data.decode("utf-32", errors="replace")
+    if data.startswith((b"\xff\xfe", b"\xfe\xff")):
+        return data.decode("utf-16", errors="replace")
+    return data.decode("utf-8-sig", errors="replace")
+
+
+def is_probably_binary(path: Path, root: Path | None = None) -> bool:
     if path.suffix.lower() in BINARY_EXTENSIONS:
         return True
     try:
-        with open(path, "rb") as handle:
+        with open_repository_file(root or path.absolute().parent, path) as handle:
             data = handle.read(4096)
+        if data.startswith((b"\xff\xfe", b"\xfe\xff", b"\x00\x00\xfe\xff", b"\xff\xfe\x00\x00")):
+            return False
         return b"\x00" in data
-    except OSError:
+    except (OSError, ValueError):
         return True
 
 
@@ -115,23 +189,28 @@ def python_symbols(text: str) -> dict:
 
 
 def scan_repository(repo_dir: Path, max_file_size: int, max_files: int):
+    repo_dir = repo_dir.resolve(strict=True)
     files: list[FileInfo] = []
     ignored: list[dict] = []
 
     for current, dirs, filenames in os.walk(repo_dir):
-        dirs[:] = [d for d in dirs if d not in IGNORED_DIRS]
+        dirs[:] = [d for d in dirs if d not in IGNORED_DIRS and not (Path(current) / d).is_symlink()]
 
         for filename in filenames:
             path = Path(current) / filename
             relative = path.relative_to(repo_dir).as_posix()
 
             try:
-                size = path.stat().st_size
-            except OSError:
+                metadata = path.lstat()
+                if not stat.S_ISREG(metadata.st_mode) or not path.resolve(strict=True).is_relative_to(repo_dir):
+                    ignored.append({"path": relative, "reason": "unsafe_file"})
+                    continue
+                size = metadata.st_size
+            except (OSError, ValueError):
                 ignored.append({"path": relative, "reason": "stat_error"})
                 continue
 
-            if is_probably_binary(path):
+            if is_probably_binary(path, repo_dir):
                 ignored.append({"path": relative, "reason": "binary"})
                 continue
 
@@ -158,9 +237,9 @@ def scan_repository(repo_dir: Path, max_file_size: int, max_files: int):
 
             if language == "Python":
                 try:
-                    text = path.read_text(encoding="utf-8", errors="replace")
+                    text = read_repository_text(repo_dir, path, max_file_size)
                     info.symbols = python_symbols(text)
-                except OSError:
+                except (OSError, ValueError):
                     pass
 
             files.append(info)

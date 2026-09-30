@@ -1,5 +1,7 @@
 import re
 import time
+import json
+from collections.abc import Callable
 
 import httpx
 
@@ -30,6 +32,8 @@ class OllamaClient:
         think: bool = False,
         max_retries: int = 2,
         retry_backoff_seconds: float = 3.0,
+        num_predict: int = 1024,
+        num_ctx: int = 8192,
     ):
         self.base_url = base_url.rstrip("/")
         self.model = model
@@ -38,40 +42,85 @@ class OllamaClient:
         self.think = False
         self.max_retries = max(0, max_retries)
         self.retry_backoff_seconds = retry_backoff_seconds
+        self.num_predict = max(128, num_predict)
+        self.num_ctx = max(2048, num_ctx)
         self._client = httpx.Client(timeout=timeout)
 
     def close(self) -> None:
         self._client.close()
 
-    def chat(self, system: str, user: str, temperature: float = 0.1) -> str:
+    def chat(
+        self,
+        system: str,
+        user: str,
+        temperature: float = 0.1,
+        should_cancel: Callable[[], None] | None = None,
+        num_predict: int | None = None,
+        accept_truncated: bool = False,
+    ) -> str:
         if not system.strip().startswith(("/nothink", "/no_think")):
             system = f"/nothink\n{system}"
 
+        output_limit = max(128, num_predict or self.num_predict)
         payload = {
             "model": self.model,
             "messages": [
                 {"role": "system", "content": system},
                 {"role": "user", "content": user},
             ],
-            "stream": False,
+            "stream": True,
             "keep_alive": self.keep_alive,
             "think": False,
             "options": {
-                "temperature": temperature
+                "temperature": temperature,
+                "num_predict": output_limit,
+                "num_ctx": self.num_ctx,
             }
         }
 
         last_error: Exception | None = None
-        for attempt in range(self.max_retries + 1):
+        output_limit_retries = 0
+        http_retries = 0
+        while True:
             try:
-                response = self._client.post(f"{self.base_url}/api/chat", json=payload)
-                response.raise_for_status()
-                data = response.json()
+                content_parts: list[str] = []
+                done_reason = ""
+                with self._client.stream("POST", f"{self.base_url}/api/chat", json=payload) as response:
+                    response.raise_for_status()
+                    for line in response.iter_lines():
+                        if should_cancel:
+                            should_cancel()
+                        if not line:
+                            continue
+                        data = json.loads(line)
+                        content = data.get("message", {}).get("content", "")
+                        if content:
+                            content_parts.append(content)
+                        if data.get("done"):
+                            done_reason = data.get("done_reason", "")
+                            break
+                if done_reason == "length":
+                    if accept_truncated:
+                        data = {"message": {"content": "".join(content_parts) +
+                            "\n\n[Análise resumida limitada pelo teto de tokens; trate este trecho como parcial.]"}}
+                        break
+                    if output_limit_retries < 4 and output_limit < 8192:
+                        output_limit = min(8192, output_limit * 2)
+                        output_limit_retries += 1
+                        http_retries = 0
+                        payload["options"]["num_predict"] = output_limit
+                        continue
+                    raise OllamaError(
+                        f"A resposta do modelo atingiu o limite de {output_limit} tokens. "
+                        "Aumente OLLAMA_FILE_NUM_PREDICT ou OLLAMA_SYNTHESIS_NUM_PREDICT."
+                    )
+                data = {"message": {"content": "".join(content_parts)}}
                 break
             except httpx.HTTPError as exc:
                 last_error = exc
-                if attempt < self.max_retries:
-                    time.sleep(self.retry_backoff_seconds * (attempt + 1))
+                if http_retries < self.max_retries:
+                    http_retries += 1
+                    time.sleep(self.retry_backoff_seconds * http_retries)
                     continue
                 raise OllamaError(
                     f"Não foi possível acessar o Ollama em {self.base_url} "

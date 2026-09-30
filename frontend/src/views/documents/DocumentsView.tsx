@@ -31,19 +31,25 @@ function formatExtensions(limits: DocumentLimits): string {
   return limits.extensoes_permitidas.map((extension) => extension.slice(1).toUpperCase()).join(", ");
 }
 
-export function DocumentsView({
-  projectId,
-  projectName,
-  canWrite = false,
-  archived = false,
-  embedded = false,
-}: {
+type DocumentsProps = {
   projectId?: string;
   projectName?: string;
   canWrite?: boolean;
   archived?: boolean;
   embedded?: boolean;
-}) {
+};
+
+export function DocumentsView(props: DocumentsProps) {
+  return <ProjectDocuments key={props.projectId ?? "no-project"} {...props} />;
+}
+
+function ProjectDocuments({
+  projectId,
+  projectName,
+  canWrite = false,
+  archived = false,
+  embedded = false,
+}: DocumentsProps) {
   const [items, setItems] = useState<ProjectDocument[]>([]);
   const [limits, setLimits] = useState<DocumentLimits | null>(null);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
@@ -66,20 +72,46 @@ export function DocumentsView({
   const heading = useRef<HTMLHeadingElement>(null);
   const uploadLock = useRef(false);
   const removalLock = useRef(false);
+  const scope = useRef(new AbortController());
+  const pages = useRef(1);
+  const listLock = useRef(false);
+  const mutationRevision = useRef(0);
+  useEffect(() => {
+    const controller = new AbortController();
+    scope.current = controller;
+    return () => controller.abort();
+  }, []);
+  const requestSignal = (timeout = 15_000) => AbortSignal.any([scope.current.signal, AbortSignal.timeout(timeout)]);
 
   const refresh = useCallback(async (quiet = false) => {
-    if (!projectId) return;
+    if (!projectId || listLock.current || scope.current.signal.aborted) return;
+    listLock.current = true;
+    const signal = requestSignal();
+    const revision = mutationRevision.current;
     if (quiet) setRefreshing(true);
     else setLoading(true);
     setLoadError("");
     try {
-      const response = await listDocuments(projectId, { signal: AbortSignal.timeout(15_000) });
-      setItems(response.items);
+      let cursor: string | undefined;
+      const loaded = new Map<string, ProjectDocument>();
+      let response;
+      for (let page = 0; page < pages.current; page++) {
+        response = await listDocuments(projectId, { cursor, signal });
+        if (signal.aborted) return;
+        for (const item of response.items) loaded.set(item.id, item);
+        cursor = response.next_cursor ?? undefined;
+        if (!cursor) break;
+      }
+      if (!response || revision !== mutationRevision.current) return;
+      setItems([...loaded.values()]);
       setLimits(response.limites);
       setNextCursor(response.next_cursor);
     } catch {
+      if (scope.current.signal.aborted) return;
       setLoadError("Não foi possível carregar os documentos. Tente novamente.");
     } finally {
+      listLock.current = false;
+      if (scope.current.signal.aborted) return;
       setLoading(false);
       setRefreshing(false);
     }
@@ -108,9 +140,14 @@ export function DocumentsView({
   const reprocess = async (id: string) => {
     if (!projectId || reprocessing || archived || !canWrite) return;
     setReprocessing(id);
-    try { await reprocessDocument(projectId, id); setNotice("Documento enviado para reprocessamento."); await refresh(true); }
-    catch { setNotice("Não foi possível reprocessar o documento. Tente novamente."); }
-    finally { setReprocessing(null); }
+    const signal = requestSignal();
+    try {
+      await reprocessDocument(projectId, id, signal);
+      if (signal.aborted) return;
+      setNotice("Documento enviado para reprocessamento."); await refresh(true);
+    }
+    catch { if (!scope.current.signal.aborted) setNotice("Não foi possível reprocessar o documento. Tente novamente."); }
+    finally { if (!scope.current.signal.aborted) setReprocessing(null); }
   };
 
   const hasProcessing = items.some((item) => item.nova_tentativa_pendente || ["pendente", "processando"].includes(item.status_processamento));
@@ -126,19 +163,26 @@ export function DocumentsView({
   }, [target]);
 
   const loadMore = async () => {
-    if (!projectId || !nextCursor || loadingMore) return;
+    if (!projectId || !nextCursor || loadingMore || listLock.current) return;
+    listLock.current = true;
+    const signal = requestSignal();
     setLoadingMore(true);
     setMoreError("");
     try {
-      const response = await listDocuments(projectId, { cursor: nextCursor, signal: AbortSignal.timeout(15_000) });
+      const response = await listDocuments(projectId, { cursor: nextCursor, signal });
+      if (signal.aborted) return;
+      pages.current += 1;
       setItems((current) => {
         const known = new Set(current.map((item) => item.id));
         return [...current, ...response.items.filter((item) => !known.has(item.id))];
       });
       setNextCursor(response.next_cursor);
     } catch {
+      if (scope.current.signal.aborted) return;
       setMoreError("Não foi possível carregar mais documentos.");
     } finally {
+      listLock.current = false;
+      if (scope.current.signal.aborted) return;
       setLoadingMore(false);
     }
   };
@@ -175,16 +219,21 @@ export function DocumentsView({
     setUploading(true);
     setUploadError("");
     setNotice("");
+    const signal = requestSignal(120_000);
     try {
-      const created = await uploadDocument(projectId, selection);
+      const created = await uploadDocument(projectId, selection, signal);
+      if (signal.aborted) return;
+      mutationRevision.current += 1;
       setItems((current) => [created, ...current.filter((item) => item.id !== created.id)]);
       setNotice(created.armazenamento_pendente
         ? `O documento “${created.nome}” foi recebido. O armazenamento está sendo finalizado e a indexação depende da integração da S2-01.`
         : `O documento “${created.nome}” foi armazenado. A indexação do acervo depende da integração da S2-01.`);
       clearSelection();
     } catch (error) {
+      if (scope.current.signal.aborted) return;
       setUploadError(describeUploadError(error));
     } finally {
+      if (scope.current.signal.aborted) return;
       uploadLock.current = false;
       setUploading(false);
     }
@@ -201,15 +250,20 @@ export function DocumentsView({
     removalLock.current = true;
     setRemoving(true);
     setRemovalError("");
+    const signal = requestSignal();
     try {
-      await removeDocument(projectId, target.id);
+      await removeDocument(projectId, target.id, signal);
+      if (signal.aborted) return;
+      mutationRevision.current += 1;
       setItems((current) => current.filter((item) => item.id !== target.id));
       setNotice(`O documento “${target.nome}” foi removido deste projeto.`);
       closeDialog();
       heading.current?.focus();
     } catch (error) {
+      if (scope.current.signal.aborted) return;
       setRemovalError(describeRemovalError(error));
     } finally {
+      if (scope.current.signal.aborted) return;
       removalLock.current = false;
       setRemoving(false);
     }
