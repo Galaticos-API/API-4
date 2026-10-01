@@ -39,15 +39,29 @@ O primeiro acesso à aplicação começa pela tela de autenticação. Cadastre u
 
 ### Habilitar IA local (opcional)
 
-Ollama e o serviço Python usam o perfil `local-ai`:
+O Ollama roda diretamente no host, fora do Docker. Essa configuração evita a camada adicional de virtualização do runtime de modelos e permite que ele use melhor os recursos de CPU/GPU disponíveis na máquina.
+
+Instale o Ollama pelo [site oficial](https://ollama.com/download) e confirme que o comando está disponível:
+
+```bash
+ollama --version
+ollama serve
+```
+
+Em outro terminal, baixe os modelos usados pelo projeto:
+
+```bash
+ollama pull bge-m3
+ollama pull qwen2.5:1.5b
+```
+
+Com o Ollama em execução no host, inicie o serviço Python pelo perfil `local-ai`:
 
 ```bash
 docker compose --profile local-ai up --build -d
-docker compose --profile local-ai exec ollama ollama pull bge-m3
-docker compose --profile local-ai exec ollama ollama pull qwen2.5:1.5b
 ```
 
-Os modelos são baixados separadamente e ocupam espaço significativo. O healthcheck do container Ollama confirma que o serviço iniciou, não que cada modelo já foi baixado. A integração de IA deve ser validada no fluxo desejado; o app possui comportamento de fallback quando o assistente está indisponível.
+O `ai-service` containerizado acessa o Ollama por `http://host.docker.internal:11434` (ou pelo valor de `OLLAMA_DOCKER_BASE_URL`). Para executar o serviço Python no próprio host, use `OLLAMA_BASE_URL=http://localhost:11434`. Os modelos são baixados separadamente e ocupam espaço significativo. Valide a integração no fluxo desejado; o app possui comportamento de fallback quando o assistente está indisponível.
 
 ## Opção B — Frontend/backend no host
 
@@ -60,7 +74,7 @@ cp .env.example .env
 docker compose up -d postgres
 ```
 
-Se também precisar das integrações locais, inicie `n8n` ou o perfil `local-ai` separadamente. Os containers acessam PostgreSQL pelo hostname `postgres` na porta `5432`; processos no host usam `localhost` e a porta publicada `POSTGRES_PORT` (padrão `55432`).
+Se também precisar das integrações locais, inicie `n8n` ou o perfil `local-ai` separadamente. Os containers acessam PostgreSQL pelo hostname `postgres` na porta `5432`; processos no host usam `localhost` e a porta publicada `POSTGRES_PORT` (padrão `55432`). O Ollama permanece no host e deve estar iniciado antes do `ai-service`.
 
 ### 2. Instale dependências e aplique as migrations
 
@@ -122,7 +136,8 @@ O serviço lê sua configuração a partir de `ai-service/config.py`. O serviço
 | `N8N_PORT` | `5678` | Porta publicada do n8n. |
 | `DOCUMENT_MAX_SIZE_MB` | `20` | Tamanho máximo de upload aceito pela API. |
 | `DOCUMENT_EVENTS_WEBHOOK_URL` | vazio | Destino HTTP dos eventos de remoção de documento. Sem consumidor configurado, o evento permanece pendente e é tentado novamente. |
-| `OLLAMA_PORT` | `11434` | Porta publicada quando o perfil `local-ai` está ativo. |
+| `OLLAMA_PORT` | `11434` | Porta do Ollama executado no host. |
+| `OLLAMA_DOCKER_BASE_URL` | `http://host.docker.internal:11434` | URL do Ollama vista pelo `ai-service` dentro do Docker. |
 | `OLLAMA_LLM_MODEL` | `qwen2.5:1.5b` | Modelo de geração local. |
 | `OLLAMA_EMBEDDING_MODEL` | `bge-m3` | Modelo de embedding local. |
 
@@ -184,7 +199,7 @@ docker compose config --quiet
 - **Alteração de schema não aparece:** confira `_schema_migrations` e os logs do backend. Criar novamente um container não reaplica `init.sql` num volume já existente; crie uma migration versionada.
 - **Upload falha:** verifique o healthcheck `/health`, espaço no volume de documentos e o limite configurado em `DOCUMENT_MAX_SIZE_MB`.
 - **Busca ou chat sem trechos:** a busca depende de conteúdo/chunks disponíveis e isolados por projeto; um arquivo armazenado não implica, por si só, que foi extraído e indexado.
-- **IA indisponível:** confirme perfil `local-ai`, healthchecks, URLs entre containers, download dos modelos e configuração Ollama.
+- **IA indisponível:** confirme que o Ollama está em execução no host, teste `ollama list`, verifique o download dos modelos e confirme `OLLAMA_BASE_URL`. Para o `ai-service` em Docker, o endereço padrão é `http://host.docker.internal:11434`.
 
 ## Documentos relacionados
 

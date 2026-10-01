@@ -47,26 +47,6 @@ services:
     networks:
       - sinapse-network
 
-  ollama:
-    profiles: [local-ai]
-    image: ollama/ollama:latest
-    container_name: sinapse-ollama
-    restart: unless-stopped
-    ports:
-      - "${OLLAMA_PORT:-11434}:11434"
-    volumes:
-      - ollama_data:/root/.ollama
-    environment:
-      - OLLAMA_KEEP_ALIVE=${OLLAMA_KEEP_ALIVE:-24h}
-    healthcheck:
-      test: ["CMD-SHELL", "ollama list || exit 1"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 10s
-    networks:
-      - sinapse-network
-
   backend:
     build:
       context: .
@@ -108,12 +88,14 @@ services:
     restart: unless-stopped
     ports:
       - "${AI_SERVICE_PORT:-8000}:8000"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     volumes:
       - repo_analysis_data:/app/workspace_analyzer
     environment:
       - AI_SERVICE_PORT=8000
       - AI_SERVICE_HOST=0.0.0.0
-      - OLLAMA_BASE_URL=http://ollama:11434
+      - OLLAMA_BASE_URL=${OLLAMA_DOCKER_BASE_URL:-http://host.docker.internal:11434}
       - OLLAMA_LLM_MODEL=${OLLAMA_LLM_MODEL:-qwen2.5:1.5b}
       - OLLAMA_NUM_PREDICT=${OLLAMA_NUM_PREDICT:-1024}
       - OLLAMA_NUM_CTX=${OLLAMA_NUM_CTX:-8192}
@@ -130,8 +112,6 @@ services:
       - POSTGRES_DB=${POSTGRES_DB:-sinapse}
     depends_on:
       postgres:
-        condition: service_healthy
-      ollama:
         condition: service_healthy
     networks:
       - sinapse-network
@@ -152,8 +132,6 @@ volumes:
     name: sinapse_postgres_data
   n8n_data:
     name: sinapse_n8n_data
-  ollama_data:
-    name: sinapse_ollama_data
   documents_data:
     name: sinapse_documents_data
   repo_analysis_data:
