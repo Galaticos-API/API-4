@@ -117,7 +117,7 @@ The application is structured into conteinerized, local microservices:
 | **Frontend** | React 19 / Vite / TS | `5173` | SPA for POs (requirements hierarchy, quality indicators, acervo search, chat). |
 | **AI Service** | Python 3.11+ / FastAPI | `8000` | Chunking source of truth, RAG retrieval, `bge-m3` embedding calculation, PRO4TECH Harness. |
 | **n8n** | n8n `latest` | `5678` | Asynchronous file ingestion workflow (`/files`), GitOps versioned via `n8n-local-sync`. |
-| **Ollama** | Ollama Container | `11434` | Local LLM (`qwen2.5:1.5b`) and Embedding (`bge-m3`) runtime. |
+| **Ollama** | Host runtime | `11434` | Local LLM (`qwen2.5:1.5b`) and Embedding (`bge-m3`) runtime, executed outside Docker. |
 
 ---
 
@@ -229,10 +229,10 @@ cp .env.example .env
 # 2. Start core docker services
 docker compose up -d
 
-# 3. Pull Ollama models (optional)
+# 3. Start the optional AI service and pull host Ollama models separately
 docker compose --profile local-ai up -d
-docker compose --profile local-ai exec ollama ollama pull bge-m3
-docker compose --profile local-ai exec ollama ollama pull qwen2.5:1.5b
+ollama pull bge-m3
+ollama pull qwen2.5:1.5b
 ```
 
 ### Verification & Testing Commands:

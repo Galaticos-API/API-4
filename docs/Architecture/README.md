@@ -22,7 +22,7 @@ flowchart LR
 | Backend | `backend/`, Express + TypeScript | API, sessões, autorização por perfil, validações, regras de domínio, acesso ao Postgres, storage de documentos e histórico de conversa. |
 | Banco | `database/init.sql` + `database/migrations/`, PostgreSQL 16 e extensão pgvector | Persistência do domínio, índices e estruturas para conteúdo de conhecimento. O backend aplica migrations pendentes ao iniciar o container. |
 | Serviço Python | `ai-service/`, FastAPI | Endpoints de saúde, chunking, embeddings, consulta RAG e execução/consulta de análises de repositório. É executado no perfil Docker `local-ai`. |
-| Ollama | container opcional | Provedor local de modelos de embedding e geração. Os modelos são baixados pelo operador; não vêm no build da imagem. |
+| Ollama | runtime no host | Provedor local de modelos de embedding e geração, executado fora do Docker para melhor acesso aos recursos de CPU/GPU. Os modelos são baixados pelo operador; não vêm no build da imagem. |
 | n8n | container padrão, integrações opcionais | Consumidor de eventos/integrador. O evento de remoção pode ser enviado por `DOCUMENT_EVENTS_WEBHOOK_URL`; sem URL, é retido e reprocessado. |
 
 **Diretriz de dados:** o backend é a autoridade de negócio para autenticação, regras, autorização e mutações do domínio. Os clientes web e modelos não devem contornar essas validações. Configure acesso ao PostgreSQL apenas para serviços confiáveis na rede privada.
