@@ -1,0 +1,368 @@
+{
+  "active": false,
+  "activeVersion": null,
+  "activeVersionId": null,
+  "connections": {
+    "Default Data Loader": {
+      "ai_document": [
+        [
+          {
+            "index": 0,
+            "node": "Insert Data to Store",
+            "type": "ai_document"
+          }
+        ]
+      ]
+    },
+    "Embeddings Ollama": {
+      "ai_embedding": [
+        [
+          {
+            "index": 0,
+            "node": "Insert Data to Store",
+            "type": "ai_embedding"
+          },
+          {
+            "index": 0,
+            "node": "Query Data Tool",
+            "type": "ai_embedding"
+          },
+          {
+            "index": 0,
+            "node": "Postgres PGVector Store",
+            "type": "ai_embedding"
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "index": 0,
+            "node": "AI Agent",
+            "type": "ai_languageModel"
+          }
+        ]
+      ]
+    },
+    "Postgres PGVector Store": {
+      "ai_tool": [
+        [
+          {
+            "index": 0,
+            "node": "AI Agent",
+            "type": "ai_tool"
+          }
+        ]
+      ]
+    },
+    "Query Data Tool": {
+      "ai_tool": [
+        [
+          {
+            "index": 0,
+            "node": "AI Agent",
+            "type": "ai_tool"
+          }
+        ]
+      ]
+    },
+    "Upload your file here": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Insert Data to Store",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "When chat message received": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "AI Agent",
+            "type": "main"
+          }
+        ]
+      ]
+    }
+  },
+  "description": null,
+  "id": "tJ7nYESUptHVmGCN",
+  "isArchived": false,
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "templateId": "rag-starter-template"
+  },
+  "name": "Demo: RAG in n8n",
+  "nodeGroups": [],
+  "nodes": [
+    {
+      "id": "f7a656ec-83fc-4ed2-a089-57a9def662b7",
+      "name": "Upload your file here",
+      "parameters": {
+        "formFields": {
+          "values": [
+            {
+              "acceptFileTypes": ".pdf, .csv",
+              "fieldLabel": "Upload your file(s)",
+              "fieldType": "file",
+              "requiredField": true
+            }
+          ]
+        },
+        "formTitle": "Upload your data to test RAG",
+        "options": {}
+      },
+      "position": [
+        -128,
+        0
+      ],
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 2.2,
+      "webhookId": "82848bc4-5ea2-4e5a-8bb6-3c09b94a8c5d"
+    },
+    {
+      "id": "94aecac0-03f9-4915-932b-d14a2576607b",
+      "name": "Default Data Loader",
+      "parameters": {
+        "dataType": "binary",
+        "options": {}
+      },
+      "position": [
+        320,
+        160
+      ],
+      "type": "@n8n/n8n-nodes-langchain.documentDefaultDataLoader",
+      "typeVersion": 1.1
+    },
+    {
+      "id": "0d07742b-0b36-4c2e-990c-266cbe6e2d4d",
+      "name": "Sticky Note",
+      "parameters": {
+        "color": 4,
+        "content": "### Readme\nLoad your data into a vector database with the \ud83d\udcda **Load Data** flow, and then use your data as chat context with the \ud83d\udc15 **Retriever** flow.\n\n**Quick start**\n1. Click on the `Execute Workflow` button to run the \ud83d\udcda **Load Data** flow.\n2. Click on `Open Chat` button to run the \ud83d\udc15 **Retriever** flow. Then ask a question about content from your document(s)\n\n\nFor more info, check [our docs on RAG in n8n](https://docs.n8n.io/advanced-ai/rag-in-n8n/).",
+        "height": 300,
+        "width": 440
+      },
+      "position": [
+        -656,
+        -64
+      ],
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1
+    },
+    {
+      "id": "d19d04f3-5231-4e47-bed7-9f24a4a8f582",
+      "name": "Sticky Note1",
+      "parameters": {
+        "color": 7,
+        "content": "### \ud83d\udcda Load Data Flow",
+        "height": 460,
+        "width": 700
+      },
+      "position": [
+        -176,
+        -64
+      ],
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1
+    },
+    {
+      "id": "bf50a11f-ca6a-4e04-a6d2-42fee272b260",
+      "name": "Insert Data to Store",
+      "parameters": {
+        "memoryKey": {
+          "__rl": true,
+          "cachedResultName": "vector_store_key",
+          "mode": "list",
+          "value": "vector_store_key"
+        },
+        "mode": "insert"
+      },
+      "position": [
+        64,
+        0
+      ],
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreInMemory",
+      "typeVersion": 1.2
+    },
+    {
+      "disabled": true,
+      "id": "09c0db62-5413-440e-8c13-fb6bb66d9b6a",
+      "name": "Query Data Tool",
+      "parameters": {
+        "memoryKey": {
+          "__rl": true,
+          "mode": "list",
+          "value": "vector_store_key"
+        },
+        "mode": "retrieve-as-tool",
+        "toolDescription": "Use this knowledge base to answer questions from the user",
+        "toolName": "knowledge_base"
+      },
+      "position": [
+        944,
+        208
+      ],
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreInMemory",
+      "typeVersion": 1.2
+    },
+    {
+      "id": "579aed76-9644-42d1-ac13-7369059ff1c2",
+      "name": "AI Agent",
+      "parameters": {
+        "options": {}
+      },
+      "position": [
+        944,
+        -16
+      ],
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2
+    },
+    {
+      "id": "9c30de61-935a-471f-ae88-ec5f67beeefc",
+      "name": "When chat message received",
+      "parameters": {
+        "options": {}
+      },
+      "position": [
+        720,
+        -16
+      ],
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.1,
+      "webhookId": "4091fa09-fb9a-4039-9411-7104d213f601"
+    },
+    {
+      "credentials": {
+        "openAiApi": {
+          "id": "14",
+          "name": "OpenAi account"
+        }
+      },
+      "id": "b5aa8942-9cd5-4c2f-bd77-7a0ceb921bac",
+      "name": "OpenAI Chat Model",
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4o-mini"
+        },
+        "options": {}
+      },
+      "position": [
+        720,
+        208
+      ],
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2
+    },
+    {
+      "id": "28bc73a1-e64a-47bf-ac1c-ffe644894ea5",
+      "name": "Sticky Note2",
+      "parameters": {
+        "color": 7,
+        "content": "### \ud83d\udc15 2. Retriever Flow",
+        "height": 460,
+        "width": 680
+      },
+      "position": [
+        608,
+        -64
+      ],
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1
+    },
+    {
+      "id": "0cf8c647-418c-4d1a-8952-766145afca72",
+      "name": "Sticky Note3",
+      "parameters": {
+        "color": 4,
+        "content": "### Embeddings\n\nThe Insert and Retrieve operation use the same embedding node.\n\nThis is to ensure that they are using the **exact same embeddings and settings**.\n\nDifferent embeddings might not work at all, or have unintended consequences.\n",
+        "height": 240,
+        "width": 320
+      },
+      "position": [
+        672,
+        448
+      ],
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1
+    },
+    {
+      "credentials": {
+        "ollamaApi": {
+          "id": "oMigYzyZ11EIYaW4",
+          "name": "Ollama account"
+        }
+      },
+      "id": "1129b688-b7db-424e-a125-572e72804219",
+      "name": "Embeddings Ollama",
+      "parameters": {
+        "model": "bge-m3:latest"
+      },
+      "position": [
+        512,
+        448
+      ],
+      "type": "@n8n/n8n-nodes-langchain.embeddingsOllama",
+      "typeVersion": 1
+    },
+    {
+      "credentials": {
+        "postgres": {
+          "id": "utfiNPv7a2R9wWnS",
+          "name": "Postgres account"
+        }
+      },
+      "id": "d3d949ca-9050-48ba-bd89-5753be4e0fd0",
+      "name": "Postgres PGVector Store",
+      "parameters": {
+        "mode": "retrieve-as-tool",
+        "options": {}
+      },
+      "position": [
+        1328,
+        256
+      ],
+      "type": "@n8n/n8n-nodes-langchain.vectorStorePGVector",
+      "typeVersion": 1.3
+    }
+  ],
+  "pinData": {},
+  "settings": {
+    "binaryMode": "separate",
+    "executionOrder": "v1"
+  },
+  "shared": [
+    {
+      "createdAt": "2026-10-02T11:21:03.436Z",
+      "project": {
+        "createdAt": "2026-10-02T11:12:37.233Z",
+        "creatorId": "c3e04826-8789-4bbf-bc18-8a2bb24421fd",
+        "customTelemetryTags": [],
+        "description": null,
+        "icon": null,
+        "id": "w96TVEftmRxHll7o",
+        "name": "Daniel Dias Pereira <dani.pereira8539@gmail.com>",
+        "type": "personal",
+        "updatedAt": "2026-10-02T11:20:36.286Z"
+      },
+      "projectId": "w96TVEftmRxHll7o",
+      "role": "workflow:owner",
+      "updatedAt": "2026-10-02T11:21:03.436Z",
+      "workflowId": "tJ7nYESUptHVmGCN"
+    }
+  ],
+  "sourceWorkflowId": null,
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 0,
+  "versionCounter": 10
+}
