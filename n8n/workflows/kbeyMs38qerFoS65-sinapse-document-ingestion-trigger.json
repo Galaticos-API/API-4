@@ -8,6 +8,17 @@
         [
           {
             "index": 0,
+            "node": "Ler arquivo de /files",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Ler arquivo de /files": {
+      "main": [
+        [
+          {
+            "index": 0,
             "node": "Enviar para AI Service",
             "type": "main"
           }
@@ -52,19 +63,33 @@
     },
     {
       "id": "4f23ad8d-b8e6-4f06-a65e-7c0bf15d2c01",
+      "name": "Ler arquivo de /files",
+      "parameters": {
+        "filePath": "={{ '/files/' + $json.storagePath }}",
+        "options": {}
+      },
+      "position": [
+        480,
+        300
+      ],
+      "type": "n8n-nodes-base.readBinaryFile",
+      "typeVersion": 1
+    },
+    {
+      "id": "5f34e9e9-c9f7-5e3d-ac0e-8d1cf0e3d7c2",
       "name": "Enviar para AI Service",
       "parameters": {
         "method": "POST",
         "url": "http://ai-service:8000/ingest/document",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ { document_id: $json.document_id, text_content: $json.text_content, project_id: $json.project_id, metadata: $json.metadata || {} } }}",
+        "jsonBody": "={{ { document_id: $json.documentId, text_content: $binary.data.toString('utf-8'), project_id: $json.projectId, metadata: { filename: $json.filename, storage_path: $json.storagePath } } }}",
         "options": {
           "timeout": 120000
         }
       },
       "position": [
-        480,
+        710,
         300
       ],
       "type": "n8n-nodes-base.httpRequest",
@@ -79,7 +104,7 @@
         "responseBody": "={{ { status: $json.status || 'received', document_id: $json.document_id, total_chunks: $json.total_chunks } }}"
       },
       "position": [
-        710,
+        940,
         300
       ],
       "type": "n8n-nodes-base.respondToWebhook",
@@ -102,7 +127,7 @@
         "id": "aRQxNxjlWLdGSczA",
         "name": "Daniel Dias Pereira <dani.pereira8539@gmail.com>",
         "type": "personal",
-        "updatedAt": "2026-09-04T15:52:20.173Z"
+        "updatedAt": "2026-09-04T15:52:20.281Z"
       },
       "projectId": "aRQxNxjlWLdGSczA",
       "role": "workflow:owner",
