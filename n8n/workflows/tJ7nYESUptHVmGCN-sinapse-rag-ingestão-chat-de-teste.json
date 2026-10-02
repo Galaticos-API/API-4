@@ -1,0 +1,1040 @@
+{
+  "active": false,
+  "activeVersion": null,
+  "activeVersionId": null,
+  "connections": {
+    "Chunking (ai-service)": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Embeddings bge-m3 (ai-service)",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Consolidar texto": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Chunking (ai-service)",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Consulta RAG (ai-service)": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Resposta fundamentada",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Contexto do teste": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Consulta RAG (ai-service)",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Default Data Loader": {
+      "ai_document": [
+        [
+          {
+            "index": 0,
+            "node": "Insert Data to Store",
+            "type": "ai_document"
+          }
+        ]
+      ]
+    },
+    "Documento enviado (webhook)": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Normalizar entrada",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Embeddings Ollama": {
+      "ai_embedding": [
+        [
+          {
+            "index": 0,
+            "node": "Insert Data to Store",
+            "type": "ai_embedding"
+          },
+          {
+            "index": 0,
+            "node": "Query Data Tool",
+            "type": "ai_embedding"
+          },
+          {
+            "index": 0,
+            "node": "Postgres PGVector Store",
+            "type": "ai_embedding"
+          }
+        ]
+      ]
+    },
+    "Embeddings bge-m3 (ai-service)": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Montar e validar chunks",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Extrair CSV": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Consolidar texto",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Extrair PDF": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Consolidar texto",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Extrair texto": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Consolidar texto",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Ler arquivo de /files": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Tipo de arquivo",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Montar e validar chunks": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Persistir chunks (backend)",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Normalizar entrada": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Payload v\u00e1lido?",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "index": 0,
+            "node": "AI Agent",
+            "type": "ai_languageModel"
+          }
+        ]
+      ]
+    },
+    "Payload v\u00e1lido?": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Ler arquivo de /files",
+            "type": "main"
+          }
+        ],
+        [
+          {
+            "index": 0,
+            "node": "Payload inv\u00e1lido",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Postgres PGVector Store": {
+      "ai_tool": [
+        [
+          {
+            "index": 0,
+            "node": "AI Agent",
+            "type": "ai_tool"
+          }
+        ]
+      ]
+    },
+    "Query Data Tool": {
+      "ai_tool": [
+        [
+          {
+            "index": 0,
+            "node": "AI Agent",
+            "type": "ai_tool"
+          }
+        ]
+      ]
+    },
+    "Tipo de arquivo": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Extrair PDF",
+            "type": "main"
+          }
+        ],
+        [
+          {
+            "index": 0,
+            "node": "Extrair CSV",
+            "type": "main"
+          }
+        ],
+        [
+          {
+            "index": 0,
+            "node": "Extrair texto",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Upload your file here": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Insert Data to Store",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "When chat message received": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "AI Agent",
+            "type": "main"
+          }
+        ]
+      ]
+    }
+  },
+  "description": null,
+  "id": "tJ7nYESUptHVmGCN",
+  "isArchived": false,
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "templateId": "rag-starter-template"
+  },
+  "name": "Sinapse - RAG (Ingest\u00e3o + Chat de teste)",
+  "nodeGroups": [],
+  "nodes": [
+    {
+      "id": "f7a656ec-83fc-4ed2-a089-57a9def662b7",
+      "name": "Upload your file here",
+      "parameters": {
+        "formFields": {
+          "values": [
+            {
+              "acceptFileTypes": ".pdf, .csv",
+              "fieldLabel": "Upload your file(s)",
+              "fieldType": "file",
+              "requiredField": true
+            }
+          ]
+        },
+        "formTitle": "Upload your data to test RAG",
+        "options": {}
+      },
+      "position": [
+        -128,
+        0
+      ],
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 2.2,
+      "webhookId": "82848bc4-5ea2-4e5a-8bb6-3c09b94a8c5d"
+    },
+    {
+      "id": "94aecac0-03f9-4915-932b-d14a2576607b",
+      "name": "Default Data Loader",
+      "parameters": {
+        "dataType": "binary",
+        "options": {}
+      },
+      "position": [
+        320,
+        160
+      ],
+      "type": "@n8n/n8n-nodes-langchain.documentDefaultDataLoader",
+      "typeVersion": 1.1
+    },
+    {
+      "id": "0d07742b-0b36-4c2e-990c-266cbe6e2d4d",
+      "name": "Sticky Note",
+      "parameters": {
+        "color": 4,
+        "content": "### Readme\nLoad your data into a vector database with the \ud83d\udcda **Load Data** flow, and then use your data as chat context with the \ud83d\udc15 **Retriever** flow.\n\n**Quick start**\n1. Click on the `Execute Workflow` button to run the \ud83d\udcda **Load Data** flow.\n2. Click on `Open Chat` button to run the \ud83d\udc15 **Retriever** flow. Then ask a question about content from your document(s)\n\n\nFor more info, check [our docs on RAG in n8n](https://docs.n8n.io/advanced-ai/rag-in-n8n/).",
+        "height": 300,
+        "width": 440
+      },
+      "position": [
+        -656,
+        -64
+      ],
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1
+    },
+    {
+      "id": "d19d04f3-5231-4e47-bed7-9f24a4a8f582",
+      "name": "Sticky Note1",
+      "parameters": {
+        "color": 7,
+        "content": "### \ud83d\udcda Load Data Flow",
+        "height": 460,
+        "width": 700
+      },
+      "position": [
+        -176,
+        -64
+      ],
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1
+    },
+    {
+      "id": "bf50a11f-ca6a-4e04-a6d2-42fee272b260",
+      "name": "Insert Data to Store",
+      "parameters": {
+        "memoryKey": {
+          "__rl": true,
+          "cachedResultName": "vector_store_key",
+          "mode": "list",
+          "value": "vector_store_key"
+        },
+        "mode": "insert"
+      },
+      "position": [
+        64,
+        0
+      ],
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreInMemory",
+      "typeVersion": 1.2
+    },
+    {
+      "disabled": true,
+      "id": "09c0db62-5413-440e-8c13-fb6bb66d9b6a",
+      "name": "Query Data Tool",
+      "parameters": {
+        "memoryKey": {
+          "__rl": true,
+          "mode": "list",
+          "value": "vector_store_key"
+        },
+        "mode": "retrieve-as-tool",
+        "toolDescription": "Use this knowledge base to answer questions from the user",
+        "toolName": "knowledge_base"
+      },
+      "position": [
+        944,
+        208
+      ],
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreInMemory",
+      "typeVersion": 1.2
+    },
+    {
+      "id": "579aed76-9644-42d1-ac13-7369059ff1c2",
+      "name": "AI Agent",
+      "parameters": {
+        "options": {}
+      },
+      "position": [
+        944,
+        -16
+      ],
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2
+    },
+    {
+      "id": "9c30de61-935a-471f-ae88-ec5f67beeefc",
+      "name": "When chat message received",
+      "parameters": {
+        "options": {}
+      },
+      "position": [
+        720,
+        -16
+      ],
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.1,
+      "webhookId": "4091fa09-fb9a-4039-9411-7104d213f601"
+    },
+    {
+      "credentials": {
+        "openAiApi": {
+          "id": "14",
+          "name": "OpenAi account"
+        }
+      },
+      "id": "b5aa8942-9cd5-4c2f-bd77-7a0ceb921bac",
+      "name": "OpenAI Chat Model",
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4o-mini"
+        },
+        "options": {}
+      },
+      "position": [
+        720,
+        208
+      ],
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2
+    },
+    {
+      "id": "28bc73a1-e64a-47bf-ac1c-ffe644894ea5",
+      "name": "Sticky Note2",
+      "parameters": {
+        "color": 7,
+        "content": "### \ud83d\udc15 2. Retriever Flow",
+        "height": 460,
+        "width": 680
+      },
+      "position": [
+        608,
+        -64
+      ],
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1
+    },
+    {
+      "id": "0cf8c647-418c-4d1a-8952-766145afca72",
+      "name": "Sticky Note3",
+      "parameters": {
+        "color": 4,
+        "content": "### Embeddings\n\nThe Insert and Retrieve operation use the same embedding node.\n\nThis is to ensure that they are using the **exact same embeddings and settings**.\n\nDifferent embeddings might not work at all, or have unintended consequences.\n",
+        "height": 240,
+        "width": 320
+      },
+      "position": [
+        672,
+        448
+      ],
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1
+    },
+    {
+      "credentials": {
+        "ollamaApi": {
+          "id": "oMigYzyZ11EIYaW4",
+          "name": "Ollama account"
+        }
+      },
+      "id": "1129b688-b7db-424e-a125-572e72804219",
+      "name": "Embeddings Ollama",
+      "parameters": {
+        "model": "bge-m3:latest"
+      },
+      "position": [
+        512,
+        448
+      ],
+      "type": "@n8n/n8n-nodes-langchain.embeddingsOllama",
+      "typeVersion": 1
+    },
+    {
+      "credentials": {
+        "postgres": {
+          "id": "utfiNPv7a2R9wWnS",
+          "name": "Postgres account"
+        }
+      },
+      "id": "d3d949ca-9050-48ba-bd89-5753be4e0fd0",
+      "name": "Postgres PGVector Store",
+      "parameters": {
+        "mode": "retrieve-as-tool",
+        "options": {}
+      },
+      "position": [
+        1328,
+        256
+      ],
+      "type": "@n8n/n8n-nodes-langchain.vectorStorePGVector",
+      "typeVersion": 1.3
+    },
+    {
+      "id": "0669fded-15f0-4abf-b92a-a1459808c602",
+      "name": "Leia-me",
+      "parameters": {
+        "color": 4,
+        "content": "### Sinapse \u00b7 RAG no n8n\n\n**Papel do n8n:** orquestrador ass\u00edncrono. Ele N\u00c3O escreve no Postgres e N\u00c3O chama o LLM direto.\n\n- Chunking e embeddings (bge-m3, 1024 dims) \u2192 `ai-service` (FastAPI)\n- Persist\u00eancia de chunks \u2192 `backend` (\u00fanica escrita no banco)\n- Respostas s\u00f3 com base nos trechos recuperados, sempre com fontes\n- Tudo isolado por `projectId`\n\n\u26a0\ufe0f Os paths `/chunk`, `/embed`, `/rag/query` e `/chunks` s\u00e3o PLACEHOLDERS: ajuste conforme `docs/api/openapi.yaml`.\nURLs dos servi\u00e7os ficam nos n\u00f3s **Normalizar entrada** e **Contexto do teste**.",
+        "height": 380,
+        "width": 520
+      },
+      "position": [
+        1008,
+        1632
+      ],
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1
+    },
+    {
+      "id": "37f03bc2-650b-4f86-b2bd-f0f63477ccd5",
+      "name": "Faixa Ingest\u00e3o",
+      "parameters": {
+        "color": 7,
+        "content": "### \ud83d\udcda 1. Fluxo de Ingest\u00e3o\nDisparado pelo backend ap\u00f3s o upload (ou por evento de arquivo em `/files`).",
+        "height": 460,
+        "width": 2640
+      },
+      "position": [
+        1600,
+        1472
+      ],
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1
+    },
+    {
+      "id": "70efaaa8-ab17-4b75-bb44-944a0cade9be",
+      "name": "Faixa Consulta",
+      "parameters": {
+        "color": 7,
+        "content": "### \ud83d\udc15 2. Fluxo de Consulta (chat de teste)\nApenas para validar o RAG dentro do n8n. Em produ\u00e7\u00e3o o chat passa por backend \u2192 ai-service.",
+        "height": 340,
+        "width": 1100
+      },
+      "position": [
+        1600,
+        2272
+      ],
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1
+    },
+    {
+      "id": "135b7bfa-788d-466b-8f36-ad3a31225d14",
+      "name": "Documento enviado (webhook)",
+      "parameters": {
+        "authentication": "headerAuth",
+        "httpMethod": "POST",
+        "options": {},
+        "path": "sinapse-ingest"
+      },
+      "position": [
+        1648,
+        1712
+      ],
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "webhookId": "5a1c0003-0000-4000-8000-000000000001"
+    },
+    {
+      "id": "999a363b-6ee0-454a-a496-bea79e9334b0",
+      "name": "Normalizar entrada",
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "n1",
+              "name": "documentId",
+              "type": "string",
+              "value": "={{ $json.body.documentId }}"
+            },
+            {
+              "id": "n2",
+              "name": "projectId",
+              "type": "string",
+              "value": "={{ $json.body.projectId }}"
+            },
+            {
+              "id": "n3",
+              "name": "filename",
+              "type": "string",
+              "value": "={{ $json.body.filename }}"
+            },
+            {
+              "id": "n4",
+              "name": "storagePath",
+              "type": "string",
+              "value": "={{ $json.body.storagePath }}"
+            },
+            {
+              "id": "n5",
+              "name": "extension",
+              "type": "string",
+              "value": "={{ ($json.body.filename || '').split('.').pop().toLowerCase() }}"
+            },
+            {
+              "id": "n6",
+              "name": "aiServiceUrl",
+              "type": "string",
+              "value": "http://ai-service:8000"
+            },
+            {
+              "id": "n7",
+              "name": "backendUrl",
+              "type": "string",
+              "value": "http://backend:3001"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "position": [
+        1872,
+        1712
+      ],
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4
+    },
+    {
+      "id": "a1bbb85e-eb7c-41b7-8631-8313e2f2ccb9",
+      "name": "Payload v\u00e1lido?",
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "c1",
+              "leftValue": "={{ $json.documentId }}",
+              "operator": {
+                "operation": "notEmpty",
+                "singleValue": true,
+                "type": "string"
+              },
+              "rightValue": ""
+            },
+            {
+              "id": "c2",
+              "leftValue": "={{ $json.projectId }}",
+              "operator": {
+                "operation": "notEmpty",
+                "singleValue": true,
+                "type": "string"
+              },
+              "rightValue": ""
+            },
+            {
+              "id": "c3",
+              "leftValue": "={{ $json.storagePath }}",
+              "operator": {
+                "operation": "notEmpty",
+                "singleValue": true,
+                "type": "string"
+              },
+              "rightValue": ""
+            },
+            {
+              "id": "c4",
+              "leftValue": "={{ String($json.storagePath).includes('..') }}",
+              "operator": {
+                "operation": "false",
+                "singleValue": true,
+                "type": "boolean"
+              },
+              "rightValue": ""
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          }
+        },
+        "options": {}
+      },
+      "position": [
+        2096,
+        1712
+      ],
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2
+    },
+    {
+      "id": "8de5819b-2323-4f50-95d1-0b178580341a",
+      "name": "Payload inv\u00e1lido",
+      "parameters": {
+        "errorMessage": "Payload inv\u00e1lido: documentId, projectId e storagePath s\u00e3o obrigat\u00f3rios, e storagePath n\u00e3o pode conter '..'."
+      },
+      "position": [
+        2320,
+        1872
+      ],
+      "type": "n8n-nodes-base.stopAndError",
+      "typeVersion": 1
+    },
+    {
+      "id": "32a8bd5c-3650-4d61-87f5-5d603379a0f1",
+      "name": "Ler arquivo de /files",
+      "parameters": {
+        "fileSelector": "={{ '/files/' + $json.storagePath }}",
+        "options": {
+          "dataPropertyName": "data"
+        }
+      },
+      "position": [
+        2320,
+        1712
+      ],
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1
+    },
+    {
+      "id": "324aacec-69b1-4704-b8cc-8bbbe5f26690",
+      "name": "Tipo de arquivo",
+      "parameters": {
+        "options": {
+          "fallbackOutput": "extra",
+          "renameFallbackOutput": "texto (txt/md)"
+        },
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "id": "s1",
+                    "leftValue": "={{ $('Normalizar entrada').first().json.extension }}",
+                    "operator": {
+                      "operation": "equals",
+                      "type": "string"
+                    },
+                    "rightValue": "pdf"
+                  }
+                ],
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                }
+              },
+              "outputKey": "pdf",
+              "renameOutput": true
+            },
+            {
+              "conditions": {
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "id": "s2",
+                    "leftValue": "={{ $('Normalizar entrada').first().json.extension }}",
+                    "operator": {
+                      "operation": "equals",
+                      "type": "string"
+                    },
+                    "rightValue": "csv"
+                  }
+                ],
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                }
+              },
+              "outputKey": "csv",
+              "renameOutput": true
+            }
+          ]
+        }
+      },
+      "position": [
+        2544,
+        1712
+      ],
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2
+    },
+    {
+      "id": "88ce90ae-2c74-47f8-b2f2-15401659b996",
+      "name": "Extrair PDF",
+      "parameters": {
+        "operation": "pdf",
+        "options": {}
+      },
+      "position": [
+        2768,
+        1584
+      ],
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1
+    },
+    {
+      "id": "6e26b07c-fe64-4005-8ced-b756e2b0c79b",
+      "name": "Extrair CSV",
+      "parameters": {
+        "options": {}
+      },
+      "position": [
+        2768,
+        1744
+      ],
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1
+    },
+    {
+      "id": "47c9e3e7-d44f-4b27-932e-b1f324178bd1",
+      "name": "Extrair texto",
+      "parameters": {
+        "operation": "text",
+        "options": {}
+      },
+      "position": [
+        2768,
+        1872
+      ],
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1
+    },
+    {
+      "id": "18d36a19-ef19-4f8f-8422-c6f5ea6bbb58",
+      "name": "Consolidar texto",
+      "parameters": {
+        "jsCode": "const meta = $('Normalizar entrada').first().json;\nconst items = $input.all();\nlet text = '';\n\nif (meta.extension === 'csv') {\n  const rows = items.map(i => i.json);\n  const headers = Object.keys(rows[0] || {});\n  text = rows\n    .map((r, idx) => `Linha ${idx + 1}: ` + headers.map(h => `${h}: ${r[h]}`).join(' | '))\n    .join('\\n');\n} else {\n  text = items.map(i => i.json.text ?? i.json.data ?? '').join('\\n');\n}\n\nif (!text.trim()) {\n  throw new Error(`Documento ${meta.documentId} sem texto extra\u00edvel`);\n}\n\nreturn [{ json: { ...meta, text } }];"
+      },
+      "position": [
+        2992,
+        1712
+      ],
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2
+    },
+    {
+      "id": "f33d9dc6-871d-4ad9-8ae5-517714a421ed",
+      "maxTries": 3,
+      "name": "Chunking (ai-service)",
+      "parameters": {
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "jsonBody": "={{ JSON.stringify({ document_id: $json.documentId, project_id: $json.projectId, filename: $json.filename, text: $json.text }) }}",
+        "method": "POST",
+        "options": {
+          "timeout": 120000
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "url": "={{ $json.aiServiceUrl + '/chunk' }}"
+      },
+      "position": [
+        3216,
+        1712
+      ],
+      "retryOnFail": true,
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "waitBetweenTries": 2000
+    },
+    {
+      "id": "8d91de3c-051c-4f4c-bb4c-9741ddd7683d",
+      "maxTries": 3,
+      "name": "Embeddings bge-m3 (ai-service)",
+      "parameters": {
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "jsonBody": "={{ JSON.stringify({ model: 'bge-m3', texts: ($json.chunks || []).map(c => c.content) }) }}",
+        "method": "POST",
+        "options": {
+          "timeout": 300000
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "url": "={{ $('Normalizar entrada').first().json.aiServiceUrl + '/embed' }}"
+      },
+      "position": [
+        3440,
+        1712
+      ],
+      "retryOnFail": true,
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "waitBetweenTries": 3000
+    },
+    {
+      "id": "4e21b05d-8125-4d4a-9c72-5e3ddbb25bac",
+      "name": "Montar e validar chunks",
+      "parameters": {
+        "jsCode": "const meta = $('Normalizar entrada').first().json;\nconst chunks = $('Chunking (ai-service)').first().json.chunks || [];\nconst embeddings = $input.first().json.embeddings || [];\n\nif (!chunks.length) {\n  throw new Error(`Nenhum chunk gerado para o documento ${meta.documentId}`);\n}\nif (chunks.length !== embeddings.length) {\n  throw new Error(`Chunks (${chunks.length}) e embeddings (${embeddings.length}) divergem`);\n}\nconst bad = embeddings.findIndex(v => !Array.isArray(v) || v.length !== 1024);\nif (bad !== -1) {\n  throw new Error(`Embedding ${bad} n\u00e3o tem 1024 dimens\u00f5es (esperado para bge-m3)`);\n}\n\nconst payload = chunks.map((c, i) => ({\n  chunk_index: c.index ?? i,\n  content: c.content,\n  metadata: { ...(c.metadata || {}), filename: meta.filename },\n  embedding: embeddings[i],\n}));\n\nreturn [{ json: { ...meta, text: undefined, chunks: payload } }];"
+      },
+      "position": [
+        3664,
+        1712
+      ],
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2
+    },
+    {
+      "id": "ffd60f63-5a66-418c-8c44-77aa7a15a88e",
+      "maxTries": 3,
+      "name": "Persistir chunks (backend)",
+      "parameters": {
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "jsonBody": "={{ JSON.stringify({ chunks: $json.chunks }) }}",
+        "method": "POST",
+        "options": {
+          "timeout": 120000
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "url": "={{ $json.backendUrl + '/api/v1/projects/' + $json.projectId + '/documents/' + $json.documentId + '/chunks' }}"
+      },
+      "position": [
+        3888,
+        1712
+      ],
+      "retryOnFail": true,
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "waitBetweenTries": 3000
+    },
+    {
+      "id": "d58f7840-00ea-46c1-b28d-dc7bc8621bb7",
+      "name": "Contexto do teste",
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "t1",
+              "name": "question",
+              "type": "string",
+              "value": "={{ $json.chatInput }}"
+            },
+            {
+              "id": "t2",
+              "name": "projectId",
+              "type": "string",
+              "value": "COLE-AQUI-O-UUID-DO-PROJETO-DE-TESTE"
+            },
+            {
+              "id": "t3",
+              "name": "aiServiceUrl",
+              "type": "string",
+              "value": "http://ai-service:8000"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "position": [
+        1872,
+        2400
+      ],
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4
+    },
+    {
+      "id": "a3fbc5d9-2394-4d2d-a75f-42092aeb4e5d",
+      "name": "Consulta RAG (ai-service)",
+      "parameters": {
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "jsonBody": "={{ JSON.stringify({ project_id: $json.projectId, question: $json.question, top_k: 5 }) }}",
+        "method": "POST",
+        "options": {
+          "timeout": 300000
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "url": "={{ $json.aiServiceUrl + '/rag/query' }}"
+      },
+      "position": [
+        2096,
+        2400
+      ],
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2
+    },
+    {
+      "id": "70d647ce-e45e-4e3c-9f76-1eddbcef2fb9",
+      "name": "Resposta fundamentada",
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\nconst sources = r.sources || [];\n\n// Assist\u00eancia estrita: sem evid\u00eancia recuperada, n\u00e3o h\u00e1 resposta.\nif (!sources.length) {\n  return [{ json: { output: 'N\u00e3o encontrei essa informa\u00e7\u00e3o na base de conhecimento deste projeto.' } }];\n}\n\nconst refs = sources\n  .map((s, i) => `[${i + 1}] ${s.filename ?? s.document_id ?? 'fonte'}${s.chunk_index != null ? ' (trecho ' + s.chunk_index + ')' : ''}`)\n  .join('\\n');\n\nreturn [{ json: { output: `${r.answer}\\n\\nFontes:\\n${refs}` } }];"
+      },
+      "position": [
+        2320,
+        2400
+      ],
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2
+    }
+  ],
+  "pinData": {},
+  "settings": {
+    "binaryMode": "separate",
+    "executionOrder": "v1"
+  },
+  "shared": [
+    {
+      "createdAt": "2026-10-02T11:21:03.436Z",
+      "project": {
+        "createdAt": "2026-10-02T11:12:37.233Z",
+        "creatorId": "c3e04826-8789-4bbf-bc18-8a2bb24421fd",
+        "customTelemetryTags": [],
+        "description": null,
+        "icon": null,
+        "id": "w96TVEftmRxHll7o",
+        "name": "Daniel Dias Pereira <dani.pereira8539@gmail.com>",
+        "type": "personal",
+        "updatedAt": "2026-10-02T11:20:36.286Z"
+      },
+      "projectId": "w96TVEftmRxHll7o",
+      "role": "workflow:owner",
+      "updatedAt": "2026-10-02T11:21:03.436Z",
+      "workflowId": "tJ7nYESUptHVmGCN"
+    }
+  ],
+  "sourceWorkflowId": null,
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 0,
+  "versionCounter": 11
+}
