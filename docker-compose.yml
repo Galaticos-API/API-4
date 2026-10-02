@@ -3,31 +3,48 @@ services:
     image: pgvector/pgvector:pg16
     container_name: sinapse-postgres
     restart: unless-stopped
+
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-sinapse}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-sinapse_dev_password}
       POSTGRES_DB: ${POSTGRES_DB:-sinapse}
+
     ports:
-      # 5432 is commonly occupied by a host PostgreSQL installation.
-      # The containers still use PostgreSQL on 5432 internally.
+      # Windows host -> PostgreSQL container
+      # localhost:55432 -> postgres:5432
       - "${POSTGRES_PORT:-55432}:5432"
+
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-sinapse} -d ${POSTGRES_DB:-sinapse}"]
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USER:-sinapse} -d ${POSTGRES_DB:-sinapse}"
+        ]
       interval: 5s
       timeout: 5s
       retries: 5
+
     networks:
       - sinapse-network
+
 
   n8n:
     image: docker.n8n.io/n8nio/n8n:latest
     container_name: sinapse-n8n
     restart: unless-stopped
+
     ports:
       - "${N8N_PORT:-5678}:5678"
+
+    # Permite que o n8n acesse serviços
+    # executados diretamente no Windows.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
     environment:
       - N8N_PORT=5678
       - N8N_ENCRYPTION_KEY=${N8N_ENCRYPTION_KEY:-sinapse-shared-dev-encryption-key-2026}
@@ -38,104 +55,158 @@ services:
       - WEBHOOK_URL=${N8N_BASE_URL:-http://localhost:5678}/
       - N8N_METRICS=false
       - N8N_DIAGNOSTICS_ENABLED=false
+
+      # Ollama executando no Windows
+      - OLLAMA_BASE_URL=${OLLAMA_DOCKER_BASE_URL:-http://host.docker.internal:11434}
+
+      # PostgreSQL executando no Docker
+      - DB_TYPE=postgresdb
+      - DB_POSTGRESDB_HOST=postgres
+      - DB_POSTGRESDB_PORT=5432
+      - DB_POSTGRESDB_DATABASE=${POSTGRES_DB:-sinapse}
+      - DB_POSTGRESDB_USER=${POSTGRES_USER:-sinapse}
+      - DB_POSTGRESDB_PASSWORD=${POSTGRES_PASSWORD:-sinapse_dev_password}
+
     volumes:
       - n8n_data:/home/node/.n8n
       - ./n8n/local-files:/files
+
     depends_on:
       postgres:
         condition: service_healthy
+
     networks:
       - sinapse-network
+
 
   backend:
     build:
       context: .
       dockerfile: backend/Dockerfile
+
     container_name: sinapse-backend
     restart: unless-stopped
+
     ports:
       - "${BACKEND_PORT:-3001}:3001"
+
     environment:
       - NODE_ENV=production
       - PORT=3001
+
+      # PostgreSQL dentro da rede Docker
       - POSTGRES_HOST=postgres
       - POSTGRES_PORT=5432
       - POSTGRES_USER=${POSTGRES_USER:-sinapse}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-sinapse_dev_password}
       - POSTGRES_DB=${POSTGRES_DB:-sinapse}
+
+      # AI Service dentro da rede Docker
       - AI_SERVICE_URL=http://ai-service:8000
       - REPO_ANALYZER_URL=${REPO_ANALYZER_URL:-http://ai-service:8000}
+
       - DOCUMENT_MAX_SIZE_MB=${DOCUMENT_MAX_SIZE_MB:-20}
       - DOCUMENT_STORAGE_DIR=/data/documents
       - DOCUMENT_EVENTS_WEBHOOK_URL=${DOCUMENT_EVENTS_WEBHOOK_URL:-}
       - MIGRATIONS_DIR=/database/migrations
       - INIT_SQL_PATH=/database/init.sql
+
     volumes:
       - documents_data:/data/documents
       - ./database/migrations:/database/migrations:ro
       - ./database/init.sql:/database/init.sql:ro
       - ./database/seed:/database/seed:ro
+
     depends_on:
       postgres:
         condition: service_healthy
+
     networks:
       - sinapse-network
 
+
   ai-service:
     profiles: [local-ai]
-    build: ./ai-service
+
+    build:
+      context: ./ai-service
+
     container_name: sinapse-ai-service
     restart: unless-stopped
+
     ports:
       - "${AI_SERVICE_PORT:-8000}:8000"
+
+    # Permite acesso ao Ollama no Windows
     extra_hosts:
       - "host.docker.internal:host-gateway"
+
     volumes:
       - repo_analysis_data:/app/workspace_analyzer
+
     environment:
       - AI_SERVICE_PORT=8000
       - AI_SERVICE_HOST=0.0.0.0
+
+      # Ollama no Windows
       - OLLAMA_BASE_URL=${OLLAMA_DOCKER_BASE_URL:-http://host.docker.internal:11434}
+
       - OLLAMA_LLM_MODEL=${OLLAMA_LLM_MODEL:-qwen2.5:1.5b}
       - OLLAMA_NUM_PREDICT=${OLLAMA_NUM_PREDICT:-1024}
       - OLLAMA_NUM_CTX=${OLLAMA_NUM_CTX:-8192}
       - OLLAMA_FILE_NUM_PREDICT=${OLLAMA_FILE_NUM_PREDICT:-512}
       - OLLAMA_SYNTHESIS_NUM_PREDICT=${OLLAMA_SYNTHESIS_NUM_PREDICT:-3072}
       - OLLAMA_EMBEDDING_MODEL=${OLLAMA_EMBEDDING_MODEL:-bge-m3}
+
       - MAX_FILES=${MAX_FILES:-1000}
       - ANALYZER_QUICK_FILES=${ANALYZER_QUICK_FILES:-8}
       - ANALYZER_BALANCED_FILES=${ANALYZER_BALANCED_FILES:-80}
+
+      # PostgreSQL dentro do Docker
       - POSTGRES_HOST=postgres
       - POSTGRES_PORT=5432
       - POSTGRES_USER=${POSTGRES_USER:-sinapse}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-sinapse_dev_password}
       - POSTGRES_DB=${POSTGRES_DB:-sinapse}
+
     depends_on:
       postgres:
         condition: service_healthy
+
     networks:
       - sinapse-network
 
+
   frontend:
-    build: ./frontend
+    build:
+      context: ./frontend
+
     container_name: sinapse-frontend
     restart: unless-stopped
+
     ports:
       - "${FRONTEND_PORT:-5173}:5173"
+
     depends_on:
       - backend
+
     networks:
       - sinapse-network
+
 
 volumes:
   postgres_data:
     name: sinapse_postgres_data
+
   n8n_data:
     name: sinapse_n8n_data
+
   documents_data:
     name: sinapse_documents_data
+
   repo_analysis_data:
     name: sinapse_repo_analysis_data
+
 
 networks:
   sinapse-network:
