@@ -1,7 +1,7 @@
 import { access, mkdir, readdir, rename, rm, stat, writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 
-const STORAGE_KEY = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+const STORAGE_KEY = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?:\.[a-z0-9]+)?$/;
 const STAGING_SUFFIX = ".removing";
 const UPLOAD_SUFFIX = ".uploading";
 
@@ -120,7 +120,8 @@ export class LocalDocumentStorage implements DocumentStorage {
             : null;
         if (!suffix) continue;
         const name = file.name.slice(0, -suffix.length);
-        if (!/^[0-9a-f-]{36}$/.test(name)) continue;
+        // Allow UUID or UUID.extension pattern
+        if (!/^[0-9a-f-]{36}(?:\.[a-z0-9]+)?$/.test(name)) continue;
         const key = `${project.name}/${name}`;
         const filePath = join(directory, file.name);
         const fileInfo = await stat(filePath).catch(() => null);
