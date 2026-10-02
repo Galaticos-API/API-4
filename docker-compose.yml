@@ -69,7 +69,7 @@ services:
 
     volumes:
       - n8n_data:/home/node/.n8n
-      - ./n8n/local-files:/files
+      - ./storage:/files
 
     depends_on:
       postgres:
@@ -106,13 +106,14 @@ services:
       - REPO_ANALYZER_URL=${REPO_ANALYZER_URL:-http://ai-service:8000}
 
       - DOCUMENT_MAX_SIZE_MB=${DOCUMENT_MAX_SIZE_MB:-20}
-      - DOCUMENT_STORAGE_DIR=/data/documents
+      - DOCUMENT_STORAGE_DIR=/files
       - DOCUMENT_EVENTS_WEBHOOK_URL=${DOCUMENT_EVENTS_WEBHOOK_URL:-}
+      - N8N_WEBHOOK_URL=${N8N_WEBHOOK_URL:-http://n8n:5678/webhook/sinapse-ingest}
       - MIGRATIONS_DIR=/database/migrations
       - INIT_SQL_PATH=/database/init.sql
 
     volumes:
-      - documents_data:/data/documents
+      - ./storage:/files
       - ./database/migrations:/database/migrations:ro
       - ./database/init.sql:/database/init.sql:ro
       - ./database/seed:/database/seed:ro
@@ -200,9 +201,6 @@ volumes:
 
   n8n_data:
     name: sinapse_n8n_data
-
-  documents_data:
-    name: sinapse_documents_data
 
   repo_analysis_data:
     name: sinapse_repo_analysis_data
