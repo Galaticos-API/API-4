@@ -7,16 +7,6 @@ function paramOf(value: string | string[] | undefined): string {
   return value ?? "";
 }
 
-function decodeFileName(header: string | string[] | undefined): string {
-  const raw = Array.isArray(header) ? header[0] : header;
-  if (!raw) throw new ValidationError("Informe o nome do arquivo no cabeçalho X-File-Name.");
-  try {
-    return decodeURIComponent(raw);
-  } catch {
-    throw new ValidationError("Nome do arquivo inválido.");
-  }
-}
-
 export class DocumentsController {
   constructor(private readonly service: DocumentsService = documentsService) {}
 
@@ -32,12 +22,13 @@ export class DocumentsController {
 
   upload = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      if (!Buffer.isBuffer(req.body)) throw new ValidationError("Envie o arquivo como corpo binário da requisição.");
+      if (!req.file) throw new ValidationError("Envie o arquivo no campo 'file' como multipart/form-data.");
+      if (!Buffer.isBuffer(req.file.buffer)) throw new ValidationError("Arquivo inválido.");
       const created = await this.service.upload({
         projetoId: paramOf(req.params.projectId),
         usuarioId: req.auth?.id ?? "",
-        fileName: decodeFileName(req.headers["x-file-name"]),
-        content: req.body,
+        fileName: req.file.originalname,
+        content: req.file.buffer,
       });
       res.status(201).json(created);
     } catch (error) {

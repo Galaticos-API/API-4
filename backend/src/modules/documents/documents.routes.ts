@@ -1,4 +1,5 @@
 import express, { Router } from "express";
+import multer from "multer";
 import { env } from "../../config/env.js";
 import { requireRole } from "../../middleware/requireRole.js";
 import { DocumentsController, documentsController } from "./documents.controller.js";
@@ -10,7 +11,10 @@ export function createDocumentsRouter(
   maxBytes: number = Math.floor(env.DOCUMENT_MAX_SIZE_MB * 1024 * 1024),
 ): Router {
   const router = Router({ mergeParams: true });
-  const binaryBody = express.raw({ type: () => true, limit: maxBytes });
+  const upload = multer({
+    storage: multer.memoryStorage(),
+    limits: { fileSize: maxBytes },
+  });
 
   /**
    * @swagger
@@ -34,10 +38,22 @@ export function createDocumentsRouter(
    * @swagger
    * /api/v1/projects/{projectId}/documents:
    *   post:
-   *     summary: Enviar documento (PDF, DOCX, MD ou TXT) como corpo binário
+   *     summary: Enviar documento (PDF, DOCX, MD ou TXT) como multipart/form-data
    *     tags: [Documents]
    *     security:
    *       - bearerAuth: []
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         multipart/form-data:
+   *           schema:
+   *             type: object
+   *             required:
+   *               - file
+   *             properties:
+   *               file:
+   *                 type: string
+   *                 format: binary
    *     responses:
    *       201:
    *         description: Documento armazenado
@@ -50,7 +66,7 @@ export function createDocumentsRouter(
    *       413:
    *         description: Arquivo acima do limite configurado
    */
-  router.post("/", canWrite, binaryBody, controller.upload);
+  router.post("/", canWrite, upload.single("file"), controller.upload);
 
   /**
    * @swagger

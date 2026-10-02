@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import axios from "axios";
 import { env } from "../../config/env.js";
 import { AppError, NotFoundError, ValidationError, validateUuid } from "../../shared/errors.js";
 import { ArchiveConflict } from "../projects/archive.types.js";
@@ -97,7 +98,8 @@ export class DocumentsService {
     }
     const inspected = inspectDocument(input.fileName, input.content, this.maxBytes);
     const id = randomUUID();
-    const caminho = `${input.projetoId}/${id}`;
+    const extension = inspected.extensao ? `.${inspected.extensao}` : "";
+    const caminho = `${input.projetoId}/${id}${extension}`;
     try {
       await this.storage.save(caminho, input.content);
     } catch {
@@ -134,6 +136,25 @@ export class DocumentsService {
       // and the background worker retries without creating duplicate metadata.
       created.armazenamento_pendente = true;
     }
+
+    // Call n8n webhook to trigger RAG ingestion
+    if (env.N8N_WEBHOOK_URL?.trim() && !created.armazenamento_pendente) {
+      try {
+        await axios.post(env.N8N_WEBHOOK_URL, {
+          documentId: id,
+          projectId: input.projetoId,
+          filename: inspected.nome,
+          storagePath: caminho,
+        }, {
+          timeout: 10_000,
+        });
+      } catch (error) {
+        console.error(`[Documents] Failed to call n8n webhook for document ${id}:`, error);
+        // Don't fail the upload if webhook fails - the document is stored
+        // and can be re-processed later
+      }
+    }
+
     return created;
   }
 
