@@ -16,6 +16,15 @@ export function createDocumentsRouter(
     limits: { fileSize: maxBytes },
   });
 
+  // Handle multer errors
+  router.use((err: unknown, _req: express.Request, res: express.Response, next: express.NextFunction) => {
+    if (err instanceof Error && err.name === 'LimitExceedError') {
+      res.status(413).json({ code: 'PAYLOAD_TOO_LARGE', details: { max_bytes: maxBytes } });
+      return;
+    }
+    next(err);
+  });
+
   /**
    * @swagger
    * /api/v1/projects/{projectId}/documents:

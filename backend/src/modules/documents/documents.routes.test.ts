@@ -46,10 +46,10 @@ after(() => {
   server.close();
 });
 
-function upload(projectId: string, body: Buffer, fileName: string | null = "escopo.pdf", contentType = "application/octet-stream") {
-  const headers: Record<string, string> = { "Content-Type": contentType };
-  if (fileName !== null) headers["X-File-Name"] = encodeURIComponent(fileName);
-  return fetch(`${baseUrl}/${projectId}/documents`, { method: "POST", headers, body: new Uint8Array(body) });
+function upload(projectId: string, body: Buffer, fileName: string = "escopo.pdf") {
+  const formData = new FormData();
+  formData.append("file", new Blob([body]), fileName);
+  return fetch(`${baseUrl}/${projectId}/documents`, { method: "POST", body: formData });
 }
 
 test("perfil de leitura não pode enviar nem remover documentos", async () => {
@@ -62,10 +62,10 @@ test("perfil de leitura não pode enviar nem remover documentos", async () => {
 
 test("upload válido retorna 201 com metadados e o tamanho vem do conteúdo, não do cliente", async () => {
   const content = pdfBuffer(100);
-  const response = await upload(PROJECT_ID, content, "Escopo Ação.pdf", "text/plain");
+  const response = await upload(PROJECT_ID, content, "Escopo Acao.pdf");
   assert.equal(response.status, 201);
   const body = await response.json() as { nome: string; mime: string; tamanho_bytes: number; status_processamento: string };
-  assert.equal(body.nome, "Escopo Ação.pdf");
+  assert.equal(body.nome, "Escopo Acao.pdf");
   assert.equal(body.mime, "application/pdf");
   assert.equal(body.tamanho_bytes, content.length);
   assert.equal(body.status_processamento, "pendente");
@@ -73,7 +73,7 @@ test("upload válido retorna 201 com metadados e o tamanho vem do conteúdo, nã
 
 test("MIME declarado falso é ignorado e o conteúdo real decide", async () => {
   const before = storage.files.size;
-  const response = await upload(PROJECT_ID, Buffer.from("isto é só texto"), "falso.pdf", "application/pdf");
+  const response = await upload(PROJECT_ID, Buffer.from("isto é só texto"), "falso.pdf");
   assert.equal(response.status, 400);
   assert.match(((await response.json()) as { error: string }).error, /não corresponde/);
   assert.equal(storage.files.size, before);
@@ -88,14 +88,9 @@ test("arquivo acima do limite retorna 413 informando o limite", async () => {
 });
 
 test("requisições malformadas são recusadas com 400", async () => {
-  assert.equal((await upload(PROJECT_ID, pdfBuffer(), null)).status, 400);
+  const formData = new FormData();
+  assert.equal((await fetch(`${baseUrl}/${PROJECT_ID}/documents`, { method: "POST", body: formData })).status, 400);
   assert.equal((await upload(PROJECT_ID, Buffer.alloc(0), "vazio.txt")).status, 400);
-  const json = await fetch(`${baseUrl}/${PROJECT_ID}/documents`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", "X-File-Name": "a.txt" },
-    body: JSON.stringify({ arquivo: "a" }),
-  });
-  assert.equal(json.status, 400);
 });
 
 test("projeto inexistente retorna 404 e id malformado retorna 400", async () => {

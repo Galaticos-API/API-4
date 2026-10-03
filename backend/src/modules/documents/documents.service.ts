@@ -98,8 +98,7 @@ export class DocumentsService {
     }
     const inspected = inspectDocument(input.fileName, input.content, this.maxBytes);
     const id = randomUUID();
-    const extension = inspected.extensao ? `.${inspected.extensao}` : "";
-    const caminho = `${input.projetoId}/${id}${extension}`;
+    const caminho = `${input.projetoId}/${id}${inspected.extensao}`;
     try {
       await this.storage.save(caminho, input.content);
     } catch {
