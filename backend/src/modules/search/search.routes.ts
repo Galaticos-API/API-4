@@ -1,58 +1,48 @@
-import { Router, Request, Response, NextFunction } from "express";
-import { ValidationError, validateUuid } from "../../shared/errors.js";
-import { pool } from "../../database/db.js";
+import { Router, Request, Response, NextFunction, type RequestHandler } from "express";
 import { requireAuth } from "../../middleware/requireAuth.js";
+import { ValidationError, validateUuid } from "../../shared/errors.js";
+import { parseSearchLevel, SearchService } from "./search.service.js";
 
-export const searchRouter = Router();
+const textQuery = (value: unknown, field: string): string | undefined => {
+  if (value === undefined) return undefined;
+  if (typeof value !== "string") throw new ValidationError(`${field} deve ser texto.`);
+  return value;
+};
 
-searchRouter.use(requireAuth);
+export function createSearchRouter(service: SearchService = new SearchService(), auth: RequestHandler = requireAuth) {
+  const router = Router();
+  router.use(auth);
 
-// GET /api/v1/search?q=...&projeto_id=...
-searchRouter.get("/", async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const q = ((req.query.q as string) || "").trim();
-    const projectId = (req.query.projeto_id as string) || (req.query.projectId as string);
+  router.get("/", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const query = textQuery(req.query.q, "A busca");
+      const projectId = textQuery(req.query.projeto_id ?? req.query.projectId, "ID do projeto");
+      const technologyId = textQuery(req.query.tecnologia_id ?? req.query.technology_id, "ID da tecnologia");
+      const levelValue = textQuery(req.query.nivel ?? req.query.level, "Nível");
+      const limitValue = textQuery(req.query.limit, "Limite");
 
-    if (projectId) validateUuid(projectId, "ID do projeto");
-    if (q.length > 200) throw new ValidationError("A busca pode ter no máximo 200 caracteres.");
+      if (!query?.trim()) throw new ValidationError("Informe o texto da busca.");
+      if (query.trim().length < 3 || query.trim().length > 200) throw new ValidationError("A busca deve ter entre 3 e 200 caracteres.");
+      if (!projectId) throw new ValidationError("Informe o projeto para manter o escopo da busca.");
+      validateUuid(projectId, "ID do projeto");
+      if (technologyId) validateUuid(technologyId, "ID da tecnologia");
+      const parsedLimit = limitValue === undefined ? 10 : (/^(?:[1-9]|[1-4]\d|50)$/.test(limitValue) ? Number(limitValue) : Number.NaN);
+      if (!Number.isInteger(parsedLimit)) throw new ValidationError("O limite deve ser um inteiro entre 1 e 50.");
 
-    if (!q) {
-      // Se a query estiver vazia, retorna os chunks mais recentes
-      let sql = `
-        SELECT c.id, c.projeto_id, c.entidade_tipo, c.entidade_id, c.texto, c.metadados_json, c.created_at, p.nome as projeto_nome
-        FROM chunk c
-        JOIN projeto p ON c.projeto_id = p.id
-      `;
-      const params: unknown[] = [];
-      if (projectId) {
-        sql += " WHERE c.projeto_id = $1";
-        params.push(projectId);
-      }
-      sql += " ORDER BY c.created_at DESC LIMIT 50";
-      const result = await pool.query(sql, params);
-      res.json({ items: result.rows, total: result.rowCount });
-      return;
+      const result = await service.search({
+        query,
+        projectId,
+        technologyId,
+        level: parseSearchLevel(levelValue),
+        limit: parsedLimit,
+      });
+      res.json(result);
+    } catch (error) {
+      next(error);
     }
+  });
 
-    // Busca textual / ilike sobre a tabela chunk com escopo por projeto (RNF-03)
-    let sql = `
-      SELECT c.id, c.projeto_id, c.entidade_tipo, c.entidade_id, c.texto, c.metadados_json, c.created_at, p.nome as projeto_nome
-      FROM chunk c
-      JOIN projeto p ON c.projeto_id = p.id
-      WHERE c.texto ILIKE $1
-    `;
-    const params: unknown[] = [`%${q.replace(/[\\%_]/g, "\\$&")}%`];
+  return router;
+}
 
-    if (projectId) {
-      sql += " AND c.projeto_id = $2";
-      params.push(projectId);
-    }
-
-    sql += " ORDER BY c.created_at DESC LIMIT 50";
-
-    const result = await pool.query(sql, params);
-    res.json({ items: result.rows, total: result.rowCount });
-  } catch (error) {
-    next(error);
-  }
-});
+export const searchRouter = createSearchRouter();

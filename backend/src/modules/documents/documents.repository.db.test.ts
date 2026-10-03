@@ -49,6 +49,40 @@ test("S1-19/S1-22: documentos, auditoria e outbox no PostgreSQL", { skip: !proce
       assert.equal((await pool.query("SELECT count(*)::int n FROM documento WHERE id=$1", [orphan])).rows[0].n, 0);
     });
 
+    await t.test("lease expirado impede worker antigo de concluir ou sobrescrever a nova tentativa", async () => {
+      const fenced = randomUUID();
+      await pool.query("UPDATE documento SET status_processamento='processado' WHERE id = ANY($1::uuid[])", [[plain, foreign]]);
+      await pool.query(
+        `INSERT INTO documento(id,projeto_id,nome,extensao,mime,tamanho_bytes,caminho,usuario_id,status_processamento)
+         VALUES ($1,$2,'lease.txt','.txt','text/plain',8,$3,$4,'pendente')`,
+        [fenced, project, `${project}/${fenced}`, user],
+      );
+
+      const first = (await repo.claimPendingIngestion(1))[0];
+      assert.equal(first?.id, fenced);
+      await pool.query("UPDATE documento SET processamento_bloqueado_ate=CURRENT_TIMESTAMP - INTERVAL '1 second' WHERE id=$1", [fenced]);
+      const second = (await repo.claimPendingIngestion(1))[0];
+      assert.equal(second?.id, fenced);
+      assert.notEqual(second?.processamento_lease_id, first?.processamento_lease_id);
+
+      await repo.failIngestion(fenced, project, first!.processamento_lease_id, "falha antiga");
+      const stillOwned = (await pool.query(
+        "SELECT status_processamento, processamento_lease_id FROM documento WHERE id=$1", [fenced],
+      )).rows[0];
+      assert.equal(stillOwned.status_processamento, "processando");
+      assert.equal(stillOwned.processamento_lease_id, second!.processamento_lease_id);
+      const chunks = [{ chunk_index: 0, text: "conteúdo válido", embedding: Array(1024).fill(0.1), metadata: {} }];
+      await assert.rejects(repo.completeIngestion(first!, chunks), /reserva de ingestão/);
+      await repo.completeIngestion(second!, chunks);
+      const completed = (await pool.query(
+        "SELECT status_processamento, processamento_lease_id FROM documento WHERE id=$1", [fenced],
+      )).rows[0];
+      assert.equal(completed.status_processamento, "processado");
+      assert.equal(completed.processamento_lease_id, null);
+      assert.equal((await pool.query("SELECT count(*)::int n FROM chunk WHERE entidade_id=$1", [fenced])).rows[0].n, 1);
+      await pool.query("UPDATE documento SET status_processamento='pendente' WHERE id = ANY($1::uuid[])", [[plain, foreign]]);
+    });
+
     await t.test("remove documento não indexado sem gerar evento e é idempotente", async () => {
       const result = await repo.remove({ id: plain, projetoId: project, usuarioId: user });
       assert.equal(result?.indexado, false);
@@ -276,7 +310,7 @@ test("S1-19/S1-22: documentos, auditoria e outbox no PostgreSQL", { skip: !proce
         await archiver.query("COMMIT");
         await assert.rejects(removal, ArchiveConflict);
         assert.equal((await repo.findById(archivedProject, archivedDocument))?.id, archivedDocument);
-        assert.equal((await pool.query("SELECT count(*)::int AS total FROM chunk WHERE id=$1", [archivedChunk])).rows[0].total, 1);
+        assert.equal((await pool.query("SELECT count(*)::int AS total FROM chunk WHERE id=$1", [archivedChunk])).rows[0].total, 0, "arquivar o projeto expurga seus trechos do acervo");
         assert.equal((await pool.query("SELECT count(*)::int AS total FROM auditoria WHERE entidade_id=$1 AND acao='REMOVER_DOCUMENTO'", [archivedDocument])).rows[0].total, 0);
       } catch (error) {
         await archiver.query("ROLLBACK").catch(() => undefined);
@@ -285,10 +319,75 @@ test("S1-19/S1-22: documentos, auditoria e outbox no PostgreSQL", { skip: !proce
         archiver.release();
       }
     });
+
+    await t.test("falha de IA seguida de retry manual conclui sem chunks parciais ou duplicados", async () => {
+      const retriable = randomUUID();
+      try {
+        await repo.create({
+          id: retriable, projetoId: project, nome: "retry-controlado.txt", extensao: ".txt", mime: "text/plain",
+          tamanhoBytes: 32, caminho: `${project}/${retriable}`, usuarioId: user,
+        });
+        await repo.completeUploadOperation(retriable);
+
+        const firstAttempt = (await repo.claimPendingIngestion(50)).find((item) => item.id === retriable);
+        assert.ok(firstAttempt, "o worker deve reivindicar o upload pronto");
+        await repo.failIngestion(retriable, project, firstAttempt.processamento_lease_id, "falha simulada do serviço IA");
+        const failed = (await pool.query(
+          "SELECT status_processamento, processamento_tentativas FROM documento WHERE id=$1", [retriable],
+        )).rows[0];
+        assert.equal(failed.status_processamento, "falha");
+        assert.equal(failed.processamento_tentativas, 1);
+        assert.equal((await pool.query("SELECT count(*)::int n FROM chunk WHERE entidade_id=$1", [retriable])).rows[0].n, 0);
+
+        assert.equal(await repo.retryIngestion(project, retriable), true);
+        const secondAttempt = (await repo.claimPendingIngestion(50)).find((item) => item.id === retriable);
+        assert.ok(secondAttempt, "retry manual deve deixar o documento novamente disponível");
+        assert.notEqual(secondAttempt.processamento_lease_id, firstAttempt.processamento_lease_id);
+        const extracted = [{ chunk_index: 0, text: "conteúdo recuperado pelo retry", embedding: Array(1024).fill(0.1), metadata: {} }];
+        await repo.completeIngestion(secondAttempt, extracted);
+        await assert.rejects(repo.completeIngestion(secondAttempt, extracted), /reserva de ingestão/);
+
+        const completed = (await pool.query(
+          "SELECT status_processamento, processamento_tentativas FROM documento WHERE id=$1", [retriable],
+        )).rows[0];
+        assert.equal(completed.status_processamento, "processado");
+        assert.equal(completed.processamento_tentativas, 2);
+        assert.equal((await pool.query("SELECT count(*)::int n FROM chunk WHERE entidade_id=$1", [retriable])).rows[0].n, 1);
+      } finally {
+        await pool.query("DELETE FROM chunk WHERE entidade_id=$1", [retriable]);
+        await pool.query("DELETE FROM documento_operacao_armazenamento WHERE documento_id=$1", [retriable]);
+        await pool.query("DELETE FROM auditoria WHERE entidade_id=$1", [retriable]);
+        await pool.query("DELETE FROM documento WHERE id=$1", [retriable]);
+      }
+    });
+
+    await t.test("ingestão que termina após arquivamento do projeto não pode repovoar o acervo", async () => {
+      const pending = randomUUID();
+      const failed = randomUUID();
+      await pool.query(
+        `INSERT INTO documento(id,projeto_id,nome,extensao,mime,tamanho_bytes,caminho,usuario_id,status_processamento)
+         VALUES ($1,$2,'pendente.txt','.txt','text/plain',8,$3,$4,'processando')`,
+        [pending, project, `${project}/${pending}`, user],
+      );
+      await pool.query("UPDATE projeto SET status='arquivado' WHERE id=$1", [project]);
+      await pool.query(
+        `INSERT INTO documento(id,projeto_id,nome,extensao,mime,tamanho_bytes,caminho,usuario_id,status_processamento)
+         VALUES ($1,$2,'falha.txt','.txt','text/plain',8,$3,$4,'falha')`,
+        [failed, project, `${project}/${failed}`, user],
+      );
+      await assert.rejects(repo.retryIngestion(project, failed), ArchiveConflict);
+      assert.equal((await pool.query("SELECT status_processamento FROM documento WHERE id=$1", [failed])).rows[0].status_processamento, "falha");
+      await assert.rejects(repo.completeIngestion({
+        id: pending, projeto_id: project, nome: "pendente.txt", caminho: `${project}/${pending}`,
+        status_processamento: "processando", mime: "text/plain", extensao: ".txt", processamento_lease_id: randomUUID(),
+      }, [{ chunk_index: 0, text: "conteúdo que não pode ser republicado", embedding: Array(1024).fill(0.1), metadata: {} }]), /Projeto arquivado/);
+      assert.equal((await pool.query("SELECT count(*)::int AS total FROM chunk WHERE projeto_id=$1", [project])).rows[0].total, 0);
+    });
   } finally {
     await pool.query("DELETE FROM evento_integracao WHERE chave_idempotencia = ANY($1::text[])", [[removalEventKey(indexed), removalEventKey(plain)]]);
     await pool.query("DELETE FROM auditoria WHERE entidade_id = ANY($1::uuid[])", [[plain, indexed, foreign]]);
     await pool.query("DELETE FROM chunk WHERE id=$1", [chunk]);
+    await pool.query("DELETE FROM knowledge_index_queue WHERE project_id = ANY($1::uuid[])", [[project, other]]).catch(() => undefined);
     await pool.query("DELETE FROM projeto WHERE id = ANY($1::uuid[])", [[project, other]]);
     await pool.query("DELETE FROM usuario WHERE id=$1", [user]);
     await pool.end();

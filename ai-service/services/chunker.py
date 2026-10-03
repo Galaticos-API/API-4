@@ -11,40 +11,43 @@ def chunk_document_text(text: str, chunk_size: int = 1000, overlap: int = 150) -
     if not text or not text.strip():
         return []
 
-    # Normalize newlines
-    text = text.replace("\r\n", "\n")
+    if chunk_size < 1 or overlap < 0 or overlap >= chunk_size:
+        raise ValueError("chunk_size deve ser positivo e overlap menor que chunk_size")
+    text = text.replace("\r\n", "\n").replace("\r", "\n")
     paragraphs = re.split(r"\n\s*\n", text)
-    
     chunks: list[str] = []
-    current_chunk: list[str] = []
-    current_len = 0
-
+    current = ""
     for para in paragraphs:
         para = para.strip()
         if not para:
             continue
-        
-        para_len = len(para)
-        
-        if current_len + para_len <= chunk_size:
-            current_chunk.append(para)
-            current_len += para_len + 1
-        else:
-            if current_chunk:
-                chunk_str = "\n\n".join(current_chunk)
-                chunks.append(chunk_str)
-                # Keep overlap if possible
-                overlap_text = chunk_str[-overlap:] if len(chunk_str) > overlap else ""
-                current_chunk = [overlap_text, para] if overlap_text else [para]
-                current_len = sum(len(p) for p in current_chunk) + len(current_chunk) - 1
-            else:
-                # Single paragraph exceeds chunk_size, break by sentence or length
-                chunks.append(para[:chunk_size])
-                current_chunk = [para[chunk_size - overlap:]]
-                current_len = len(current_chunk[0])
+        # Long paragraphs are split without dropping their tail. Prefer whitespace
+        # boundaries, while guaranteeing forward progress for unbroken tokens.
+        pieces: list[str] = []
+        remaining = para
+        while len(remaining) > chunk_size:
+            cut = remaining.rfind(" ", 0, chunk_size + 1)
+            if cut <= 0:
+                cut = chunk_size
+            pieces.append(remaining[:cut].strip())
+            remaining = remaining[max(1, cut - overlap):].lstrip()
+        if remaining:
+            pieces.append(remaining)
 
-    if current_chunk:
-        chunks.append("\n\n".join(current_chunk))
+        for piece in pieces:
+            candidate = f"{current}\n\n{piece}" if current else piece
+            if len(candidate) <= chunk_size:
+                current = candidate
+            else:
+                if current:
+                    chunks.append(current)
+                carry = current[-overlap:].strip() if current and overlap else ""
+                current = f"{carry}\n{piece}" if carry else piece
+                if len(current) > chunk_size:
+                    chunks.append(current[:chunk_size])
+                    current = current[chunk_size - overlap:]
+    if current:
+        chunks.append(current)
 
     return [c.strip() for c in chunks if c.strip()]
 

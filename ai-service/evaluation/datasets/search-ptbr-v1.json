@@ -1,0 +1,202 @@
+{
+  "dataset": "sinapse-search-ptbr",
+  "version": 1,
+  "corpus": {
+    "dataset": "pre06-historical-v1",
+    "file": "database/seed/fixtures/historical-v1.json",
+    "source_policy": "Somente documentação pública curada dos projetos API-1, API-2 e API-3; sem código-fonte, anexos de teste ou dados pessoais."
+  },
+  "source_projects": {
+    "60000000-0000-4000-8000-000000000001": "API-1",
+    "60000000-0000-4000-8000-000000000006": "API-2",
+    "60000000-0000-4000-8000-000000000011": "API-3"
+  },
+  "source_project_ids": {
+    "60000000-0000-4000-8000-000000000003": "60000000-0000-4000-8000-000000000001",
+    "60000000-0000-4000-8000-000000000005": "60000000-0000-4000-8000-000000000001",
+    "60000000-0000-4000-8000-000000000008": "60000000-0000-4000-8000-000000000006",
+    "60000000-0000-4000-8000-000000000010": "60000000-0000-4000-8000-000000000006",
+    "60000000-0000-4000-8000-000000000013": "60000000-0000-4000-8000-000000000011",
+    "60000000-0000-4000-8000-000000000015": "60000000-0000-4000-8000-000000000011"
+  },
+  "source_entity_types": {
+    "60000000-0000-4000-8000-000000000003": "documento",
+    "60000000-0000-4000-8000-000000000005": "documento",
+    "60000000-0000-4000-8000-000000000008": "documento",
+    "60000000-0000-4000-8000-000000000010": "documento",
+    "60000000-0000-4000-8000-000000000013": "documento",
+    "60000000-0000-4000-8000-000000000015": "documento"
+  },
+  "queries": [
+    {
+      "id": "Q001",
+      "category": "semantic_paraphrase",
+      "query": "Como os administradores entram na plataforma?",
+      "project_id": "60000000-0000-4000-8000-000000000001",
+      "expected_source_ids": ["60000000-0000-4000-8000-000000000003"]
+    },
+    {
+      "id": "Q002",
+      "category": "semantic_paraphrase",
+      "query": "Gerenciar as permissões de acesso de quem administra o sistema",
+      "project_id": "60000000-0000-4000-8000-000000000001",
+      "expected_source_ids": ["60000000-0000-4000-8000-000000000003"]
+    },
+    {
+      "id": "Q003",
+      "category": "semantic_paraphrase",
+      "query": "O RH pode criar, consultar, editar e desativar contas de pessoas?",
+      "project_id": "60000000-0000-4000-8000-000000000006",
+      "expected_source_ids": ["60000000-0000-4000-8000-000000000008"]
+    },
+    {
+      "id": "Q004",
+      "category": "semantic_paraphrase",
+      "query": "Preciso manter o plano de desenvolvimento de cada colaborador por exercício",
+      "project_id": "60000000-0000-4000-8000-000000000006",
+      "expected_source_ids": ["60000000-0000-4000-8000-000000000010"]
+    },
+    {
+      "id": "Q005",
+      "category": "semantic_paraphrase",
+      "query": "Acompanhar em gráficos como a equipe está sendo avaliada",
+      "project_id": "60000000-0000-4000-8000-000000000001",
+      "expected_source_ids": ["60000000-0000-4000-8000-000000000005"]
+    },
+    {
+      "id": "Q006",
+      "category": "semantic_paraphrase",
+      "query": "Visualizar a evolução do saldo de crédito do país",
+      "project_id": "60000000-0000-4000-8000-000000000011",
+      "expected_source_ids": ["60000000-0000-4000-8000-000000000013"]
+    },
+    {
+      "id": "Q007",
+      "category": "semantic_paraphrase",
+      "query": "Comparar os estados pela pontuação de oportunidades",
+      "project_id": "60000000-0000-4000-8000-000000000011",
+      "expected_source_ids": ["60000000-0000-4000-8000-000000000015"]
+    },
+    {
+      "id": "Q008",
+      "category": "semantic_paraphrase",
+      "query": "Qual funcionalidade registra um PDI anual ligado ao funcionário?",
+      "project_id": "60000000-0000-4000-8000-000000000006",
+      "expected_source_ids": ["60000000-0000-4000-8000-000000000010"]
+    },
+    {
+      "id": "Q009",
+      "category": "exact_identifier",
+      "query": "GRF-01",
+      "project_id": "60000000-0000-4000-8000-000000000011",
+      "expected_source_ids": ["60000000-0000-4000-8000-000000000013"]
+    },
+    {
+      "id": "Q010",
+      "category": "exact_identifier",
+      "query": "GRF-08",
+      "project_id": "60000000-0000-4000-8000-000000000011",
+      "expected_source_ids": ["60000000-0000-4000-8000-000000000015"]
+    },
+    {
+      "id": "Q011",
+      "category": "exact_identifier",
+      "query": "20539",
+      "project_id": "60000000-0000-4000-8000-000000000011",
+      "expected_source_ids": ["60000000-0000-4000-8000-000000000013"]
+    },
+    {
+      "id": "Q012",
+      "category": "exact_identifier",
+      "query": "20539, 20540 e 20541",
+      "project_id": "60000000-0000-4000-8000-000000000011",
+      "expected_source_ids": ["60000000-0000-4000-8000-000000000013"]
+    },
+    {
+      "id": "Q013",
+      "category": "exact_term",
+      "query": "índice de oportunidade",
+      "project_id": "60000000-0000-4000-8000-000000000011",
+      "expected_source_ids": ["60000000-0000-4000-8000-000000000015"]
+    },
+    {
+      "id": "Q014",
+      "category": "exact_term",
+      "query": "login para administradores",
+      "project_id": "60000000-0000-4000-8000-000000000001",
+      "expected_source_ids": ["60000000-0000-4000-8000-000000000003"]
+    },
+    {
+      "id": "Q015",
+      "category": "combined_intent",
+      "query": "Gráfico de barras para ordenar estados pelo índice de oportunidade entre zero e dez",
+      "project_id": "60000000-0000-4000-8000-000000000011",
+      "expected_source_ids": ["60000000-0000-4000-8000-000000000015"]
+    },
+    {
+      "id": "Q016",
+      "category": "combined_intent",
+      "query": "Criar gráficos para analisar a avaliação e o desempenho de equipes",
+      "project_id": "60000000-0000-4000-8000-000000000001",
+      "expected_source_ids": ["60000000-0000-4000-8000-000000000005"]
+    },
+    {
+      "id": "Q017",
+      "category": "no_relevant_result",
+      "query": "Integração de pagamentos via PIX com conciliação bancária",
+      "project_id": "60000000-0000-4000-8000-000000000011",
+      "expected_source_ids": []
+    },
+    {
+      "id": "Q018",
+      "category": "no_relevant_result",
+      "query": "Autenticação OAuth com refresh token e PKCE",
+      "project_id": "60000000-0000-4000-8000-000000000001",
+      "expected_source_ids": []
+    },
+    {
+      "id": "Q019",
+      "category": "no_relevant_result",
+      "query": "Upload de PDF com antivírus, limite de tamanho e retentativa",
+      "project_id": "60000000-0000-4000-8000-000000000006",
+      "expected_source_ids": []
+    },
+    {
+      "id": "Q020",
+      "category": "project_isolation",
+      "query": "Gráficos de avaliação e desempenho da equipe",
+      "project_id": "60000000-0000-4000-8000-000000000006",
+      "expected_source_ids": []
+    },
+    {
+      "id": "Q021",
+      "category": "project_isolation",
+      "query": "Acesso ao sistema pelas pessoas responsáveis pela administração",
+      "project_id": "60000000-0000-4000-8000-000000000001",
+      "expected_source_ids": ["60000000-0000-4000-8000-000000000003"]
+    },
+    {
+      "id": "Q022",
+      "category": "project_isolation",
+      "query": "Saldo de crédito representado por gráfico de linha",
+      "project_id": "60000000-0000-4000-8000-000000000001",
+      "expected_source_ids": []
+    },
+    {
+      "id": "Q023",
+      "category": "combined_filters",
+      "query": "Acesso dos administradores ao sistema",
+      "project_id": "60000000-0000-4000-8000-000000000001",
+      "filters": { "level": "documento" },
+      "expected_source_ids": ["60000000-0000-4000-8000-000000000003"]
+    },
+    {
+      "id": "Q024",
+      "category": "combined_filters",
+      "query": "Acesso dos administradores ao sistema",
+      "project_id": "60000000-0000-4000-8000-000000000001",
+      "filters": { "level": "pbi" },
+      "expected_source_ids": []
+    }
+  ]
+}

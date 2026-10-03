@@ -127,3 +127,13 @@ test("DELETE é idempotente: 204 na primeira e na repetição", async () => {
 test("DELETE com id de documento malformado retorna 400", async () => {
   assert.equal((await fetch(`${baseUrl}/${PROJECT_ID}/documents/abc`, { method: "DELETE" })).status, 400);
 });
+
+test("reprocessamento exige sessão com escrita e agenda novamente o documento falho", async () => {
+  const id = "c0000000-0000-4000-8000-0000000000ab";
+  repository.seed({ id, projeto_id: PROJECT_ID, caminho: `${PROJECT_ID}/${id}`, status_processamento: "falha" });
+  const response = await fetch(`${baseUrl}/${PROJECT_ID}/documents/${id}/retry`, { method: "POST" });
+  assert.equal(response.status, 202);
+  assert.equal((await response.json() as { status_processamento: string }).status_processamento, "pendente");
+  assert.equal(repository.rows.find((item) => item.id === id)?.status_processamento, "pendente");
+  assert.equal((await fetch(`${baseUrl}/${PROJECT_ID}/documents/${id}/retry`, { method: "POST" })).status, 202);
+});

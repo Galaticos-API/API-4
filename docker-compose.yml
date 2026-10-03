@@ -103,9 +103,12 @@ services:
 
       # AI Service dentro da rede Docker
       - AI_SERVICE_URL=http://ai-service:8000
+      - DOCUMENT_INGESTION_TOKEN=${DOCUMENT_INGESTION_TOKEN:?Defina um segredo aleatório privado em DOCUMENT_INGESTION_TOKEN no .env}
       - REPO_ANALYZER_URL=${REPO_ANALYZER_URL:-http://ai-service:8000}
 
       - DOCUMENT_MAX_SIZE_MB=${DOCUMENT_MAX_SIZE_MB:-20}
+      - SEARCH_MIN_VECTOR_SIMILARITY=${SEARCH_MIN_VECTOR_SIMILARITY:-0.55}
+      - SEARCH_MIN_TEXT_RANK=${SEARCH_MIN_TEXT_RANK:-0.05}
       - DOCUMENT_STORAGE_DIR=/data/documents
       - DOCUMENT_EVENTS_WEBHOOK_URL=${DOCUMENT_EVENTS_WEBHOOK_URL:-}
       - MIGRATIONS_DIR=/database/migrations
@@ -135,9 +138,9 @@ services:
     restart: unless-stopped
 
     ports:
-      - "${AI_SERVICE_PORT:-8000}:8000"
+      - "${AI_SERVICE_BIND:-127.0.0.1}:${AI_SERVICE_PORT:-8000}:8000"
 
-    # Permite acesso ao Ollama no Windows
+    # O backend acessa pelo DNS interno do Compose; a porta no host fica local por padrão.
     extra_hosts:
       - "host.docker.internal:host-gateway"
 
@@ -146,6 +149,8 @@ services:
 
     environment:
       - AI_SERVICE_PORT=8000
+      - NODE_ENV=production
+      - DOCUMENT_INGESTION_TOKEN=${DOCUMENT_INGESTION_TOKEN:?Defina um segredo aleatório privado em DOCUMENT_INGESTION_TOKEN no .env}
       - AI_SERVICE_HOST=0.0.0.0
 
       # Ollama no Windows

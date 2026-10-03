@@ -67,6 +67,10 @@ n8n/local-files/*
 htmlcov/
 .pytest_cache/
 
+# Resultados de avaliação local da busca
+ai-service/evaluation/results/
+ai-service/test_workspace/
+
 # armazenamento local de documentos enviados
 backend/storage/
 storage/

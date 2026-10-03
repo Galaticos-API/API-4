@@ -1,67 +1,94 @@
-import React, { useState, useEffect, useCallback } from "react";
-import { apiRequest } from "../../api/api_auth";
+import React, { useCallback, useEffect, useState } from "react";
+import { ApiError, apiRequest } from "../../api/api_auth";
+import { listProjects, type Project } from "../../api/api_projects";
 import { SearchField } from "../common/SearchField";
 import "../../assets/styles/garakis-prototype.css";
 
 interface SearchItem {
   id: string;
-  projeto_id: string;
-  projeto_nome?: string;
-  entidade_tipo: string;
-  entidade_id: string;
-  texto: string;
-  metadados_json: Record<string, unknown>;
-  created_at: string;
+  project_id: string;
+  project_name: string;
+  entity_type: string;
+  entity_id: string;
+  title: string | null;
+  text: string;
+  metadata: Record<string, unknown>;
+  source_url: string | null;
+  relevance_score: number;
 }
 
-interface ProjectOption {
-  id: string;
-  nome: string;
+function parseSearchItems(value: unknown): SearchItem[] {
+  if (!value || typeof value !== "object" || !Array.isArray((value as Record<string, unknown>).items)) {
+    throw new Error("A resposta da busca está em formato inesperado.");
+  }
+  return ((value as { items: unknown[] }).items).map((item): SearchItem => {
+    if (!item || typeof item !== "object") throw new Error("A resposta da busca contém uma origem inválida.");
+    const row = item as Record<string, unknown>;
+    if (typeof row.id !== "string" || typeof row.project_id !== "string" || typeof row.project_name !== "string"
+      || typeof row.entity_type !== "string" || typeof row.entity_id !== "string" || typeof row.text !== "string"
+      || (row.title !== null && typeof row.title !== "string")
+      || (row.source_url !== null && typeof row.source_url !== "string")
+      || typeof row.relevance_score !== "number" || !Number.isFinite(row.relevance_score)
+      || (row.metadata !== null && (typeof row.metadata !== "object" || Array.isArray(row.metadata)))) {
+      throw new Error("A resposta da busca contém uma origem inválida.");
+    }
+    return { ...row, metadata: row.metadata ?? {} } as SearchItem;
+  });
+}
+
+function describeError(error: unknown): string {
+  if (error instanceof ApiError && error.details && typeof error.details === "object") {
+    const message = (error.details as Record<string, unknown>).error;
+    if (typeof message === "string") return message;
+  }
+  return error instanceof Error ? error.message : "Não foi possível pesquisar no acervo.";
 }
 
 export const KnowledgeView: React.FC = () => {
   const [query, setQuery] = useState("");
-  const [selectedProject, setSelectedProject] = useState<string>("");
-  const [projects, setProjects] = useState<ProjectOption[]>([]);
+  const [selectedProject, setSelectedProject] = useState("");
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [projectsLoading, setProjectsLoading] = useState(true);
+  const [projectsError, setProjectsError] = useState<string | null>(null);
   const [results, setResults] = useState<SearchItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  // Carrega projetos reais do backend para o filtro de escopo
   useEffect(() => {
-    apiRequest("/projects")
-      .then((res) => res.json())
-      .then((data) => {
-        if (Array.isArray(data.items)) {
-          setProjects(data.items.map((p: { id: string; nome: string }) => ({ id: p.id, nome: p.nome })));
-        }
+    const controller = new AbortController();
+    void listProjects(controller.signal)
+      .then(page => setProjects(page.projects))
+      .catch(cause => {
+        if (!controller.signal.aborted) setProjectsError(describeError(cause));
       })
-      .catch(() => {
-        // Trata erro de rede sem quebrar o componente
-      });
+      .finally(() => { if (!controller.signal.aborted) setProjectsLoading(false); });
+    return () => controller.abort();
   }, []);
 
-  const handleSearch = useCallback(async () => {
+  const handleSearch = useCallback(async (event?: React.FormEvent) => {
+    event?.preventDefault();
+    if (!selectedProject || query.trim().length < 3 || loading) return;
     setLoading(true);
     setSearched(true);
+    setError(null);
+    setResults([]);
     try {
-      const params = new URLSearchParams();
-      if (query.trim()) params.append("q", query.trim());
-      if (selectedProject) params.append("projeto_id", selectedProject);
-
-      const res = await apiRequest(`/search?${params.toString()}`);
-      const data = await res.json();
-      setResults(data.items || []);
-    } catch {
-      setResults([]);
+      const params = new URLSearchParams({ q: query.trim(), projeto_id: selectedProject });
+      const response = await apiRequest(`/search?${params.toString()}`);
+      setResults(parseSearchItems(await response.json()));
+    } catch (cause) {
+      setError(describeError(cause));
     } finally {
       setLoading(false);
     }
-  }, [query, selectedProject]);
+  }, [query, selectedProject, loading]);
 
-  useEffect(() => {
-    void handleSearch();
-  }, [selectedProject, handleSearch]);
+  const resetSearch = () => {
+    setResults([]);
+    setSearched(false);
+    setError(null);
+  };
 
   return (
     <div className="page-container" style={{ paddingBottom: "40px" }}>
@@ -70,83 +97,80 @@ export const KnowledgeView: React.FC = () => {
           <div className="eyebrow">BASE INTELIGENTE DE REQUISITOS</div>
           <h1>Consulta de Conhecimento do Acervo</h1>
           <p className="muted">
-            Recupere decisões arquiteturais, especificações de PBIs e documentos indexados no repositório PostgreSQL + pgvector.
+            Pesquise decisões, requisitos e documentos de um projeto. Cada resultado informa sua origem para você abrir o item correspondente.
           </p>
         </div>
       </div>
 
-      <div className="card-garakis" style={{ marginTop: "16px", padding: "24px" }}>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 240px auto", gap: "16px", alignItems: "flex-end" }}>
+      <form className="card-garakis" style={{ marginTop: "16px", padding: "24px" }} onSubmit={event => void handleSearch(event)}>
+        <div className="knowledge-search-controls">
           <SearchField
             label="Pesquisar no acervo"
             value={query}
-            onChange={setQuery}
-            placeholder="Ex: autenticação JWT, integração PIX, regras de completude..."
+            onChange={value => { setQuery(value); resetSearch(); }}
+            placeholder="Ex.: autenticação JWT, integração PIX, regras de completude"
           />
-
           <div className="field-garakis" style={{ margin: 0 }}>
-            <label htmlFor="select-project-scope">Escopo do Projeto</label>
+            <label htmlFor="select-project-scope">Escopo do projeto</label>
             <select
               id="select-project-scope"
               className="input-garakis"
               value={selectedProject}
-              onChange={(e) => setSelectedProject(e.target.value)}
+              onChange={event => { setSelectedProject(event.target.value); resetSearch(); }}
+              disabled={projectsLoading || Boolean(projectsError)}
             >
-              <option value="">Todos os Projetos</option>
-              {projects.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.nome}
-                </option>
-              ))}
+              <option value="">{projectsLoading ? "Carregando projetos..." : "Selecione um projeto"}</option>
+              {projects.map(project => <option key={project.id} value={project.id}>{project.nome}</option>)}
             </select>
           </div>
-
-          <button className="btn-garakis primary" onClick={handleSearch} disabled={loading} style={{ height: "42px" }}>
+          <button className="btn-garakis primary" type="submit" disabled={loading || !selectedProject || query.trim().length < 3}>
             {loading ? "Buscando..." : "Pesquisar"}
           </button>
         </div>
-      </div>
+        {projectsError && <p className="ds-help" role="alert">Não foi possível carregar os projetos: {projectsError}</p>}
+        {!projectsLoading && !projectsError && projects.length === 0 && <p className="ds-help" role="status">Nenhum projeto disponível para pesquisa.</p>}
+      </form>
 
-      {/* Resultados */}
-      <div style={{ marginTop: "24px" }}>
-        {loading ? (
+      <div style={{ marginTop: "24px" }} aria-live="polite">
+        {error ? (
+          <div className="card-garakis" role="alert" style={{ textAlign: "center", padding: "32px" }}>{error}</div>
+        ) : loading ? (
           <div className="card-garakis" role="status" style={{ textAlign: "center", padding: "32px" }}>
-            Consultando acervo indexado do banco de dados...
+            Consultando o acervo deste projeto...
           </div>
         ) : results.length === 0 ? (
           <div className="card-garakis" style={{ textAlign: "center", padding: "48px 24px" }}>
-            <h3>{searched ? "Nenhum resultado encontrado" : "Digite um termo para pesquisar"}</h3>
+            <h3>{searched ? "Nenhum resultado encontrado" : "Pesquise no acervo do projeto"}</h3>
             <p className="muted">
               {searched
-                ? "Tente refinar sua busca ou selecione outro projeto no filtro de escopo."
-                : "Busque por conceitos, tecnologias ou regras de negócio cadastradas nos projetos."}
+                ? "Tente outros termos. A consulta permanece limitada ao projeto selecionado."
+                : "Selecione um projeto e digite pelo menos 3 caracteres para começar."}
             </p>
           </div>
         ) : (
           <div className="grid-garakis one" style={{ gap: "16px" }}>
-            {results.map((item) => (
-              <article className="card-garakis" key={item.id}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "12px" }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                    <span className="badge-garakis green">{item.entidade_tipo}</span>
-                    {item.projeto_nome && <span className="muted" style={{ fontSize: "0.85rem" }}>Projeto: {item.projeto_nome}</span>}
+            {results.map(item => {
+              const title = item.title?.trim() || `Origem do tipo ${item.entity_type}`;
+              const sourceName = item.metadata.source_name ?? item.metadata.nome_arquivo ?? item.metadata.fonte;
+              return (
+                <article className="card-garakis" key={item.id}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "12px", marginBottom: "12px", flexWrap: "wrap" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
+                      <span className="badge-garakis green">{item.entity_type}</span>
+                      <strong>{title}</strong>
+                    </div>
+                    <span className="muted" style={{ fontSize: "0.85rem" }}>Projeto: {item.project_name}</span>
                   </div>
-                  <span className="muted" style={{ fontSize: "0.8rem" }}>
-                    {new Date(item.created_at).toLocaleDateString("pt-BR")}
-                  </span>
-                </div>
-
-                <p style={{ color: "#fff", fontSize: "0.95rem", lineHeight: 1.6, margin: "0 0 12px 0", whiteSpace: "pre-wrap" }}>
-                  {item.texto}
-                </p>
-
-                {item.metadados_json && Object.keys(item.metadados_json).length > 0 && (
-                  <div style={{ fontSize: "0.8rem", color: "var(--dim)", background: "rgba(0,0,0,0.2)", padding: "8px 12px", borderRadius: "6px" }}>
-                    Origem: {JSON.stringify(item.metadados_json)}
-                  </div>
-                )}
-              </article>
-            ))}
+                  <p style={{ color: "#fff", fontSize: "0.95rem", lineHeight: 1.6, margin: "0 0 12px", whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>
+                    {item.text}
+                  </p>
+                  {typeof sourceName === "string" && <p className="muted" style={{ fontSize: "0.85rem" }}>Documento de origem: {sourceName}</p>}
+                  {item.source_url
+                    ? <a className="btn-garakis secondary" href={item.source_url}>Abrir origem</a>
+                    : <span className="muted" role="note">Origem sem rota disponível.</span>}
+                </article>
+              );
+            })}
           </div>
         )}
       </div>

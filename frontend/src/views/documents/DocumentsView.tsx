@@ -5,6 +5,7 @@ import {
   formatBytes,
   listDocuments,
   removeDocument,
+  retryDocumentProcessing,
   uploadDocument,
   validateSelection,
   type DocumentLimits,
@@ -54,10 +55,12 @@ export function DocumentsView({
   const [selection, setSelection] = useState<File | null>(null);
   const [selectionError, setSelectionError] = useState("");
   const [uploadError, setUploadError] = useState("");
+  const [processingError, setProcessingError] = useState("");
   const [removalError, setRemovalError] = useState("");
   const [notice, setNotice] = useState("");
   const [uploading, setUploading] = useState(false);
   const [removing, setRemoving] = useState(false);
+  const [retryingId, setRetryingId] = useState<string | null>(null);
   const [target, setTarget] = useState<ProjectDocument | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
   const dialog = useRef<HTMLDialogElement>(null);
@@ -103,7 +106,7 @@ export function DocumentsView({
     return () => { active = false; controller.abort(); };
   }, [projectId]);
 
-  const hasProcessing = items.some((item) => item.status_processamento === "processando");
+  const hasProcessing = items.some((item) => item.status_processamento === "pendente" || item.status_processamento === "processando");
   useEffect(() => {
     if (!hasProcessing) return;
     const timer = window.setInterval(() => { void refresh(true); }, 10_000);
@@ -169,8 +172,8 @@ export function DocumentsView({
       const created = await uploadDocument(projectId, selection);
       setItems((current) => [created, ...current.filter((item) => item.id !== created.id)]);
       setNotice(created.armazenamento_pendente
-        ? `O documento “${created.nome}” foi recebido. O armazenamento está sendo finalizado e a indexação depende da integração da S2-01.`
-        : `O documento “${created.nome}” foi armazenado. A indexação do acervo depende da integração da S2-01.`);
+        ? `O documento “${created.nome}” foi recebido. O armazenamento está sendo finalizado e a indexação começará em segundo plano.`
+        : `O documento “${created.nome}” foi armazenado e será indexado em segundo plano.`);
       clearSelection();
     } catch (error) {
       setUploadError(describeUploadError(error));
@@ -205,6 +208,25 @@ export function DocumentsView({
     }
   };
 
+  const retryProcessing = async (document: ProjectDocument) => {
+    if (!projectId || !canWrite || archived || retryingId) return;
+    setRetryingId(document.id);
+    setNotice("");
+    setProcessingError("");
+    try {
+      await retryDocumentProcessing(projectId, document.id);
+      setItems((current) => current.map((item) => item.id === document.id
+        ? { ...item, status_processamento: "pendente", processamento_erro: null }
+        : item));
+      setNotice(`O reprocessamento de “${document.nome}” foi agendado.`);
+      void refresh(true);
+    } catch {
+      setProcessingError("Não foi possível agendar o reprocessamento. Atualize a lista e tente novamente.");
+    } finally {
+      setRetryingId(null);
+    }
+  };
+
   if (!projectId) {
     return (
       <section className="page-container">
@@ -230,10 +252,11 @@ export function DocumentsView({
 
       {archived && <Alert tone="warning">Projeto arquivado: os documentos ficam disponíveis somente para consulta.</Alert>}
       {!canWrite && !archived && <Alert>Seu perfil pode consultar documentos, mas não pode enviar ou remover arquivos.</Alert>}
-      <Alert tone="info">A ingestão e indexação dos documentos depende da S2-01. Enquanto isso, o status permanece como pendente e o conteúdo ainda não aparece nas buscas.</Alert>
+      <Alert tone="info">Documentos válidos são processados em segundo plano. O conteúdo fica disponível no acervo após a conclusão da extração e indexação.</Alert>
       {notice && <Alert tone="success">{notice}</Alert>}
       {selectionError && <Alert tone="danger" title="Arquivo não aceito">{selectionError}</Alert>}
       {uploadError && <Alert tone="danger" title="Falha no envio">{uploadError}</Alert>}
+      {processingError && <Alert tone="danger" title="Falha no reprocessamento">{processingError}</Alert>}
       {loadError && (
         <Alert tone="danger" role="alert">
           {loadError}{" "}
@@ -320,9 +343,11 @@ export function DocumentsView({
                       {item.armazenamento_pendente
                         ? <Badge tone="warning">Finalizando armazenamento</Badge>
                         : <Badge tone={status.tone}>{status.label}</Badge>}
+                      {item.processamento_erro && <p className="ds-help" role="note">{item.processamento_erro}</p>}
                     </td>
                     {canWrite && !archived && (
                       <td data-label="Ações">
+                        {item.status_processamento === "falha" && <Button variant="secondary" size="sm" disabled={retryingId !== null} onClick={() => void retryProcessing(item)}>{retryingId === item.id ? "Agendando…" : "Tentar novamente"}</Button>}
                         <Button variant="danger" size="sm" aria-label={`Remover ${item.nome}`} onClick={() => { setNotice(""); setTarget(item); }}>Remover</Button>
                       </td>
                     )}

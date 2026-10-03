@@ -12,16 +12,20 @@ const fields: Record<string, string[]> = {
 export interface SeedRecord { table: string; values: Record<string, unknown>; source: Record<string, string> }
 export interface Dataset { dataset: string; version: number; source_decision: Record<string, string>; records: SeedRecord[] }
 export const fixturePath = resolve(process.cwd(), "../database/seed/fixtures/historical-v1.json");
+const fixtureV2Path = resolve(process.cwd(), "../database/seed/fixtures/historical-v2.json");
 
 export function validateDataset(input: unknown): asserts input is Dataset {
   const data = input as Dataset;
-  if (data?.dataset !== "pre06-historical-v1" || data.version !== 1 || !data.source_decision?.decision || !Array.isArray(data.records) || !data.records.length) throw new Error("Manifesto inválido");
+  const version = data?.dataset === "pre06-historical-v1" && data.version === 1 ? 1
+    : data?.dataset === "pre06-historical-v2" && data.version === 2 ? 2 : null;
+  if (!version || !data.source_decision?.decision || !Array.isArray(data.records) || !data.records.length) throw new Error("Manifesto inválido");
   const seen = new Map<string, SeedRecord>();
   for (const row of data.records) {
     const columns = fields[row.table];
     if (!columns || !row.values || !isDeepStrictEqual(Object.keys(row.values).sort(), [...columns].sort())) throw new Error("Tabela ou campos não permitidos");
     const id = row.values.id;
-    if (typeof id !== "string" || !/^60000000-0000-4000-8000-\d{12}$/.test(id) || seen.has(id)) throw new Error("ID inválido ou duplicado");
+    const idPrefix = version === 1 ? "60000000" : "62000000";
+    if (typeof id !== "string" || !new RegExp(`^${idPrefix}-0000-4000-8000-\\d{12}$`).test(id) || seen.has(id)) throw new Error("ID inválido ou duplicado");
     const source = row.source;
     if (!source || !/^https:\/\/github.com\/Galaticos-API\/API-[123]$/.test(source.repository)
       || !/^[a-f0-9]{40}$/.test(source.revision) || !/^[a-f0-9]{64}$/.test(source.source_sha256)
@@ -30,20 +34,23 @@ export function validateDataset(input: unknown): asserts input is Dataset {
       || !source.transformation || !source.url?.startsWith(`${source.repository}/blob/${source.revision}/`)) throw new Error("Origem ausente ou não permitida");
     if (row.table === "documento") {
       if (seen.get(String(row.values.projeto_id))?.table !== "projeto") throw new Error("Projeto de documento inválido");
-      if (!/^database\/seed\/curated\/[a-z0-9-]+\.md$/.test(String(row.values.caminho))) throw new Error("Caminho não permitido");
+      const pathPattern = version === 1 ? /^database\/seed\/curated\/[a-z0-9-]+\.md$/ : /^database\/seed\/curated\/v2\/[a-z0-9-]+\.md$/;
+      if (!pathPattern.test(String(row.values.caminho))) throw new Error("Caminho não permitido");
     }
     if (row.table === "chunk") {
       const parent = seen.get(String(row.values.entidade_id));
       const metadata = row.values.metadados_json as Record<string, unknown>;
       if (row.values.entidade_tipo !== "documento" || parent?.table !== "documento" || parent.values.projeto_id !== row.values.projeto_id
-        || metadata?.dataset !== data.dataset || metadata.source_url !== source.url || metadata.embedding_status !== "pending") throw new Error("Chunk sem isolamento ou origem");
+        || metadata?.dataset !== data.dataset || metadata.source_url !== source.url || metadata.embedding_status !== "pending"
+        || (version === 2 && source.locator.startsWith("GRF-") && metadata.source_locator !== source.locator)) throw new Error("Chunk sem isolamento ou origem");
     }
     seen.set(id, row);
   }
 }
 
 export async function loadDataset(): Promise<Dataset> {
-  const data: unknown = JSON.parse(await readFile(fixturePath, "utf8"));
+  const selectedFixture = process.env.SEED_DATASET_VERSION === "2" ? fixtureV2Path : fixturePath;
+  const data: unknown = JSON.parse(await readFile(selectedFixture, "utf8"));
   validateDataset(data);
   for (const row of data.records.filter(row => row.table === "documento")) {
     const text = await readFile(resolve(process.cwd(), "..", String(row.values.caminho)), "utf8");
@@ -51,6 +58,9 @@ export async function loadDataset(): Promise<Dataset> {
   }
   return data;
 }
+
+function versionPrefix(data: Dataset): string { return data.version === 1 ? "60000000" : "62000000"; }
+function versionAuditPrefix(data: Dataset): string { return data.version === 1 ? "61000000" : "63000000"; }
 
 export function validateTarget(url: string | undefined, environment: string | undefined): string {
   if (!url || (environment === "production" && process.env.ALLOW_SEED !== "true")) {
@@ -71,7 +81,7 @@ export async function applyDataset(client: PoolClient, data: Dataset): Promise<v
   for (const row of data.records) {
     const keys = fields[row.table];
     const id = String(row.values.id);
-    const auditId = id.replace(/^60000000/, "61000000");
+    const auditId = id.replace(versionPrefix(data), versionAuditPrefix(data));
     const evidence = { dataset: data.dataset, version: data.version, source: row.source,
       payload_sha256: createHash("sha256").update(JSON.stringify(row.values)).digest("hex") };
     const existing = await client.query(`SELECT ${keys.join(",")} FROM ${row.table} WHERE id = $1`, [id]);
