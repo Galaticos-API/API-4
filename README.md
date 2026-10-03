@@ -338,7 +338,7 @@ docker compose ps
 # 1. Faça login para obter token
 curl -X POST http://localhost:3001/api/v1/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"email":"ana@example.com","senha":"Senha123!"}'
+  -d '{"email":"ana@example.com","password":"Senha123!"}'
 
 # 2. Use o token para fazer upload
 curl -X POST http://localhost:3001/api/v1/projects/{projectId}/documents \
