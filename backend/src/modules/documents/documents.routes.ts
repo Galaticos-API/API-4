@@ -1,4 +1,4 @@
-import express, { Router } from "express";
+import express, { Router, NextFunction, Request, Response } from "express";
 import multer from "multer";
 import { env } from "../../config/env.js";
 import { requireRole } from "../../middleware/requireRole.js";
@@ -14,15 +14,6 @@ export function createDocumentsRouter(
   const upload = multer({
     storage: multer.memoryStorage(),
     limits: { fileSize: maxBytes },
-  });
-
-  // Handle multer errors
-  router.use((err: unknown, _req: express.Request, res: express.Response, next: express.NextFunction) => {
-    if (err instanceof Error && err.name === 'LimitExceedError') {
-      res.status(413).json({ code: 'PAYLOAD_TOO_LARGE', details: { max_bytes: maxBytes } });
-      return;
-    }
-    next(err);
   });
 
   /**
@@ -75,7 +66,13 @@ export function createDocumentsRouter(
    *       413:
    *         description: Arquivo acima do limite configurado
    */
-  router.post("/", canWrite, upload.single("file"), controller.upload);
+  router.post("/", canWrite, upload.single("file"), (err: unknown, req: express.Request, res: express.Response, next: express.NextFunction) => {
+    if (err instanceof Error && (err.name === 'LimitExceedError' || err.message.includes('File too large'))) {
+      res.status(413).json({ code: 'PAYLOAD_TOO_LARGE', details: { max_bytes: maxBytes } });
+      return;
+    }
+    next(err);
+  }, controller.upload);
 
   /**
    * @swagger
