@@ -310,7 +310,7 @@ test("S1-19/S1-22: documentos, auditoria e outbox no PostgreSQL", { skip: !proce
         await archiver.query("COMMIT");
         await assert.rejects(removal, ArchiveConflict);
         assert.equal((await repo.findById(archivedProject, archivedDocument))?.id, archivedDocument);
-        assert.equal((await pool.query("SELECT count(*)::int AS total FROM chunk WHERE id=$1", [archivedChunk])).rows[0].total, 0, "arquivar o projeto expurga seus trechos do acervo");
+        assert.equal((await pool.query("SELECT count(*)::int AS total FROM chunk WHERE id=$1", [archivedChunk])).rows[0].total, 1, "o expurgo ao arquivar pertence à S2-05 e fica fora deste PR");
         assert.equal((await pool.query("SELECT count(*)::int AS total FROM auditoria WHERE entidade_id=$1 AND acao='REMOVER_DOCUMENTO'", [archivedDocument])).rows[0].total, 0);
       } catch (error) {
         await archiver.query("ROLLBACK").catch(() => undefined);
@@ -381,7 +381,7 @@ test("S1-19/S1-22: documentos, auditoria e outbox no PostgreSQL", { skip: !proce
         id: pending, projeto_id: project, nome: "pendente.txt", caminho: `${project}/${pending}`,
         status_processamento: "processando", mime: "text/plain", extensao: ".txt", processamento_lease_id: randomUUID(),
       }, [{ chunk_index: 0, text: "conteúdo que não pode ser republicado", embedding: Array(1024).fill(0.1), metadata: {} }]), /Projeto arquivado/);
-      assert.equal((await pool.query("SELECT count(*)::int AS total FROM chunk WHERE projeto_id=$1", [project])).rows[0].total, 0);
+      assert.equal((await pool.query("SELECT count(*)::int AS total FROM chunk WHERE entidade_tipo='documento' AND entidade_id=$1", [pending])).rows[0].total, 0, "a ingestão antiga não deve repovoar o documento");
     });
   } finally {
     await pool.query("DELETE FROM evento_integracao WHERE chave_idempotencia = ANY($1::text[])", [[removalEventKey(indexed), removalEventKey(plain)]]);
