@@ -3,7 +3,7 @@
 **Criado:** 02/10/2026
 **Revisão do plano:** 03/10/2026
 **Objetivo:** concluir e validar S2-01, S2-02, S2-06 e S2-17, depois enviá-las juntas em um único PR para `main`.
-**Estado revisado em:** 03/10/2026. Branch `codex/s2-17-ptbr-search-evaluation`, baseada em `origin/main` `4dc3033`. PR de rascunho será aberto a pedido do usuário, com os gates de latência e relevância explicitamente reprovados; não representa aprovação para merge nem aceite Scrum.
+**Estado revisado em:** 03/10/2026. Branch `codex/s2-17-ptbr-search-evaluation`, baseada em `origin/main` `4dc3033`. PR de rascunho aberto: https://github.com/Galaticos-API/API-4/pull/44, com os gates de latência e relevância explicitamente reprovados; não representa aprovação para merge nem aceite Scrum.
 
 > **Nota da revisão:** este é o único plano operacional. `PLANO_CONTINUACAO_QA_S2.md` e os relatórios anteriores são registros históricos; não usar suas afirmações de aprovação quando divergirem deste documento e das evidências mais recentes. Os passos abaixo são gates de fechamento propostos, não uma redefinição automática do DoD do Trello.
 

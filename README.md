@@ -65,7 +65,7 @@ A primeira sprint teve como objetivo construir a **base funcional do Sinapse** e
 
 ### 📍 Estado atual do trabalho
 
-A Sprint 1 foi concluída em **27/09/2026**. A Sprint 2 está planejada para **05/10 a 25/10/2026**. A implementação candidata de ingestão, busca e avaliação está em [PR de revisão](https://github.com/Galaticos-API/API-4/pulls) e ainda não foi aceita: o baseline encontrou latência acima de 2 s e pendências de relevância (Q008 e Q022). Veja o [registro QA](docs/STATUS_REVISAO_2026-10-02.md) para evidências, limites e próximos passos.
+A Sprint 1 foi concluída em **27/09/2026**. A Sprint 2 está planejada para **05/10 a 25/10/2026**. A implementação candidata de ingestão, busca e avaliação está em [PR de revisão](https://github.com/Galaticos-API/API-4/pull/44) e ainda não foi aceita: o baseline encontrou latência acima de 2 s e pendências de relevância (Q008 e Q022). Veja o [registro QA](docs/STATUS_REVISAO_2026-10-02.md) para evidências, limites e próximos passos.
 
 ---
 
