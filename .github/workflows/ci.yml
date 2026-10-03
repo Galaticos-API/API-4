@@ -86,7 +86,7 @@ jobs:
       - name: Validate Docker Compose configuration
         run: |
           cp .env.example .env
-          docker compose config --quiet
+          DOCUMENT_INGESTION_TOKEN=ci-validation-placeholder-32-characters docker compose config --quiet
 
   validate-backend:
     name: Build & Typecheck Backend (Node.js)

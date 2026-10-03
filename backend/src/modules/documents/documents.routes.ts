@@ -52,6 +52,8 @@ export function createDocumentsRouter(
    */
   router.post("/", canWrite, binaryBody, controller.upload);
 
+  router.post("/:documentId/retry", canWrite, controller.retry);
+
   /**
    * @swagger
    * /api/v1/projects/{projectId}/documents/{documentId}:

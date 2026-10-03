@@ -1762,19 +1762,34 @@ paths:
 
   /api/v1/search:
     get:
-      summary: Busca textual no acervo indexado (chunks), com escopo opcional por projeto
+      summary: Busca híbrida por texto e significado no acervo, sempre isolada por projeto
       operationId: searchKnowledge
       security: [{cookieAuth: []}]
       parameters:
-        - {name: q, in: query, required: false, schema: {type: string}}
-        - {name: projeto_id, in: query, required: false, schema: {type: string, format: uuid}}
+        - {name: q, in: query, required: true, schema: {type: string, minLength: 3, maxLength: 200}}
+        - {name: projeto_id, in: query, required: true, schema: {type: string, format: uuid}}
+        - {name: tecnologia_id, in: query, required: false, schema: {type: string, format: uuid}}
+        - name: nivel
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [documento, decisao, epico, feature, pbi]
+        - {name: limit, in: query, required: false, schema: {type: integer, minimum: 1, maximum: 50, default: 10}}
       responses:
         '200':
-          description: Trechos encontrados
+          description: Resultados ordenados por fusão da classificação vetorial e textual
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HybridSearchResponse'
         '400':
           $ref: '#/components/responses/ValidationError'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '404': {description: Projeto não encontrado}
+        '502': {description: Serviço de embeddings indisponível ou resposta incompatível}
+        '503': {description: Serviço local de embeddings indisponível}
 
   /api/v1/developers:
     get:
@@ -1918,7 +1933,7 @@ paths:
       description: >
         O tipo real é verificado pelo conteúdo e pela extensão; o Content-Type
         informado pelo cliente não é considerado. O limite de tamanho é
-        configurável (DOCUMENT_MAX_SIZE_MB) e é informado em `limites.max_bytes`
+        configurável até 20 MiB (DOCUMENT_MAX_SIZE_MB) e é informado em `limites.max_bytes`
         na listagem. Arquivos recusados não deixam arquivo nem registro.
       operationId: uploadProjectDocument
       security:
@@ -2001,6 +2016,30 @@ paths:
           description: Falha na remoção; o documento permanece disponível
         '503':
           description: Armazenamento indisponível; o documento permanece disponível
+
+  /api/v1/projects/{projectId}/documents/{documentId}/retry:
+    post:
+      summary: Agenda novamente a ingestão de um documento que falhou (S2-01/S2-02)
+      operationId: retryProjectDocumentIngestion
+      security: [{cookieAuth: []}]
+      parameters:
+        - {name: projectId, in: path, required: true, schema: {type: string, format: uuid}}
+        - {name: documentId, in: path, required: true, schema: {type: string, format: uuid}}
+      responses:
+        '202':
+          description: Reprocessamento agendado
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status_processamento]
+                properties:
+                  status_processamento: {type: string, enum: [pendente]}
+        '400': {$ref: '#/components/responses/ValidationError'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {description: Perfil sem permissão de escrita}
+        '404': {description: Projeto ou documento não encontrado neste projeto}
+        '409': {description: Projeto arquivado é somente leitura}
 
   /webhook/sinapse-document-removed:
     servers:
@@ -3217,8 +3256,10 @@ components:
         tamanho_bytes: { type: integer, nullable: true, minimum: 1 }
         status_processamento:
           type: string
-          description: pendente = armazenado e aguardando ingestão (S2-01)
+          description: Estado durável do pipeline de extração e indexação assíncrona (S2-01/S2-02)
           enum: [pendente, processando, processado, falha]
+        processamento_erro: {type: string, nullable: true, maxLength: 300}
+        processamento_tentativas: {type: integer, minimum: 0}
         armazenamento_pendente:
           type: boolean
           description: true enquanto a finalização do arquivo local ainda é reconciliada pelo worker
@@ -3362,6 +3403,41 @@ components:
           type: array
           items:
             type: string
+
+    HybridSearchResponse:
+      type: object
+      required: [items, total, query, project_id, filters, metrics]
+      properties:
+        items:
+          type: array
+          items:
+            type: object
+            required: [id, project_id, project_name, entity_type, entity_id, text, metadata, relevance_score]
+            properties:
+              id: {type: string, format: uuid, description: ID estável do chunk para avaliação de busca}
+              project_id: {type: string, format: uuid}
+              project_name: {type: string}
+              entity_type: {type: string, enum: [documento, decisao, epico, feature, pbi]}
+              entity_id: {type: string, format: uuid}
+              title: {type: string, nullable: true}
+              text: {type: string}
+              metadata: {type: object, additionalProperties: true}
+              source_url: {type: string, nullable: true}
+              relevance_score: {type: number}
+        total: {type: integer}
+        query: {type: string}
+        project_id: {type: string, format: uuid}
+        filters:
+          type: object
+          required: [technology_id, level]
+          properties:
+            technology_id: {type: string, format: uuid, nullable: true}
+            level: {type: string, enum: [documento, decisao, epico, feature, pbi], nullable: true}
+        metrics:
+          type: object
+          required: [latency_ms]
+          properties:
+            latency_ms: {type: integer, minimum: 0}
 
     Error:
       type: object

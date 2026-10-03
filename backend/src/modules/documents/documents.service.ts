@@ -6,6 +6,7 @@ import { ProjectsRepository } from "../projects/projects.repository.js";
 import { DocumentsRepository } from "./documents.repository.js";
 import { HttpDocumentEventPublisher, type DocumentEventPublisher } from "./documents.events.js";
 import { LocalDocumentStorage, type DocumentStorage } from "./documents.storage.js";
+import { HttpDocumentIngestionClient, type DocumentIngestionClient } from "./document-ingestion.js";
 import { ALLOWED_EXTENSIONS, inspectDocument } from "./documents.validation.js";
 import type { DocumentLimits, DocumentList, DocumentRecord, DocumentsHealth, RemovalResult } from "./documents.types.js";
 
@@ -61,6 +62,7 @@ export class DocumentsService {
     private readonly events: DocumentEventPublisher = new HttpDocumentEventPublisher(),
     private readonly projects: ProjectLookup = new ProjectsRepository(),
     private readonly maxBytes: number = Math.floor(env.DOCUMENT_MAX_SIZE_MB * 1024 * 1024),
+    private readonly ingestion: DocumentIngestionClient = new HttpDocumentIngestionClient(),
   ) {}
 
   get limits(): DocumentLimits {
@@ -212,12 +214,38 @@ export class DocumentsService {
     }
   }
 
+  async retryProcessing(projetoId: string, documentoId: string): Promise<void> {
+    const project = await this.requireProject(projetoId);
+    if (project.status === "arquivado") throw new ArchiveConflict("Projeto arquivado é somente leitura e não permite reprocessar documentos.");
+    validateUuid(documentoId, "ID do documento");
+    if (!(await this.repository.retryIngestion(projetoId, documentoId))) {
+      const document = await this.repository.findById(projetoId, documentoId);
+      if (!document) throw new NotFoundError("Documento não encontrado neste projeto.");
+      if (document.status_processamento === "pendente" || document.status_processamento === "processando") return;
+      throw new ValidationError("Somente documentos com falha podem ser processados novamente.");
+    }
+  }
+
+  async processPendingDocuments(): Promise<void> {
+    const pending = await this.repository.claimPendingIngestion(1);
+    for (const document of pending) {
+      try {
+        const content = await this.storage.read(document.caminho);
+        const chunks = await this.ingestion.process(document, content);
+        await this.repository.completeIngestion(document, chunks);
+      } catch (error) {
+        const reason = error instanceof AppError ? error.message : "Falha interna ao processar documento.";
+        await this.repository.failIngestion(document.id, document.projeto_id, document.processamento_lease_id, reason).catch(() => undefined);
+      }
+    }
+  }
+
   async reconcileStagedFiles(): Promise<void> {
     await this.storage.reconcileStaged((key) => this.repository.documentExists(key));
   }
 
   async runBackgroundMaintenance(): Promise<void> {
-    await Promise.all([this.flushPendingEvents(), this.processPendingStorageOperations()]);
+    await Promise.all([this.flushPendingEvents(), this.processPendingStorageOperations(), this.processPendingDocuments()]);
     await this.reconcileStagedFiles();
   }
 }
@@ -231,7 +259,7 @@ export function startDocumentsBackgroundWorker(service: DocumentsService = docum
     if (running) return;
     running = true;
     try {
-      await Promise.all([service.flushPendingEvents(), service.processPendingStorageOperations()]);
+      await Promise.all([service.flushPendingEvents(), service.processPendingStorageOperations(), service.processPendingDocuments()]);
       if (Date.now() - lastReconcile >= 5 * 60_000) {
         await service.reconcileStagedFiles();
         lastReconcile = Date.now();
