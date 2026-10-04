@@ -175,7 +175,7 @@ O workflow n8n:
 # 1. Login para obter token
 TOKEN=$(curl -s -X POST http://localhost:3001/api/v1/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"email":"ana@example.com","senha":"Senha123!"}' \
+  -d '{"email":"danieldias@galaticos.com","password":"123456"}' \
   | jq -r '.token')
 
 # 2. Upload do documento
