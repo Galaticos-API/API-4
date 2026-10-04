@@ -229,12 +229,7 @@ Permite registrar decisões relacionadas aos elementos do projeto, mantendo o co
 
 Documentos podem ser associados aos projetos e posteriormente consultados ou removidos.
 
-**Arquitetura de Upload:**
-- Upload via `POST /api/v1/projects/{projectId}/documents` (multipart/form-data)
-- Arquivos salvos em storage compartilhado `./storage:/files` (acessível por backend e n8n)
-- Estrutura: `projects/{projectId}/documents/{documentId}.{extensao}`
-- Backend chama webhook do n8n após upload: `POST http://n8n:5678/webhook/sinapse-ingest`
-- n8n lê arquivo do storage e envia para AI Service para processamento RAG
+📖 [Guia completo de upload de documentos](docs/DOCUMENT_UPLOAD.md)
 
 ---
 
@@ -312,8 +307,6 @@ Verifique os containers:
 docker compose ps
 ```
 
-**Nota:** O diretório `./storage` será criado automaticamente para armazenar documentos compartilhados entre backend e n8n.
-
 ---
 
 ## 🌐 Acessos
@@ -329,58 +322,6 @@ docker compose ps
 ---
 
 # 🧪 Testes
-
-## Testar Upload de Documentos
-
-### Via cURL
-
-```bash
-# 1. Faça login para obter token
-curl -X POST http://localhost:3001/api/v1/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{"email":"ana@example.com","senha":"Senha123!"}'
-
-# 2. Use o token para fazer upload
-curl -X POST http://localhost:3001/api/v1/projects/{projectId}/documents \
-  -H "Authorization: Bearer {token}" \
-  -F "file=@/caminho/do/documento.pdf"
-```
-
-### Via Postman
-
-1. Importe a coleção ou configure manualmente:
-   - Método: `POST`
-   - URL: `http://localhost:3001/api/v1/projects/{projectId}/documents`
-   - Headers: `Authorization: Bearer {token}`
-   - Body: `form-data` → chave `file` → upload do arquivo
-
-### Payload enviado ao n8n
-
-Após upload bem-sucedido, o backend envia este payload ao webhook do n8n:
-
-```json
-{
-  "documentId": "uuid-do-documento",
-  "projectId": "uuid-do-projeto",
-  "filename": "documento.pdf",
-  "storagePath": "uuid-do-projeto/uuid-do-documento.pdf"
-}
-```
-
-### Verificar arquivo no container n8n
-
-```bash
-# Entrar no container n8n
-docker exec -it sinapse-n8n bash
-
-# Listar arquivos do storage
-ls -la /files/projects/{projectId}/documents/
-
-# Ler arquivo
-cat /files/projects/{projectId}/documents/{documentId}.pdf
-```
-
-## Testes Automatizados
 
 O projeto possui testes automatizados para diferentes partes da aplicação.
 

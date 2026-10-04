@@ -26,6 +26,7 @@ Este índice separa os guias operacionais, contratos e especificações de produ
 
 - [OpenAPI do backend](api/openapi.yaml): endpoints, autenticação, payloads e respostas.
 - [Compatibilidade de rotas legadas](api/epics-compat.yaml): rotas mantidas para clientes antigos.
+- [Upload de Documentos](DOCUMENT_UPLOAD.md): guia completo para desenvolvedores sobre upload, arquitetura, fluxo de processamento e exemplos de requisição.
 - [Integração de remoção de documentos](integrations/n8n-document-removed.example.json): exemplo do evento enviado ao n8n.
 - [Documento de integração](DOCUMENTOS_INTEGRACAO.md): fluxos entre serviços e convenções de integração.
 
