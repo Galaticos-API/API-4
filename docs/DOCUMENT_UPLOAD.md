@@ -288,14 +288,11 @@ file ./storage/{projectId}/{documentId}.{extensao}
 ### Verificar arquivo no container n8n
 
 ```bash
-# Entrar no container n8n
-docker exec -it sinapse-n8n bash
-
 # Listar arquivos
-ls -la /files/{projectId}/
+docker exec sinapse-n8n sh -c "ls -la /files/{projectId}/"
 
-# Ler arquivo
-cat /files/{projectId}/{documentId}.{extensao}
+# Nota: Arquivos podem ter permissões restritas devido ao processo de upload
+# Se precisar ler o conteúdo, faça isso via backend ou PostgreSQL
 ```
 
 ### Verificar metadados no PostgreSQL
