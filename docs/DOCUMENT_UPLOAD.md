@@ -143,7 +143,14 @@ Os metadados são registrados na tabela `documento`:
 
 Após armazenamento bem-sucedido, o backend chama o webhook do n8n:
 
-**URL:** `POST http://n8n:5678/webhook/sinapse-ingest`
+**URL (do container backend):** `POST http://n8n:5678/webhook/sinapse-ingest`
+**URL (local):** `POST http://localhost:5678/webhook/sinapse-ingest`
+
+**Importante:** O workflow do n8n deve estar ativado para que o webhook funcione. Para ativar:
+1. Acesse `http://localhost:5678`
+2. Abra o workflow "Sinapse - Document Ingestion Trigger"
+3. Clique no toggle no canto superior direito para ativar
+4. Ou use `n8n-local-sync` para sincronizar o workflow do repositório com o n8n
 
 **Payload:**
 ```json
@@ -169,6 +176,23 @@ O workflow n8n:
 
 ## Exemplos de Requisição
 
+### Testar Webhook n8n Diretamente
+
+Para testar o webhook do n8n sem fazer upload pelo backend:
+
+```bash
+curl -X POST http://localhost:5678/webhook/sinapse-ingest \
+  -H "Content-Type: application/json" \
+  -d '{
+    "documentId": "test-001",
+    "projectId": "760bf960-d302-4219-aba5-0e29f7eb03b5",
+    "filename": "documento.pdf",
+    "storagePath": "760bf960-d302-4219-aba5-0e29f7eb03b5/test.pdf"
+  }'
+```
+
+**Nota:** O workflow do n8n deve estar ativado para que o webhook responda.
+
 ### cURL
 
 ```bash
@@ -178,7 +202,11 @@ TOKEN=$(curl -s -X POST http://localhost:3001/api/v1/auth/login \
   -d '{"email":"danieldias@galaticos.com","password":"123456"}' \
   | jq -r '.token')
 
-# 2. Upload do documento
+# 2. Listar projetos para obter o projectId
+curl -s http://localhost:3001/api/v1/projects \
+  -H "Authorization: Bearer $TOKEN"
+
+# 3. Upload do documento (substitua {projectId} pelo ID real)
 curl -X POST http://localhost:3001/api/v1/projects/{projectId}/documents \
   -H "Authorization: Bearer $TOKEN" \
   -F "file=@/caminho/do/documento.pdf"
@@ -304,6 +332,24 @@ WHERE entidade_tipo = 'documento'
 | 404 - "Projeto não encontrado" | ID do projeto inválido | Verifique o projectId |
 | 409 - "Projeto arquivado" | Projeto em modo leitura | O projeto arquivado não aceita novos documentos |
 
+### Erros de Webhook n8n
+
+| Erro | Causa | Solução |
+|------|-------|---------|
+| 404 - "Webhook not registered" | Workflow não ativado | Ative o workflow na interface do n8n |
+| Timeout | n8n não respondeu | Verifique se o container n8n está rodando |
+| Connection refused | Porta errada ou n8n parado | Verifique `docker compose ps` |
+
+### Erros de Processamento
+
+| Erro | Causa | Solução |
+|------|-------|---------|
+| 400 - "Arquivo inválido" | Extensão não suportada | Use PDF, DOCX, MD ou TXT |
+| 400 - "O arquivo está vazio" | Arquivo sem conteúdo | Envie um arquivo com conteúdo |
+| 413 - "Arquivo acima do limite" | Arquivo muito grande | Reduza o tamanho ou aumente `DOCUMENT_MAX_SIZE_MB` |
+| 404 - "Projeto não encontrado" | ID do projeto inválido | Verifique o projectId |
+| 409 - "Projeto arquivado" | Projeto em modo leitura | O projeto arquivado não aceita novos documentos |
+
 ### Erros de Processamento
 
 Se o webhook n8n falhar:
@@ -353,10 +399,21 @@ O workflow atual está em `n8n/workflows/kbeyMs38qerFoS65-sinapse-document-inges
 3. **Enviar para AI Service** - Envia conteúdo para processamento
 4. **Resposta HTTP** - Confirma recebimento
 
-Para atualizar o workflow:
-1. Edite o arquivo JSON
-2. Use `n8n-sync` para sincronizar com n8n
-3. Ative o workflow na interface do n8n
+### Ativar o Workflow
+
+O workflow precisa estar ativado para processar webhooks. Existem duas formas:
+
+**Opção 1 - Via Interface do n8n:**
+1. Acesse `http://localhost:5678`
+2. Faça login
+3. Abra o workflow "Sinapse - Document Ingestion Trigger"
+4. Clique no toggle no canto superior direito para ativar
+5. Verifique se aparece "Active" no nome do workflow
+
+**Opção 2 - Via n8n-local-sync:**
+1. Configure `N8N_API_KEY` no `.env` (obtenha em Settings -> API)
+2. Instale `n8n-local-sync`: `pip install n8n-local-sync`
+3. Execute: `n8n-local-sync validate` (sincroniza e ativa workflows)
 
 ## Referências
 
