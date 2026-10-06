@@ -13,6 +13,7 @@ import qualityRouter from "./modules/quality/quality.routes.js";
 import { epicsCompatRouter } from "./modules/epics/epics.compat.routes.js";
 import { repoAnalysesRouter } from './modules/repo-analyses/repo-analyses.routes';
 import { epicDecisionsRouter, featureDecisionsRouter, pbiDecisionsRouter, projectDecisionsRouter } from "./modules/decisions/decisions.routes.js";
+import { epicSuggestionsRouter, featureSuggestionsRouter, pbiSuggestionsRouter } from "./modules/suggestions/suggestions.routes.js";
 import { backlogSearchRouter } from "./modules/backlog-search/backlog-search.routes.js";
 import { documentsRouter } from "./modules/documents/documents.routes.js";
 import { documentsService, startDocumentsBackgroundWorker } from "./modules/documents/documents.service.js";
@@ -88,6 +89,11 @@ app.use("/api/v1/epics/:entityId/decisions", epicDecisionsRouter);
 app.use("/api/v1/features/:entityId/decisions", featureDecisionsRouter);
 app.use("/api/v1/pbis/:entityId/decisions", pbiDecisionsRouter);
 
+// Ciclo humano de sugestões da IA e proveniência por campo (S2-13)
+app.use("/api/v1/epics/:entityId/suggestions", epicSuggestionsRouter);
+app.use("/api/v1/features/:entityId/suggestions", featureSuggestionsRouter);
+app.use("/api/v1/pbis/:entityId/suggestions", pbiSuggestionsRouter);
+
 // Busca textual no backlog (S1-17)
 app.use("/api/v1/projects/:projectId/backlog-search", backlogSearchRouter);
 
@@ -111,6 +117,7 @@ app.get("/api/v1", (_req: Request, res: Response) => {
       { name: "pbis", status: "ready" },
       { name: "criteria", status: "ready" },
       { name: "decisions", status: "in_development" },
+      { name: "suggestions", status: "ready" },
       { name: "ai-bridge", status: "ready" },
     ],
   });

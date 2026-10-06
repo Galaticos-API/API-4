@@ -1528,6 +1528,519 @@ paths:
         '409':
           description: Item ou ancestral arquivado (somente leitura)
 
+  /api/v1/epics/{id}/suggestions:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: {type: string, format: uuid}
+    get:
+      summary: Lista as sugestões da IA para o épico (S2-13)
+      description: Pendentes primeiro; nenhuma sugestão altera o item sem aceite explícito.
+      operationId: listEpicsSuggestions
+      security:
+        - cookieAuth: []
+      responses:
+        '200':
+          description: Sugestões do item
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuggestionList'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Item não encontrado
+    post:
+      summary: Propõe uma sugestão para um campo do épico (S2-13)
+      description: >
+        Staging da IA: nunca grava diretamente no item. Uma nova proposta para
+        o mesmo campo substitui a sugestão pendente existente (idempotente).
+        Apenas admin e po.
+      operationId: createEpicsSuggestion
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SuggestionInput'
+      responses:
+        '201':
+          description: Sugestão pendente criada ou atualizada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Suggestion'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Perfil sem permissão de escrita
+        '404':
+          description: Item não encontrado
+
+  /api/v1/epics/{id}/suggestions/{suggestionId}/accept:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: {type: string, format: uuid}
+      - name: suggestionId
+        in: path
+        required: true
+        schema: {type: string, format: uuid}
+    post:
+      summary: Aceita a sugestão e aplica o valor ao épico (S2-13)
+      description: >
+        Idempotente: repetir a mesma aceitação retorna 200 sem duplicar.
+        Marca o campo como ai-accepted na proveniência. Apenas admin e po.
+      operationId: acceptEpicsSuggestion
+      security:
+        - cookieAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResolveAcceptInput'
+      responses:
+        '200':
+          description: Sugestão aceita e campo atualizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Suggestion'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Perfil sem permissão de escrita
+        '404':
+          description: Item ou sugestão não encontrados
+        '409':
+          description: Item ou ancestral arquivado, ou sugestão já resolvida de outra forma
+
+  /api/v1/epics/{id}/suggestions/{suggestionId}/edit:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: {type: string, format: uuid}
+      - name: suggestionId
+        in: path
+        required: true
+        schema: {type: string, format: uuid}
+    post:
+      summary: Edita a sugestão e aplica o novo valor ao épico (S2-13)
+      description: >
+        Idempotente: repetir a mesma edição retorna 200. Preserva o texto
+        originalmente sugerido e marca o campo como ai-edited. Apenas admin e po.
+      operationId: editEpicsSuggestion
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResolveEditInput'
+      responses:
+        '200':
+          description: Sugestão editada e campo atualizado com o novo valor
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Suggestion'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Perfil sem permissão de escrita
+        '404':
+          description: Item ou sugestão não encontrados
+        '409':
+          description: Item ou ancestral arquivado, ou sugestão já resolvida de outra forma
+
+  /api/v1/epics/{id}/suggestions/{suggestionId}/discard:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: {type: string, format: uuid}
+      - name: suggestionId
+        in: path
+        required: true
+        schema: {type: string, format: uuid}
+    post:
+      summary: Descarta a sugestão sem alterar o épico (S2-13)
+      description: Nunca escreve no item. Idempotente. Apenas admin e po.
+      operationId: discardEpicsSuggestion
+      security:
+        - cookieAuth: []
+      responses:
+        '200':
+          description: Sugestão descartada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Suggestion'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Perfil sem permissão de escrita
+        '404':
+          description: Item ou sugestão não encontrados
+        '409':
+          description: Sugestão já resolvida de outra forma
+
+  /api/v1/features/{id}/suggestions:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: {type: string, format: uuid}
+    get:
+      summary: Lista as sugestões da IA para o feature (S2-13)
+      description: Pendentes primeiro; nenhuma sugestão altera o item sem aceite explícito.
+      operationId: listFeaturesSuggestions
+      security:
+        - cookieAuth: []
+      responses:
+        '200':
+          description: Sugestões do item
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuggestionList'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Item não encontrado
+    post:
+      summary: Propõe uma sugestão para um campo do feature (S2-13)
+      description: >
+        Staging da IA: nunca grava diretamente no item. Uma nova proposta para
+        o mesmo campo substitui a sugestão pendente existente (idempotente).
+        Apenas admin e po.
+      operationId: createFeaturesSuggestion
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SuggestionInput'
+      responses:
+        '201':
+          description: Sugestão pendente criada ou atualizada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Suggestion'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Perfil sem permissão de escrita
+        '404':
+          description: Item não encontrado
+
+  /api/v1/features/{id}/suggestions/{suggestionId}/accept:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: {type: string, format: uuid}
+      - name: suggestionId
+        in: path
+        required: true
+        schema: {type: string, format: uuid}
+    post:
+      summary: Aceita a sugestão e aplica o valor ao feature (S2-13)
+      description: >
+        Idempotente: repetir a mesma aceitação retorna 200 sem duplicar.
+        Marca o campo como ai-accepted na proveniência. Apenas admin e po.
+      operationId: acceptFeaturesSuggestion
+      security:
+        - cookieAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResolveAcceptInput'
+      responses:
+        '200':
+          description: Sugestão aceita e campo atualizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Suggestion'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Perfil sem permissão de escrita
+        '404':
+          description: Item ou sugestão não encontrados
+        '409':
+          description: Item ou ancestral arquivado, ou sugestão já resolvida de outra forma
+
+  /api/v1/features/{id}/suggestions/{suggestionId}/edit:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: {type: string, format: uuid}
+      - name: suggestionId
+        in: path
+        required: true
+        schema: {type: string, format: uuid}
+    post:
+      summary: Edita a sugestão e aplica o novo valor ao feature (S2-13)
+      description: >
+        Idempotente: repetir a mesma edição retorna 200. Preserva o texto
+        originalmente sugerido e marca o campo como ai-edited. Apenas admin e po.
+      operationId: editFeaturesSuggestion
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResolveEditInput'
+      responses:
+        '200':
+          description: Sugestão editada e campo atualizado com o novo valor
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Suggestion'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Perfil sem permissão de escrita
+        '404':
+          description: Item ou sugestão não encontrados
+        '409':
+          description: Item ou ancestral arquivado, ou sugestão já resolvida de outra forma
+
+  /api/v1/features/{id}/suggestions/{suggestionId}/discard:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: {type: string, format: uuid}
+      - name: suggestionId
+        in: path
+        required: true
+        schema: {type: string, format: uuid}
+    post:
+      summary: Descarta a sugestão sem alterar o feature (S2-13)
+      description: Nunca escreve no item. Idempotente. Apenas admin e po.
+      operationId: discardFeaturesSuggestion
+      security:
+        - cookieAuth: []
+      responses:
+        '200':
+          description: Sugestão descartada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Suggestion'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Perfil sem permissão de escrita
+        '404':
+          description: Item ou sugestão não encontrados
+        '409':
+          description: Sugestão já resolvida de outra forma
+
+  /api/v1/pbis/{id}/suggestions:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: {type: string, format: uuid}
+    get:
+      summary: Lista as sugestões da IA para o PBI (S2-13)
+      description: Pendentes primeiro; nenhuma sugestão altera o item sem aceite explícito.
+      operationId: listPbisSuggestions
+      security:
+        - cookieAuth: []
+      responses:
+        '200':
+          description: Sugestões do item
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuggestionList'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Item não encontrado
+    post:
+      summary: Propõe uma sugestão para um campo do PBI (S2-13)
+      description: >
+        Staging da IA: nunca grava diretamente no item. Uma nova proposta para
+        o mesmo campo substitui a sugestão pendente existente (idempotente).
+        Apenas admin e po.
+      operationId: createPbisSuggestion
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SuggestionInput'
+      responses:
+        '201':
+          description: Sugestão pendente criada ou atualizada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Suggestion'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Perfil sem permissão de escrita
+        '404':
+          description: Item não encontrado
+
+  /api/v1/pbis/{id}/suggestions/{suggestionId}/accept:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: {type: string, format: uuid}
+      - name: suggestionId
+        in: path
+        required: true
+        schema: {type: string, format: uuid}
+    post:
+      summary: Aceita a sugestão e aplica o valor ao PBI (S2-13)
+      description: >
+        Idempotente: repetir a mesma aceitação retorna 200 sem duplicar.
+        Marca o campo como ai-accepted na proveniência. Apenas admin e po.
+      operationId: acceptPbisSuggestion
+      security:
+        - cookieAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResolveAcceptInput'
+      responses:
+        '200':
+          description: Sugestão aceita e campo atualizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Suggestion'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Perfil sem permissão de escrita
+        '404':
+          description: Item ou sugestão não encontrados
+        '409':
+          description: Item ou ancestral arquivado, ou sugestão já resolvida de outra forma
+
+  /api/v1/pbis/{id}/suggestions/{suggestionId}/edit:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: {type: string, format: uuid}
+      - name: suggestionId
+        in: path
+        required: true
+        schema: {type: string, format: uuid}
+    post:
+      summary: Edita a sugestão e aplica o novo valor ao PBI (S2-13)
+      description: >
+        Idempotente: repetir a mesma edição retorna 200. Preserva o texto
+        originalmente sugerido e marca o campo como ai-edited. Apenas admin e po.
+      operationId: editPbisSuggestion
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResolveEditInput'
+      responses:
+        '200':
+          description: Sugestão editada e campo atualizado com o novo valor
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Suggestion'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Perfil sem permissão de escrita
+        '404':
+          description: Item ou sugestão não encontrados
+        '409':
+          description: Item ou ancestral arquivado, ou sugestão já resolvida de outra forma
+
+  /api/v1/pbis/{id}/suggestions/{suggestionId}/discard:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: {type: string, format: uuid}
+      - name: suggestionId
+        in: path
+        required: true
+        schema: {type: string, format: uuid}
+    post:
+      summary: Descarta a sugestão sem alterar o PBI (S2-13)
+      description: Nunca escreve no item. Idempotente. Apenas admin e po.
+      operationId: discardPbisSuggestion
+      security:
+        - cookieAuth: []
+      responses:
+        '200':
+          description: Sugestão descartada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Suggestion'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Perfil sem permissão de escrita
+        '404':
+          description: Item ou sugestão não encontrados
+        '409':
+          description: Sugestão já resolvida de outra forma
+
   /api/v1/auth/register:
     post:
       summary: Cria uma conta (PO ou dev); administrador exige sessão de administrador
@@ -3152,6 +3665,58 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Decision'
+
+    SuggestionInput:
+      type: object
+      additionalProperties: false
+      required: [campo, valor_sugerido]
+      properties:
+        campo: {type: string, description: Nome do campo sugerível do item (varia por tipo de entidade)}
+        valor_sugerido: {type: string, minLength: 1}
+        origem: {type: string, description: Origem da proposta (ex. harness-pro4tech); default manual}
+
+    ResolveAcceptInput:
+      type: object
+      additionalProperties: false
+      properties:
+        justificativa: {type: string, description: Obrigatória apenas quando o item já está concluído}
+
+    ResolveEditInput:
+      type: object
+      additionalProperties: false
+      required: [valor]
+      properties:
+        valor: {type: string, minLength: 1}
+        justificativa: {type: string, description: Obrigatória apenas quando o item já está concluído}
+
+    Suggestion:
+      type: object
+      required: [id, entidade_tipo, entidade_id, campo, valor_sugerido, origem, status, created_at, updated_at]
+      properties:
+        id: {type: string, format: uuid}
+        entidade_tipo: {type: string, enum: [epico, feature, pbi]}
+        entidade_id: {type: string, format: uuid}
+        campo: {type: string}
+        valor_sugerido: {type: string}
+        valor_resolvido: {type: string, nullable: true}
+        origem: {type: string}
+        status: {type: string, enum: [pendente, aceita, editada, descartada]}
+        criado_por: {type: string, format: uuid, nullable: true}
+        criado_por_nome: {type: string, nullable: true}
+        resolvido_por: {type: string, format: uuid, nullable: true}
+        resolvido_por_nome: {type: string, nullable: true}
+        resolvido_em: {type: string, format: date-time, nullable: true}
+        created_at: {type: string, format: date-time}
+        updated_at: {type: string, format: date-time}
+
+    SuggestionList:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Suggestion'
 
     BacklogSearchResponse:
       type: object

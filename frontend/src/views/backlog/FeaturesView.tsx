@@ -114,6 +114,8 @@ export function FeatureForm({ projectId, epicoId }: { projectId: string; epicoId
 
 import { ItemHistoryView } from "./ItemHistoryView";
 import { DecisionsPanel } from "./DecisionsPanel";
+import { SuggestionsPanel } from "./SuggestionsPanel";
+import { ProvenanceBadge } from "./ProvenanceBadge";
 
 type FeatureFields = Pick<FeatureInput, "titulo" | "descricao" | "objetivo" | "tecnologias_ids"> & { justificativa?: string };
 
@@ -181,7 +183,7 @@ export function FeatureDetail({ projectId, epicoId, featureId, canEdit, children
         }}
       />
       <div className="projects-heading">
-        <div><p className="projects-eyebrow">Épico: {feature!.epico_titulo}</p><h2>{feature!.titulo}</h2></div>
+        <div><p className="projects-eyebrow">Épico: {feature!.epico_titulo}</p><h2>{feature!.titulo} <ProvenanceBadge provenance={feature!.provenance_json} field="titulo" /></h2></div>
         <button className="btn-secondary" onClick={() => { if (confirmLeave()) navigate(`/projects/${projectId}/epics/${epicoId}`); }}>Voltar ao épico de origem</button>
       </div>
       {readOnly && <div className="glass-panel projects-state"><p role="status">Esta feature pertence a um projeto arquivado e está disponível apenas para leitura.</p></div>}
@@ -248,8 +250,8 @@ export function FeatureDetail({ projectId, epicoId, featureId, canEdit, children
         ) : (
           <>
             <dl>
-              <dt>Objetivo</dt><dd>{feature!.objetivo || "Não informado."}</dd>
-              <dt>Descrição</dt><dd className="project-description">{feature!.descricao || "Não informada."}</dd>
+              <dt>Objetivo <ProvenanceBadge provenance={feature!.provenance_json} field="objetivo" /></dt><dd>{feature!.objetivo || "Não informado."}</dd>
+              <dt>Descrição <ProvenanceBadge provenance={feature!.provenance_json} field="descricao" /></dt><dd className="project-description">{feature!.descricao || "Não informada."}</dd>
               <dt>Critérios de aceitação registrados</dt><dd>{feature!.criterios_count}</dd>
             </dl>
             {!readOnly && canEdit && (
@@ -280,6 +282,7 @@ export function FeatureDetail({ projectId, epicoId, featureId, canEdit, children
       <ItemArchiveView project={feature!} kind="features" canWrite={canEdit && !readOnly && !editing && !saving && !completing} onArchived={() => setAttempt(v => v + 1)} />
       <CriteriaEditor entidadeTipo="feature" entidadeId={feature!.id} canEdit={canEdit && !readOnly} titulo="Critérios da feature"
         itemConcluido={feature!.status === "concluido"} justificativaObrigatoria={justificationRequired} />
+      <SuggestionsPanel kind="feature" id={feature!.id} canWrite={canEdit && !readOnly} readOnlyNote={readOnly ? "Item ou ancestral arquivado: as sugestões ficam disponíveis somente para consulta." : undefined} />
       <DecisionsPanel kind="feature" id={feature!.id} canWrite={canEdit && !readOnly} readOnlyNote={readOnly ? "Item ou ancestral arquivado: as decisões ficam disponíveis somente para consulta." : undefined} />
       <ItemHistoryView entidadeTipo="feature" entidadeId={feature!.id} refreshTrigger={attempt} />
       <ReadOnlyContext.Provider value={readOnly}>{children}</ReadOnlyContext.Provider>

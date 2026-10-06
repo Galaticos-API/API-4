@@ -117,6 +117,8 @@ export function EpicForm({ projetoId }: { projetoId: string }) {
 
 import { ItemHistoryView } from "./ItemHistoryView";
 import { DecisionsPanel } from "./DecisionsPanel";
+import { SuggestionsPanel } from "./SuggestionsPanel";
+import { ProvenanceBadge } from "./ProvenanceBadge";
 
 type EpicFields = Pick<EpicInput, "titulo" | "descricao" | "objetivo" | "escopo_macro" | "resultado_esperado" | "tecnologias_ids"> & { justificativa?: string };
 
@@ -184,7 +186,7 @@ export function EpicDetail({ projectId, epicId, canEdit, children }: { projectId
         }}
       />
       <div className="projects-heading">
-        <div><p className="projects-eyebrow">Épico</p><h2>{epic.titulo}</h2></div>
+        <div><p className="projects-eyebrow">Épico</p><h2>{epic.titulo} <ProvenanceBadge provenance={epic.provenance_json} field="titulo" /></h2></div>
         <button className="btn-secondary" onClick={() => { if (confirmLeave()) navigate(`/projects/${projectId}`); }}>Voltar ao projeto</button>
       </div>
       {readOnly && (
@@ -262,10 +264,10 @@ export function EpicDetail({ projectId, epicId, canEdit, children }: { projectId
         ) : (
           <>
             <dl>
-              <dt>Objetivo</dt><dd>{epic.objetivo || "Não informado."}</dd>
-              <dt>Descrição</dt><dd className="project-description">{epic.descricao || "Não informada."}</dd>
-              <dt>Escopo macro</dt><dd>{epic.escopo_macro || "Não informado."}</dd>
-              <dt>Resultado esperado</dt><dd>{epic.resultado_esperado || "Não informado."}</dd>
+              <dt>Objetivo <ProvenanceBadge provenance={epic.provenance_json} field="objetivo" /></dt><dd>{epic.objetivo || "Não informado."}</dd>
+              <dt>Descrição <ProvenanceBadge provenance={epic.provenance_json} field="descricao" /></dt><dd className="project-description">{epic.descricao || "Não informada."}</dd>
+              <dt>Escopo macro <ProvenanceBadge provenance={epic.provenance_json} field="escopo_macro" /></dt><dd>{epic.escopo_macro || "Não informado."}</dd>
+              <dt>Resultado esperado <ProvenanceBadge provenance={epic.provenance_json} field="resultado_esperado" /></dt><dd>{epic.resultado_esperado || "Não informado."}</dd>
               <dt>Critérios de aceitação registrados</dt><dd>{epic.criterios_count}</dd>
             </dl>
             {canWrite && (
@@ -296,6 +298,7 @@ export function EpicDetail({ projectId, epicId, canEdit, children }: { projectId
       <ItemArchiveView project={epic} kind="epics" canWrite={canEdit && !readOnly && !editing && !saving && !completing} onArchived={() => setAttempt(v => v + 1)} />
       <CriteriaEditor entidadeTipo="epico" entidadeId={epic.id} canEdit={canWrite} titulo="Critérios do épico"
         itemConcluido={epic.status === "concluido"} justificativaObrigatoria={justificationRequired} />
+      <SuggestionsPanel kind="epico" id={epic.id} canWrite={canWrite} readOnlyNote={readOnly ? "Item ou projeto arquivado: as sugestões ficam disponíveis somente para consulta." : undefined} />
       <DecisionsPanel kind="epico" id={epic.id} canWrite={canWrite} readOnlyNote={readOnly ? "Item ou projeto arquivado: as decisões ficam disponíveis somente para consulta." : undefined} />
       <ItemHistoryView entidadeTipo="epico" entidadeId={epic.id} refreshTrigger={attempt} />
       <ReadOnlyContext.Provider value={readOnly}>{children}</ReadOnlyContext.Provider>

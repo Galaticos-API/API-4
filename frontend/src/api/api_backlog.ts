@@ -38,6 +38,7 @@ export interface Epic extends EpicInput {
   projeto_status: string;
   archived_at: string | null;
   tecnologias_ids?: string[];
+  provenance_json?: Record<string, string>;
 }
 
 export interface FeatureInput {
@@ -60,6 +61,7 @@ export interface Feature extends FeatureInput {
   projeto_status: string;
   archived_at: string | null;
   tecnologias_ids?: string[];
+  provenance_json?: Record<string, string>;
 }
 
 export interface PbiInput {
@@ -87,6 +89,7 @@ export interface Pbi extends PbiInput {
   score_completude: number | null;
   prototipo_vinculado?: boolean;
   tecnologias_ids?: string[];
+  provenance_json?: Record<string, string>;
 }
 
 export interface CompletionError {
@@ -164,6 +167,12 @@ function parseTechnologyIds(value: unknown): string[] {
   return value.filter((id): id is string => typeof id === "string");
 }
 
+function parseProvenance(value: unknown): Record<string, string> {
+  if (!value || typeof value !== "object") return {};
+  const entries = Object.entries(value as Record<string, unknown>).filter(([, v]) => typeof v === "string") as Array<[string, string]>;
+  return Object.fromEntries(entries);
+}
+
 export async function listTechnologies(signal?: AbortSignal): Promise<TechnologyOption[]> {
   const response = await apiRequest("/technologies", { signal });
   const data = await response.json();
@@ -223,6 +232,7 @@ function parseEpic(value: unknown): Epic {
       typeof epic.archived_at === "string"
         ? epic.archived_at
         : null,
+    provenance_json: parseProvenance(epic.provenance_json),
   };
 }
 
@@ -279,6 +289,7 @@ function parseFeature(
       "string"
         ? feature.archived_at
         : null,
+    provenance_json: parseProvenance(feature.provenance_json),
   };
 }
 
@@ -339,6 +350,7 @@ function parsePbi(value: unknown): Pbi {
     projeto_status: asText(
       pbi.projeto_status,
     ),
+    provenance_json: parseProvenance(pbi.provenance_json),
   };
 }
 
