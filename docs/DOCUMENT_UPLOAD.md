@@ -143,14 +143,10 @@ Os metadados são registrados na tabela `documento`:
 
 Após armazenamento bem-sucedido, o backend chama o webhook do n8n:
 
-**URL (do container backend):** `POST http://n8n:5678/webhook/sinapse-ingest`
-**URL (local):** `POST http://localhost:5678/webhook/sinapse-ingest`
+**URL (do container backend):** `POST http://n8n:5678/webhook-test/sinapse-ingest`
+**URL (local):** `POST http://localhost:5678/webhook-test/sinapse-ingest`
 
-**Importante:** O workflow do n8n deve estar ativado para que o webhook funcione. Para ativar:
-1. Acesse `http://localhost:5678`
-2. Abra o workflow "Sinapse - Document Ingestion Trigger"
-3. Clique no toggle no canto superior direito para ativar
-4. Ou use `n8n-local-sync` para sincronizar o workflow do repositório com o n8n
+**Nota:** Em desenvolvimento, usamos a URL de teste (`/webhook-test/`) que não requer ativação do workflow. Em produção, deve-se usar `/webhook/` e ativar o workflow manualmente.
 
 **Payload:**
 ```json

@@ -139,7 +139,8 @@ export class DocumentsService {
     // Call n8n webhook to trigger RAG ingestion
     if (env.N8N_WEBHOOK_URL?.trim() && !created.armazenamento_pendente) {
       try {
-        await axios.post(env.N8N_WEBHOOK_URL, {
+        console.log(`[Documents] Calling n8n webhook at ${env.N8N_WEBHOOK_URL} for document ${id}`);
+        const response = await axios.post(env.N8N_WEBHOOK_URL, {
           documentId: id,
           projectId: input.projetoId,
           filename: inspected.nome,
@@ -147,11 +148,14 @@ export class DocumentsService {
         }, {
           timeout: 10_000,
         });
+        console.log(`[Documents] n8n webhook called successfully for document ${id}, status: ${response.status}`);
       } catch (error) {
         console.error(`[Documents] Failed to call n8n webhook for document ${id}:`, error);
-        // Don't fail the upload if webhook fails - the document is stored
+        // Don't fail the webhook call if webhook fails - the document is stored
         // and can be re-processed later
       }
+    } else {
+      console.log(`[Documents] Skipping n8n webhook call - N8N_WEBHOOK_URL: ${env.N8N_WEBHOOK_URL}, armazenamento_pendente: ${created.armazenamento_pendente}`);
     }
 
     return created;
