@@ -146,7 +146,13 @@ Após armazenamento bem-sucedido, o backend chama o webhook do n8n:
 **URL (do container backend):** `POST http://n8n:5678/webhook-test/sinapse-ingest`
 **URL (local):** `POST http://localhost:5678/webhook-test/sinapse-ingest`
 
-**Nota:** Em desenvolvimento, usamos a URL de teste (`/webhook-test/`) que não requer ativação do workflow. Em produção, deve-se usar `/webhook/` e ativar o workflow manualmente.
+**Ambientes:**
+- **Desenvolvimento:** Usa `/webhook-test/` (funciona sem ativar workflow)
+- **Produção:** Deve usar `/webhook/` e ativar o workflow manualmente
+
+**Configuração:**
+- Defina `N8N_WEBHOOK_URL` no `.env` ou docker-compose.yml
+- Default: `http://n8n:5678/webhook-test/sinapse-ingest`
 
 **Payload:**
 ```json
@@ -177,7 +183,7 @@ O workflow n8n:
 Para testar o webhook do n8n sem fazer upload pelo backend:
 
 ```bash
-curl -X POST http://localhost:5678/webhook/sinapse-ingest \
+curl -X POST http://localhost:5678/webhook-test/sinapse-ingest \
   -H "Content-Type: application/json" \
   -d '{
     "documentId": "test-001",
@@ -187,7 +193,7 @@ curl -X POST http://localhost:5678/webhook/sinapse-ingest \
   }'
 ```
 
-**Nota:** O workflow do n8n deve estar ativado para que o webhook responda.
+**Nota:** Em desenvolvimento, `/webhook-test/` funciona sem ativar o workflow. Em produção, use `/webhook/` e ative o workflow.
 
 ### cURL
 
@@ -329,7 +335,7 @@ WHERE entidade_tipo = 'documento'
 
 | Erro | Causa | Solução |
 |------|-------|---------|
-| 404 - "Webhook not registered" | Workflow não ativado | Ative o workflow na interface do n8n |
+| 404 - "Webhook not registered" | URL incorreta (produção sem ativação) | Use `/webhook-test/` em dev ou ative workflow |
 | Timeout | n8n não respondeu | Verifique se o container n8n está rodando |
 | Connection refused | Porta errada ou n8n parado | Verifique `docker compose ps` |
 
@@ -392,21 +398,21 @@ O workflow atual está em `n8n/workflows/kbeyMs38qerFoS65-sinapse-document-inges
 3. **Enviar para AI Service** - Envia conteúdo para processamento
 4. **Resposta HTTP** - Confirma recebimento
 
-### Ativar o Workflow
+### Ativação do Workflow
 
-O workflow precisa estar ativado para processar webhooks. Existem duas formas:
+**Desenvolvimento:**
+- Usa `/webhook-test/` automaticamente (funciona sem ativação)
+- Webhook de teste responde com `"Workflow was started"`
 
-**Opção 1 - Via Interface do n8n:**
-1. Acesse `http://localhost:5678`
-2. Faça login
-3. Abra o workflow "Sinapse - Document Ingestion Trigger"
-4. Clique no toggle no canto superior direito para ativar
-5. Verifique se aparece "Active" no nome do workflow
-
-**Opção 2 - Via n8n-local-sync:**
-1. Configure `N8N_API_KEY` no `.env` (obtenha em Settings -> API)
-2. Instale `n8n-local-sync`: `pip install n8n-local-sync`
-3. Execute: `n8n-local-sync validate` (sincroniza e ativa workflows)
+**Produção:**
+- Deve usar `/webhook/` e ativar o workflow manualmente
+- Para ativar:
+  1. Acesse `http://localhost:5678`
+  2. Abra o workflow "Sinapse - Document Ingestion Trigger"
+  3. Clique no toggle no canto superior direito
+- Ou use `n8n-local-sync`:
+  1. Configure `N8N_API_KEY` no `.env`
+  2. Execute: `n8n-local-sync validate`
 
 ## Referências
 
