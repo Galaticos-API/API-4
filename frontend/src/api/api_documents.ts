@@ -161,6 +161,6 @@ export function describeRemovalError(error: unknown): string {
   return "Não foi possível remover o documento. Ele continua disponível; tente novamente.";
 }
 
-export async function reprocessDocument(projectId: string, documentId: string): Promise<void> {
-  await apiRequest(`/projects/${encodeURIComponent(projectId)}/documents/${encodeURIComponent(documentId)}/reprocess`, { method: "POST" });
+export async function reprocessDocument(projectId: string, documentId: string, signal?: AbortSignal): Promise<void> {
+  await apiRequest(`/projects/${encodeURIComponent(projectId)}/documents/${encodeURIComponent(documentId)}/reprocess`, { method: "POST", signal });
 }

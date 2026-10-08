@@ -108,6 +108,10 @@ export class ProjectArchiveRepository {
         return existingProject;
       }
 
+      const activeAnalysis = await client.query(
+        "SELECT 1 FROM analise_repositorio WHERE projeto_id=$1 AND status NOT IN ('concluido','falha','cancelada') LIMIT 1", [id]);
+      if (activeAnalysis.rowCount) throw new ArchiveConflict("Conclua ou cancele a análise de repositório antes de arquivar o projeto.");
+
       const impact = (
         await this.archiveImpact(
           id,

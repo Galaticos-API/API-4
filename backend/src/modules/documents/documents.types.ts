@@ -16,6 +16,7 @@ export interface DocumentRecord {
   nova_tentativa_pendente?: boolean;
   tentativas_processamento?: number;
   proxima_tentativa_em?: string | null;
+  erro_processamento?: string | null;
   erro_processamento_codigo?: string | null;
   autor_id: string | null;
   autor_nome: string | null;

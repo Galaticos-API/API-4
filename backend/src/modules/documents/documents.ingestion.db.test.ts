@@ -45,7 +45,11 @@ test("ingestão: falha, retry, lease, vetores e remoção sem ressuscitar docume
     assert.equal(failed.nova_tentativa_pendente,true);
     assert.equal(failed.erro_processamento_codigo,"SERVICE_HTTP_ERROR");
     assert.equal(failed.tentativas_processamento,1);
+    assert.match(failed.erro_processamento!, /recusou/);
     await repository.retry(project,id);
+    await db.query("UPDATE documento SET ingest_attempts=2 WHERE id=$1", [id]);
+    await repository.retry(project,id);
+    assert.equal((await db.query("SELECT ingest_attempts FROM documento WHERE id=$1", [id])).rows[0].ingest_attempts, 2);
     const job=(await repository.claim(project))!;
     assert.equal(await repository.claim(project),null);
     await assert.rejects(repository.finish(job,[{text:"Inválido",embedding:[1]}]));

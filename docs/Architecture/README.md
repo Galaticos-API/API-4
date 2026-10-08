@@ -72,6 +72,10 @@ O backend guarda conversas e mensagens por usuário, valida a posse da conversa 
 
 O backend valida o projeto e a URL do GitHub, pede ao FastAPI para iniciar uma execução e persiste o identificador recebido. Consultas seguintes sincronizam estágio, progresso e relatório. O acesso ao projeto e o estado de arquivamento são revalidados nas rotas.
 
+O escopo é escolhido na tela: **Rápida** (padrão) prioriza até 8 arquivos, **Equilibrada** até 80 e **Completa** analisa todos os arquivos elegíveis, respeitando o limite global configurado. A varredura ainda inventaria o repositório para relatar cobertura; somente os arquivos selecionados seguem para inferência local. README, manifestos de dependências e código de produção recebem prioridade sobre documentação extensa, exemplos e arquivos de lock. O perfil rápido usa contexto local de até 8.192 tokens e, quando um resumo individual ou a síntese final atinge seu limite de saída, preserva o trecho gerado, identifica a limitação no relatório e continua a análise.
+
+Os resumos de arquivos concluídos e os blocos já processados de arquivos grandes são salvos em `WORKSPACE_DIR/runs/<run_id>/checkpoint.json`. Pausar aguarda a chamada atual ao modelo e salva o checkpoint; retomar continua sem repetir blocos ou arquivos já concluídos. Uma falha depois de algum progresso também permite continuar pelo checkpoint. Esses checkpoints e os clones ficam no volume `repo_analysis_data` do serviço Python e sobrevivem à recriação do container. Cancelar encerra a execução em um ponto seguro e mantém o progresso salvo para consulta, mas não permite retomada.
+
 ## Dados e evolução do schema
 
 - `database/init.sql` é o baseline aplicado quando um volume PostgreSQL é inicializado pela primeira vez.
