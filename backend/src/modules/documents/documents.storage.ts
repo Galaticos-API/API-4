@@ -33,7 +33,7 @@ export class LocalDocumentStorage implements DocumentStorage {
 
   async save(key: string, content: Buffer): Promise<void> {
     const path = this.pathOf(key);
-    await mkdir(dirname(path), { recursive: true });
+    await mkdir(dirname(path), { recursive: true, mode: 0o755 });
     try {
       await access(path);
       const duplicate = new Error("Arquivo já existe.") as NodeJS.ErrnoException;
@@ -42,7 +42,9 @@ export class LocalDocumentStorage implements DocumentStorage {
     } catch (error) {
       if (!isMissing(error)) throw error;
     }
-    await writeFile(`${path}${UPLOAD_SUFFIX}`, content, { flag: "wx", mode: 0o600 });
+    // 0o644 (não 0o600): o volume /files é compartilhado com o container do n8n,
+    // que roda como o usuário não-root "node" e precisa ler o arquivo para a ingestão.
+    await writeFile(`${path}${UPLOAD_SUFFIX}`, content, { flag: "wx", mode: 0o644 });
   }
 
   async finalizeUpload(key: string): Promise<void> {
