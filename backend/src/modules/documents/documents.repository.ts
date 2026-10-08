@@ -37,7 +37,7 @@ export interface DocumentPage {
 
 const SELECT_COLUMNS = `
   d.id, d.projeto_id, d.nome, d.extensao, d.mime, d.tamanho_bytes, d.status_processamento,
-  d.ingest_attempts AS tentativas_processamento, d.ingest_error_code AS erro_processamento_codigo,
+  d.ingest_error AS erro_processamento, d.ingest_attempts AS tentativas_processamento, d.ingest_error_code AS erro_processamento_codigo,
   (d.status_processamento <> 'processado' AND d.ingest_retryable AND d.ingest_attempts < 5
     AND EXISTS (SELECT 1 FROM projeto processing_project WHERE processing_project.id=d.projeto_id AND processing_project.status <> 'arquivado')) AS nova_tentativa_pendente,
   d.ingest_next_attempt_at::text AS proxima_tentativa_em,

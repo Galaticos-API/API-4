@@ -1569,6 +1569,7 @@ paths:
       - {name: documentId, in: path, required: true, schema: {type: string, format: uuid}}
     post:
       summary: Reenfileira a ingestão de um documento (admin ou PO)
+      description: Pedidos repetidos enquanto pendente preservam a fila e os contadores. Tentativas ativas retornam 409. A indexação substitui atomicamente os trechos do documento.
       operationId: reprocessDocument
       security: [{cookieAuth: []}]
       responses:
@@ -3325,6 +3326,10 @@ components:
         proxima_tentativa_em:
           type: string
           nullable: true
+        erro_processamento:
+          type: string
+          nullable: true
+          description: Motivo seguro da falha, sem conteúdo do documento ou mensagens internas.
         erro_processamento_codigo:
           type: string
           nullable: true
