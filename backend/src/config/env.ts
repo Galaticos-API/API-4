@@ -30,7 +30,7 @@ const envSchema = z.object({
   DOCUMENT_MAX_SIZE_MB: z.coerce.number().positive().max(100).default(20),
   DOCUMENT_STORAGE_DIR: z.string().min(1).default("storage/documents"),
   DOCUMENT_EVENTS_WEBHOOK_URL: z.string().optional(),
-  N8N_WEBHOOK_URL: z.string().default("http://n8n:5678/webhook-test/sinapse-ingest"),
+  N8N_WEBHOOK_URL: z.string().default("http://n8n:5678/webhook/sinapse-ingest"),
 });
 
 export const env = envSchema.parse(process.env);

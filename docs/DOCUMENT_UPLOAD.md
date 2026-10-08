@@ -143,16 +143,19 @@ Os metadados são registrados na tabela `documento`:
 
 Após armazenamento bem-sucedido, o backend chama o webhook do n8n:
 
-**URL (do container backend):** `POST http://n8n:5678/webhook-test/sinapse-ingest`
-**URL (local):** `POST http://localhost:5678/webhook-test/sinapse-ingest`
+**URL (do container backend):** `POST http://n8n:5678/webhook/sinapse-ingest`
+**URL (local):** `POST http://localhost:5678/webhook/sinapse-ingest`
 
-**Ambientes:**
-- **Desenvolvimento:** Usa `/webhook-test/` (funciona sem ativar workflow)
-- **Produção:** Deve usar `/webhook/` e ativar o workflow manualmente
+**Importante:** sempre use `/webhook/` (produção), em qualquer ambiente, para a chamada automática do backend.
+O endpoint `/webhook-test/` só responde a **uma única chamada manual** feita logo após clicar em
+"Execute workflow" no editor do n8n — ele não fica escutando de verdade. Usá-lo como `N8N_WEBHOOK_URL`
+funciona enquanto alguém testa com o editor aberto, mas falha com `404 - webhook not registered` assim
+que o backend chama o webhook sem um humano armando o teste no editor antes. Para que `/webhook/`
+responda, o workflow precisa estar **ativado** (veja "Ativação do Workflow" abaixo).
 
 **Configuração:**
 - Defina `N8N_WEBHOOK_URL` no `.env` ou docker-compose.yml
-- Default: `http://n8n:5678/webhook-test/sinapse-ingest`
+- Default: `http://n8n:5678/webhook/sinapse-ingest`
 
 **Payload:**
 ```json
@@ -183,7 +186,7 @@ O workflow n8n:
 Para testar o webhook do n8n sem fazer upload pelo backend:
 
 ```bash
-curl -X POST http://localhost:5678/webhook-test/sinapse-ingest \
+curl -X POST http://localhost:5678/webhook/sinapse-ingest \
   -H "Content-Type: application/json" \
   -d '{
     "documentId": "test-001",
@@ -193,7 +196,9 @@ curl -X POST http://localhost:5678/webhook-test/sinapse-ingest \
   }'
 ```
 
-**Nota:** Em desenvolvimento, `/webhook-test/` funciona sem ativar o workflow. Em produção, use `/webhook/` e ative o workflow.
+**Nota:** o workflow precisa estar ativado para que `/webhook/` responda (veja "Ativação do Workflow"
+abaixo). Use `/webhook-test/` apenas para testar manualmente dentro do editor do n8n — nunca para
+automação, pois ele só atende uma chamada por clique em "Execute workflow".
 
 ### cURL
 
@@ -290,11 +295,19 @@ file ./storage/{projectId}/{documentId}.{extensao}
 ### Verificar arquivo no container n8n
 
 ```bash
-# Listar arquivos
-docker exec sinapse-n8n sh -c "ls -la /files/{projectId}/"
+# Entrar no container n8n
+docker exec -it sinapse-n8n sh
 
-# Nota: Arquivos podem ter permissões restritas devido ao processo de upload
-# Se precisar ler o conteúdo, faça isso via backend ou PostgreSQL
+# Listar arquivos
+ls -la /files/{projectId}/
+
+# Ler arquivo
+cat /files/{projectId}/{documentId}.{extensao}
+```
+
+Nota: arquivos enviados **antes** do fix de permissão de `documents.storage.ts` (modo `0o600`, legível
+só pelo dono) ainda aparecem sem acesso de leitura para o container n8n. Reenvie o documento ou rode
+`chmod -R o+r ./storage` no host para liberar os arquivos já existentes.
 ```
 
 ### Verificar metadados no PostgreSQL
@@ -335,7 +348,8 @@ WHERE entidade_tipo = 'documento'
 
 | Erro | Causa | Solução |
 |------|-------|---------|
-| 404 - "Webhook not registered" | URL incorreta (produção sem ativação) | Use `/webhook-test/` em dev ou ative workflow |
+| 404 - "Webhook not registered" | Workflow não ativado | Ative o workflow na interface do n8n (nunca troque para `/webhook-test/`) |
+| 403 / EACCES ao ler o arquivo | Arquivo gravado antes do fix de permissão (0o600) | Reenvie o documento ou rode `chmod -R o+r ./storage` |
 | Timeout | n8n não respondeu | Verifique se o container n8n está rodando |
 | Connection refused | Porta errada ou n8n parado | Verifique `docker compose ps` |
 
@@ -400,19 +414,23 @@ O workflow atual está em `n8n/workflows/kbeyMs38qerFoS65-sinapse-document-inges
 
 ### Ativação do Workflow
 
-**Desenvolvimento:**
-- Usa `/webhook-test/` automaticamente (funciona sem ativação)
-- Webhook de teste responde com `"Workflow was started"`
+O backend sempre chama `/webhook/sinapse-ingest` (produção), em qualquer ambiente — essa é a única
+forma de o n8n responder sem um humano com o editor aberto. Importar o JSON do workflow **não** ativa
+automaticamente a instância (o campo `"active": true` do arquivo descreve a intenção, não o estado
+real após importar); é preciso ativar explicitamente:
 
-**Produção:**
-- Deve usar `/webhook/` e ativar o workflow manualmente
-- Para ativar:
-  1. Acesse `http://localhost:5678`
-  2. Abra o workflow "Sinapse - Document Ingestion Trigger"
-  3. Clique no toggle no canto superior direito
-- Ou use `n8n-local-sync`:
+1. Acesse `http://localhost:5678`
+2. Abra o workflow "Sinapse - Document Ingestion Trigger"
+3. Clique no toggle no canto superior direito até aparecer "Active"
+4. Confirme com `curl -X POST http://localhost:5678/webhook/sinapse-ingest -d '{}'` — enquanto
+   inativo, a resposta é `404` com `"The requested webhook is not registered"`
+
+Ou, com `n8n-local-sync` configurado:
   1. Configure `N8N_API_KEY` no `.env`
   2. Execute: `n8n-local-sync validate`
+
+Use `/webhook-test/` **somente** para depurar o workflow manualmente dentro do editor (clicar em
+"Execute workflow" arma um único recebimento); nunca como `N8N_WEBHOOK_URL`.
 
 ## Referências
 
