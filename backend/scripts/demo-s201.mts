@@ -89,4 +89,3 @@ try {
  assert.ok(resolve(folder).startsWith(resolve(tmpdir())+sep));await rm(folder,{recursive:true,force:true});
  if(started)docker(["rm","-f","-v",name]);console.log("Ambiente temporário removido.");
 }
-
