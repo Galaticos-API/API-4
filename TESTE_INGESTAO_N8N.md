@@ -15,14 +15,24 @@ e um cliente SQL para o Postgres.
   ollama list       # confirme que bge-m3 aparece
   ```
 
-- Arquivo `.env` na raiz com no mínimo:
+- Arquivo `.env` na raiz. Em dev, o jeito mais simples é copiar o `.env.example`:
+
+  ```bash
+  cp .env.example .env
+  ```
+
+  O compose exige **três** variáveis preenchidas (sem elas o `docker compose up`
+  falha antes de iniciar os containers):
 
   ```env
-  N8N_INGEST_TOKEN=sinapse-dev-ingest-token
+  AI_SERVICE_TOKEN=sinapse-dev-ai-service-token   # backend <-> ai-service
+  N8N_INGEST_TOKEN=sinapse-dev-ingest-token       # n8n -> backend (/documents/.../chunks)
   N8N_ENCRYPTION_KEY=sinapse-shared-dev-encryption-key-2026
   ```
 
-  (os defaults do `docker-compose.yml` já cobrem o resto para dev local.)
+  Em produção, rotacione `AI_SERVICE_TOKEN` e `N8N_INGEST_TOKEN` para segredos
+  aleatórios (ex.: `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`)
+  e **nunca** versione o valor real.
 
 ## 1. Subir a stack
 
