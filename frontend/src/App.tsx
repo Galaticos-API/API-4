@@ -9,6 +9,7 @@ import { DocumentsView } from "./views/documents/DocumentsView";
 import { KnowledgeView } from "./views/knowledge/KnowledgeView";
 import { ChatView } from "./views/chat/ChatView";
 import { AdminView } from "./views/admin/AdminView";
+import { IngestionObservabilityView } from "./views/admin/IngestionObservabilityView";
 import { RequirementsView } from "./views/backlog/RequirementsView";
 
 export const App: React.FC = () => {
@@ -93,6 +94,13 @@ export const App: React.FC = () => {
           <section className="page-container" role="alert" aria-labelledby="admin-access-title">
             <h1 id="admin-access-title">Acesso restrito</h1>
             <p>Esta área está disponível somente para administradores.</p>
+            <Button variant="secondary" onClick={() => navigate("/projects")}>Voltar para projetos</Button>
+          </section>
+        ))}
+        {activeTab === "ingestion" && (isAdmin ? <IngestionObservabilityView /> : (
+          <section className="page-container" role="alert" aria-labelledby="ingestion-access-title">
+            <h1 id="ingestion-access-title">Acesso restrito</h1>
+            <p>O pipeline de ingestão é visível somente para administradores.</p>
             <Button variant="secondary" onClick={() => navigate("/projects")}>Voltar para projetos</Button>
           </section>
         ))}

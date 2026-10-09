@@ -2,6 +2,7 @@ import { Button } from "../common/ui";
 import React, { useState, useEffect } from "react";
 import { listProjects, type Project } from "../../api/api_projects";
 import { ApiError, apiRequest } from "../../api/api_auth";
+import { navigate } from "../../models/navigation";
 
 interface Stats {
   projetos: number;
@@ -92,6 +93,9 @@ export const AdminView: React.FC = () => {
             Acompanhe os dados do sistema e carregue exemplos em um projeto escolhido.
           </p>
         </div>
+        <Button onClick={() => navigate("/admin/ingestion")}>
+          Pipeline de ingestão
+        </Button>
       </div>
 
       {message && (

@@ -1848,6 +1848,47 @@ paths:
         '403':
           description: Somente administrador
 
+  /api/v1/admin/ingestion:
+    get:
+      summary: Observabilidade do pipeline de ingestão de documentos (S2-01/S2-02)
+      description: >
+        Snapshot em tempo real do estado do worker: contagens por status
+        (pendente/processando/processado/falha), documentos ativos, falhas
+        recentes e últimas atualizações. Substitui o editor do n8n como
+        ferramenta visual para admin acompanhar a fila. Somente administrador.
+      operationId: adminIngestionSnapshot
+      security: [{cookieAuth: []}]
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema: {type: integer, minimum: 1, maximum: 100, default: 25}
+      responses:
+        '200':
+          description: Snapshot do pipeline
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [counts, recent, active, failed, generated_at]
+                properties:
+                  counts:
+                    type: object
+                    required: [pendente, processando, processado, falha]
+                    properties:
+                      pendente: {type: integer, minimum: 0}
+                      processando: {type: integer, minimum: 0}
+                      processado: {type: integer, minimum: 0}
+                      falha: {type: integer, minimum: 0}
+                  recent: {type: array, items: {type: object}}
+                  active: {type: array, items: {type: object}}
+                  failed: {type: array, items: {type: object}}
+                  generated_at: {type: string, format: date-time}
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Somente administrador
+
   /api/v1/admin/demo-seed:
     post:
       summary: Carrega exemplos demonstrativos em um projeto explícito (somente administrador)
