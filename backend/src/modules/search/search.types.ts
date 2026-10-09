@@ -1,21 +1,32 @@
-export interface SearchFilter {
+export const SEARCH_LEVELS = ["documento", "decisao", "epico", "feature", "pbi"] as const;
+export type SearchLevel = typeof SEARCH_LEVELS[number];
+
+export interface HybridSearchInput {
   query: string;
-  userId: string;
-  projectId?: string;
+  projectId: string;
+  technologyId?: string;
+  level?: SearchLevel;
+  limit: number;
 }
 
-export interface SearchItem {
+export interface HybridSearchRow {
   id: string;
-  projeto_id: string;
-  entidade_tipo: string;
-  entidade_id: string;
-  texto: string;
-  metadados_json: Record<string, unknown> | null;
-  created_at: Date | null;
-  projeto_nome: string;
+  project_id: string;
+  project_name: string;
+  entity_type: SearchLevel;
+  entity_id: string;
+  title: string | null;
+  text: string;
+  metadata: Record<string, unknown>;
+  source_url: string | null;
+  relevance_score: number;
 }
 
-export interface SearchResult {
-  items: SearchItem[];
-  total: number | null;
+export interface HybridSearchResult {
+  items: HybridSearchRow[];
+  total: number;
+  query: string;
+  project_id: string;
+  filters: { technology_id: string | null; level: SearchLevel | null };
+  metrics: { latency_ms: number };
 }

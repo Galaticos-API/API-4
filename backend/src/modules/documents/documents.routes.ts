@@ -74,6 +74,8 @@ export function createDocumentsRouter(
     next(err);
   }, controller.upload);
 
+  router.post("/:documentId/retry", canWrite, controller.retry);
+
   /**
    * @swagger
    * /api/v1/projects/{projectId}/documents/{documentId}:

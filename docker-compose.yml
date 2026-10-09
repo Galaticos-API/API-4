@@ -132,18 +132,21 @@ services:
 
       # AI Service dentro da rede Docker
       - AI_SERVICE_URL=http://ai-service:8000
+      - DOCUMENT_INGESTION_TOKEN=${DOCUMENT_INGESTION_TOKEN:?Defina um segredo aleatório privado em DOCUMENT_INGESTION_TOKEN no .env}
       - REPO_ANALYZER_URL=${REPO_ANALYZER_URL:-http://ai-service:8000}
       - AI_SERVICE_TOKEN=${AI_SERVICE_TOKEN:?Configure AI_SERVICE_TOKEN in .env}
       - DOCUMENT_MAX_SIZE_MB=${DOCUMENT_MAX_SIZE_MB:-20}
       # /files e bind-mount compartilhado com o container do n8n (./storage no host),
-      # pre-requisito para o pipeline de ingestao da S2-02 ler o arquivo.
+      # pre-requisito para o workflow de debug manual do n8n enxergar o arquivo.
+      # O fluxo canonico (worker DocumentIngestionWorker) le o arquivo direto do
+      # storage e chama o ai-service, sem passar pelo volume do n8n.
       - DOCUMENT_STORAGE_DIR=/files
-      - DOCUMENT_EVENTS_WEBHOOK_URL=${DOCUMENT_EVENTS_WEBHOOK_URL:-http://n8n:5678/webhook/sinapse-document-removed}
-      # Vazio por padrao: o DocumentIngestionWorker cai no fallback
-      # ${AI_SERVICE_URL}/ingest/file (fluxo canonico da S2-01, com retry/lease).
-      # So preencha se quiser rotear a ingestao oficial pelo workflow do n8n -
-      # nesse caso o workflow precisa aceitar o payload snake_case + content_base64.
+      - DOCUMENT_EVENTS_WEBHOOK_URL=${DOCUMENT_EVENTS_WEBHOOK_URL:-}
+      # Vazio por padrao: HttpDocumentIngestionClient usa ${AI_SERVICE_URL}/documents/process
+      # (fluxo canonico da S2-01, com retry/lease). Preencha para redirecionar.
       - DOCUMENT_INGEST_WEBHOOK_URL=${DOCUMENT_INGEST_WEBHOOK_URL:-}
+      - SEARCH_MIN_VECTOR_SIMILARITY=${SEARCH_MIN_VECTOR_SIMILARITY:-0.55}
+      - SEARCH_MIN_TEXT_RANK=${SEARCH_MIN_TEXT_RANK:-0.05}
       # Token server-to-server para o backend aceitar o POST .../documents/.../chunks
       # vindo do workflow do n8n (quando usado como ferramenta de debug manual).
       - N8N_INGEST_TOKEN=${N8N_INGEST_TOKEN:-sinapse-dev-ingest-token}
@@ -180,9 +183,10 @@ services:
 
     # Em dev exposto no host para debug local; em prod feche com `expose: ["8000"]`.
     ports:
-      - "${AI_SERVICE_PORT:-8000}:8000"
+      - "${AI_SERVICE_BIND:-127.0.0.1}:${AI_SERVICE_PORT:-8000}:8000"
 
-    # Permite acesso ao Ollama rodando no host (fora do Docker).
+    # Permite acesso ao Ollama rodando no host (fora do Docker). O backend acessa
+    # pelo DNS interno do Compose; a porta no host fica local por padrao.
     extra_hosts:
       - "host.docker.internal:host-gateway"
 
@@ -192,6 +196,8 @@ services:
     environment:
       - AI_SERVICE_TOKEN=${AI_SERVICE_TOKEN:?Configure AI_SERVICE_TOKEN in .env}
       - AI_SERVICE_PORT=8000
+      - NODE_ENV=production
+      - DOCUMENT_INGESTION_TOKEN=${DOCUMENT_INGESTION_TOKEN:?Defina um segredo aleatório privado em DOCUMENT_INGESTION_TOKEN no .env}
       - AI_SERVICE_HOST=0.0.0.0
 
       # Ollama no Windows

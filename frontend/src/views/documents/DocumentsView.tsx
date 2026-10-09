@@ -5,7 +5,7 @@ import {
   formatBytes,
   listDocuments,
   removeDocument,
-  reprocessDocument,
+  retryDocumentProcessing,
   uploadDocument,
   validateSelection,
   type DocumentLimits,
@@ -31,25 +31,19 @@ function formatExtensions(limits: DocumentLimits): string {
   return limits.extensoes_permitidas.map((extension) => extension.slice(1).toUpperCase()).join(", ");
 }
 
-type DocumentsProps = {
-  projectId?: string;
-  projectName?: string;
-  canWrite?: boolean;
-  archived?: boolean;
-  embedded?: boolean;
-};
-
-export function DocumentsView(props: DocumentsProps) {
-  return <ProjectDocuments key={props.projectId ?? "no-project"} {...props} />;
-}
-
-function ProjectDocuments({
+export function DocumentsView({
   projectId,
   projectName,
   canWrite = false,
   archived = false,
   embedded = false,
-}: DocumentsProps) {
+}: {
+  projectId?: string;
+  projectName?: string;
+  canWrite?: boolean;
+  archived?: boolean;
+  embedded?: boolean;
+}) {
   const [items, setItems] = useState<ProjectDocument[]>([]);
   const [limits, setLimits] = useState<DocumentLimits | null>(null);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
@@ -61,63 +55,34 @@ function ProjectDocuments({
   const [selection, setSelection] = useState<File | null>(null);
   const [selectionError, setSelectionError] = useState("");
   const [uploadError, setUploadError] = useState("");
+  const [processingError, setProcessingError] = useState("");
   const [removalError, setRemovalError] = useState("");
   const [notice, setNotice] = useState("");
   const [uploading, setUploading] = useState(false);
-  const [reprocessing, setReprocessing] = useState<string | null>(null);
   const [removing, setRemoving] = useState(false);
+  const [retryingId, setRetryingId] = useState<string | null>(null);
   const [target, setTarget] = useState<ProjectDocument | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
   const dialog = useRef<HTMLDialogElement>(null);
   const heading = useRef<HTMLHeadingElement>(null);
   const uploadLock = useRef(false);
   const removalLock = useRef(false);
-  const scope = useRef(new AbortController());
-  const pages = useRef(1);
-  const listLock = useRef(false);
-  const refreshPending = useRef(false);
-  const mutationRevision = useRef(0);
-  useEffect(() => {
-    const controller = new AbortController();
-    scope.current = controller;
-    return () => controller.abort();
-  }, []);
-  const requestSignal = (timeout = 15_000) => AbortSignal.any([scope.current.signal, AbortSignal.timeout(timeout)]);
 
   const refresh = useCallback(async (quiet = false) => {
-    if (!projectId || scope.current.signal.aborted) return;
-    if (listLock.current) { refreshPending.current = true; return; }
-    refreshPending.current = false;
-    listLock.current = true;
-    const signal = requestSignal();
-    const revision = mutationRevision.current;
+    if (!projectId) return;
     if (quiet) setRefreshing(true);
     else setLoading(true);
     setLoadError("");
     try {
-      let cursor: string | undefined;
-      const loaded = new Map<string, ProjectDocument>();
-      let response;
-      for (let page = 0; page < pages.current; page++) {
-        response = await listDocuments(projectId, { cursor, signal });
-        if (signal.aborted) return;
-        for (const item of response.items) loaded.set(item.id, item);
-        cursor = response.next_cursor ?? undefined;
-        if (!cursor) break;
-      }
-      if (!response || revision !== mutationRevision.current) return;
-      setItems([...loaded.values()]);
+      const response = await listDocuments(projectId, { signal: AbortSignal.timeout(15_000) });
+      setItems(response.items);
       setLimits(response.limites);
       setNextCursor(response.next_cursor);
     } catch {
-      if (scope.current.signal.aborted) return;
       setLoadError("Não foi possível carregar os documentos. Tente novamente.");
     } finally {
-      listLock.current = false;
-      if (scope.current.signal.aborted) return;
       setLoading(false);
       setRefreshing(false);
-      if (refreshPending.current) void refresh(true);
     }
   }, [projectId]);
 
@@ -141,21 +106,7 @@ function ProjectDocuments({
     return () => { active = false; controller.abort(); };
   }, [projectId]);
 
-  const reprocess = async (id: string) => {
-    if (!projectId || reprocessing || archived || !canWrite) return;
-    setReprocessing(id);
-    const signal = requestSignal();
-    try {
-      await reprocessDocument(projectId, id, signal);
-      if (signal.aborted) return;
-      mutationRevision.current += 1;
-      setNotice("Documento enviado para reprocessamento."); await refresh(true);
-    }
-    catch { if (!scope.current.signal.aborted) setNotice("Não foi possível reprocessar o documento. Tente novamente."); }
-    finally { if (!scope.current.signal.aborted) setReprocessing(null); }
-  };
-
-  const hasProcessing = items.some((item) => item.nova_tentativa_pendente || ["pendente", "processando"].includes(item.status_processamento));
+  const hasProcessing = items.some((item) => item.status_processamento === "pendente" || item.status_processamento === "processando");
   useEffect(() => {
     if (!hasProcessing) return;
     const timer = window.setInterval(() => { void refresh(true); }, 10_000);
@@ -168,28 +119,20 @@ function ProjectDocuments({
   }, [target]);
 
   const loadMore = async () => {
-    if (!projectId || !nextCursor || loadingMore || listLock.current) return;
-    listLock.current = true;
-    const signal = requestSignal();
+    if (!projectId || !nextCursor || loadingMore) return;
     setLoadingMore(true);
     setMoreError("");
     try {
-      const response = await listDocuments(projectId, { cursor: nextCursor, signal });
-      if (signal.aborted) return;
-      pages.current += 1;
+      const response = await listDocuments(projectId, { cursor: nextCursor, signal: AbortSignal.timeout(15_000) });
       setItems((current) => {
         const known = new Set(current.map((item) => item.id));
         return [...current, ...response.items.filter((item) => !known.has(item.id))];
       });
       setNextCursor(response.next_cursor);
     } catch {
-      if (scope.current.signal.aborted) return;
       setMoreError("Não foi possível carregar mais documentos.");
     } finally {
-      listLock.current = false;
-      if (scope.current.signal.aborted) return;
       setLoadingMore(false);
-      if (refreshPending.current) void refresh(true);
     }
   };
 
@@ -225,21 +168,16 @@ function ProjectDocuments({
     setUploading(true);
     setUploadError("");
     setNotice("");
-    const signal = requestSignal(120_000);
     try {
-      const created = await uploadDocument(projectId, selection, signal);
-      if (signal.aborted) return;
-      mutationRevision.current += 1;
+      const created = await uploadDocument(projectId, selection);
       setItems((current) => [created, ...current.filter((item) => item.id !== created.id)]);
       setNotice(created.armazenamento_pendente
-        ? `O documento “${created.nome}” foi recebido. O armazenamento está sendo finalizado e a indexação começa em seguida.`
-        : `O documento “${created.nome}” foi armazenado e enviado para indexação.`);
+        ? `O documento “${created.nome}” foi recebido. O armazenamento está sendo finalizado e a indexação começará em segundo plano.`
+        : `O documento “${created.nome}” foi armazenado e será indexado em segundo plano.`);
       clearSelection();
     } catch (error) {
-      if (scope.current.signal.aborted) return;
       setUploadError(describeUploadError(error));
     } finally {
-      if (scope.current.signal.aborted) return;
       uploadLock.current = false;
       setUploading(false);
     }
@@ -256,22 +194,36 @@ function ProjectDocuments({
     removalLock.current = true;
     setRemoving(true);
     setRemovalError("");
-    const signal = requestSignal();
     try {
-      await removeDocument(projectId, target.id, signal);
-      if (signal.aborted) return;
-      mutationRevision.current += 1;
+      await removeDocument(projectId, target.id);
       setItems((current) => current.filter((item) => item.id !== target.id));
       setNotice(`O documento “${target.nome}” foi removido deste projeto.`);
       closeDialog();
       heading.current?.focus();
     } catch (error) {
-      if (scope.current.signal.aborted) return;
       setRemovalError(describeRemovalError(error));
     } finally {
-      if (scope.current.signal.aborted) return;
       removalLock.current = false;
       setRemoving(false);
+    }
+  };
+
+  const retryProcessing = async (document: ProjectDocument) => {
+    if (!projectId || !canWrite || archived || retryingId) return;
+    setRetryingId(document.id);
+    setNotice("");
+    setProcessingError("");
+    try {
+      await retryDocumentProcessing(projectId, document.id);
+      setItems((current) => current.map((item) => item.id === document.id
+        ? { ...item, status_processamento: "pendente", processamento_erro: null }
+        : item));
+      setNotice(`O reprocessamento de “${document.nome}” foi agendado.`);
+      void refresh(true);
+    } catch {
+      setProcessingError("Não foi possível agendar o reprocessamento. Atualize a lista e tente novamente.");
+    } finally {
+      setRetryingId(null);
     }
   };
 
@@ -300,9 +252,11 @@ function ProjectDocuments({
 
       {archived && <Alert tone="warning">Projeto arquivado: os documentos ficam disponíveis somente para consulta.</Alert>}
       {!canWrite && !archived && <Alert>Seu perfil pode consultar documentos, mas não pode enviar ou remover arquivos.</Alert>}
+      <Alert tone="info">Documentos válidos são processados em segundo plano. O conteúdo fica disponível no acervo após a conclusão da extração e indexação.</Alert>
       {notice && <Alert tone="success">{notice}</Alert>}
       {selectionError && <Alert tone="danger" title="Arquivo não aceito">{selectionError}</Alert>}
       {uploadError && <Alert tone="danger" title="Falha no envio">{uploadError}</Alert>}
+      {processingError && <Alert tone="danger" title="Falha no reprocessamento">{processingError}</Alert>}
       {loadError && (
         <Alert tone="danger" role="alert">
           {loadError}{" "}
@@ -311,7 +265,7 @@ function ProjectDocuments({
       )}
 
       {canWrite && !archived && limits && (
-        <div className="ds-card ds-card--glass documents-upload">
+        <div className="glass-panel documents-upload">
           <div
             className="documents-dropzone"
             onDragOver={(event) => event.preventDefault()}
@@ -347,9 +301,9 @@ function ProjectDocuments({
       )}
 
       {loading ? (
-        <div className="ds-card ds-card--glass projects-state" role="status">Carregando documentos…</div>
+        <div className="glass-panel projects-state" role="status">Carregando documentos…</div>
       ) : !loadError && items.length === 0 ? (
-        <div className="ds-card ds-card--glass documents-list">
+        <div className="glass-panel documents-list">
           <EmptyState
             title="Nenhum documento neste projeto"
             description={canWrite && !archived
@@ -358,7 +312,7 @@ function ProjectDocuments({
           />
         </div>
       ) : items.length > 0 ? (
-        <div className="ds-card ds-card--glass documents-list">
+        <div className="glass-panel documents-list">
           <div className="documents-list-header">
             <h2 ref={heading} tabIndex={-1}>Documentos ({items.length})</h2>
           </div>
@@ -377,9 +331,7 @@ function ProjectDocuments({
             </thead>
             <tbody>
               {items.map((item) => {
-                const status = item.status_processamento === "falha" && item.nova_tentativa_pendente
-                  ? { label: "Aguardando nova tentativa", tone: "warning" as const }
-                  : STATUS_VIEW[item.status_processamento];
+                const status = STATUS_VIEW[item.status_processamento];
                 return (
                   <tr key={item.id}>
                     <td data-label="Documento" className="documents-name">{item.nome}</td>
@@ -391,10 +343,11 @@ function ProjectDocuments({
                       {item.armazenamento_pendente
                         ? <Badge tone="warning">Finalizando armazenamento</Badge>
                         : <Badge tone={status.tone}>{status.label}</Badge>}
+                      {item.processamento_erro && <p className="ds-help" role="note">{item.processamento_erro}</p>}
                     </td>
                     {canWrite && !archived && (
                       <td data-label="Ações">
-                        {item.status_processamento === "falha" && <Button variant="secondary" size="sm" disabled={Boolean(reprocessing)} onClick={() => void reprocess(item.id)}>Reprocessar</Button>}
+                        {item.status_processamento === "falha" && <Button variant="secondary" size="sm" disabled={retryingId !== null} onClick={() => void retryProcessing(item)}>{retryingId === item.id ? "Agendando…" : "Tentar novamente"}</Button>}
                         <Button variant="danger" size="sm" aria-label={`Remover ${item.nome}`} onClick={() => { setNotice(""); setTarget(item); }}>Remover</Button>
                       </td>
                     )}

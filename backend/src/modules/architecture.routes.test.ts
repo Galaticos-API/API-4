@@ -2,14 +2,9 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import express, { type RequestHandler, type Router } from "express";
 import type { AddressInfo } from "node:net";
-import type { Pool } from "pg";
 import { createAdminRouter } from "./admin/admin.routes.js";
 import { AdminController } from "./admin/admin.controller.js";
 import { AdminService } from "./admin/admin.service.js";
-import { createSearchRouter } from "./search/search.routes.js";
-import { SearchController } from "./search/search.controller.js";
-import { SearchService } from "./search/search.service.js";
-import { SearchRepository } from "./search/search.repository.js";
 import { createDevelopersRouter } from "./developers/developers.routes.js";
 import { DevelopersController } from "./developers/developers.controller.js";
 import { DevelopersService } from "./developers/developers.service.js";
@@ -64,33 +59,10 @@ test("admin mantém permissões, estatísticas e o contrato da carga sem projeto
   });
 });
 
-test("busca rejeita arrays/objetos, valida UUID e preserva aliases e parâmetros SQL", async () => {
-  const queries: Array<{ sql: string; params: unknown[] }> = [];
-  const db = { async query(sql: string, params: unknown[]) {
-    queries.push({ sql, params }); return { rows: [], rowCount: 0 };
-  } } as unknown as Pick<Pool, "query">;
-  const controller = new SearchController(new SearchService(new SearchRepository(db)));
-  await withRouter(createSearchRouter(controller, authenticate), async url => {
-    const headers = { "x-role": "po" };
-    assert.equal((await fetch(url)).status, 401);
-    for (const query of ["q=a&q=b", "q[x]=a", "projeto_id=bad", "projectId[]=bad", "q=" + "a".repeat(201)]) {
-      assert.equal((await fetch(url + "?" + query, { headers })).status, 400, query);
-    }
-    assert.equal(queries.length, 0);
-    for (const alias of ["projectId", "projeto_id"]) {
-      const response = await fetch(url + "?q=100%25_test&" + alias + "=" + projectId, { headers });
-      assert.deepEqual(await response.json(), { items: [], total: 0 });
-      assert.deepEqual(queries.at(-1)?.params, ["user", "%100\\%\\_test%", projectId]);
-      assert.match(queries.at(-1)!.sql, /c.projeto_id = \$3/);
-    }
-    await fetch(url + "?projeto_id=" + projectId, { headers });
-    assert.deepEqual(queries.at(-1)?.params, ["user", projectId]);
-    assert.match(queries.at(-1)!.sql, /c.projeto_id = \$2/);
-    await fetch(url, { headers });
-    assert.deepEqual(queries.at(-1)?.params, ["user"]);
-    assert.match(queries.at(-1)!.sql, /access_user.id=\$1/);
-  });
-});
+// A arquitetura de busca mudou (pos-S2-06): e hibrida (vetor + full-text) e nao
+// aceita mais queries sem `q` ou sem `projeto_id`. Os testes antigos deste
+// arquivo foram substituidos pelos testes dedicados em search.routes.test.ts,
+// search.service.test.ts, search.repository.test.ts e search.repository.db.test.ts.
 
 test("desenvolvedores preserva o formato e encaminha erros ao handler global", async () => {
   let fail = false;

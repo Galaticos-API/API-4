@@ -2,8 +2,9 @@
 
 Este diretório contém dois conjuntos com propósitos diferentes:
 
-1. `fixtures/historical-v1.json` e `curated/` formam o **acervo histórico curado PRE-06**. A carga é aplicada pelo backend, a partir de fontes acadêmicas documentadas, em projetos, documentos, chunks sem embedding e registros de origem/auditoria.
-2. `dev_seed.sql` é um seed legado com dados fictícios determinísticos para demonstrações. Ele não faz parte da carga PRE-06 e não deve ser aplicado junto dela.
+1. `fixtures/historical-v1.json` e `curated/` formam o **acervo histórico curado PRE-06 v1**.
+2. `fixtures/historical-v2.json` e `curated/v2/` preservam os textos da v1 em IDs isolados e acrescentam `GRF-01`/`GRF-08` como metadados pesquisáveis. A v1 continua intacta. V2 é opt-in com `SEED_DATASET_VERSION=2`; sem essa variável, a ferramenta continua usando v1.
+3. `dev_seed.sql` é um seed legado com dados fictícios determinísticos para demonstrações. Ele não faz parte da carga PRE-06 e não deve ser aplicado junto dela.
 
 Não inclua nomes, e-mails, credenciais, documentos de clientes, dados de produção ou segredos em qualquer fixture.
 
@@ -27,6 +28,8 @@ O build é necessário porque os scripts `seed:validate` e `test:seed` executam 
 3. Configure `SEED_DATABASE_URL` no ambiente do processo, sem colocar a URL em argumentos ou arquivos versionados.
 4. Confirme que `POSTGRES_*` do comando de migration aponta para o mesmo destino.
 5. Execute `npm run seed:apply` dentro de `backend`.
+
+Para validar ou aplicar explicitamente a versão 2, configure `SEED_DATASET_VERSION=2` no ambiente do processo. A versão padrão permanece v1.
 
 O alvo precisa usar PostgreSQL/PostgresQL e o nome do banco deve terminar em `_dev` ou `_test`. O ambiente `production` é recusado, salvo a exceção explícita de segurança prevista no código; **não use a exceção para dados de demonstração**.
 

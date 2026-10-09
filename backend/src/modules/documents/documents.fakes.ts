@@ -42,6 +42,7 @@ export class FakeDocumentsRepository extends DocumentsRepository {
   public events = new Map<string, { payload: DocumentRemovedEvent; status: "pendente" | "publicado" | "falha" }>();
   public failCreate = false;
   public failRemove = false;
+  public failCompleteIngestion = false;
   public chunks = new Map<string, number>();
   public storageOperations = new Map<string, { id: string; documento_id: string; projeto_id: string; acao: "finalizar_upload" | "descartar_remocao"; caminho: string; status: "pendente" | "concluido" }>();
 
@@ -187,6 +188,38 @@ export class FakeDocumentsRepository extends DocumentsRepository {
     return this.rows.some((row) => row.caminho === caminho);
   }
 
+  async claimPendingIngestion() {
+    const row = this.rows.find((item) => item.status_processamento === "pendente");
+    if (!row) return [];
+    row.status_processamento = "processando";
+    return [{ id: row.id, projeto_id: row.projeto_id, nome: row.nome, caminho: row.caminho,
+      status_processamento: row.status_processamento, mime: row.mime, extensao: row.extensao,
+      processamento_lease_id: `lease-${row.id}` }];
+  }
+
+  async completeIngestion(document: { id: string }, chunks: Array<{ text: string }>) {
+    if (this.failCompleteIngestion) throw new Error("falha simulada no commit");
+    const row = this.rows.find((item) => item.id === document.id);
+    if (row) row.status_processamento = "processado";
+    this.chunks.set(document.id, chunks.length);
+  }
+
+  async failIngestion(documentId: string, _projectId: string, _leaseId: string, reason: string) {
+    const row = this.rows.find((item) => item.id === documentId);
+    if (row) {
+      row.status_processamento = "falha";
+      row.processamento_erro = reason;
+    }
+  }
+
+  async retryIngestion(projectId: string, documentId: string) {
+    const row = this.rows.find((item) => item.id === documentId && item.projeto_id === projectId && item.status_processamento === "falha");
+    if (!row) return false;
+    row.status_processamento = "pendente";
+    row.processamento_erro = null;
+    return true;
+  }
+
   async listPendingEvents(limit: number): Promise<PendingEvent[]> {
     return [...this.events.entries()]
       .filter(([, value]) => value.status !== "publicado")
@@ -218,6 +251,7 @@ export class FakeStorage implements DocumentStorage {
   public failSave = false;
   public failStage = false;
   public failFinalize = false;
+  public failRead = false;
 
   async save(key: string, content: Buffer): Promise<void> {
     if (this.failSave) throw new Error("disco cheio");
@@ -231,6 +265,13 @@ export class FakeStorage implements DocumentStorage {
       this.files.set(key, content);
       this.uploads.delete(key);
     }
+  }
+
+  async read(key: string): Promise<Buffer> {
+    if (this.failRead) throw new Error("falha simulada");
+    const content = this.files.get(key);
+    if (!content) throw new Error("arquivo ausente");
+    return content;
   }
 
   async remove(key: string): Promise<void> {

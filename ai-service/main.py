@@ -4,11 +4,21 @@ from fastapi import Request
 from fastapi.responses import JSONResponse
 from document_text import extract_document_text
 from contextlib import asynccontextmanager
+import base64
+import binascii
+import hmac
+import io
+from pathlib import PurePath
+import zipfile
 from typing import Any, Literal
-from fastapi import FastAPI, HTTPException, status
+from fastapi import FastAPI, Header, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import PlainTextResponse
 from pydantic import BaseModel, Field
+from docx import Document as WordDocument
+from docx.table import Table as WordTable
+from docx.text.paragraph import Paragraph as WordParagraph
+from pypdf import PdfReader
 
 from config import settings
 from services.ollama_client import ollama_client
@@ -81,6 +91,31 @@ class ChunkRequest(BaseModel):
 class EmbedBatchRequest(BaseModel):
     model: str | None = Field(None, description="Modelo de embedding (padrão bge-m3)")
     texts: list[str] = Field(..., description="Lote de textos para gerar embeddings")
+
+
+class ProcessDocumentRequest(BaseModel):
+    document_id: str = Field(..., min_length=36, max_length=36)
+    project_id: str = Field(..., min_length=36, max_length=36)
+    filename: str = Field(..., min_length=1, max_length=255)
+    content_base64: str = Field(..., min_length=1, max_length=28_000_000)
+
+
+def extract_docx_text(content: bytes) -> str:
+    """Extract body paragraphs and tables in document order (python-docx omits tables from paragraphs)."""
+    document = WordDocument(io.BytesIO(content))
+    parts: list[str] = []
+    for element in document.element.body.iterchildren():
+        if element.tag.endswith("}p"):
+            paragraph = WordParagraph(element, document)
+            if paragraph.text.strip():
+                parts.append(paragraph.text)
+        elif element.tag.endswith("}tbl"):
+            table = WordTable(element, document)
+            for row in table.rows:
+                cells = [cell.text.strip() for cell in row.cells]
+                if any(cells):
+                    parts.append(" | ".join(cells))
+    return "\n\n".join(parts)
 
 
 class RagQueryRequest(BaseModel):
@@ -191,7 +226,7 @@ async def generate_embedding(req: EmbeddingRequest):
 async def chunk_text(req: ChunkRequest):
     """
     Divide o texto em chunks (sem calcular embeddings). Shape pensado para o
-    pipeline do n8n: Chunking -> Embeddings -> Persistir chunks (backend).
+    pipeline do n8n em modo debug: Chunking -> Embeddings -> Persistir chunks (backend).
     """
     pieces = chunk_document_text(req.text)
     chunks = [
@@ -218,7 +253,7 @@ async def chunk_text(req: ChunkRequest):
 async def embed_batch(req: EmbedBatchRequest):
     """
     Gera embeddings em lote. Ollama processa um por vez; o loop aqui mantém a
-    ordem para o nó 'Montar e validar chunks' do n8n casar vetor com chunk.
+    ordem para casar vetor com chunk no caller.
     """
     if not req.texts:
         return {"model": req.model or settings.OLLAMA_EMBEDDING_MODEL, "dimension": 0, "embeddings": []}
@@ -232,6 +267,83 @@ async def embed_batch(req: EmbedBatchRequest):
         )
     dimension = len(vectors[0]) if vectors and vectors[0] else 0
     return {"model": model, "dimension": dimension, "embeddings": vectors}
+
+
+@app.post("/documents/process")
+async def process_document(req: ProcessDocumentRequest, internal_token: str | None = Header(None, alias="X-Document-Ingestion-Token")):
+    """Fluxo oficial da S2-01: extrai, fragmenta e vetoriza; somente o backend persiste no banco."""
+    expected_token = settings.DOCUMENT_INGESTION_TOKEN
+    if len(expected_token) < 32:
+        raise HTTPException(status_code=503, detail="A autenticação interna da ingestão não está configurada.")
+    if not internal_token or not hmac.compare_digest(internal_token, expected_token):
+        raise HTTPException(status_code=401, detail="Não autorizado.")
+    extension = PurePath(req.filename).suffix.lower()
+    try:
+        content = base64.b64decode(req.content_base64, validate=True)
+    except (binascii.Error, ValueError):
+        raise HTTPException(status_code=400, detail="Conteúdo do documento inválido.") from None
+    if not content or len(content) > 20 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="Documento vazio ou acima do limite suportado.")
+    try:
+        if extension == ".pdf":
+            reader = PdfReader(io.BytesIO(content), strict=True)
+            if reader.is_encrypted:
+                raise ValueError("encrypted PDF")
+            if len(reader.pages) > 5000:
+                raise HTTPException(status_code=413, detail="O PDF excede o limite de páginas suportado.")
+            text_parts = []
+            total_chars = 0
+            for page in reader.pages:
+                page_text = page.extract_text() or ""
+                total_chars += len(page_text)
+                if total_chars > 2_000_000:
+                    raise HTTPException(status_code=413, detail="O texto extraído excede o limite de indexação.")
+                text_parts.append(page_text)
+            text = "\n\n".join(text_parts)
+        elif extension == ".docx":
+            with zipfile.ZipFile(io.BytesIO(content)) as archive:
+                entries = archive.infolist()
+                if len(entries) > 5000 or sum(item.file_size for item in entries) > 100_000_000:
+                    raise HTTPException(status_code=413, detail="O DOCX excede os limites de conteúdo descompactado.")
+                if any(item.file_size > max(item.compress_size, 1) * 100 for item in entries):
+                    raise HTTPException(status_code=413, detail="O DOCX contém dados excessivamente comprimidos.")
+            text = extract_docx_text(content)
+            if len(text) > 2_000_000:
+                raise HTTPException(status_code=413, detail="O texto extraído excede o limite de indexação.")
+        elif extension in {".md", ".txt"}:
+            text = content.decode("utf-8-sig", errors="strict")
+            if len(text) > 2_000_000:
+                raise HTTPException(status_code=413, detail="O texto extraído excede o limite de indexação.")
+        else:
+            raise ValueError("unsupported extension")
+    except HTTPException:
+        raise
+    except Exception:
+        raise HTTPException(status_code=422, detail="Não foi possível extrair texto válido do documento.") from None
+    chunks = chunk_document_text(text)
+    if not chunks:
+        raise HTTPException(status_code=422, detail="O documento não contém texto extraível para indexação.")
+    if len(chunks) > 500:
+        raise HTTPException(status_code=413, detail="O documento excede o limite de 500 trechos indexáveis.")
+    processed = []
+    try:
+        for index, chunk in enumerate(chunks):
+            embedding = await ollama_client.get_embedding(chunk)
+            if len(embedding) != 1024:
+                raise ValueError("invalid embedding dimension")
+            processed.append({
+                "chunk_index": index,
+                "text": chunk,
+                "embedding": embedding,
+                "metadata": {
+                    "project_id": req.project_id,
+                    "document_id": req.document_id,
+                    "source_name": req.filename,
+                },
+            })
+    except Exception:
+        raise HTTPException(status_code=503, detail="Não foi possível gerar os embeddings locais.") from None
+    return {"document_id": req.document_id, "project_id": req.project_id, "chunks": processed}
 
 
 @app.post("/rag/query")

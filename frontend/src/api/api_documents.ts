@@ -12,6 +12,7 @@ export interface ProjectDocument {
   mime: string | null;
   tamanho_bytes: number | null;
   status_processamento: DocumentStatus;
+  processamento_erro?: string | null;
   armazenamento_pendente: boolean;
   nova_tentativa_pendente?: boolean;
   tentativas_processamento?: number;
@@ -58,6 +59,7 @@ function parseDocument(value: unknown): ProjectDocument {
     mime: typeof value.mime === "string" ? value.mime : null,
     tamanho_bytes: typeof size === "number" ? size : null,
     status_processamento: value.status_processamento as DocumentStatus,
+    processamento_erro: typeof value.processamento_erro === "string" ? value.processamento_erro : null,
     armazenamento_pendente: value.armazenamento_pendente === true,
     nova_tentativa_pendente: value.nova_tentativa_pendente === true,
     tentativas_processamento: typeof value.tentativas_processamento === "number" ? value.tentativas_processamento : 0,
@@ -113,6 +115,13 @@ export async function removeDocument(projectId: string, documentId: string, sign
   await apiRequest(`/projects/${encodeURIComponent(projectId)}/documents/${encodeURIComponent(documentId)}`, {
     method: "DELETE",
     signal,
+  });
+}
+
+export async function retryDocumentProcessing(projectId: string, documentId: string, signal?: AbortSignal): Promise<void> {
+  await apiRequest(`/projects/${encodeURIComponent(projectId)}/documents/${encodeURIComponent(documentId)}/retry`, {
+    method: "POST",
+    signal: signal ?? AbortSignal.timeout(15_000),
   });
 }
 

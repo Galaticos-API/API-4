@@ -55,6 +55,15 @@ export class DocumentsController {
       next(error);
     }
   };
+
+  retry = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      await this.service.retryProcessing(paramOf(req.params.projectId), paramOf(req.params.documentId));
+      res.status(202).json({ status_processamento: "pendente" });
+    } catch (error) {
+      next(error);
+    }
+  };
 }
 
 export const documentsController = new DocumentsController();

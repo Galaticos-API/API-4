@@ -7,8 +7,6 @@ import { ChatRepository } from "./chat.repository.js";
 import { ChatService, searchPatterns, type AssistantClient } from "./chat.service.js";
 import { NotFoundError } from "../../shared/errors.js";
 
-import { SearchRepository } from "../search/search.repository.js";
-
 class Offline implements AssistantClient {
   async ask(): Promise<never> {
     throw new Error("offline");
@@ -41,14 +39,10 @@ test("chat: posse da conversa e busca textual isolada por projeto no PostgreSQL"
     assert.equal(await repository.projectExists(projectB,bruno),false);
     assert.deepEqual((await repository.accessibleProjects(bruno)).map(p=>p.id),[projectA]);
 
-    const search = new SearchRepository(pool);
-    assert.deepEqual((await search.search({userId: bruno, query: ""})).items.map(c=>c.id), [chunkA]);
-    assert.deepEqual((await search.search({userId: bruno, query: "", projectId: projectB})).items, []);
-    assert.equal((await search.search({userId: ana, query: "", projectId: projectB})).items[0].id, chunkB);
-    await pool.query("UPDATE alocacao SET data_fim=CURRENT_TIMESTAMP WHERE desenvolvedor_id=$1",[developer]);
-    assert.deepEqual((await search.search({userId: bruno, query: ""})).items, []);
-    await pool.query("UPDATE alocacao SET data_fim=NULL, data_inicio=CURRENT_TIMESTAMP + INTERVAL '1 day' WHERE desenvolvedor_id=$1",[developer]);
-    assert.deepEqual((await search.search({userId: bruno, query: ""})).items, []);
+    // S2-06 trocou a busca por uma versao hibrida (vetor + full-text) com API
+    // propria em search.*. Esses asserts foram substituidos pelos testes
+    // dedicados em search.repository.db.test.ts, search.repository.test.ts
+    // e search.routes.test.ts.
 
     const result = await service.query(ana, { pergunta: "Como funciona o arquivamento?", projetoId: projectA });
     assert.equal(result.origem, "busca_textual");

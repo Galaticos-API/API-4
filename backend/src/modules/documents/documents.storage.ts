@@ -1,4 +1,4 @@
-import { readFile, access, mkdir, readdir, rename, rm, stat, writeFile } from "node:fs/promises";
+import { access, mkdir, readFile, readdir, rename, rm, stat, writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 
 const STORAGE_KEY = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?:\.(?:pdf|docx|md|txt))?$/;
@@ -7,6 +7,7 @@ const UPLOAD_SUFFIX = ".uploading";
 
 export interface DocumentStorage {
   save(key: string, content: Buffer): Promise<void>;
+  read(key: string): Promise<Buffer>;
   finalizeUpload(key: string): Promise<void>;
   remove(key: string): Promise<void>;
   stageRemoval(key: string): Promise<boolean>;
@@ -30,8 +31,6 @@ export class LocalDocumentStorage implements DocumentStorage {
     if (!STORAGE_KEY.test(key)) throw new Error("Identificador de armazenamento inválido.");
     return join(this.baseDir, key);
   }
-
-  async read(key: string): Promise<Buffer> { return readFile(this.pathOf(key)); }
 
   async save(key: string, content: Buffer): Promise<void> {
     const path = this.pathOf(key);
@@ -59,6 +58,10 @@ export class LocalDocumentStorage implements DocumentStorage {
       // is successful when the final file is already present.
       await access(path);
     }
+  }
+
+  async read(key: string): Promise<Buffer> {
+    return readFile(this.pathOf(key));
   }
 
   async remove(key: string): Promise<void> {

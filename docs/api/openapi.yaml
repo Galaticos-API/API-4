@@ -1795,19 +1795,34 @@ paths:
 
   /api/v1/search:
     get:
-      summary: Busca textual no acervo indexado (chunks), com escopo opcional por projeto
+      summary: Busca híbrida por texto e significado no acervo, sempre isolada por projeto
       operationId: searchKnowledge
       security: [{cookieAuth: []}]
       parameters:
-        - {name: q, in: query, required: false, schema: {type: string}}
-        - {name: projeto_id, in: query, required: false, schema: {type: string, format: uuid}}
+        - {name: q, in: query, required: true, schema: {type: string, minLength: 3, maxLength: 200}}
+        - {name: projeto_id, in: query, required: true, schema: {type: string, format: uuid}}
+        - {name: tecnologia_id, in: query, required: false, schema: {type: string, format: uuid}}
+        - name: nivel
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [documento, decisao, epico, feature, pbi]
+        - {name: limit, in: query, required: false, schema: {type: integer, minimum: 1, maximum: 50, default: 10}}
       responses:
         '200':
-          description: Trechos encontrados
+          description: Resultados ordenados por fusão da classificação vetorial e textual
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HybridSearchResponse'
         '400':
           $ref: '#/components/responses/ValidationError'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '404': {description: Projeto não encontrado}
+        '502': {description: Serviço de embeddings indisponível ou resposta incompatível}
+        '503': {description: Serviço local de embeddings indisponível}
 
   /api/v1/developers:
     get:
@@ -2017,7 +2032,7 @@ paths:
       description: >
         O tipo real é verificado pelo conteúdo e pela extensão; o Content-Type
         informado pelo cliente não é considerado. O limite de tamanho é
-        configurável (DOCUMENT_MAX_SIZE_MB) e é informado em `limites.max_bytes`
+        configurável até 20 MiB (DOCUMENT_MAX_SIZE_MB) e é informado em `limites.max_bytes`
         na listagem. Arquivos recusados não deixam arquivo nem registro.
       operationId: uploadProjectDocument
       security:
@@ -2101,16 +2116,40 @@ paths:
         '503':
           description: Armazenamento indisponível; o documento permanece disponível
 
+  /api/v1/projects/{projectId}/documents/{documentId}/retry:
+    post:
+      summary: Agenda novamente a ingestão de um documento que falhou (S2-01/S2-02)
+      operationId: retryProjectDocumentIngestion
+      security: [{cookieAuth: []}]
+      parameters:
+        - {name: projectId, in: path, required: true, schema: {type: string, format: uuid}}
+        - {name: documentId, in: path, required: true, schema: {type: string, format: uuid}}
+      responses:
+        '202':
+          description: Reprocessamento agendado
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status_processamento]
+                properties:
+                  status_processamento: {type: string, enum: [pendente]}
+        '400': {$ref: '#/components/responses/ValidationError'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {description: Perfil sem permissão de escrita}
+        '404': {description: Projeto ou documento não encontrado neste projeto}
+        '409': {description: Projeto arquivado é somente leitura}
+
   /api/v1/projects/{projectId}/documents/{documentId}/chunks:
     post:
-      summary: Persiste chunks indexados do documento (pipeline n8n → backend, S2-02)
+      summary: Persiste chunks indexados do documento (ferramenta de debug via n8n, S2-02)
       description: >
-        Chamado pelo workflow do n8n após extrair texto, chunking e embeddings.
-        Substitui qualquer chunk anterior do mesmo documento (reindexação
-        idempotente) e marca `status_processamento` como `processado`. Chamada
-        server-to-server: autenticação por token compartilhado em
-        `Authorization: Bearer <N8N_INGEST_TOKEN>`, separada da sessão de
-        usuário humano. Cada embedding deve ter 1024 dimensões (bge-m3).
+        Endpoint server-to-server opcional usado apenas quando o workflow do n8n
+        é ativado como ferramenta de debug manual. O fluxo canônico (worker)
+        chama o ai-service direto e persiste pelos métodos internos do
+        repository. Esta rota aceita `Authorization: Bearer <N8N_INGEST_TOKEN>`
+        separado da sessão de usuário. Cada embedding deve ter 1024 dimensões
+        (bge-m3). Substitui qualquer chunk anterior do mesmo documento.
       operationId: persistDocumentChunks
       security:
         - bearerAuth: []
@@ -2118,15 +2157,11 @@ paths:
         - name: projectId
           in: path
           required: true
-          schema:
-            type: string
-            format: uuid
+          schema: {type: string, format: uuid}
         - name: documentId
           in: path
           required: true
-          schema:
-            type: string
-            format: uuid
+          schema: {type: string, format: uuid}
       requestBody:
         required: true
         content:
@@ -2141,31 +2176,20 @@ paths:
                     type: object
                     required: [chunk_index, content, embedding]
                     properties:
-                      chunk_index:
-                        type: integer
-                        minimum: 0
-                      content:
-                        type: string
-                      metadata:
-                        type: object
-                        additionalProperties: true
+                      chunk_index: {type: integer, minimum: 0}
+                      content: {type: string}
+                      metadata: {type: object, additionalProperties: true}
                       embedding:
                         type: array
                         minItems: 1024
                         maxItems: 1024
-                        items:
-                          type: number
+                        items: {type: number}
       responses:
-        '200':
-          description: Chunks persistidos
-        '400':
-          $ref: '#/components/responses/ValidationError'
-        '401':
-          description: Token de ingestão ausente ou inválido
-        '404':
-          description: Projeto ou documento não encontrados
-        '409':
-          description: Projeto arquivado é somente leitura (ARCHIVE_CONFLICT)
+        '200': {description: Chunks persistidos}
+        '400': {$ref: '#/components/responses/ValidationError'}
+        '401': {description: Token de ingestão ausente ou inválido}
+        '404': {description: Projeto ou documento não encontrados}
+        '409': {description: Projeto arquivado é somente leitura (ARCHIVE_CONFLICT)}
 
   /webhook/sinapse-document-removed:
     servers:
@@ -3382,24 +3406,10 @@ components:
         tamanho_bytes: { type: integer, nullable: true, minimum: 1 }
         status_processamento:
           type: string
-          description: pendente = armazenado e aguardando ingestão (S2-01)
+          description: Estado durável do pipeline de extração e indexação assíncrona (S2-01/S2-02)
           enum: [pendente, processando, processado, falha]
-        nova_tentativa_pendente:
-          type: boolean
-          description: Existe nova tentativa automática pendente em projeto ativo.
-        tentativas_processamento:
-          type: integer
-        proxima_tentativa_em:
-          type: string
-          nullable: true
-        erro_processamento:
-          type: string
-          nullable: true
-          description: Motivo seguro da falha, sem conteúdo do documento ou mensagens internas.
-        erro_processamento_codigo:
-          type: string
-          nullable: true
-          description: Código técnico sanitizado; não contém o conteúdo do documento.
+        processamento_erro: {type: string, nullable: true, maxLength: 300}
+        processamento_tentativas: {type: integer, minimum: 0}
         armazenamento_pendente:
           type: boolean
           description: true enquanto a finalização do arquivo local ainda é reconciliada pelo worker
@@ -3543,6 +3553,41 @@ components:
           type: array
           items:
             type: string
+
+    HybridSearchResponse:
+      type: object
+      required: [items, total, query, project_id, filters, metrics]
+      properties:
+        items:
+          type: array
+          items:
+            type: object
+            required: [id, project_id, project_name, entity_type, entity_id, text, metadata, relevance_score]
+            properties:
+              id: {type: string, format: uuid, description: ID estável do chunk para avaliação de busca}
+              project_id: {type: string, format: uuid}
+              project_name: {type: string}
+              entity_type: {type: string, enum: [documento, decisao, epico, feature, pbi]}
+              entity_id: {type: string, format: uuid}
+              title: {type: string, nullable: true}
+              text: {type: string}
+              metadata: {type: object, additionalProperties: true}
+              source_url: {type: string, nullable: true}
+              relevance_score: {type: number}
+        total: {type: integer}
+        query: {type: string}
+        project_id: {type: string, format: uuid}
+        filters:
+          type: object
+          required: [technology_id, level]
+          properties:
+            technology_id: {type: string, format: uuid, nullable: true}
+            level: {type: string, enum: [documento, decisao, epico, feature, pbi], nullable: true}
+        metrics:
+          type: object
+          required: [latency_ms]
+          properties:
+            latency_ms: {type: integer, minimum: 0}
 
     Error:
       type: object

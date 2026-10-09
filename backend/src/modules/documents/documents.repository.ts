@@ -8,6 +8,8 @@ import {
   type DocumentMaintenanceStats,
   type DocumentRecord,
   type DocumentRemovedEvent,
+  type ExtractedDocumentChunk,
+  type PendingIngestionDocument,
   type RemovalResult,
   type RemoveDocumentInput,
   type StoredDocument,
@@ -37,10 +39,7 @@ export interface DocumentPage {
 
 const SELECT_COLUMNS = `
   d.id, d.projeto_id, d.nome, d.extensao, d.mime, d.tamanho_bytes, d.status_processamento,
-  d.ingest_error AS erro_processamento, d.ingest_attempts AS tentativas_processamento, d.ingest_error_code AS erro_processamento_codigo,
-  (d.status_processamento <> 'processado' AND d.ingest_retryable AND d.ingest_attempts < 5
-    AND EXISTS (SELECT 1 FROM projeto processing_project WHERE processing_project.id=d.projeto_id AND processing_project.status <> 'arquivado')) AS nova_tentativa_pendente,
-  d.ingest_next_attempt_at::text AS proxima_tentativa_em,
+  d.processamento_erro, d.processamento_tentativas,
   d.usuario_id AS autor_id, u.nome AS autor_nome,
   EXISTS (
     SELECT 1 FROM documento_operacao_armazenamento op
@@ -87,6 +86,120 @@ export class DocumentsRepository {
       [id, projetoId],
     );
     return result.rows[0] ?? null;
+  }
+
+  async claimPendingIngestion(limit: number): Promise<PendingIngestionDocument[]> {
+    const client = await this.pool.connect();
+    try {
+      await client.query("BEGIN");
+      const claimed = await client.query<PendingIngestionDocument>(
+        `WITH picked AS (
+           SELECT id FROM documento
+           WHERE status_processamento IN ('pendente', 'processando')
+             AND processamento_proxima_tentativa <= CURRENT_TIMESTAMP
+             AND (processamento_bloqueado_ate IS NULL OR processamento_bloqueado_ate <= CURRENT_TIMESTAMP)
+             AND NOT EXISTS (
+               SELECT 1 FROM documento_operacao_armazenamento op
+               WHERE op.documento_id = documento.id AND op.acao='finalizar_upload' AND op.status='pendente'
+             )
+           ORDER BY processamento_proxima_tentativa, created_at, id
+           LIMIT $1 FOR UPDATE SKIP LOCKED
+         )
+         UPDATE documento d
+         SET status_processamento = 'processando',
+             processamento_bloqueado_ate = CURRENT_TIMESTAMP + INTERVAL '30 minutes',
+             processamento_lease_id = gen_random_uuid(),
+             processamento_erro = NULL,
+             updated_at = CURRENT_TIMESTAMP
+         FROM picked WHERE d.id = picked.id
+         RETURNING d.id, d.projeto_id, d.nome, d.caminho, d.status_processamento, d.mime, d.extensao,
+           d.processamento_lease_id`,
+        [limit],
+      );
+      await client.query("COMMIT");
+      return claimed.rows;
+    } catch (error) {
+      await client.query("ROLLBACK");
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
+  async completeIngestion(document: PendingIngestionDocument, chunks: ExtractedDocumentChunk[]): Promise<void> {
+    const client = await this.pool.connect();
+    try {
+      await client.query("BEGIN");
+      const project = await client.query<{ status: string }>("SELECT status FROM projeto WHERE id=$1 FOR SHARE", [document.projeto_id]);
+      if (project.rows[0]?.status === "arquivado") throw new Error("Projeto arquivado não aceita indexação de documentos.");
+      await client.query("SELECT pg_advisory_xact_lock(hashtextextended($1::text,604006))", [document.projeto_id]);
+      const locked = await client.query<{ status_processamento: string; processamento_lease_id: string | null }>(
+        "SELECT status_processamento, processamento_lease_id FROM documento WHERE id=$1 AND projeto_id=$2 FOR UPDATE",
+        [document.id, document.projeto_id],
+      );
+      if (locked.rows[0]?.status_processamento !== "processando"
+        || locked.rows[0]?.processamento_lease_id !== document.processamento_lease_id) {
+        throw new Error("A reserva de ingestão do documento expirou ou pertence a outra execução.");
+      }
+      await client.query("DELETE FROM chunk WHERE entidade_tipo='documento' AND entidade_id=$1 AND projeto_id=$2", [document.id, document.projeto_id]);
+      for (const chunk of chunks) {
+        await client.query(
+          `INSERT INTO chunk (projeto_id, entidade_tipo, entidade_id, texto, metadados_json, embedding)
+           VALUES ($1, 'documento', $2, $3, $4::jsonb, $5::vector)`,
+          [document.projeto_id, document.id, chunk.text, JSON.stringify({
+            ...chunk.metadata, document_id: document.id, project_id: document.projeto_id,
+            chunk_index: chunk.chunk_index, source_name: document.nome,
+          }), `[${chunk.embedding.join(",")}]`],
+        );
+      }
+      await client.query(
+        `UPDATE documento SET status_processamento='processado', processamento_erro=NULL,
+          processamento_bloqueado_ate=NULL, processamento_lease_id=NULL,
+          processamento_tentativas=processamento_tentativas+1,
+          updated_at=CURRENT_TIMESTAMP WHERE id=$1 AND projeto_id=$2`,
+        [document.id, document.projeto_id],
+      );
+      await client.query("COMMIT");
+    } catch (error) {
+      await client.query("ROLLBACK");
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
+  async failIngestion(documentId: string, projectId: string, leaseId: string, reason: string): Promise<void> {
+    await this.pool.query(
+      `UPDATE documento SET status_processamento='falha', processamento_erro=$3,
+        processamento_bloqueado_ate=NULL, processamento_lease_id=NULL,
+        processamento_tentativas=processamento_tentativas+1,
+        processamento_proxima_tentativa=CURRENT_TIMESTAMP + INTERVAL '1 hour', updated_at=CURRENT_TIMESTAMP
+       WHERE id=$1 AND projeto_id=$2 AND status_processamento='processando' AND processamento_lease_id=$4`,
+      [documentId, projectId, reason.slice(0, 300), leaseId],
+    );
+  }
+
+  async retryIngestion(projectId: string, documentId: string): Promise<boolean> {
+    const client = await this.pool.connect();
+    try {
+      await client.query("BEGIN");
+      await lockHierarchy(client, "projeto", projectId);
+      await assertWritable(client, "projeto", projectId);
+      const result = await client.query(
+        `UPDATE documento SET status_processamento='pendente', processamento_erro=NULL,
+          processamento_proxima_tentativa=CURRENT_TIMESTAMP, processamento_bloqueado_ate=NULL,
+          processamento_lease_id=NULL,
+          updated_at=CURRENT_TIMESTAMP WHERE id=$1 AND projeto_id=$2 AND status_processamento='falha'`,
+        [documentId, projectId],
+      );
+      await client.query("COMMIT");
+      return (result.rowCount ?? 0) > 0;
+    } catch (error) {
+      await client.query("ROLLBACK");
+      throw error;
+    } finally {
+      client.release();
+    }
   }
 
   async create(input: CreateDocumentInput): Promise<DocumentRecord> {

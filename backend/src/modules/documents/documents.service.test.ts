@@ -257,6 +257,56 @@ test("falha ao finalizar o arquivo fica marcada e é recuperável sem repetir o 
   assert.equal(storage.files.size, 1);
 });
 
+test("pipeline assíncrono persiste chunks via backend e conclui o documento", async () => {
+  const repository = new FakeDocumentsRepository();
+  const storage = new FakeStorage();
+  const extracted = [{ chunk_index: 0, text: "Conteúdo extraído", embedding: Array(1024).fill(0.1), metadata: { project_id: PROJECT_ID } }];
+  const service = new DocumentsService(repository, storage, new FakePublisher(), projectLookup, LIMIT, {
+    async process(document, content) {
+      assert.equal(document.projeto_id, PROJECT_ID);
+      assert.equal(content.toString(), "documento de texto longo o suficiente");
+      return extracted;
+    },
+  });
+  const created = await service.upload({ projetoId: PROJECT_ID, usuarioId: USER_ID, fileName: "manual.txt", content: Buffer.from("documento de texto longo o suficiente") });
+  assert.equal(created.status_processamento, "pendente");
+  await service.processPendingDocuments();
+  assert.equal(repository.rows[0].status_processamento, "processado");
+  assert.equal(repository.chunks.get(created.id), 1);
+});
+
+test("falha de ingestão fica visível e pode ser reprocessada sem duplicar chunks", async () => {
+  const repository = new FakeDocumentsRepository();
+  const storage = new FakeStorage();
+  let unavailable = true;
+  const service = new DocumentsService(repository, storage, new FakePublisher(), projectLookup, LIMIT, {
+    async process() {
+      if (unavailable) throw new AppError("O serviço local de processamento está indisponível.", 503, "DOCUMENT_PROCESSING_UNAVAILABLE");
+      return [{ chunk_index: 0, text: "Conteúdo válido", embedding: Array(1024).fill(0.2), metadata: {} }];
+    },
+  });
+  const created = await service.upload({ projetoId: PROJECT_ID, usuarioId: USER_ID, fileName: "manual.txt", content: Buffer.from("conteúdo para ingestão") });
+  await service.processPendingDocuments();
+  assert.equal(repository.rows[0].status_processamento, "falha");
+  assert.match(repository.rows[0].processamento_erro ?? "", /indisponível/);
+  await service.retryProcessing(PROJECT_ID, created.id);
+  await service.retryProcessing(PROJECT_ID, created.id);
+  assert.equal(repository.rows[0].status_processamento, "pendente");
+  unavailable = false;
+  await service.processPendingDocuments();
+  await service.processPendingDocuments();
+  assert.equal(repository.rows[0].status_processamento, "processado");
+  assert.equal(repository.chunks.get(created.id), 1);
+});
+
+test("retry preserva escopo e não reinicia documento já processado", async () => {
+  const { service, repository } = setup();
+  repository.seed({ id: DOCUMENT_ID, projeto_id: PROJECT_ID, caminho: `${PROJECT_ID}/${DOCUMENT_ID}` });
+  await assert.rejects(service.retryProcessing(OTHER_PROJECT_ID, DOCUMENT_ID), NotFoundError);
+  repository.rows[0].status_processamento = "processado";
+  await assert.rejects(service.retryProcessing(PROJECT_ID, DOCUMENT_ID), ValidationError);
+});
+
 test("listagem usa cursor estável sem duplicar documentos entre páginas", async () => {
   const { service, repository } = setup();
   for (let index = 0; index < 23; index += 1) {

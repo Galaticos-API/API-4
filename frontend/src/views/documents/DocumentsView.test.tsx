@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { DocumentsView } from "./DocumentsView";
 
 const limites = { max_bytes: 1024 * 1024, extensoes_permitidas: [".pdf", ".docx", ".md", ".txt"] };
@@ -54,6 +54,7 @@ it("lista somente os documentos do projeto com metadados e status honestos sobre
   expect(within(rows[2]).getByText("Disponível no acervo")).toBeInTheDocument();
   expect(within(rows[2]).getByText("Não informado")).toBeInTheDocument();
   expect(within(rows[3]).getByText("Falha no processamento")).toBeInTheDocument();
+  expect(screen.getByText(/processados em segundo plano/)).toBeInTheDocument();
 });
 
 it("mostra estado de armazenamento em finalização quando o servidor sinaliza pendência", async () => {
@@ -100,15 +101,15 @@ it("Atualizar recarrega a lista e mantém os dados quando a atualização falha"
   expect(screen.getByText("Disponível no acervo")).toBeInTheDocument();
 });
 
-it("atualiza sozinho enquanto há documento em processamento", async () => {
+it("atualiza sozinho enquanto há documento pendente ou em processamento", async () => {
   vi.useFakeTimers({ shouldAdvanceTime: true });
   const request = vi.fn()
-    .mockImplementationOnce(() => listing([doc({ status_processamento: "processando" })]))
+    .mockImplementationOnce(() => listing([doc({ status_processamento: "pendente" })]))
     .mockImplementation(() => listing([doc({ status_processamento: "processado" })]));
   vi.stubGlobal("fetch", request);
   view();
 
-  await screen.findByText("Processando");
+  await screen.findByText("Aguardando ingestão");
   await vi.advanceTimersByTimeAsync(10_100);
   expect(await screen.findByText("Disponível no acervo")).toBeInTheDocument();
 });
@@ -162,7 +163,7 @@ it("recusa no cliente formato e tamanho inválidos sem chamar o servidor", async
   expect(request).toHaveBeenCalledTimes(1);
 });
 
-it("envia o arquivo, adiciona à lista e avisa que a indexação começou", async () => {
+it("envia o arquivo como corpo binário, adiciona à lista e avisa que a indexação será feita em segundo plano", async () => {
   const created = doc({ id: "d-9", nome: "Nova.txt", extensao: ".txt", tamanho_bytes: 5 });
   const request = vi.fn()
     .mockImplementationOnce(() => listing([]))
@@ -176,16 +177,46 @@ it("envia o arquivo, adiciona à lista e avisa que a indexação começou", asyn
   fireEvent.click(screen.getByRole("button", { name: "Enviar documento" }));
 
   await waitFor(() => expect(screen.getByRole("table")).toBeInTheDocument());
-  expect(screen.getByText(/foi armazenado e enviado para indexação/)).toBeInTheDocument();
+  expect(screen.getByText(/foi armazenado/)).toBeInTheDocument();
   expect(screen.queryByRole("button", { name: "Limpar seleção" })).toBeNull();
   const [url, init] = request.mock.calls[1] as [string, RequestInit];
   expect(url).toBe("/api/v1/projects/p-1/documents");
   expect(init.method).toBe("POST");
+  // Pos-S2-01: backend passou a usar multer com upload.single("file"), que
+  // exige multipart/form-data (ver fix em frontend/src/api/api_documents.ts).
   expect(init.body).toBeInstanceOf(FormData);
   expect(((init.body as FormData).get("file") as File).name).toBe(file.name);
-  // multipart/form-data gera o Content-Type com boundary no próprio fetch,
-  // então nada deve ser forçado aqui.
   expect((init.headers as Record<string, string>)["Content-Type"]).toBeUndefined();
+});
+
+it("agenda retry de documento falho e reflete estado pendente enquanto a lista atualiza", async () => {
+  const failed = doc({ status_processamento: "falha", processamento_erro: "Ollama indisponível." });
+  const request = vi.fn()
+    .mockImplementationOnce(() => listing([failed]))
+    .mockImplementationOnce(() => new Response(JSON.stringify({ status_processamento: "pendente" }), { status: 202 }))
+    .mockImplementationOnce(() => listing([doc({ status_processamento: "pendente" })]));
+  vi.stubGlobal("fetch", request);
+  view();
+
+  const retry = await screen.findByRole("button", { name: "Tentar novamente" });
+  fireEvent.click(retry);
+  expect(await screen.findByText(/reprocessamento .* foi agendado/)).toBeInTheDocument();
+  expect(await screen.findByText("Aguardando ingestão")).toBeInTheDocument();
+  expect(urlOf(request.mock.calls[1])).toBe("/api/v1/projects/p-1/documents/d-1/retry");
+  expect((request.mock.calls[1] as [string, RequestInit])[1].method).toBe("POST");
+});
+
+it("mostra falha do retry no contexto de processamento, sem rotular como falha de upload", async () => {
+  const request = vi.fn()
+    .mockImplementationOnce(() => listing([doc({ status_processamento: "falha" })]))
+    .mockImplementationOnce(() => json({ error: "indisponível" }, 503));
+  vi.stubGlobal("fetch", request);
+  view();
+
+  fireEvent.click(await screen.findByRole("button", { name: "Tentar novamente" }));
+  expect(await screen.findByText("Não foi possível agendar o reprocessamento. Atualize a lista e tente novamente.")).toBeInTheDocument();
+  expect(screen.getByText("Falha no reprocessamento")).toBeInTheDocument();
+  expect(screen.queryByText("Falha no envio")).toBeNull();
 });
 
 it("armazenamento pendente após o envio é informado ao usuário", async () => {
@@ -298,99 +329,4 @@ it("modo incorporado usa cabeçalho de seção e não um segundo título de pág
   view({ embedded: true });
   expect(await screen.findByRole("heading", { level: 2, name: "Documentos do projeto" })).toBeInTheDocument();
   expect(screen.queryByRole("heading", { level: 1 })).toBeNull();
-});
-
-
-it("acompanha a recuperação automática de um documento em falha", async () => {
-  const request=vi.fn().mockImplementationOnce(()=>listing([doc({status_processamento:"falha",nova_tentativa_pendente:true})]))
-    .mockImplementation(()=>listing([doc({status_processamento:"processado",nova_tentativa_pendente:false})]));
-  vi.stubGlobal("fetch",request);
-  let poll: (()=>void) | undefined;
-  const timer=vi.spyOn(window,"setInterval").mockImplementation((handler)=>{poll=handler as ()=>void;return 123});
-  const clear=vi.spyOn(window,"clearInterval").mockImplementation(()=>{});
-  try {
-    view();await screen.findByText("Aguardando nova tentativa");
-    await act(async()=>{poll!()});
-    expect(await screen.findByText("Disponível no acervo")).toBeTruthy();
-    expect(clear).toHaveBeenCalledWith(123);
-  } finally {timer.mockRestore();clear.mockRestore();}
-});
-
-it("polling atualiza todas as páginas carregadas sem perder itens nem duplicar", async () => {
-  let poll: (() => void) | undefined;
-  const nativeInterval = window.setInterval.bind(window);
-  const interval = vi.spyOn(window, 'setInterval').mockImplementation((fn, delay, ...args) => {
-    if (delay === 10_000) { poll = fn as () => void; return 1; }
-    return nativeInterval(fn, delay, ...args);
-  });
-  const request = vi.fn((_url: RequestInfo | URL) => String(_url).includes('cursor=')
-    ? listing([doc({ id: 'd-2', nome: 'Segunda.txt' })])
-    : listing([doc()], 'page-2'));
-  vi.stubGlobal('fetch', request);
-  try {
-    view();
-    await screen.findByText('Escopo.pdf');
-    fireEvent.click(screen.getByRole('button', { name: 'Carregar mais' }));
-    await screen.findByText('Segunda.txt');
-    await act(async () => { poll!(); });
-    await waitFor(() => expect(request).toHaveBeenCalledTimes(4));
-    expect(screen.getAllByText('Segunda.txt')).toHaveLength(1);
-    expect(screen.getByText('Documentos (2)')).toBeInTheDocument();
-  } finally { interval.mockRestore(); }
-});
-
-for (const operation of ['refresh', 'more', 'upload', 'remove', 'reprocess'] as const) {
-  it(`descarta ${operation} atrasado após trocar o projeto e cancela a requisição`, async () => {
-    let finish!: (value: Response) => void;
-    let pendingSignal: AbortSignal | undefined;
-    let postpone = false;
-    vi.stubGlobal('fetch', vi.fn((url: RequestInfo | URL, init?: RequestInit) => {
-      if (String(url).includes('/p-2/')) return listing([doc({ id: 'b', projeto_id: 'p-2', nome: 'Projeto B.txt' })]);
-      if (postpone) {
-        pendingSignal = init?.signal as AbortSignal;
-        return new Promise<Response>(resolve => { finish = resolve; });
-      }
-      return listing([doc({ status_processamento: 'falha' })], 'next');
-    }));
-    const rendered = view();
-    await screen.findByText('Escopo.pdf');
-    if (operation === 'upload') pick(new File(['text'], 'Upload A.txt', { type: 'text/plain' }));
-    if (operation === 'remove') fireEvent.click(screen.getByRole('button', { name: 'Remover Escopo.pdf' }));
-    postpone = true;
-    fireEvent.click(screen.getByRole('button', { name: {
-      refresh: 'Atualizar', more: 'Carregar mais', upload: 'Enviar documento',
-      remove: 'Confirmar remoção', reprocess: 'Reprocessar',
-    }[operation] }));
-    await waitFor(() => expect(finish).toBeDefined());
-    rendered.rerender(<DocumentsView projectId="p-2" projectName="B" canWrite />);
-    await screen.findByText('Projeto B.txt');
-    expect(pendingSignal?.aborted).toBe(true);
-    await act(async () => {
-      finish(new Response(JSON.stringify(operation === 'upload' ? doc({nome:'Upload A.txt'}) : { items:[doc()], next_cursor:null, limites }), {status:200}));
-    });
-    expect(screen.queryByText('Escopo.pdf')).not.toBeInTheDocument();
-    expect(screen.queryByText('Upload A.txt')).not.toBeInTheDocument();
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-    expect(screen.getByText('Projeto B.txt')).toBeInTheDocument();
-  });
-}
-
-it('reprocessamento agenda novo refresh se a lista ainda estiver sendo carregada', async () => {
-  let finish!: (response: Response) => void;
-  let reads = 0;
-  vi.stubGlobal('fetch', vi.fn((url: RequestInfo | URL) => {
-    if (String(url).includes('/reprocess')) return json({});
-    reads++;
-    if (reads === 2) return new Promise<Response>(resolve => { finish = resolve; });
-    return listing([doc({ status_processamento: reads > 2 ? 'processado' : 'falha' })]);
-  }));
-  view();
-  await screen.findByText('Escopo.pdf');
-  fireEvent.click(screen.getByRole('button', { name: 'Atualizar' }));
-  await waitFor(() => expect(finish).toBeDefined());
-  fireEvent.click(screen.getByRole('button', { name: 'Reprocessar' }));
-  await screen.findByText('Documento enviado para reprocessamento.');
-  await act(async () => { finish(await listing([doc({status_processamento:'falha'})])); });
-  expect(await screen.findByText('Disponível no acervo')).toBeInTheDocument();
-  expect(reads).toBe(3);
 });

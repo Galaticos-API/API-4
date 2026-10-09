@@ -1,23 +1,23 @@
 # Documentos: upload, remoção, outbox e escopo (S1-19, S1-20, S1-22)
 
-> Estado revisado em 27/09/2026. Este guia detalha o contrato de documentos da
-> Sprint 1. O upload persiste o arquivo e seus metadados; extração, chunking e
-> indexação não são prometidos como concluídos. Veja também a [arquitetura](Architecture/README.md)
+> Pipeline de ingestão atualizado para S2-01/S2-02. Expurgo administrativo e indexação do backlog são entregas separadas. Veja também a [arquitetura](Architecture/README.md)
 > e a [referência da API](api/openapi.yaml).
 
 ## Escopo desta entrega x Sprint 2
 
-| Item | Entregue (Sprint 1) | Fica para a S2-01 |
-|---|---|---|
-| Upload seguro (PDF, DOCX, MD, TXT) com tipo real, tamanho, armazenamento e auditoria | Sim | — |
-| Listagem por projeto com metadados, cursor e estado | Sim | — |
-| Remoção confirmada, idempotente, com limpeza de metadados, arquivo e chunks | Sim | — |
-| Evento `document.removed` gravado na mesma transação (outbox) e entregue por worker | Sim | — |
-| Extração de texto, chunking, embeddings e transição `pendente → processando → processado/falha` | Não | Sim |
-| Disponibilidade do conteúdo na busca e no chat | Não | Sim |
+| Item | Estado |
+|---|---|
+| Upload seguro (PDF, DOCX, MD, TXT), armazenamento e auditoria | Implementado na S1 |
+| Extração, chunking, embeddings locais e persistência transacional dos chunks | Implementado na S2-01/S2-02 |
+| Estados `pendente → processando → processado/falha`, lease recuperável e erro visível | Implementado na S2-01 |
+| Retry explícito de falhas | `POST /api/v1/projects/{projectId}/documents/{documentId}/retry` |
+| Remoção do documento e chunks no escopo do projeto | Implementado na S1 |
 
-`pendente` significa **armazenado e aguardando ingestão**. A interface e o OpenAPI não prometem indexação.
-S1-21 trata de protótipos de PBIs e não tem relação com a ingestão.
+O backend reserva no máximo um documento por ciclo com `FOR UPDATE SKIP LOCKED` e lease de 30 minutos. Reinício do backend permite recuperar reservas expiradas. O backend lê o arquivo do storage, envia-o ao serviço local, valida escopo, chunks/vetores e persiste tudo numa transação; o serviço Python não grava no banco. A repetição substitui os chunks anteriores no mesmo commit, preservando projeto e documento nos metadados. A resposta é limitada a 500 chunks de até 1.000 caracteres cada e vetores de 1.024 dimensões; resposta com IDs/metadados divergentes é rejeitada.
+
+PDFs com camada textual são extraídos sem OCR; PDFs compostos apenas por imagens ficam sem texto indexável e são marcados como falha. Em DOCX, a extração percorre parágrafos e células de tabelas na ordem do corpo do documento. Limites contra arquivos excessivos: 20 MiB de conteúdo, 5.000 páginas/entradas DOCX, 100 MiB descompactados e 2 milhões de caracteres extraídos.
+
+Falhas definidas de extração/vetorização mudam o estado para `falha` e armazenam uma mensagem genérica sem conteúdo do arquivo, caminho ou detalhes internos. A pessoa com permissão de escrita pode agendar novo processamento; o retry não cria tentativas concorrentes para documentos já processando.
 
 ## Fluxo de upload
 
@@ -37,6 +37,8 @@ S1-21 trata de protótipos de PBIs e não tem relação com a ingestão.
 ## Worker de manutenção
 
 Iniciado com o backend (`startDocumentsBackgroundWorker`, a cada 15 s). Independe de qualquer `DELETE`.
+
+- **Ingestão**: reserva um documento pronto para leitura, sem upload ainda pendente; faz extração/embedding fora da transação e grava chunks + estado `processado` atomicamente. Se o worker cair, a lease expira; se processamento falhar, o estado fica visível e o retry é manual.
 
 - **Outbox** (`evento_integracao`): reserva em lote com `FOR UPDATE SKIP LOCKED` e lease de 1 minuto (duas instâncias não pegam o mesmo evento); falha aplica backoff exponencial (15 s até 1 h) e grava só uma mensagem genérica em `last_error`.
 - **Armazenamento** (`documento_operacao_armazenamento`): mesma reserva e backoff para finalizar uploads e descartar remoções.
@@ -58,9 +60,13 @@ Iniciado com o backend (`startDocumentsBackgroundWorker`, a cada 15 s). Independ
 
 | Variável | Padrão | Uso |
 |---|---|---|
-| `DOCUMENT_MAX_SIZE_MB` | `20` | Limite por arquivo, aplicado no backend e informado em `limites.max_bytes` |
+| `DOCUMENT_MAX_SIZE_MB` | `20` | Limite por arquivo, entre 0 e 20 MiB, aplicado no backend e informado em `limites.max_bytes` |
 | `DOCUMENT_STORAGE_DIR` | `storage/documents` | Diretório dos arquivos (volume `documents_data` no compose) |
 | `DOCUMENT_EVENTS_WEBHOOK_URL` | vazio | Webhook do consumidor de `document.removed` |
+| `AI_SERVICE_URL` | `http://localhost:8000` | Serviço local Python para extração e embeddings |
+| `DOCUMENT_INGESTION_TOKEN` | obrigatório no Compose | Segredo aleatório compartilhado entre Node e IA; gere ao menos 32 bytes de entropia e nunca use valor fixo/versionado |
+
+Não há token padrão de desenvolvimento. O Compose exige o segredo no `.env`; o backend e o serviço de IA também validam sua configuração em produção. A porta do serviço de IA publica somente em `127.0.0.1` por padrão.
 
 ## Contrato do consumidor de `document.removed`
 
@@ -78,10 +84,28 @@ Os `chunk` no PostgreSQL já são removidos pelo backend na mesma transação; o
 
 ## Como validar
 
+### Smoke ponta a ponta dos quatro formatos
+
+O smoke [`scripts/smoke_document_lifecycle.py`](../scripts/smoke_document_lifecycle.py) valida upload autenticado, worker, extração/chunks, busca com origem e remoção para PDF, DOCX, Markdown e TXT. Ele cria arquivos sintéticos e tenta remover cada documento, inclusive na saída por erro. Execute somente em um **projeto descartável** acessível à sessão; a remoção ainda cria registros normais de auditoria/outbox.
+
+No PowerShell, defina a sessão e o UUID do projeto descartável sem colocar credenciais na linha de comando ou no histórico:
+
+```powershell
+$env:SINAPSE_SESSION_COOKIE = '<cookie da sessão de QA>'
+$env:SINAPSE_PROJECT_ID = '<uuid do projeto descartável>'
+python scripts/smoke_document_lifecycle.py --confirm-disposable
+Remove-Item Env:SINAPSE_SESSION_COOKIE
+Remove-Item Env:SINAPSE_PROJECT_ID
+```
+
+O script não imprime nem grava a sessão. Cada formato tem um prazo máximo de 10 minutos, configurável com `--timeout`; falha se processamento, busca ou remoção não confirmar o resultado esperado.
+
 ```bash
 cd backend
 npm test
 npm run build
+python -m unittest discover -s ../ai-service/tests -p "test_chunker.py"
+python -m unittest discover -s ../ai-service/tests -p "test_document_ingestion.py"
 ```
 
 Os testes de banco cobrem migração 012 (banco limpo e já na 011, idempotência e dados legados), corrida arquivamento x upload/remoção, lease e backoff da outbox, operações de armazenamento e paginação estável isolada por projeto. Para habilitar as suítes PostgreSQL, configure URLs de banco descartável documentadas no [guia de setup](SETUP_GUIDE.md); no PowerShell use `$env:NOME_DA_VARIAVEL = '...'`. Nunca aponte essas variáveis para uma base compartilhada ou produção. Os testes E2E de navegador estão em `e2e/` (ver [README E2E](../e2e/README.md)).
