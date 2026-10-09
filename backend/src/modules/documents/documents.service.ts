@@ -1,5 +1,4 @@
 import { randomUUID } from "node:crypto";
-import axios from "axios";
 import { env } from "../../config/env.js";
 import { AppError, NotFoundError, ValidationError, validateUuid } from "../../shared/errors.js";
 import { ArchiveConflict } from "../projects/archive.types.js";
@@ -144,28 +143,11 @@ export class DocumentsService {
       created.armazenamento_pendente = true;
     }
 
-    // Call n8n webhook to trigger RAG ingestion
-    if (env.N8N_WEBHOOK_URL?.trim() && !created.armazenamento_pendente) {
-      try {
-        console.log(`[Documents] Calling n8n webhook at ${env.N8N_WEBHOOK_URL} for document ${id}`);
-        const response = await axios.post(env.N8N_WEBHOOK_URL, {
-          documentId: id,
-          projectId: input.projetoId,
-          filename: inspected.nome,
-          storagePath: caminho,
-        }, {
-          timeout: 10_000,
-        });
-        console.log(`[Documents] n8n webhook called successfully for document ${id}, status: ${response.status}`);
-      } catch (error) {
-        console.error(`[Documents] Failed to call n8n webhook for document ${id}:`, error);
-        // Don't fail the webhook call if webhook fails - the document is stored
-        // and can be re-processed later
-      }
-    } else {
-      console.log(`[Documents] Skipping n8n webhook call - N8N_WEBHOOK_URL: ${env.N8N_WEBHOOK_URL}, armazenamento_pendente: ${created.armazenamento_pendente}`);
-    }
-
+    // A ingestao e disparada pelo DocumentIngestionWorker (S2-01), que faz
+    // claim idempotente do documento recem-criado e chama o ai-service
+    // diretamente (via DOCUMENT_INGEST_WEBHOOK_URL ou AI_SERVICE_URL/ingest/file).
+    // Chamar o webhook do n8n daqui tambem geraria dupla ingestao com shapes
+    // de payload incompativeis.
     return created;
   }
 

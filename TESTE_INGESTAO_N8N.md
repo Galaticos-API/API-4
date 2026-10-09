@@ -1,8 +1,27 @@
-# Teste prático do pipeline de ingestão (n8n → ai-service → backend)
+# Teste prático do pipeline de ingestão
 
-Guia para rodar e validar o fluxo completo de ingestão de documento (`S2-02`) no
-seu Docker Desktop, sem depender da UI do frontend. Usa só `curl`, `docker exec`
-e um cliente SQL para o Postgres.
+Guia para rodar e validar o fluxo de ingestão de documento no Docker Desktop
+usando `curl`, `docker exec` e um cliente SQL para o Postgres.
+
+## Arquitetura em uma linha
+
+Em uso real, o backend **não chama o n8n** depois do upload. Quem faz a
+ingestão é o `DocumentIngestionWorker` (S2-01), que roda em background,
+pega documentos `pendente` com lease/retry e chama **direto** o
+ai-service (`POST /ingest/file`). O ai-service extrai texto, chunking,
+embeddings e devolve os chunks, que o worker persiste em `chunk` na
+mesma transação que marca `status_processamento = 'processado'`.
+
+O workflow do n8n (`Sinapse - RAG Ingestão / Chat de teste`) continua
+disponível como **ferramenta de debug manual** — útil para disparar o
+pipeline fora do UI (via `curl`) e visualizar cada passo no editor do
+n8n. É o que este guia cobre nos passos 4-6.
+
+Se quiser rotear a ingestão oficial pelo n8n em vez do worker direto,
+preencha `DOCUMENT_INGEST_WEBHOOK_URL` no `.env` apontando para o webhook
+do n8n — nesse caso o workflow precisa aceitar o payload da S2-01
+(`{document_id, project_id, file_name, content_base64}`), diferente do
+shape que este guia usa.
 
 ## 0. Pré-requisitos
 

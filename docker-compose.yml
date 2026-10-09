@@ -139,10 +139,13 @@ services:
       # pre-requisito para o pipeline de ingestao da S2-02 ler o arquivo.
       - DOCUMENT_STORAGE_DIR=/files
       - DOCUMENT_EVENTS_WEBHOOK_URL=${DOCUMENT_EVENTS_WEBHOOK_URL:-http://n8n:5678/webhook/sinapse-document-removed}
-      - DOCUMENT_INGEST_WEBHOOK_URL=${DOCUMENT_INGEST_WEBHOOK_URL:-http://n8n:5678/webhook/sinapse-ingest}
-      # Alias legado consumido por documents.service.ts enquanto nao migrarmos
-      # para DOCUMENT_INGEST_WEBHOOK_URL em todo o backend.
-      - N8N_WEBHOOK_URL=${N8N_WEBHOOK_URL:-http://n8n:5678/webhook/sinapse-ingest}
+      # Vazio por padrao: o DocumentIngestionWorker cai no fallback
+      # ${AI_SERVICE_URL}/ingest/file (fluxo canonico da S2-01, com retry/lease).
+      # So preencha se quiser rotear a ingestao oficial pelo workflow do n8n -
+      # nesse caso o workflow precisa aceitar o payload snake_case + content_base64.
+      - DOCUMENT_INGEST_WEBHOOK_URL=${DOCUMENT_INGEST_WEBHOOK_URL:-}
+      # Token server-to-server para o backend aceitar o POST .../documents/.../chunks
+      # vindo do workflow do n8n (quando usado como ferramenta de debug manual).
       - N8N_INGEST_TOKEN=${N8N_INGEST_TOKEN:-sinapse-dev-ingest-token}
       - MIGRATIONS_DIR=/database/migrations
       - INIT_SQL_PATH=/database/init.sql

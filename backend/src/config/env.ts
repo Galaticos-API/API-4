@@ -32,7 +32,6 @@ const envSchema = z.object({
   DOCUMENT_STORAGE_DIR: z.string().min(1).default("storage/documents"),
   DOCUMENT_INGEST_WEBHOOK_URL: z.string().optional(),
   DOCUMENT_EVENTS_WEBHOOK_URL: z.string().optional(),
-  N8N_WEBHOOK_URL: z.string().default("http://n8n:5678/webhook/sinapse-ingest"),
   // Token compartilhado para o pipeline n8n -> backend (POST .../documents/.../chunks).
   // Em dev tem default pra não bloquear o fluxo local; em prod obrigatório sobrescrever.
   N8N_INGEST_TOKEN: z.string().min(8).default("sinapse-dev-ingest-token"),
