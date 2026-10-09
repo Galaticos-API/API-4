@@ -182,8 +182,11 @@ it("envia o arquivo como corpo binário, adiciona à lista e avisa que a indexa�
   const [url, init] = request.mock.calls[1] as [string, RequestInit];
   expect(url).toBe("/api/v1/projects/p-1/documents");
   expect(init.method).toBe("POST");
-  expect(init.body).toBe(file);
-  expect((init.headers as Record<string, string>)["Content-Type"]).toBe("application/octet-stream");
+  expect(init.body).toBeInstanceOf(FormData);
+  expect(((init.body as FormData).get("file") as File).name).toBe(file.name);
+  // multipart/form-data gera o Content-Type com boundary no próprio fetch,
+  // então nada deve ser forçado aqui.
+  expect((init.headers as Record<string, string>)["Content-Type"]).toBeUndefined();
 });
 
 it("armazenamento pendente após o envio é informado ao usuário", async () => {

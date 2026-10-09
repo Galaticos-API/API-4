@@ -89,13 +89,13 @@ export async function listDocuments(
 }
 
 export async function uploadDocument(projectId: string, file: File, signal?: AbortSignal): Promise<ProjectDocument> {
+  // Backend usa multer com upload.single("file"), que exige multipart/form-data.
+  // Não passamos Content-Type manualmente — o fetch gera o boundary correto.
+  const body = new FormData();
+  body.append("file", file, file.name);
   const response = await apiRequest(`/projects/${encodeURIComponent(projectId)}/documents`, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/octet-stream",
-      "X-File-Name": encodeURIComponent(file.name),
-    },
-    body: file,
+    body,
     signal: signal ?? AbortSignal.timeout(UPLOAD_TIMEOUT_MS),
   });
   return parseDocument(await response.json());

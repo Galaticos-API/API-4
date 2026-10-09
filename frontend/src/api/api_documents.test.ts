@@ -36,7 +36,7 @@ it("recusa respostas fora do contrato", async () => {
   await expect(listDocuments("p-1")).rejects.toThrow("Limites de envio inválidos");
 });
 
-it("envia o arquivo como corpo binário com o nome codificado e sem depender do MIME do cliente", async () => {
+it("envia o arquivo como multipart/form-data no campo 'file' esperado pelo multer do backend", async () => {
   const request = vi.fn(async (_url: RequestInfo | URL, _init?: RequestInit) => new Response(JSON.stringify(document), { status: 201 }));
   vi.stubGlobal("fetch", request);
   const file = new File(["conteudo"], "Especificação final.pdf", { type: "text/plain" });
@@ -44,10 +44,14 @@ it("envia o arquivo como corpo binário com o nome codificado e sem depender do 
   const [url, init] = request.mock.calls[0];
   expect(url).toBe("/api/v1/projects/p-1/documents");
   expect(init?.method).toBe("POST");
-  expect(init?.body).toBe(file);
-  const headers = init?.headers as Record<string, string>;
-  expect(headers["Content-Type"]).toBe("application/octet-stream");
-  expect(decodeURIComponent(headers["X-File-Name"])).toBe("Especificação final.pdf");
+  expect(init?.body).toBeInstanceOf(FormData);
+  const form = init?.body as FormData;
+  const sent = form.get("file");
+  expect(sent).toBeInstanceOf(File);
+  expect((sent as File).name).toBe("Especificação final.pdf");
+  const headers = (init?.headers ?? {}) as Record<string, string>;
+  // Content-Type do multipart vem do próprio FormData com boundary; nunca forçar aqui.
+  expect(headers["Content-Type"]).toBeUndefined();
 });
 
 it("remove com DELETE no documento do projeto", async () => {

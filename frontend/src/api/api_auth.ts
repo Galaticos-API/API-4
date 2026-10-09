@@ -7,8 +7,11 @@ export class ApiError extends Error {
 export async function apiRequest(path: string, init: RequestInit = {}) {
   const token = localStorage.getItem("app_auth_token");
 
+  // Com FormData o browser precisa gerar o próprio Content-Type com boundary;
+  // injetar um default aqui quebraria o parsing de multipart no backend.
+  const isFormData = typeof FormData !== "undefined" && init.body instanceof FormData;
   const headers: Record<string, string> = {
-    "Content-Type": "application/json",
+    ...(isFormData ? {} : { "Content-Type": "application/json" }),
     ...(init.headers as Record<string, string>),
   };
 
