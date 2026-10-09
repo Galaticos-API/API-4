@@ -61,6 +61,12 @@ services:
       # Ollama executando no Windows
       - OLLAMA_BASE_URL=${OLLAMA_DOCKER_BASE_URL:-http://host.docker.internal:11434}
 
+      # Tokens usados pelas chamadas HTTP do workflow (via $env nas expressoes
+      # do n8n). AI_SERVICE_TOKEN autentica em /chunk e /embed do ai-service;
+      # N8N_INGEST_TOKEN autentica em POST /documents/.../chunks do backend.
+      - AI_SERVICE_TOKEN=${AI_SERVICE_TOKEN:?Configure AI_SERVICE_TOKEN in .env}
+      - N8N_INGEST_TOKEN=${N8N_INGEST_TOKEN:-sinapse-dev-ingest-token}
+
       # PostgreSQL executando no Docker
       - DB_TYPE=postgresdb
       - DB_POSTGRESDB_HOST=postgres

@@ -54,7 +54,6 @@ it("lista somente os documentos do projeto com metadados e status honestos sobre
   expect(within(rows[2]).getByText("Disponível no acervo")).toBeInTheDocument();
   expect(within(rows[2]).getByText("Não informado")).toBeInTheDocument();
   expect(within(rows[3]).getByText("Falha no processamento")).toBeInTheDocument();
-  expect(screen.getByText(/depende da S2-01/)).toBeInTheDocument();
 });
 
 it("mostra estado de armazenamento em finalização quando o servidor sinaliza pendência", async () => {
@@ -163,7 +162,7 @@ it("recusa no cliente formato e tamanho inválidos sem chamar o servidor", async
   expect(request).toHaveBeenCalledTimes(1);
 });
 
-it("envia o arquivo como corpo binário, adiciona à lista e avisa que a indexação depende da S2-01", async () => {
+it("envia o arquivo, adiciona à lista e avisa que a indexação começou", async () => {
   const created = doc({ id: "d-9", nome: "Nova.txt", extensao: ".txt", tamanho_bytes: 5 });
   const request = vi.fn()
     .mockImplementationOnce(() => listing([]))
@@ -177,7 +176,7 @@ it("envia o arquivo como corpo binário, adiciona à lista e avisa que a indexa�
   fireEvent.click(screen.getByRole("button", { name: "Enviar documento" }));
 
   await waitFor(() => expect(screen.getByRole("table")).toBeInTheDocument());
-  expect(screen.getByText(/foi armazenado\. A indexação do acervo depende da integração da S2-01/)).toBeInTheDocument();
+  expect(screen.getByText(/foi armazenado e enviado para indexação/)).toBeInTheDocument();
   expect(screen.queryByRole("button", { name: "Limpar seleção" })).toBeNull();
   const [url, init] = request.mock.calls[1] as [string, RequestInit];
   expect(url).toBe("/api/v1/projects/p-1/documents");

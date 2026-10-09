@@ -52,21 +52,21 @@ curl http://localhost:8000/health        # ai-service (ollama: "connected")
 curl -I http://localhost:5678            # n8n (302 ou 200)
 ```
 
-## 2. Configurar a credencial do n8n (uma vez)
+## 2. Autenticação server-to-server (sem configurar credencial no n8n)
 
-O backend protege `POST /api/v1/projects/.../documents/.../chunks` com
-`Authorization: Bearer <N8N_INGEST_TOKEN>`. O n8n precisa enviar esse header via
-a credencial `Header Auth account` que o workflow já referencia.
+O workflow lê os tokens diretamente do ambiente do container do n8n via
+`$env.AI_SERVICE_TOKEN` e `$env.N8N_INGEST_TOKEN` — ambas já são injetadas
+pelo `docker-compose.yml`. **Não é mais necessário** criar credencial
+`Header Auth account` na UI do n8n.
 
-1. Abra `http://localhost:5678`, faça login.
-2. Menu lateral → **Credentials** → **New** → **Header Auth**.
-3. Preencha:
-   - **Name**: `Header Auth account` (precisa ser esse nome exato — o workflow
-     referencia por nome)
-   - **Header Name**: `Authorization`
-   - **Header Value**: `Bearer sinapse-dev-ingest-token`
-     (ou o valor que você colocou em `N8N_INGEST_TOKEN`).
-4. **Save**.
+Confirme que as duas variáveis estão no `.env` da raiz (o passo 0 já
+cobre isso quando você faz `cp .env.example .env`). O workflow envia:
+
+- `X-Service-Token: $AI_SERVICE_TOKEN` em `/chunk` e `/embed` (ai-service)
+- `Authorization: Bearer $N8N_INGEST_TOKEN` em `/documents/.../chunks` (backend)
+
+Se você rotacionar algum dos tokens em `.env`, basta `docker compose up -d`
+de novo — o n8n re-lê o `$env` na próxima execução.
 
 ## 3. Ativar o workflow
 
@@ -214,7 +214,8 @@ Depois rode as queries do passo 6 com o `documentId` que o backend retornou.
 | Sintoma | Causa provável | Correção |
 |---|---|---|
 | Webhook responde `404 "not registered"` | Workflow não ativado | Passo 3 |
-| Nó "Persistir chunks (backend)" dá `401 "INGEST_TOKEN_INVALID"` | Credencial `Header Auth account` ausente ou com valor errado | Passo 2 |
+| Nó "Persistir chunks (backend)" dá `401 "INGEST_TOKEN_INVALID"` | `N8N_INGEST_TOKEN` ausente no `.env` ou diferente entre backend e n8n | Confirme a mesma linha nos dois containers com `docker exec sinapse-n8n env \| grep N8N_INGEST_TOKEN` e `docker exec sinapse-backend env \| grep N8N_INGEST_TOKEN` |
+| Nós "Chunking" ou "Embeddings" dão `401 "Autenticação interna necessária"` | `AI_SERVICE_TOKEN` ausente ou diferente entre backend/ai-service/n8n | Idem acima, grep por `AI_SERVICE_TOKEN` nos três containers |
 | `Ler arquivo de /files` dá `EACCES` / Permission denied | Arquivo de upload antigo com `0o600` | `chmod -R o+r ./storage` no host |
 | `Chunking (ai-service)` dá `ECONNREFUSED` | ai-service não subiu | `docker compose logs ai-service` |
 | `Embeddings bge-m3` dá `502` | Ollama não tem o modelo ou está parado | `ollama pull bge-m3`; checar firewall `host.docker.internal` |

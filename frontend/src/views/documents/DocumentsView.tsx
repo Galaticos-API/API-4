@@ -232,8 +232,8 @@ function ProjectDocuments({
       mutationRevision.current += 1;
       setItems((current) => [created, ...current.filter((item) => item.id !== created.id)]);
       setNotice(created.armazenamento_pendente
-        ? `O documento “${created.nome}” foi recebido. O armazenamento está sendo finalizado e a indexação depende da integração da S2-01.`
-        : `O documento “${created.nome}” foi armazenado. A indexação do acervo depende da integração da S2-01.`);
+        ? `O documento “${created.nome}” foi recebido. O armazenamento está sendo finalizado e a indexação começa em seguida.`
+        : `O documento “${created.nome}” foi armazenado e enviado para indexação.`);
       clearSelection();
     } catch (error) {
       if (scope.current.signal.aborted) return;
@@ -300,7 +300,6 @@ function ProjectDocuments({
 
       {archived && <Alert tone="warning">Projeto arquivado: os documentos ficam disponíveis somente para consulta.</Alert>}
       {!canWrite && !archived && <Alert>Seu perfil pode consultar documentos, mas não pode enviar ou remover arquivos.</Alert>}
-      <Alert tone="info">A ingestão e indexação dos documentos depende da S2-01. Enquanto isso, o status permanece como pendente e o conteúdo ainda não aparece nas buscas.</Alert>
       {notice && <Alert tone="success">{notice}</Alert>}
       {selectionError && <Alert tone="danger" title="Arquivo não aceito">{selectionError}</Alert>}
       {uploadError && <Alert tone="danger" title="Falha no envio">{uploadError}</Alert>}
