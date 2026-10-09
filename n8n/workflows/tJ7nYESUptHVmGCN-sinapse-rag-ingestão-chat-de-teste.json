@@ -217,7 +217,7 @@
           [
             {
               "index": 0,
-              "node": "Payload válido?",
+              "node": "Payload v\u00e1lido?",
               "type": "main"
             }
           ]
@@ -250,7 +250,7 @@
           []
         ]
       },
-      "Payload válido?": {
+      "Payload v\u00e1lido?": {
         "main": [
           [
             {
@@ -262,7 +262,7 @@
           [
             {
               "index": 0,
-              "node": "Payload inválido",
+              "node": "Payload inv\u00e1lido",
               "type": "main"
             }
           ]
@@ -349,9 +349,9 @@
         ]
       }
     },
-    "createdAt": "2026-10-09T00:22:17.992Z",
+    "createdAt": "2026-10-09T11:27:16.400Z",
     "description": "",
-    "name": "Version e1ea0b16",
+    "name": "Version 9211f0d3",
     "nodeGroups": [],
     "nodes": [
       {
@@ -398,7 +398,7 @@
         "name": "Sticky Note",
         "parameters": {
           "color": 4,
-          "content": "### Readme\nLoad your data into a vector database with the 📚 **Load Data** flow, and then use your data as chat context with the 🐕 **Retriever** flow.\n\n**Quick start**\n1. Click on the `Execute Workflow` button to run the 📚 **Load Data** flow.\n2. Click on `Open Chat` button to run the 🐕 **Retriever** flow. Then ask a question about content from your document(s)\n\n\nFor more info, check [our docs on RAG in n8n](https://docs.n8n.io/advanced-ai/rag-in-n8n/).",
+          "content": "### Readme\nLoad your data into a vector database with the \ud83d\udcda **Load Data** flow, and then use your data as chat context with the \ud83d\udc15 **Retriever** flow.\n\n**Quick start**\n1. Click on the `Execute Workflow` button to run the \ud83d\udcda **Load Data** flow.\n2. Click on `Open Chat` button to run the \ud83d\udc15 **Retriever** flow. Then ask a question about content from your document(s)\n\n\nFor more info, check [our docs on RAG in n8n](https://docs.n8n.io/advanced-ai/rag-in-n8n/).",
           "height": 300,
           "width": 440
         },
@@ -414,7 +414,7 @@
         "name": "Sticky Note1",
         "parameters": {
           "color": 7,
-          "content": "### 📚 Load Data Flow",
+          "content": "### \ud83d\udcda Load Data Flow",
           "height": 460,
           "width": 700
         },
@@ -520,7 +520,7 @@
         "name": "Sticky Note2",
         "parameters": {
           "color": 7,
-          "content": "### 🐕 2. Retriever Flow",
+          "content": "### \ud83d\udc15 2. Retriever Flow",
           "height": 460,
           "width": 680
         },
@@ -579,7 +579,7 @@
         "parameters": {
           "mode": "retrieve-as-tool",
           "options": {},
-          "toolDescription": "Use esta ferramenta para buscar informações relevantes na base de conhecimento armazenada no banco vetorial. Consulte-a sempre que precisar recuperar informações, documentos, procedimentos, regras, conteúdos ou contexto que possam estar presentes na base. Use os resultados da busca como fonte de contexto para responder ao usuário e não invente informações que possam ser verificadas na base."
+          "toolDescription": "Use esta ferramenta para buscar informa\u00e7\u00f5es relevantes na base de conhecimento armazenada no banco vetorial. Consulte-a sempre que precisar recuperar informa\u00e7\u00f5es, documentos, procedimentos, regras, conte\u00fados ou contexto que possam estar presentes na base. Use os resultados da busca como fonte de contexto para responder ao usu\u00e1rio e n\u00e3o invente informa\u00e7\u00f5es que possam ser verificadas na base."
         },
         "position": [
           1328,
@@ -593,7 +593,7 @@
         "name": "Leia-me",
         "parameters": {
           "color": 4,
-          "content": "### Sinapse · RAG no n8n\n\n**Papel do n8n:** orquestrador assíncrono. Ele NÃO escreve no Postgres e NÃO chama o LLM direto.\n\n- Chunking e embeddings (bge-m3, 1024 dims) → `ai-service` (FastAPI)\n- Persistência de chunks → `backend` (única escrita no banco)\n- Respostas só com base nos trechos recuperados, sempre com fontes\n- Tudo isolado por `projectId`\n\n⚠️ Os paths `/chunk`, `/embed`, `/rag/query` e `/chunks` são PLACEHOLDERS: ajuste conforme `docs/api/openapi.yaml`.\nURLs dos serviços ficam nos nós **Normalizar entrada** e **Contexto do teste**.",
+          "content": "### Sinapse \u00b7 RAG no n8n\n\n**Papel do n8n:** orquestrador ass\u00edncrono. Ele N\u00c3O escreve no Postgres e N\u00c3O chama o LLM direto.\n\n- Chunking e embeddings (bge-m3, 1024 dims) \u2192 `ai-service` (FastAPI)\n- Persist\u00eancia de chunks \u2192 `backend` (\u00fanica escrita no banco)\n- Respostas s\u00f3 com base nos trechos recuperados, sempre com fontes\n- Tudo isolado por `projectId`\n\n\u26a0\ufe0f Os paths `/chunk`, `/embed`, `/rag/query` e `/chunks` s\u00e3o PLACEHOLDERS: ajuste conforme `docs/api/openapi.yaml`.\nURLs dos servi\u00e7os ficam nos n\u00f3s **Normalizar entrada** e **Contexto do teste**.",
           "height": 284,
           "width": 488
         },
@@ -609,7 +609,7 @@
         "name": "Faixa Consulta",
         "parameters": {
           "color": 7,
-          "content": "### 🐕 2. Fluxo de Consulta (chat de teste)\nApenas para validar o RAG dentro do n8n. Em produção o chat passa por backend → ai-service.",
+          "content": "### \ud83d\udc15 2. Fluxo de Consulta (chat de teste)\nApenas para validar o RAG dentro do n8n. Em produ\u00e7\u00e3o o chat passa por backend \u2192 ai-service.",
           "height": 340,
           "width": 1100
         },
@@ -697,7 +697,7 @@
       },
       {
         "id": "a1bbb85e-eb7c-41b7-8631-8313e2f2ccb9",
-        "name": "Payload válido?",
+        "name": "Payload v\u00e1lido?",
         "parameters": {
           "conditions": {
             "combinator": "and",
@@ -761,9 +761,9 @@
       },
       {
         "id": "8de5819b-2323-4f50-95d1-0b178580341a",
-        "name": "Payload inválido",
+        "name": "Payload inv\u00e1lido",
         "parameters": {
-          "errorMessage": "Payload inválido: documentId, projectId e storagePath são obrigatórios, e storagePath não pode conter '..'."
+          "errorMessage": "Payload inv\u00e1lido: documentId, projectId e storagePath s\u00e3o obrigat\u00f3rios, e storagePath n\u00e3o pode conter '..'."
         },
         "position": [
           2320,
@@ -773,6 +773,7 @@
         "typeVersion": 1
       },
       {
+        "alwaysOutputData": true,
         "id": "32a8bd5c-3650-4d61-87f5-5d603379a0f1",
         "name": "Ler arquivo de /files",
         "parameters": {
@@ -901,7 +902,7 @@
         "id": "18d36a19-ef19-4f8f-8422-c6f5ea6bbb58",
         "name": "Consolidar texto",
         "parameters": {
-          "jsCode": "const meta = $('Normalizar entrada').first().json;\nconst items = $input.all();\nlet text = '';\n\nif (meta.extension === 'csv') {\n  const rows = items.map(i => i.json);\n  const headers = Object.keys(rows[0] || {});\n  text = rows\n    .map((r, idx) => `Linha ${idx + 1}: ` + headers.map(h => `${h}: ${r[h]}`).join(' | '))\n    .join('\\n');\n} else {\n  text = items.map(i => i.json.text ?? i.json.data ?? '').join('\\n');\n}\n\nif (!text.trim()) {\n  throw new Error(`Documento ${meta.documentId} sem texto extraível`);\n}\n\nreturn [{ json: { ...meta, text } }];"
+          "jsCode": "const meta = $('Normalizar entrada').first().json;\nconst items = $input.all();\nlet text = '';\n\nif (meta.extension === 'csv') {\n  const rows = items.map(i => i.json);\n  const headers = Object.keys(rows[0] || {});\n  text = rows\n    .map((r, idx) => `Linha ${idx + 1}: ` + headers.map(h => `${h}: ${r[h]}`).join(' | '))\n    .join('\\n');\n} else {\n  text = items.map(i => i.json.text ?? i.json.data ?? '').join('\\n');\n}\n\nif (!text.trim()) {\n  throw new Error(`Documento ${meta.documentId} sem texto extra\u00edvel`);\n}\n\nreturn [{ json: { ...meta, text } }];"
         },
         "position": [
           2992,
@@ -911,10 +912,18 @@
         "typeVersion": 2
       },
       {
+        "credentials": {
+          "httpHeaderAuth": {
+            "id": "3IBjmZNpzPdrWbda",
+            "name": "Header Auth account"
+          }
+        },
         "id": "f33d9dc6-871d-4ad9-8ae5-517714a421ed",
         "maxTries": 3,
         "name": "Chunking (ai-service)",
         "parameters": {
+          "authentication": "genericCredentialType",
+          "genericAuthType": "httpHeaderAuth",
           "jsonBody": "={{ JSON.stringify({ document_id: $json.documentId, project_id: $json.projectId, filename: $json.filename, text: $json.text }) }}",
           "method": "POST",
           "options": {
@@ -922,16 +931,7 @@
           },
           "sendBody": true,
           "specifyBody": "json",
-          "url": "={{ $json.aiServiceUrl + '/chunk' }}",
-          "sendHeaders": true,
-          "headerParameters": {
-            "parameters": [
-              {
-                "name": "X-Service-Token",
-                "value": "={{ $env.AI_SERVICE_TOKEN }}"
-              }
-            ]
-          }
+          "url": "={{ $json.aiServiceUrl + '/chunk' }}"
         },
         "position": [
           3216,
@@ -943,10 +943,13 @@
         "waitBetweenTries": 2000
       },
       {
+        "disabled": true,
         "id": "8d91de3c-051c-4f4c-bb4c-9741ddd7683d",
         "maxTries": 3,
         "name": "Embeddings bge-m3 (ai-service)",
         "parameters": {
+          "authentication": "genericCredentialType",
+          "genericAuthType": "httpHeaderAuth",
           "jsonBody": "={{ JSON.stringify({ model: 'bge-m3', texts: ($json.chunks || []).map(c => c.content) }) }}",
           "method": "POST",
           "options": {
@@ -954,16 +957,7 @@
           },
           "sendBody": true,
           "specifyBody": "json",
-          "url": "={{ $('Normalizar entrada').first().json.aiServiceUrl + '/embed' }}",
-          "sendHeaders": true,
-          "headerParameters": {
-            "parameters": [
-              {
-                "name": "X-Service-Token",
-                "value": "={{ $env.AI_SERVICE_TOKEN }}"
-              }
-            ]
-          }
+          "url": "={{ $('Normalizar entrada').first().json.aiServiceUrl + '/embed' }}"
         },
         "position": [
           3440,
@@ -978,7 +972,7 @@
         "id": "4e21b05d-8125-4d4a-9c72-5e3ddbb25bac",
         "name": "Montar e validar chunks",
         "parameters": {
-          "jsCode": "const meta = $('Normalizar entrada').first().json;\nconst chunks = $('Chunking (ai-service)').first().json.chunks || [];\nconst embeddings = $input.first().json.embeddings || [];\n\nif (!chunks.length) {\n  throw new Error(`Nenhum chunk gerado para o documento ${meta.documentId}`);\n}\nif (chunks.length !== embeddings.length) {\n  throw new Error(`Chunks (${chunks.length}) e embeddings (${embeddings.length}) divergem`);\n}\nconst bad = embeddings.findIndex(v => !Array.isArray(v) || v.length !== 1024);\nif (bad !== -1) {\n  throw new Error(`Embedding ${bad} não tem 1024 dimensões (esperado para bge-m3)`);\n}\n\nconst payload = chunks.map((c, i) => ({\n  chunk_index: c.index ?? i,\n  content: c.content,\n  metadata: { ...(c.metadata || {}), filename: meta.filename },\n  embedding: embeddings[i],\n}));\n\nreturn [{ json: { ...meta, text: undefined, chunks: payload } }];"
+          "jsCode": "const meta = $('Normalizar entrada').first().json;\nconst chunks = $('Chunking (ai-service)').first().json.chunks || [];\nconst embeddings = $input.first().json.embeddings || [];\n\nif (!chunks.length) {\n  throw new Error(`Nenhum chunk gerado para o documento ${meta.documentId}`);\n}\nif (chunks.length !== embeddings.length) {\n  throw new Error(`Chunks (${chunks.length}) e embeddings (${embeddings.length}) divergem`);\n}\nconst bad = embeddings.findIndex(v => !Array.isArray(v) || v.length !== 1024);\nif (bad !== -1) {\n  throw new Error(`Embedding ${bad} n\u00e3o tem 1024 dimens\u00f5es (esperado para bge-m3)`);\n}\n\nconst payload = chunks.map((c, i) => ({\n  chunk_index: c.index ?? i,\n  content: c.content,\n  metadata: { ...(c.metadata || {}), filename: meta.filename },\n  embedding: embeddings[i],\n}));\n\nreturn [{ json: { ...meta, text: undefined, chunks: payload } }];"
         },
         "position": [
           3664,
@@ -988,10 +982,13 @@
         "typeVersion": 2
       },
       {
+        "disabled": true,
         "id": "ffd60f63-5a66-418c-8c44-77aa7a15a88e",
         "maxTries": 3,
         "name": "Persistir chunks (backend)",
         "parameters": {
+          "authentication": "genericCredentialType",
+          "genericAuthType": "httpHeaderAuth",
           "jsonBody": "={{ JSON.stringify({ chunks: $json.chunks }) }}",
           "method": "POST",
           "options": {
@@ -999,16 +996,7 @@
           },
           "sendBody": true,
           "specifyBody": "json",
-          "url": "={{ $json.backendUrl + '/api/v1/projects/' + $json.projectId + '/documents/' + $json.documentId + '/chunks' }}",
-          "sendHeaders": true,
-          "headerParameters": {
-            "parameters": [
-              {
-                "name": "Authorization",
-                "value": "=Bearer {{ $env.N8N_INGEST_TOKEN }}"
-              }
-            ]
-          }
+          "url": "={{ $json.backendUrl + '/api/v1/projects/' + $json.projectId + '/documents/' + $json.documentId + '/chunks' }}"
         },
         "position": [
           3888,
@@ -1058,7 +1046,7 @@
         "id": "70d647ce-e45e-4e3c-9f76-1eddbcef2fb9",
         "name": "Resposta fundamentada",
         "parameters": {
-          "jsCode": "const r = $input.first().json;\nconst sources = r.sources || [];\n\n// Assistência estrita: sem evidência recuperada, não há resposta.\nif (!sources.length) {\n  return [{ json: { output: 'Não encontrei essa informação na base de conhecimento deste projeto.' } }];\n}\n\nconst refs = sources\n  .map((s, i) => `[${i + 1}] ${s.filename ?? s.document_id ?? 'fonte'}${s.chunk_index != null ? ' (trecho ' + s.chunk_index + ')' : ''}`)\n  .join('\\n');\n\nreturn [{ json: { output: `${r.answer}\\n\\nFontes:\\n${refs}` } }];"
+          "jsCode": "const r = $input.first().json;\nconst sources = r.sources || [];\n\n// Assist\u00eancia estrita: sem evid\u00eancia recuperada, n\u00e3o h\u00e1 resposta.\nif (!sources.length) {\n  return [{ json: { output: 'N\u00e3o encontrei essa informa\u00e7\u00e3o na base de conhecimento deste projeto.' } }];\n}\n\nconst refs = sources\n  .map((s, i) => `[${i + 1}] ${s.filename ?? s.document_id ?? 'fonte'}${s.chunk_index != null ? ' (trecho ' + s.chunk_index + ')' : ''}`)\n  .join('\\n');\n\nreturn [{ json: { output: `${r.answer}\\n\\nFontes:\\n${refs}` } }];"
         },
         "position": [
           2320,
@@ -1122,7 +1110,7 @@
         "id": "eac5b8eb-fec3-4ce4-b49f-42259f41a78e",
         "name": "Extrair texto1",
         "parameters": {
-          "binaryPropertyName": "={{ $('Webhook').item.binary.data }}",
+          "binaryPropertyName": "={{ 'file' }}",
           "operation": "text",
           "options": {}
         },
@@ -1141,8 +1129,8 @@
           "options": {}
         },
         "position": [
-          2512,
-          832
+          2928,
+          528
         ],
         "type": "n8n-nodes-base.extractFromFile",
         "typeVersion": 1
@@ -1151,7 +1139,7 @@
         "id": "939559e7-0a94-44fa-b584-4224a17b4120",
         "name": "Consolidar texto1",
         "parameters": {
-          "jsCode": "const meta = $('Extrair texto1').first().json;\nconst items = $input.all();\nlet text = '';\n\nif (meta.extension === 'csv') {\n  const rows = items.map(i => i.json);\n  const headers = Object.keys(rows[0] || {});\n  text = rows\n    .map((r, idx) => `Linha ${idx + 1}: ` + headers.map(h => `${h}: ${r[h]}`).join(' | '))\n    .join('\\n');\n} else {\n  text = items.map(i => i.json.text ?? i.json.data ?? '').join('\\n');\n}\n\nif (!text.trim()) {\n  throw new Error(`Documento ${meta.documentId} sem texto extraível`);\n}\n\nreturn [{ json: { ...meta, text } }];"
+          "jsCode": "const meta = $('Extrair texto1').first().json;\nconst items = $input.all();\nlet text = '';\n\nif (meta.extension === 'csv') {\n  const rows = items.map(i => i.json);\n  const headers = Object.keys(rows[0] || {});\n  text = rows\n    .map((r, idx) => `Linha ${idx + 1}: ` + headers.map(h => `${h}: ${r[h]}`).join(' | '))\n    .join('\\n');\n} else {\n  text = items.map(i => i.json.text ?? i.json.data ?? '').join('\\n');\n}\n\nif (!text.trim()) {\n  throw new Error(`Documento ${meta.documentId} sem texto extra\u00edvel`);\n}\n\nreturn [{ json: { ...meta, text } }];"
         },
         "position": [
           2640,
@@ -1161,10 +1149,18 @@
         "typeVersion": 2
       },
       {
+        "credentials": {
+          "httpHeaderAuth": {
+            "id": "3IBjmZNpzPdrWbda",
+            "name": "Header Auth account"
+          }
+        },
         "id": "7141d160-0a2e-4583-864f-20f76d8712ca",
         "maxTries": 3,
         "name": "Chunking (ai-service)1",
         "parameters": {
+          "authentication": "genericCredentialType",
+          "genericAuthType": "httpHeaderAuth",
           "jsonBody": "={{ JSON.stringify({ document_id: $json.documentId, project_id: $json.projectId, filename: $json.filename, text: $json.text }) }}",
           "method": "POST",
           "options": {
@@ -1172,16 +1168,7 @@
           },
           "sendBody": true,
           "specifyBody": "json",
-          "url": "={{ $json.aiServiceUrl + '/chunk' }}",
-          "sendHeaders": true,
-          "headerParameters": {
-            "parameters": [
-              {
-                "name": "X-Service-Token",
-                "value": "={{ $env.AI_SERVICE_TOKEN }}"
-              }
-            ]
-          }
+          "url": "={{ $('Normalizar entrada1').item.json.aiServiceUrl + '/chunk' }}"
         },
         "position": [
           2864,
@@ -1193,10 +1180,13 @@
         "waitBetweenTries": 2000
       },
       {
+        "disabled": true,
         "id": "ebfc0a93-f225-44aa-a4d0-6808d6fafce8",
         "maxTries": 3,
         "name": "Embeddings bge-m3 (ai-service)1",
         "parameters": {
+          "authentication": "genericCredentialType",
+          "genericAuthType": "httpHeaderAuth",
           "jsonBody": "={{ JSON.stringify({ model: 'bge-m3', texts: ($json.chunks || []).map(c => c.content) }) }}",
           "method": "POST",
           "options": {
@@ -1204,16 +1194,7 @@
           },
           "sendBody": true,
           "specifyBody": "json",
-          "url": "={{ $('Normalizar entrada').first().json.aiServiceUrl + '/embed' }}",
-          "sendHeaders": true,
-          "headerParameters": {
-            "parameters": [
-              {
-                "name": "X-Service-Token",
-                "value": "={{ $env.AI_SERVICE_TOKEN }}"
-              }
-            ]
-          }
+          "url": "={{ $('Normalizar entrada').first().json.aiServiceUrl + '/embed' }}"
         },
         "position": [
           3088,
@@ -1228,7 +1209,7 @@
         "id": "6dacdf60-70d9-4449-a7f8-15ab156eea1d",
         "name": "Montar e validar chunks1",
         "parameters": {
-          "jsCode": "const meta = $('Normalizar entrada').first().json;\nconst chunks = $('Chunking (ai-service)1').first().json.chunks || [];\nconst embeddings = $input.first().json.embeddings || [];\n\nif (!chunks.length) {\n  throw new Error(`Nenhum chunk gerado para o documento ${meta.documentId}`);\n}\nif (chunks.length !== embeddings.length) {\n  throw new Error(`Chunks (${chunks.length}) e embeddings (${embeddings.length}) divergem`);\n}\nconst bad = embeddings.findIndex(v => !Array.isArray(v) || v.length !== 1024);\nif (bad !== -1) {\n  throw new Error(`Embedding ${bad} não tem 1024 dimensões (esperado para bge-m3)`);\n}\n\nconst payload = chunks.map((c, i) => ({\n  chunk_index: c.index ?? i,\n  content: c.content,\n  metadata: { ...(c.metadata || {}), filename: meta.filename },\n  embedding: embeddings[i],\n}));\n\nreturn [{ json: { ...meta, text: undefined, chunks: payload } }];"
+          "jsCode": "const meta = $('Normalizar entrada').first().json;\nconst chunks = $('Chunking (ai-service)1').first().json.chunks || [];\nconst embeddings = $input.first().json.embeddings || [];\n\nif (!chunks.length) {\n  throw new Error(`Nenhum chunk gerado para o documento ${meta.documentId}`);\n}\nif (chunks.length !== embeddings.length) {\n  throw new Error(`Chunks (${chunks.length}) e embeddings (${embeddings.length}) divergem`);\n}\nconst bad = embeddings.findIndex(v => !Array.isArray(v) || v.length !== 1024);\nif (bad !== -1) {\n  throw new Error(`Embedding ${bad} n\u00e3o tem 1024 dimens\u00f5es (esperado para bge-m3)`);\n}\n\nconst payload = chunks.map((c, i) => ({\n  chunk_index: c.index ?? i,\n  content: c.content,\n  metadata: { ...(c.metadata || {}), filename: meta.filename },\n  embedding: embeddings[i],\n}));\n\nreturn [{ json: { ...meta, text: undefined, chunks: payload } }];"
         },
         "position": [
           3312,
@@ -1238,10 +1219,13 @@
         "typeVersion": 2
       },
       {
+        "disabled": true,
         "id": "ba05cb96-2bb3-4f26-bedc-5e9cf696676e",
         "maxTries": 3,
         "name": "Persistir chunks (backend)1",
         "parameters": {
+          "authentication": "genericCredentialType",
+          "genericAuthType": "httpHeaderAuth",
           "jsonBody": "={{ JSON.stringify({ chunks: $json.chunks }) }}",
           "method": "POST",
           "options": {
@@ -1249,16 +1233,7 @@
           },
           "sendBody": true,
           "specifyBody": "json",
-          "url": "={{ $json.backendUrl + '/api/v1/projects/' + $json.projectId + '/documents/' + $json.documentId + '/chunks' }}",
-          "sendHeaders": true,
-          "headerParameters": {
-            "parameters": [
-              {
-                "name": "Authorization",
-                "value": "=Bearer {{ $env.N8N_INGEST_TOKEN }}"
-              }
-            ]
-          }
+          "url": "={{ $json.backendUrl + '/api/v1/projects/' + $json.projectId + '/documents/' + $json.documentId + '/chunks' }}"
         },
         "position": [
           3536,
@@ -1319,6 +1294,7 @@
               }
             ]
           },
+          "includeOtherFields": true,
           "options": {}
         },
         "position": [
@@ -1330,10 +1306,10 @@
       },
       {
         "id": "37f03bc2-650b-4f86-b2bd-f0f63477ccd5",
-        "name": "Faixa Ingestão",
+        "name": "Faixa Ingest\u00e3o",
         "parameters": {
           "color": 7,
-          "content": "### 📚 1. Fluxo de Ingestão\nDisparado pelo backend após o upload (ou por evento de arquivo em `/files`).",
+          "content": "### \ud83d\udcda 1. Fluxo de Ingest\u00e3o\nDisparado pelo backend ap\u00f3s o upload (ou por evento de arquivo em `/files`).",
           "height": 1132,
           "width": 2640
         },
@@ -1345,21 +1321,21 @@
         "typeVersion": 1
       }
     ],
-    "updatedAt": "2026-10-09T00:22:22.845Z",
-    "versionId": "e1ea0b16-ff26-4d06-bfff-ab1058f94df0",
+    "updatedAt": "2026-10-09T11:27:24.171Z",
+    "versionId": "9211f0d3-1446-4155-b862-30fb9e79d175",
     "workflowId": "tJ7nYESUptHVmGCN",
     "workflowPublishHistory": [
       {
-        "createdAt": "2026-10-09T00:22:22.823Z",
+        "createdAt": "2026-10-09T11:27:24.155Z",
         "event": "activated",
-        "id": 19,
+        "id": 23,
         "userId": "c3e04826-8789-4bbf-bc18-8a2bb24421fd",
-        "versionId": "e1ea0b16-ff26-4d06-bfff-ab1058f94df0",
+        "versionId": "9211f0d3-1446-4155-b862-30fb9e79d175",
         "workflowId": "tJ7nYESUptHVmGCN"
       }
     ]
   },
-  "activeVersionId": "e1ea0b16-ff26-4d06-bfff-ab1058f94df0",
+  "activeVersionId": "9211f0d3-1446-4155-b862-30fb9e79d175",
   "connections": {
     "Chunking (ai-service)": {
       "main": [
@@ -1574,7 +1550,7 @@
         [
           {
             "index": 0,
-            "node": "Payload válido?",
+            "node": "Payload v\u00e1lido?",
             "type": "main"
           }
         ]
@@ -1607,7 +1583,7 @@
         []
       ]
     },
-    "Payload válido?": {
+    "Payload v\u00e1lido?": {
       "main": [
         [
           {
@@ -1619,7 +1595,7 @@
         [
           {
             "index": 0,
-            "node": "Payload inválido",
+            "node": "Payload inv\u00e1lido",
             "type": "main"
           }
         ]
@@ -1713,7 +1689,7 @@
     "templateCredsSetupCompleted": true,
     "templateId": "rag-starter-template"
   },
-  "name": "Sinapse - RAG (Ingestão + Chat de teste)",
+  "name": "Sinapse - RAG (Ingest\u00e3o + Chat de teste)",
   "nodeGroups": [],
   "nodes": [
     {
@@ -1760,7 +1736,7 @@
       "name": "Sticky Note",
       "parameters": {
         "color": 4,
-        "content": "### Readme\nLoad your data into a vector database with the 📚 **Load Data** flow, and then use your data as chat context with the 🐕 **Retriever** flow.\n\n**Quick start**\n1. Click on the `Execute Workflow` button to run the 📚 **Load Data** flow.\n2. Click on `Open Chat` button to run the 🐕 **Retriever** flow. Then ask a question about content from your document(s)\n\n\nFor more info, check [our docs on RAG in n8n](https://docs.n8n.io/advanced-ai/rag-in-n8n/).",
+        "content": "### Readme\nLoad your data into a vector database with the \ud83d\udcda **Load Data** flow, and then use your data as chat context with the \ud83d\udc15 **Retriever** flow.\n\n**Quick start**\n1. Click on the `Execute Workflow` button to run the \ud83d\udcda **Load Data** flow.\n2. Click on `Open Chat` button to run the \ud83d\udc15 **Retriever** flow. Then ask a question about content from your document(s)\n\n\nFor more info, check [our docs on RAG in n8n](https://docs.n8n.io/advanced-ai/rag-in-n8n/).",
         "height": 300,
         "width": 440
       },
@@ -1776,7 +1752,7 @@
       "name": "Sticky Note1",
       "parameters": {
         "color": 7,
-        "content": "### 📚 Load Data Flow",
+        "content": "### \ud83d\udcda Load Data Flow",
         "height": 460,
         "width": 700
       },
@@ -1882,7 +1858,7 @@
       "name": "Sticky Note2",
       "parameters": {
         "color": 7,
-        "content": "### 🐕 2. Retriever Flow",
+        "content": "### \ud83d\udc15 2. Retriever Flow",
         "height": 460,
         "width": 680
       },
@@ -1941,7 +1917,7 @@
       "parameters": {
         "mode": "retrieve-as-tool",
         "options": {},
-        "toolDescription": "Use esta ferramenta para buscar informações relevantes na base de conhecimento armazenada no banco vetorial. Consulte-a sempre que precisar recuperar informações, documentos, procedimentos, regras, conteúdos ou contexto que possam estar presentes na base. Use os resultados da busca como fonte de contexto para responder ao usuário e não invente informações que possam ser verificadas na base."
+        "toolDescription": "Use esta ferramenta para buscar informa\u00e7\u00f5es relevantes na base de conhecimento armazenada no banco vetorial. Consulte-a sempre que precisar recuperar informa\u00e7\u00f5es, documentos, procedimentos, regras, conte\u00fados ou contexto que possam estar presentes na base. Use os resultados da busca como fonte de contexto para responder ao usu\u00e1rio e n\u00e3o invente informa\u00e7\u00f5es que possam ser verificadas na base."
       },
       "position": [
         1328,
@@ -1955,7 +1931,7 @@
       "name": "Leia-me",
       "parameters": {
         "color": 4,
-        "content": "### Sinapse · RAG no n8n\n\n**Papel do n8n:** orquestrador assíncrono. Ele NÃO escreve no Postgres e NÃO chama o LLM direto.\n\n- Chunking e embeddings (bge-m3, 1024 dims) → `ai-service` (FastAPI)\n- Persistência de chunks → `backend` (única escrita no banco)\n- Respostas só com base nos trechos recuperados, sempre com fontes\n- Tudo isolado por `projectId`\n\n⚠️ Os paths `/chunk`, `/embed`, `/rag/query` e `/chunks` são PLACEHOLDERS: ajuste conforme `docs/api/openapi.yaml`.\nURLs dos serviços ficam nos nós **Normalizar entrada** e **Contexto do teste**.",
+        "content": "### Sinapse \u00b7 RAG no n8n\n\n**Papel do n8n:** orquestrador ass\u00edncrono. Ele N\u00c3O escreve no Postgres e N\u00c3O chama o LLM direto.\n\n- Chunking e embeddings (bge-m3, 1024 dims) \u2192 `ai-service` (FastAPI)\n- Persist\u00eancia de chunks \u2192 `backend` (\u00fanica escrita no banco)\n- Respostas s\u00f3 com base nos trechos recuperados, sempre com fontes\n- Tudo isolado por `projectId`\n\n\u26a0\ufe0f Os paths `/chunk`, `/embed`, `/rag/query` e `/chunks` s\u00e3o PLACEHOLDERS: ajuste conforme `docs/api/openapi.yaml`.\nURLs dos servi\u00e7os ficam nos n\u00f3s **Normalizar entrada** e **Contexto do teste**.",
         "height": 284,
         "width": 488
       },
@@ -1971,7 +1947,7 @@
       "name": "Faixa Consulta",
       "parameters": {
         "color": 7,
-        "content": "### 🐕 2. Fluxo de Consulta (chat de teste)\nApenas para validar o RAG dentro do n8n. Em produção o chat passa por backend → ai-service.",
+        "content": "### \ud83d\udc15 2. Fluxo de Consulta (chat de teste)\nApenas para validar o RAG dentro do n8n. Em produ\u00e7\u00e3o o chat passa por backend \u2192 ai-service.",
         "height": 340,
         "width": 1100
       },
@@ -2059,7 +2035,7 @@
     },
     {
       "id": "a1bbb85e-eb7c-41b7-8631-8313e2f2ccb9",
-      "name": "Payload válido?",
+      "name": "Payload v\u00e1lido?",
       "parameters": {
         "conditions": {
           "combinator": "and",
@@ -2123,9 +2099,9 @@
     },
     {
       "id": "8de5819b-2323-4f50-95d1-0b178580341a",
-      "name": "Payload inválido",
+      "name": "Payload inv\u00e1lido",
       "parameters": {
-        "errorMessage": "Payload inválido: documentId, projectId e storagePath são obrigatórios, e storagePath não pode conter '..'."
+        "errorMessage": "Payload inv\u00e1lido: documentId, projectId e storagePath s\u00e3o obrigat\u00f3rios, e storagePath n\u00e3o pode conter '..'."
       },
       "position": [
         2320,
@@ -2135,6 +2111,7 @@
       "typeVersion": 1
     },
     {
+      "alwaysOutputData": true,
       "id": "32a8bd5c-3650-4d61-87f5-5d603379a0f1",
       "name": "Ler arquivo de /files",
       "parameters": {
@@ -2263,7 +2240,7 @@
       "id": "18d36a19-ef19-4f8f-8422-c6f5ea6bbb58",
       "name": "Consolidar texto",
       "parameters": {
-        "jsCode": "const meta = $('Normalizar entrada').first().json;\nconst items = $input.all();\nlet text = '';\n\nif (meta.extension === 'csv') {\n  const rows = items.map(i => i.json);\n  const headers = Object.keys(rows[0] || {});\n  text = rows\n    .map((r, idx) => `Linha ${idx + 1}: ` + headers.map(h => `${h}: ${r[h]}`).join(' | '))\n    .join('\\n');\n} else {\n  text = items.map(i => i.json.text ?? i.json.data ?? '').join('\\n');\n}\n\nif (!text.trim()) {\n  throw new Error(`Documento ${meta.documentId} sem texto extraível`);\n}\n\nreturn [{ json: { ...meta, text } }];"
+        "jsCode": "const meta = $('Normalizar entrada').first().json;\nconst items = $input.all();\nlet text = '';\n\nif (meta.extension === 'csv') {\n  const rows = items.map(i => i.json);\n  const headers = Object.keys(rows[0] || {});\n  text = rows\n    .map((r, idx) => `Linha ${idx + 1}: ` + headers.map(h => `${h}: ${r[h]}`).join(' | '))\n    .join('\\n');\n} else {\n  text = items.map(i => i.json.text ?? i.json.data ?? '').join('\\n');\n}\n\nif (!text.trim()) {\n  throw new Error(`Documento ${meta.documentId} sem texto extra\u00edvel`);\n}\n\nreturn [{ json: { ...meta, text } }];"
       },
       "position": [
         2992,
@@ -2273,10 +2250,18 @@
       "typeVersion": 2
     },
     {
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "3IBjmZNpzPdrWbda",
+          "name": "Header Auth account"
+        }
+      },
       "id": "f33d9dc6-871d-4ad9-8ae5-517714a421ed",
       "maxTries": 3,
       "name": "Chunking (ai-service)",
       "parameters": {
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
         "jsonBody": "={{ JSON.stringify({ document_id: $json.documentId, project_id: $json.projectId, filename: $json.filename, text: $json.text }) }}",
         "method": "POST",
         "options": {
@@ -2284,16 +2269,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "url": "={{ $json.aiServiceUrl + '/chunk' }}",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "X-Service-Token",
-              "value": "={{ $env.AI_SERVICE_TOKEN }}"
-            }
-          ]
-        }
+        "url": "={{ $json.aiServiceUrl + '/chunk' }}"
       },
       "position": [
         3216,
@@ -2305,10 +2281,13 @@
       "waitBetweenTries": 2000
     },
     {
+      "disabled": true,
       "id": "8d91de3c-051c-4f4c-bb4c-9741ddd7683d",
       "maxTries": 3,
       "name": "Embeddings bge-m3 (ai-service)",
       "parameters": {
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
         "jsonBody": "={{ JSON.stringify({ model: 'bge-m3', texts: ($json.chunks || []).map(c => c.content) }) }}",
         "method": "POST",
         "options": {
@@ -2316,16 +2295,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "url": "={{ $('Normalizar entrada').first().json.aiServiceUrl + '/embed' }}",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "X-Service-Token",
-              "value": "={{ $env.AI_SERVICE_TOKEN }}"
-            }
-          ]
-        }
+        "url": "={{ $('Normalizar entrada').first().json.aiServiceUrl + '/embed' }}"
       },
       "position": [
         3440,
@@ -2340,7 +2310,7 @@
       "id": "4e21b05d-8125-4d4a-9c72-5e3ddbb25bac",
       "name": "Montar e validar chunks",
       "parameters": {
-        "jsCode": "const meta = $('Normalizar entrada').first().json;\nconst chunks = $('Chunking (ai-service)').first().json.chunks || [];\nconst embeddings = $input.first().json.embeddings || [];\n\nif (!chunks.length) {\n  throw new Error(`Nenhum chunk gerado para o documento ${meta.documentId}`);\n}\nif (chunks.length !== embeddings.length) {\n  throw new Error(`Chunks (${chunks.length}) e embeddings (${embeddings.length}) divergem`);\n}\nconst bad = embeddings.findIndex(v => !Array.isArray(v) || v.length !== 1024);\nif (bad !== -1) {\n  throw new Error(`Embedding ${bad} não tem 1024 dimensões (esperado para bge-m3)`);\n}\n\nconst payload = chunks.map((c, i) => ({\n  chunk_index: c.index ?? i,\n  content: c.content,\n  metadata: { ...(c.metadata || {}), filename: meta.filename },\n  embedding: embeddings[i],\n}));\n\nreturn [{ json: { ...meta, text: undefined, chunks: payload } }];"
+        "jsCode": "const meta = $('Normalizar entrada').first().json;\nconst chunks = $('Chunking (ai-service)').first().json.chunks || [];\nconst embeddings = $input.first().json.embeddings || [];\n\nif (!chunks.length) {\n  throw new Error(`Nenhum chunk gerado para o documento ${meta.documentId}`);\n}\nif (chunks.length !== embeddings.length) {\n  throw new Error(`Chunks (${chunks.length}) e embeddings (${embeddings.length}) divergem`);\n}\nconst bad = embeddings.findIndex(v => !Array.isArray(v) || v.length !== 1024);\nif (bad !== -1) {\n  throw new Error(`Embedding ${bad} n\u00e3o tem 1024 dimens\u00f5es (esperado para bge-m3)`);\n}\n\nconst payload = chunks.map((c, i) => ({\n  chunk_index: c.index ?? i,\n  content: c.content,\n  metadata: { ...(c.metadata || {}), filename: meta.filename },\n  embedding: embeddings[i],\n}));\n\nreturn [{ json: { ...meta, text: undefined, chunks: payload } }];"
       },
       "position": [
         3664,
@@ -2350,10 +2320,13 @@
       "typeVersion": 2
     },
     {
+      "disabled": true,
       "id": "ffd60f63-5a66-418c-8c44-77aa7a15a88e",
       "maxTries": 3,
       "name": "Persistir chunks (backend)",
       "parameters": {
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
         "jsonBody": "={{ JSON.stringify({ chunks: $json.chunks }) }}",
         "method": "POST",
         "options": {
@@ -2361,16 +2334,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "url": "={{ $json.backendUrl + '/api/v1/projects/' + $json.projectId + '/documents/' + $json.documentId + '/chunks' }}",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "Authorization",
-              "value": "=Bearer {{ $env.N8N_INGEST_TOKEN }}"
-            }
-          ]
-        }
+        "url": "={{ $json.backendUrl + '/api/v1/projects/' + $json.projectId + '/documents/' + $json.documentId + '/chunks' }}"
       },
       "position": [
         3888,
@@ -2420,7 +2384,7 @@
       "id": "70d647ce-e45e-4e3c-9f76-1eddbcef2fb9",
       "name": "Resposta fundamentada",
       "parameters": {
-        "jsCode": "const r = $input.first().json;\nconst sources = r.sources || [];\n\n// Assistência estrita: sem evidência recuperada, não há resposta.\nif (!sources.length) {\n  return [{ json: { output: 'Não encontrei essa informação na base de conhecimento deste projeto.' } }];\n}\n\nconst refs = sources\n  .map((s, i) => `[${i + 1}] ${s.filename ?? s.document_id ?? 'fonte'}${s.chunk_index != null ? ' (trecho ' + s.chunk_index + ')' : ''}`)\n  .join('\\n');\n\nreturn [{ json: { output: `${r.answer}\\n\\nFontes:\\n${refs}` } }];"
+        "jsCode": "const r = $input.first().json;\nconst sources = r.sources || [];\n\n// Assist\u00eancia estrita: sem evid\u00eancia recuperada, n\u00e3o h\u00e1 resposta.\nif (!sources.length) {\n  return [{ json: { output: 'N\u00e3o encontrei essa informa\u00e7\u00e3o na base de conhecimento deste projeto.' } }];\n}\n\nconst refs = sources\n  .map((s, i) => `[${i + 1}] ${s.filename ?? s.document_id ?? 'fonte'}${s.chunk_index != null ? ' (trecho ' + s.chunk_index + ')' : ''}`)\n  .join('\\n');\n\nreturn [{ json: { output: `${r.answer}\\n\\nFontes:\\n${refs}` } }];"
       },
       "position": [
         2320,
@@ -2513,7 +2477,7 @@
       "id": "939559e7-0a94-44fa-b584-4224a17b4120",
       "name": "Consolidar texto1",
       "parameters": {
-        "jsCode": "const meta = $('Extrair texto1').first().json;\nconst items = $input.all();\nlet text = '';\n\nif (meta.extension === 'csv') {\n  const rows = items.map(i => i.json);\n  const headers = Object.keys(rows[0] || {});\n  text = rows\n    .map((r, idx) => `Linha ${idx + 1}: ` + headers.map(h => `${h}: ${r[h]}`).join(' | '))\n    .join('\\n');\n} else {\n  text = items.map(i => i.json.text ?? i.json.data ?? '').join('\\n');\n}\n\nif (!text.trim()) {\n  throw new Error(`Documento ${meta.documentId} sem texto extraível`);\n}\n\nreturn [{ json: { ...meta, text } }];"
+        "jsCode": "const meta = $('Extrair texto1').first().json;\nconst items = $input.all();\nlet text = '';\n\nif (meta.extension === 'csv') {\n  const rows = items.map(i => i.json);\n  const headers = Object.keys(rows[0] || {});\n  text = rows\n    .map((r, idx) => `Linha ${idx + 1}: ` + headers.map(h => `${h}: ${r[h]}`).join(' | '))\n    .join('\\n');\n} else {\n  text = items.map(i => i.json.text ?? i.json.data ?? '').join('\\n');\n}\n\nif (!text.trim()) {\n  throw new Error(`Documento ${meta.documentId} sem texto extra\u00edvel`);\n}\n\nreturn [{ json: { ...meta, text } }];"
       },
       "position": [
         2640,
@@ -2523,10 +2487,18 @@
       "typeVersion": 2
     },
     {
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "3IBjmZNpzPdrWbda",
+          "name": "Header Auth account"
+        }
+      },
       "id": "7141d160-0a2e-4583-864f-20f76d8712ca",
       "maxTries": 3,
       "name": "Chunking (ai-service)1",
       "parameters": {
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
         "jsonBody": "={{ JSON.stringify({ document_id: $json.documentId, project_id: $json.projectId, filename: $json.filename, text: $json.text }) }}",
         "method": "POST",
         "options": {
@@ -2534,16 +2506,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "url": "={{ $('Normalizar entrada1').item.json.aiServiceUrl + '/chunk' }}",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "X-Service-Token",
-              "value": "={{ $env.AI_SERVICE_TOKEN }}"
-            }
-          ]
-        }
+        "url": "={{ $('Normalizar entrada1').item.json.aiServiceUrl + '/chunk' }}"
       },
       "position": [
         2864,
@@ -2555,10 +2518,13 @@
       "waitBetweenTries": 2000
     },
     {
+      "disabled": true,
       "id": "ebfc0a93-f225-44aa-a4d0-6808d6fafce8",
       "maxTries": 3,
       "name": "Embeddings bge-m3 (ai-service)1",
       "parameters": {
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
         "jsonBody": "={{ JSON.stringify({ model: 'bge-m3', texts: ($json.chunks || []).map(c => c.content) }) }}",
         "method": "POST",
         "options": {
@@ -2566,16 +2532,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "url": "={{ $('Normalizar entrada').first().json.aiServiceUrl + '/embed' }}",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "X-Service-Token",
-              "value": "={{ $env.AI_SERVICE_TOKEN }}"
-            }
-          ]
-        }
+        "url": "={{ $('Normalizar entrada').first().json.aiServiceUrl + '/embed' }}"
       },
       "position": [
         3088,
@@ -2590,7 +2547,7 @@
       "id": "6dacdf60-70d9-4449-a7f8-15ab156eea1d",
       "name": "Montar e validar chunks1",
       "parameters": {
-        "jsCode": "const meta = $('Normalizar entrada').first().json;\nconst chunks = $('Chunking (ai-service)1').first().json.chunks || [];\nconst embeddings = $input.first().json.embeddings || [];\n\nif (!chunks.length) {\n  throw new Error(`Nenhum chunk gerado para o documento ${meta.documentId}`);\n}\nif (chunks.length !== embeddings.length) {\n  throw new Error(`Chunks (${chunks.length}) e embeddings (${embeddings.length}) divergem`);\n}\nconst bad = embeddings.findIndex(v => !Array.isArray(v) || v.length !== 1024);\nif (bad !== -1) {\n  throw new Error(`Embedding ${bad} não tem 1024 dimensões (esperado para bge-m3)`);\n}\n\nconst payload = chunks.map((c, i) => ({\n  chunk_index: c.index ?? i,\n  content: c.content,\n  metadata: { ...(c.metadata || {}), filename: meta.filename },\n  embedding: embeddings[i],\n}));\n\nreturn [{ json: { ...meta, text: undefined, chunks: payload } }];"
+        "jsCode": "const meta = $('Normalizar entrada').first().json;\nconst chunks = $('Chunking (ai-service)1').first().json.chunks || [];\nconst embeddings = $input.first().json.embeddings || [];\n\nif (!chunks.length) {\n  throw new Error(`Nenhum chunk gerado para o documento ${meta.documentId}`);\n}\nif (chunks.length !== embeddings.length) {\n  throw new Error(`Chunks (${chunks.length}) e embeddings (${embeddings.length}) divergem`);\n}\nconst bad = embeddings.findIndex(v => !Array.isArray(v) || v.length !== 1024);\nif (bad !== -1) {\n  throw new Error(`Embedding ${bad} n\u00e3o tem 1024 dimens\u00f5es (esperado para bge-m3)`);\n}\n\nconst payload = chunks.map((c, i) => ({\n  chunk_index: c.index ?? i,\n  content: c.content,\n  metadata: { ...(c.metadata || {}), filename: meta.filename },\n  embedding: embeddings[i],\n}));\n\nreturn [{ json: { ...meta, text: undefined, chunks: payload } }];"
       },
       "position": [
         3312,
@@ -2600,10 +2557,13 @@
       "typeVersion": 2
     },
     {
+      "disabled": true,
       "id": "ba05cb96-2bb3-4f26-bedc-5e9cf696676e",
       "maxTries": 3,
       "name": "Persistir chunks (backend)1",
       "parameters": {
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
         "jsonBody": "={{ JSON.stringify({ chunks: $json.chunks }) }}",
         "method": "POST",
         "options": {
@@ -2611,16 +2571,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "url": "={{ $json.backendUrl + '/api/v1/projects/' + $json.projectId + '/documents/' + $json.documentId + '/chunks' }}",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "Authorization",
-              "value": "=Bearer {{ $env.N8N_INGEST_TOKEN }}"
-            }
-          ]
-        }
+        "url": "={{ $json.backendUrl + '/api/v1/projects/' + $json.projectId + '/documents/' + $json.documentId + '/chunks' }}"
       },
       "position": [
         3536,
@@ -2693,10 +2644,10 @@
     },
     {
       "id": "37f03bc2-650b-4f86-b2bd-f0f63477ccd5",
-      "name": "Faixa Ingestão",
+      "name": "Faixa Ingest\u00e3o",
       "parameters": {
         "color": 7,
-        "content": "### 📚 1. Fluxo de Ingestão\nDisparado pelo backend após o upload (ou por evento de arquivo em `/files`).",
+        "content": "### \ud83d\udcda 1. Fluxo de Ingest\u00e3o\nDisparado pelo backend ap\u00f3s o upload (ou por evento de arquivo em `/files`).",
         "height": 1132,
         "width": 2640
       },
@@ -2775,5 +2726,5 @@
   "staticData": null,
   "tags": [],
   "triggerCount": 4,
-  "versionCounter": 75
+  "versionCounter": 76
 }
