@@ -109,6 +109,7 @@ services:
       - DOCUMENT_STORAGE_DIR=/files
       - DOCUMENT_EVENTS_WEBHOOK_URL=${DOCUMENT_EVENTS_WEBHOOK_URL:-}
       - N8N_WEBHOOK_URL=${N8N_WEBHOOK_URL:-http://n8n:5678/webhook/sinapse-ingest}
+      - N8N_INGEST_TOKEN=${N8N_INGEST_TOKEN:-sinapse-dev-ingest-token}
       - MIGRATIONS_DIR=/database/migrations
       - INIT_SQL_PATH=/database/init.sql
 

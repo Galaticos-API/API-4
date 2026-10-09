@@ -2002,6 +2002,72 @@ paths:
         '503':
           description: Armazenamento indisponível; o documento permanece disponível
 
+  /api/v1/projects/{projectId}/documents/{documentId}/chunks:
+    post:
+      summary: Persiste chunks indexados do documento (pipeline n8n → backend, S2-02)
+      description: >
+        Chamado pelo workflow do n8n após extrair texto, chunking e embeddings.
+        Substitui qualquer chunk anterior do mesmo documento (reindexação
+        idempotente) e marca `status_processamento` como `processado`. Chamada
+        server-to-server: autenticação por token compartilhado em
+        `Authorization: Bearer <N8N_INGEST_TOKEN>`, separada da sessão de
+        usuário humano. Cada embedding deve ter 1024 dimensões (bge-m3).
+      operationId: persistDocumentChunks
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: documentId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [chunks]
+              properties:
+                chunks:
+                  type: array
+                  items:
+                    type: object
+                    required: [chunk_index, content, embedding]
+                    properties:
+                      chunk_index:
+                        type: integer
+                        minimum: 0
+                      content:
+                        type: string
+                      metadata:
+                        type: object
+                        additionalProperties: true
+                      embedding:
+                        type: array
+                        minItems: 1024
+                        maxItems: 1024
+                        items:
+                          type: number
+      responses:
+        '200':
+          description: Chunks persistidos
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          description: Token de ingestão ausente ou inválido
+        '404':
+          description: Projeto ou documento não encontrados
+        '409':
+          description: Projeto arquivado é somente leitura (ARCHIVE_CONFLICT)
+
   /webhook/sinapse-document-removed:
     servers:
       - url: http://localhost:5678

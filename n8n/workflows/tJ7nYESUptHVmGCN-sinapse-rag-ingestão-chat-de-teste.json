@@ -981,7 +981,6 @@
         "typeVersion": 2
       },
       {
-        "disabled": true,
         "id": "ffd60f63-5a66-418c-8c44-77aa7a15a88e",
         "maxTries": 3,
         "name": "Persistir chunks (backend)",
@@ -1218,7 +1217,6 @@
         "typeVersion": 2
       },
       {
-        "disabled": true,
         "id": "ba05cb96-2bb3-4f26-bedc-5e9cf696676e",
         "maxTries": 3,
         "name": "Persistir chunks (backend)1",
@@ -2317,7 +2315,6 @@
       "typeVersion": 2
     },
     {
-      "disabled": true,
       "id": "ffd60f63-5a66-418c-8c44-77aa7a15a88e",
       "maxTries": 3,
       "name": "Persistir chunks (backend)",
@@ -2554,7 +2551,6 @@
       "typeVersion": 2
     },
     {
-      "disabled": true,
       "id": "ba05cb96-2bb3-4f26-bedc-5e9cf696676e",
       "maxTries": 3,
       "name": "Persistir chunks (backend)1",

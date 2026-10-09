@@ -15,6 +15,7 @@ import { repoAnalysesRouter } from './modules/repo-analyses/repo-analyses.routes
 import { epicDecisionsRouter, featureDecisionsRouter, pbiDecisionsRouter, projectDecisionsRouter } from "./modules/decisions/decisions.routes.js";
 import { backlogSearchRouter } from "./modules/backlog-search/backlog-search.routes.js";
 import { documentsRouter } from "./modules/documents/documents.routes.js";
+import { chunksRouter } from "./modules/documents/chunks.routes.js";
 import { documentsService, startDocumentsBackgroundWorker } from "./modules/documents/documents.service.js";
 import { authRouter } from "./modules/auth/auth.routes.js";
 import { searchRouter } from "./modules/search/search.routes.js";
@@ -93,6 +94,8 @@ app.use("/api/v1/projects/:projectId/backlog-search", backlogSearchRouter);
 
 // Documentos do projeto (S1-19/S1-20/S1-22)
 app.use("/api/v1/projects/:projectId/documents", requireAuth, documentsRouter);
+// Server-to-server: pipeline n8n persistindo chunks indexados do documento.
+app.use("/api/v1/projects/:projectId/documents/:documentId/chunks", chunksRouter);
 
 // Swagger Documentation
 app.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));

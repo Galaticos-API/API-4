@@ -169,15 +169,27 @@ responda, o workflow precisa estar **ativado** (veja "Ativação do Workflow" ab
 
 ### 6. Processamento RAG
 
-O workflow n8n:
-1. Lê o arquivo do storage compartilhado (`/files/{storagePath}`)
-2. Extrai o conteúdo textual
-3. Envia para o AI Service via `POST http://ai-service:8000/ingest/document`
-4. AI Service:
-   - Faz chunking do texto
-   - Calcula embeddings via `bge-m3` (Ollama)
-   - Armazena chunks e embeddings no PostgreSQL (tabela `chunk`)
-5. Atualiza `status_processamento` para `processado`
+O workflow n8n (`Sinapse - RAG Ingestão / Chat de teste`) encadeia:
+1. **Normalizar entrada** → extrai `documentId`, `projectId`, `filename`, `storagePath` do payload do webhook.
+2. **Ler arquivo de /files** → lê o binário do storage compartilhado.
+3. **Extrair PDF / CSV / texto** (switch por extensão) + **Consolidar texto**.
+4. **Chunking (ai-service)** → `POST http://ai-service:8000/chunk` com `{document_id, project_id, filename, text}`;
+   resposta: `{chunks: [{index, content, metadata}]}`.
+5. **Embeddings bge-m3 (ai-service)** → `POST http://ai-service:8000/embed` com `{model, texts: [...]}`;
+   resposta: `{model, dimension, embeddings: [[1024 floats], ...]}`.
+6. **Montar e validar chunks** → casa cada embedding ao chunk correspondente e valida 1024d.
+7. **Persistir chunks (backend)** → `POST http://backend:3001/api/v1/projects/{projectId}/documents/{documentId}/chunks`
+   com `{chunks: [{chunk_index, content, metadata, embedding}]}`. Essa chamada é **server-to-server** e
+   autentica com `Authorization: Bearer $N8N_INGEST_TOKEN` (nunca sessão de usuário). O backend substitui
+   quaisquer chunks anteriores do documento (reindexação idempotente), persiste em `chunk` com `vector(1024)`
+   e marca `status_processamento = 'processado'`.
+8. **Resposta HTTP** confirma o recebimento ao backend que chamou o webhook.
+
+Toda a persistência em `chunk` passa pelo backend Node — o ai-service só gera conteúdo
+(chunking + embeddings), nunca grava direto, conforme AGENTS.md §12 ("Node.js como único
+escritor persistente").
+
+**Credencial `Header Auth` no n8n:** `Name = Authorization`, `Value = Bearer <N8N_INGEST_TOKEN>`.
 
 ## Exemplos de Requisição
 

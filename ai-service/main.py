@@ -53,6 +53,18 @@ class EmbeddingRequest(BaseModel):
     model: str | None = Field(None, description="Modelo de embedding (padrão do settings)")
 
 
+class ChunkRequest(BaseModel):
+    document_id: str = Field(..., description="ID do documento no backend")
+    project_id: str | None = Field(None, description="ID do projeto")
+    filename: str | None = Field(None, description="Nome original do arquivo")
+    text: str = Field(..., description="Texto extraído do documento, já consolidado")
+
+
+class EmbedBatchRequest(BaseModel):
+    model: str | None = Field(None, description="Modelo de embedding (padrão bge-m3)")
+    texts: list[str] = Field(..., description="Lote de textos para gerar embeddings")
+
+
 class RagQueryRequest(BaseModel):
     query: str = Field(..., description="Pergunta ou busca em linguagem natural")
     project_id: str | None = Field(None, description="Filtro obrigatório de projeto (PRD 10.3)")
@@ -143,6 +155,53 @@ async def generate_embedding(req: EmbeddingRequest):
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail=f"Falha ao comunicar com Ollama: {e}",
         )
+
+
+@app.post("/chunk", status_code=status.HTTP_200_OK)
+async def chunk_text(req: ChunkRequest):
+    """
+    Divide o texto em chunks (sem calcular embeddings). Shape pensado para o
+    pipeline do n8n: Chunking -> Embeddings -> Persistir chunks (backend).
+    """
+    pieces = chunk_document_text(req.text)
+    chunks = [
+        {
+            "index": idx,
+            "content": piece,
+            "metadata": {
+                "document_id": req.document_id,
+                "project_id": req.project_id,
+                "filename": req.filename,
+            },
+        }
+        for idx, piece in enumerate(pieces)
+    ]
+    return {
+        "document_id": req.document_id,
+        "project_id": req.project_id,
+        "total_chunks": len(chunks),
+        "chunks": chunks,
+    }
+
+
+@app.post("/embed", status_code=status.HTTP_200_OK)
+async def embed_batch(req: EmbedBatchRequest):
+    """
+    Gera embeddings em lote. Ollama processa um por vez; o loop aqui mantém a
+    ordem para o nó 'Montar e validar chunks' do n8n casar vetor com chunk.
+    """
+    if not req.texts:
+        return {"model": req.model or settings.OLLAMA_EMBEDDING_MODEL, "dimension": 0, "embeddings": []}
+    model = req.model or settings.OLLAMA_EMBEDDING_MODEL
+    try:
+        vectors = [await ollama_client.get_embedding(text, model=model) for text in req.texts]
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"Falha ao comunicar com Ollama: {e}",
+        )
+    dimension = len(vectors[0]) if vectors and vectors[0] else 0
+    return {"model": model, "dimension": dimension, "embeddings": vectors}
 
 
 @app.post("/rag/query")
