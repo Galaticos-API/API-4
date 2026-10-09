@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
 import { describeSearchError, searchBacklog, type BacklogSearchResult } from "../../api/api_backlog_search";
+import "../../assets/styles/backlog-search.css";
 import { TYPE_LABEL, highlightParts, nodeHref, summarize } from "../../models/backlogSearch";
 import { navigate } from "../../models/navigation";
 import { Alert, Badge, Button, EmptyState } from "../common/ui";
-import "../../assets/styles/backlog-search.css";
 
 type State =
   | { state: "loading" }
@@ -50,12 +50,12 @@ export function BacklogSearchResults({
   }, [projectId, query, status, technologyId, attempt]);
 
   if (state.state === "loading") {
-    return <div className="card-garakis projects-state" role="status">Buscando no backlog…</div>;
+    return <div className="ds-card projects-state" role="status">Buscando no backlog…</div>;
   }
 
   if (state.state === "error") {
     return (
-      <div className="card-garakis projects-state">
+      <div className="ds-card projects-state">
         <p role="alert">{state.message}</p>
         <Button variant="secondary" onClick={() => setAttempt((value) => value + 1)}>Tentar novamente</Button>
       </div>
@@ -66,7 +66,7 @@ export function BacklogSearchResults({
 
   if (result.items.length === 0) {
     return (
-      <div className="card-garakis projects-state backlog-search-empty">
+      <div className="ds-card projects-state backlog-search-empty">
         <EmptyState
           title="Nenhum item encontrado"
           description={`Nada em ${projectName ? `“${projectName}”` : "este projeto"} corresponde a “${query}”${filtersActive ? " com os filtros atuais" : ""}. Revise o termo ou limpe os critérios.`}
@@ -88,7 +88,7 @@ export function BacklogSearchResults({
           const parts = highlightParts(item.trecho.texto, item.trecho.destaques);
           const last = item.caminho.length - 1;
           return (
-            <li key={`${item.tipo}-${item.id}`} className="card-garakis backlog-search-item">
+            <li key={`${item.tipo}-${item.id}`} className="ds-card backlog-search-item">
               <div className="backlog-search-item-head">
                 <Badge tone={item.tipo === "pbi" ? "brand" : "info"}>{TYPE_LABEL[item.tipo]}</Badge>
                 {item.codigo && <span className="backlog-search-code">{item.codigo}</span>}

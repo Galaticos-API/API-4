@@ -1,14 +1,15 @@
 import { useEffect, useRef, useState } from "react";
 import { ApiError } from "../../api/api_auth";
 import {
-  listCriteria,
   createCriterion,
   deleteCriterion,
+  listCriteria,
   moveCriterion,
   type Criterion,
   type CriterionEntityType,
 } from "../../api/api_backlog";
 import "../../assets/styles/projects.css";
+import { Button } from "../common/ui";
 
 type Result =
   | { state: "loading" }
@@ -95,7 +96,7 @@ export function CriteriaEditor({
           state: "error",
           message:
             error instanceof ApiError &&
-            error.status === 401
+              error.status === 401
               ? "É necessário entrar para ver os critérios."
               : "Não foi possível carregar os critérios.",
         });
@@ -146,22 +147,22 @@ export function CriteriaEditor({
       const criado = await createCriterion(
         isCenario
           ? {
-              entidade_tipo: "pbi",
-              entidade_id: entidadeId,
-              ...cenarioForm,
-              ...(justificativaObrigatoria
-                ? { justificativa: justificativa.trim() }
-                : {}),
-            }
+            entidade_tipo: "pbi",
+            entidade_id: entidadeId,
+            ...cenarioForm,
+            ...(justificativaObrigatoria
+              ? { justificativa: justificativa.trim() }
+              : {}),
+          }
           : {
-              entidade_tipo:
-                entidadeTipo as "epico" | "feature",
-              entidade_id: entidadeId,
-              ...textoForm,
-              ...(justificativaObrigatoria
-                ? { justificativa: justificativa.trim() }
-                : {}),
-            },
+            entidade_tipo:
+              entidadeTipo as "epico" | "feature",
+            entidade_id: entidadeId,
+            ...textoForm,
+            ...(justificativaObrigatoria
+              ? { justificativa: justificativa.trim() }
+              : {}),
+          },
       );
 
       versaoRef.current += 1;
@@ -297,19 +298,19 @@ export function CriteriaEditor({
         </div>
 
         {canEdit && !formOpen && (
-          <button
+          <Button
             id={
               isCenario
                 ? "novo-cenario-btn"
                 : undefined
             }
-            className="btn-secondary"
+            variant="secondary"
             onClick={() => setFormOpen(true)}
           >
             {isCenario
               ? "Novo cenário"
               : "Novo critério"}
-          </button>
+          </Button>
         )}
       </div>
 
@@ -338,7 +339,7 @@ export function CriteriaEditor({
 
       {result.state === "loading" && (
         <div
-          className="glass-panel projects-state"
+          className="ds-card ds-card--glass projects-state"
           role="status"
         >
           Carregando…
@@ -346,21 +347,21 @@ export function CriteriaEditor({
       )}
 
       {result.state === "error" && (
-        <div className="glass-panel projects-state">
+        <div className="ds-card ds-card--glass projects-state">
           <p role="alert">{result.message}</p>
 
-          <button
-            className="btn-secondary"
+          <Button
+            variant="secondary"
             onClick={recarregar}
           >
             Tentar novamente
-          </button>
+          </Button>
         </div>
       )}
 
       {result.state === "ready" &&
         (result.items.length === 0 && !formOpen ? (
-          <div className="glass-panel projects-state">
+          <div className="ds-card ds-card--glass projects-state">
             <p>
               Nenhum{" "}
               {isCenario
@@ -391,7 +392,7 @@ export function CriteriaEditor({
                       ? -1
                       : undefined
                   }
-                  className="glass-panel project-card"
+                  className="ds-card ds-card--glass project-card"
                   key={item.id}
                 >
                   {isCenario ? (
@@ -415,8 +416,8 @@ export function CriteriaEditor({
 
                   {canEdit && (
                     <div className="project-actions">
-                      <button
-                        className="btn-secondary"
+                      <Button
+                        variant="secondary"
                         disabled={
                           index === 0 ||
                           movendoId === item.id
@@ -427,13 +428,13 @@ export function CriteriaEditor({
                         }
                       >
                         ▲ Mover para cima
-                      </button>
+                      </Button>
 
-                      <button
-                        className="btn-secondary"
+                      <Button
+                        variant="secondary"
                         disabled={
                           index ===
-                            result.items.length - 1 ||
+                          result.items.length - 1 ||
                           movendoId === item.id
                         }
                         aria-label="Mover para baixo"
@@ -442,17 +443,17 @@ export function CriteriaEditor({
                         }
                       >
                         ▼ Mover para baixo
-                      </button>
+                      </Button>
 
-                      <button
-                        className="btn-secondary"
+                      <Button
+                        variant="secondary"
                         disabled={busy}
                         onClick={() =>
                           remover(item.id)
                         }
                       >
                         Remover
-                      </button>
+                      </Button>
                     </div>
                   )}
                 </li>
@@ -463,7 +464,7 @@ export function CriteriaEditor({
 
       {canEdit && formOpen && (
         <form
-          className="glass-panel project-form"
+          className="ds-card ds-card--glass project-form"
           onSubmit={adicionar}
           aria-busy={busy}
         >
@@ -579,19 +580,19 @@ export function CriteriaEditor({
           )}
 
           <div className="project-actions">
-            <button
+            <Button
               type="submit"
-              className="btn-primary"
+              variant="primary"
               disabled={busy}
             >
               {busy
                 ? "Salvando…"
                 : "Adicionar"}
-            </button>
+            </Button>
 
-            <button
+            <Button
               type="button"
-              className="btn-secondary"
+              variant="secondary"
               disabled={busy}
               onClick={() => {
                 setFormOpen(false);
@@ -599,7 +600,7 @@ export function CriteriaEditor({
               }}
             >
               Cancelar
-            </button>
+            </Button>
           </div>
         </form>
       )}

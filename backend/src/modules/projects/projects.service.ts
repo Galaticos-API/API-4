@@ -69,6 +69,7 @@ export class ProjectsService {
 
   async list(
     queryInput: unknown,
+    userId?: string,
   ): Promise<PaginatedProjects> {
     const parseResult =
       projectQuerySchema.safeParse(
@@ -86,7 +87,7 @@ export class ProjectsService {
     }
 
     return await this.repository.findAll(
-      parseResult.data,
+      parseResult.data, userId,
     );
   }
 

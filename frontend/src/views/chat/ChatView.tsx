@@ -1,3 +1,4 @@
+import { ApiError } from "../../api/api_auth";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   MAX_QUESTION_LENGTH,
@@ -9,11 +10,10 @@ import {
   type ChatMessage,
   type ChatOrigin,
 } from "../../api/api_chat";
-import { listProjects } from "../../api/api_projects";
+import { listChatProjects } from "../../api/api_chat";
 import { ORIGIN_BADGE, SUGGESTED_PROMPTS, formatClock, formatRelative, remainingCharacters } from "../../models/chat";
 import { Alert, Badge, Button } from "../common/ui";
 import { Markdown } from "../common/Markdown";
-import "../../assets/styles/garakis-prototype.css";
 import "../../assets/styles/chat.css";
 
 interface ProjectOption {
@@ -36,15 +36,20 @@ export function ChatView() {
   const [messages, setMessages] = useState<ThreadMessage[]>([]);
   const [messagesState, setMessagesState] = useState<LoadState>("idle");
   const [draft, setDraft] = useState("");
-  const [sending, setSending] = useState(false);
+  const [pendingKeys, setPendingKeys] = useState<string[]>([]);
   const [sendError, setSendError] = useState("");
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const bottom = useRef<HTMLDivElement>(null);
   const composer = useRef<HTMLTextAreaElement>(null);
   const mounted = useRef(true);
   const messagesRequest = useRef(0);
-  const sendLock = useRef(false);
+  const sendLocks = useRef(new Set<string>());
   const skipReload = useRef<string | null>(null);
+  const conversationRevision = useRef(0);
+  const selectedConversation = useRef(activeId);
+  selectedConversation.current = activeId;
+  const sendKey = activeId ?? `draft-${conversationRevision.current}`;
+  const sending = pendingKeys.includes(sendKey);
 
   useEffect(() => {
     mounted.current = true;
@@ -70,8 +75,8 @@ export function ChatView() {
   useEffect(() => {
     void loadConversations(true);
     const controller = new AbortController();
-    void listProjects(AbortSignal.any([controller.signal, AbortSignal.timeout(15000)]))
-      .then((page) => { if (mounted.current) setProjects(page.projects.map((project) => ({ id: project.id, nome: project.nome }))); })
+    void listChatProjects(AbortSignal.any([controller.signal, AbortSignal.timeout(15000)]))
+      .then((page) => { if (mounted.current) setProjects(page.map((project) => ({ id: project.id, nome: project.nome }))); })
       .catch(() => undefined);
     return () => controller.abort();
   }, [loadConversations]);
@@ -113,6 +118,8 @@ export function ChatView() {
   const scopeLocked = Boolean(activeId);
 
   const startNewConversation = () => {
+    conversationRevision.current += 1;
+    messagesRequest.current += 1;
     setActiveId(null);
     setMessages([]);
     setSendError("");
@@ -121,6 +128,11 @@ export function ChatView() {
   };
 
   const openConversation = (conversation: ChatConversation) => {
+    if (conversation.id === activeId) return;
+    conversationRevision.current += 1;
+    messagesRequest.current += 1;
+    setMessages([]);
+    setDraft("");
     setSendError("");
     setActiveId(conversation.id);
     setScopeId(conversation.projeto_id ?? "");
@@ -128,9 +140,10 @@ export function ChatView() {
 
   const send = useCallback(async (text: string, retryId?: string) => {
     const question = text.trim();
-    if (!question || sendLock.current) return;
-    sendLock.current = true;
-    setSending(true);
+    if (!question || sendLocks.current.has(sendKey) || !scopeId) return;
+    sendLocks.current.add(sendKey);
+    const revision = conversationRevision.current;
+    setPendingKeys(current => [...current, sendKey]);
     setSendError("");
     const pendingId = retryId ?? `local-${Date.now()}`;
     setMessages((current) => retryId
@@ -140,6 +153,11 @@ export function ChatView() {
     try {
       const answer = await askQuestion({ pergunta: question, conversaId: activeId, projetoId: activeId ? null : scopeId });
       if (!mounted.current) return;
+      void loadConversations(false);
+      if (revision !== conversationRevision.current) {
+        if (selectedConversation.current === answer.conversa_id) void loadMessages(answer.conversa_id);
+        return;
+      }
       setMessages((current) => [
         ...current,
         { id: `assistant-${Date.now()}`, remetente: "assistant", conteudo: answer.resposta, fontes: answer.fontes, created_at: new Date().toISOString(), origem: answer.origem },
@@ -148,16 +166,23 @@ export function ChatView() {
         skipReload.current = answer.conversa_id;
         setActiveId(answer.conversa_id);
       }
-      void loadConversations(false);
     } catch (error) {
       if (!mounted.current) return;
+      if (revision !== conversationRevision.current) {
+        if (activeId && selectedConversation.current === activeId) void loadMessages(activeId);
+        return;
+      }
       setMessages((current) => current.map((item) => (item.id === pendingId ? { ...item, failed: true } : item)));
+      if (error instanceof ApiError && error.details && typeof error.details === "object" && "details" in error.details) {
+        const detail = error.details.details as { conversa_id?: string };
+        if (detail?.conversa_id) { setActiveId(detail.conversa_id); void loadMessages(detail.conversa_id); void loadConversations(false); }
+      }
       setSendError(describeChatError(error));
     } finally {
-      sendLock.current = false;
-      if (mounted.current) setSending(false);
+      sendLocks.current.delete(sendKey);
+      if (mounted.current) setPendingKeys(current => current.filter(key => key !== sendKey));
     }
-  }, [activeId, scopeId, loadConversations]);
+  }, [activeId, scopeId, sendKey, loadConversations, loadMessages]);
 
   const copy = async (message: ThreadMessage) => {
     try {
@@ -170,7 +195,7 @@ export function ChatView() {
   };
 
   const remaining = remainingCharacters(draft, MAX_QUESTION_LENGTH);
-  const canSend = draft.trim().length > 0 && remaining >= 0 && !sending;
+  const canSend = Boolean(scopeId) && draft.trim().length > 0 && remaining >= 0 && !sending;
   const failedMessage = messages.find((item) => item.failed);
 
   return (
@@ -184,7 +209,7 @@ export function ChatView() {
       </header>
 
       <div className="chatx-layout">
-        <aside className="card-garakis chat-sidebar" aria-label="Conversas">
+        <aside className="ds-card chat-sidebar" aria-label="Conversas">
           <Button onClick={startNewConversation}>Nova conversa</Button>
 
           <div className="ds-field">
@@ -194,10 +219,10 @@ export function ChatView() {
               className="ds-input"
               value={scopeId}
               disabled={scopeLocked}
-              onChange={(event) => setScopeId(event.target.value)}
+              onChange={(event) => { conversationRevision.current += 1; setMessages([]); setSendError(""); setScopeId(event.target.value); }}
               aria-describedby="chat-scope-help"
             >
-              <option value="">Todos os projetos</option>
+              <option value="">Selecione um projeto</option>
               {projects.map((project) => <option key={project.id} value={project.id}>{project.nome}</option>)}
             </select>
             <span id="chat-scope-help" className="ds-help">
@@ -234,7 +259,7 @@ export function ChatView() {
           </nav>
         </aside>
 
-        <section className="card-garakis chat-thread" aria-label="Conversa atual">
+        <section className="ds-card chat-thread" aria-label="Conversa atual">
           <div className="chat-thread-header">
             <h2>{activeConversation?.titulo ?? "Nova conversa"}</h2>
             <Badge tone={scopeName ? "brand" : "info"}>{scopeName ?? "Todos os projetos"}</Badge>

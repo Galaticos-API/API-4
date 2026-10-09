@@ -37,7 +37,7 @@ export const authRouter = Router();
  *               role:
  *                 type: string
  *                 enum: [admin, po, dev]
- *                 default: po
+ *                 default: dev
  *                 description: Função do usuário
  *     responses:
  *       201:

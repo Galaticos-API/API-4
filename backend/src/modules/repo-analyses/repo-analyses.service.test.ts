@@ -18,7 +18,7 @@ test('mapeia os estados reais do Analyzer para o contrato persistido pela API', 
 });
 
 test('consulta análise vinculada ao projeto da rota, não apenas por ID', async () => {
-    const record = { id: 'analysis-1', projeto_id: 'project-a', status: 'concluido', run_id: 'run-1' };
+    const record = { id: 'analysis-1', projeto_id: 'project-a', status: 'concluido', run_id: 'run-1', relatorio_markdown: 'Relatório' };
     const repository = {
         findById: async (id: string, projectId: string) => id === record.id && projectId === record.projeto_id ? record : null,
     } as RepoAnalysesRepository;

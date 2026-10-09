@@ -68,7 +68,9 @@ export class ChunksService {
     const client: PoolClient = await pool.connect();
     try {
       await client.query("BEGIN");
-      await lockHierarchy(client);
+      // S2-01 mudou a assinatura: lockHierarchy agora trava o projeto dono.
+      // Para a tabela chunk (ligada a 'documento' -> 'projeto'), bloqueamos o projeto.
+      await lockHierarchy(client, "projeto", input.projetoId);
 
       const projectRow = await client.query<{ status: string }>(
         "SELECT status FROM projeto WHERE id = $1",

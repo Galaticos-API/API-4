@@ -7,6 +7,8 @@ import { ChatRepository } from "./chat.repository.js";
 import { ChatService, searchPatterns, type AssistantClient } from "./chat.service.js";
 import { NotFoundError } from "../../shared/errors.js";
 
+import { SearchRepository } from "../search/search.repository.js";
+
 class Offline implements AssistantClient {
   async ask(): Promise<never> {
     throw new Error("offline");
@@ -25,10 +27,28 @@ test("chat: posse da conversa e busca textual isolada por projeto no PostgreSQL"
 
     const found = await repository.searchChunks(projectA, searchPatterns("Como funciona o arquivamento?"), 5);
     assert.deepEqual(found.map((item) => item.id), [chunkA]);
-    const unscoped = await repository.searchChunks(null, searchPatterns("arquivamento"), 5);
-    assert.deepEqual(unscoped.map((item) => item.id).sort(), [chunkA, chunkB].sort());
+    await assert.rejects(service.query(ana, { pergunta: "arquivamento" }), /Escolha um projeto/);
     assert.deepEqual(await repository.searchChunks(projectA, searchPatterns("inexistente"), 5), []);
     assert.deepEqual(await repository.searchChunks(projectA, [], 5), []);
+
+    // An unallocated developer cannot query a project, including via an old conversation.
+    await pool.query("UPDATE usuario SET role='dev' WHERE id=$1",[bruno]);
+    assert.equal(await repository.projectExists(projectA,bruno),false);
+    await assert.rejects(service.query(bruno,{pergunta:"arquivamento",projetoId:projectA}),NotFoundError);
+    const developer = (await pool.query("INSERT INTO desenvolvedor(usuario_id) VALUES($1) RETURNING id",[bruno])).rows[0].id;
+    await pool.query("INSERT INTO alocacao(desenvolvedor_id,projeto_id) VALUES($1,$2)",[developer,projectA]);
+    assert.equal(await repository.projectExists(projectA,bruno),true);
+    assert.equal(await repository.projectExists(projectB,bruno),false);
+    assert.deepEqual((await repository.accessibleProjects(bruno)).map(p=>p.id),[projectA]);
+
+    const search = new SearchRepository(pool);
+    assert.deepEqual((await search.search({userId: bruno, query: ""})).items.map(c=>c.id), [chunkA]);
+    assert.deepEqual((await search.search({userId: bruno, query: "", projectId: projectB})).items, []);
+    assert.equal((await search.search({userId: ana, query: "", projectId: projectB})).items[0].id, chunkB);
+    await pool.query("UPDATE alocacao SET data_fim=CURRENT_TIMESTAMP WHERE desenvolvedor_id=$1",[developer]);
+    assert.deepEqual((await search.search({userId: bruno, query: ""})).items, []);
+    await pool.query("UPDATE alocacao SET data_fim=NULL, data_inicio=CURRENT_TIMESTAMP + INTERVAL '1 day' WHERE desenvolvedor_id=$1",[developer]);
+    assert.deepEqual((await search.search({userId: bruno, query: ""})).items, []);
 
     const result = await service.query(ana, { pergunta: "Como funciona o arquivamento?", projetoId: projectA });
     assert.equal(result.origem, "busca_textual");
@@ -38,6 +58,12 @@ test("chat: posse da conversa e busca textual isolada por projeto no PostgreSQL"
     await assert.rejects(service.query(bruno, { pergunta: "invasão", conversaId: result.conversa_id }), NotFoundError);
     const messages = await service.listMessages(ana, result.conversa_id);
     assert.deepEqual(messages.map((item) => item.remetente), ["user", "assistant"]);
+    const pending = await repository.addMessage(result.conversa_id,"user","Outra pergunta");
+    await assert.rejects(repository.addMessage(result.conversa_id,"user","Concorrente"), /Aguarde/);
+    await assert.rejects(repository.finishMessage(result.conversa_id,pending,"Inválido\u0000",[]));
+    assert.equal((await repository.listMessages(result.conversa_id)).find(m=>m.id===pending)?.processing_status,"pending");
+    await repository.failMessage(pending);
+    assert.equal((await repository.listMessages(result.conversa_id)).find(m=>m.id===pending)?.processing_status,"failed");
     assert.equal((await service.listConversations(bruno)).length, 0);
     assert.equal((await service.listConversations(ana))[0].projeto_nome, projectA);
   } finally {

@@ -1,3 +1,4 @@
+import { allocateDeveloper } from '../database.mjs';
 import test, { after } from "node:test";
 import assert from "node:assert/strict";
 import { expect } from "./expect.mjs";
@@ -58,6 +59,7 @@ test("perfil dev consulta mas não escreve, e a API recusa a escrita", async () 
   const po = await createUser("po");
   const dev = await createUser("dev");
   const project = await createProject(po, "Docs DEV");
+  await allocateDeveloper(dev, project);
   const uploaded = await uploadRaw(po, project.id, "leitura.pdf", pdfContent());
   assert.equal(uploaded.status, 201);
 

@@ -90,7 +90,7 @@ export class ProjectsController {
     try {
       const result =
         await this.service.list(
-          req.query,
+          req.query, req.auth!.id,
         );
 
       res.status(200).json(result);

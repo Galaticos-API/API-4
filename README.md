@@ -428,3 +428,8 @@ O **Sinapse** é um **Projeto de Aprendizagem Interdisciplinar (API)** desenvolv
 **Grupo Galáticos · Fatec São José dos Campos · 2026**
 
 </div>
+
+
+### Segredo da comunicação interna
+
+Antes de iniciar o Compose, configure `AI_SERVICE_TOKEN` em `.env` com um segredo aleatório (por exemplo, 32 bytes gerados com `crypto.randomBytes` do Node). Não versione o valor. O mesmo segredo é usado pelo backend e pelo serviço Python. A porta 8000 não é publicada; acessos ao Python passam pelo backend e pelo workflow autenticado descrito em [n8n/README.md](n8n/README.md).

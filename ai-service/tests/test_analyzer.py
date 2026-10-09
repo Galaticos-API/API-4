@@ -11,8 +11,11 @@ from analyzer.prompts import project_synthesis_prompt
 
 class TestAnalyzer(unittest.TestCase):
     def setUp(self):
-        self.settings = AnalyzerSettings(workspace_dir=Path("test_workspace"))
+        workspace = TemporaryDirectory()
+        self.addCleanup(workspace.cleanup)
+        self.settings = AnalyzerSettings(workspace_dir=Path(workspace.name))
         self.analyzer = Analyzer(self.settings)
+        self.addCleanup(self.analyzer.client.close)
 
     def test_normalize_github_url(self):
         # Valid URLs

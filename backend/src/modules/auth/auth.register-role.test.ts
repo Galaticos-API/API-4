@@ -74,11 +74,14 @@ test("somente uma sessão de administrador cria outra conta de administrador", a
   assert.deepEqual(service.registered.at(-1), { email: "admin@example.com", role: "admin" });
 });
 
-test("cadastro público de PO, dev e do perfil padrão continua permitido", async () => {
-  assert.equal((await register("po")).status, 201);
+test("cadastro público concede somente dev e PO exige administrador", async () => {
+  assert.equal((await register("po")).status, 403);
+  assert.equal((await register("po", "token-po")).status, 403);
+  assert.equal((await register("po", "token-dev")).status, 403);
+  assert.equal((await register("po", "token-admin")).status, 201);
   assert.equal((await register("dev")).status, 201);
   assert.equal((await register(undefined)).status, 201);
-  assert.deepEqual(service.registered.map((item) => item.role).slice(-3), ["po", "dev", "po"]);
+  assert.deepEqual(service.registered.map((item) => item.role).slice(-3), ["po", "dev", "dev"]);
 });
 
 test("perfil inválido é recusado com 400", async () => {

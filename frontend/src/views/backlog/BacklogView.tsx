@@ -1,8 +1,11 @@
 import type { BacklogRoute } from "../../models/navigation";
 import { navigate } from "../../models/navigation";
-import { EpicForm, EpicDetail } from "./EpicsView";
-import { FeatureList, FeatureForm, FeatureDetail } from "./FeaturesView";
-import { PbiList, PbiForm, PbiDetail } from "./PbisView";
+import { Button } from "../common/ui";
+import { EpicDetail, EpicForm } from "./EpicsView";
+import { FeatureDetail, FeatureForm, FeatureList } from "./FeaturesView";
+import { PbiDetail } from "./PbiDetail";
+import { PbiForm } from "./PbiForm";
+import { PbiList } from "./PbiList";
 
 export function BacklogScreen({ route, canCreate }: { route: Exclude<BacklogRoute, null>; canCreate: boolean }) {
   if (route.screen === "epic-new") {
@@ -45,7 +48,7 @@ function SomenteLeitura({ voltar }: { voltar: string }) {
     <section className="projects-page">
       <h2>Acesso de leitura</h2>
       <p role="alert">Seu perfil não permite criar itens do backlog.</p>
-      <button className="btn-secondary" onClick={() => navigate(voltar)}>Voltar</button>
+      <Button variant="secondary" onClick={() => navigate(voltar)}>Voltar</Button>
     </section>
   );
 }

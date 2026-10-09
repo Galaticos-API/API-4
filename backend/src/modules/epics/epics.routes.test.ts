@@ -69,6 +69,7 @@ test("Testes de integração HTTP - Rotas de Épicos", async (t) => {
 
   const testApp = express();
   testApp.use(express.json());
+  testApp.use((req,_res,next)=>{req.auth={id:"10000000-0000-4000-8000-000000000001",nome:"PO",email:"po@test",role:"po"};next()});
 
   const router = express.Router();
   router.post("/", controller.create);

@@ -24,6 +24,7 @@ export interface ChatMessage {
   fontes: ChatSource[];
   created_at: string | null;
   origem?: ChatOrigin;
+  failed?: boolean;
 }
 
 export interface ChatAnswer {
@@ -74,6 +75,7 @@ function parseMessage(value: unknown): ChatMessage {
     id: value.id,
     remetente: value.remetente as ChatMessage["remetente"],
     conteudo: value.conteudo,
+    failed: value.processing_status === "failed",
     fontes: parseSources(value.fontes_json ?? value.fontes),
     created_at: typeof value.created_at === "string" ? value.created_at : null,
   };
@@ -119,4 +121,10 @@ export function describeChatError(error: unknown): string {
     if (error.status === 400) return serverMessage(error) ?? "Revise a pergunta e tente novamente.";
   }
   return "Não foi possível falar com o assistente agora. Verifique a conexão e tente novamente.";
+}
+
+export async function listChatProjects(signal?: AbortSignal): Promise<Array<{id: string; nome: string}>> {
+  const data = await (await apiRequest("/chat/projects", {signal})).json();
+  if (!Array.isArray(data.items)) throw new Error("Projetos inválidos");
+  return data.items;
 }

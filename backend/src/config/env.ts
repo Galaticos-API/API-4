@@ -17,6 +17,7 @@ const envSchema = z.object({
   POSTGRES_DB: z.string().default("sinapse"),
   POSTGRES_HOST: z.string().default("localhost"),
   POSTGRES_PORT: z.coerce.number().default(5432),
+  AI_SERVICE_TOKEN: z.string().default(""),
   AI_SERVICE_URL: z.string().default("http://localhost:8000"),
   REPO_ANALYZER_URL: z.string().default('http://localhost:8000'),
 
@@ -29,6 +30,7 @@ const envSchema = z.object({
   // S1-19/S1-22 — Documentos
   DOCUMENT_MAX_SIZE_MB: z.coerce.number().positive().max(100).default(20),
   DOCUMENT_STORAGE_DIR: z.string().min(1).default("storage/documents"),
+  DOCUMENT_INGEST_WEBHOOK_URL: z.string().optional(),
   DOCUMENT_EVENTS_WEBHOOK_URL: z.string().optional(),
   N8N_WEBHOOK_URL: z.string().default("http://n8n:5678/webhook/sinapse-ingest"),
   // Token compartilhado para o pipeline n8n -> backend (POST .../documents/.../chunks).

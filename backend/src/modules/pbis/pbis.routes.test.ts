@@ -1,3 +1,4 @@
+import type { PoolClient } from "pg";
 import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
 import express from "express";
@@ -48,6 +49,14 @@ class MockPbisRepo extends PbisRepository {
     };
     this.pbis.push(created);
     return created;
+  }
+
+  async markConcluded(id: string, validate: (client: PoolClient) => Promise<void>): Promise<PbiWithContext | null> {
+    const item = await this.findById(id);
+    if (!item) return null;
+    if (item.status !== "concluido") await validate({} as PoolClient);
+    item.status = "concluido";
+    return item;
   }
 
   async findAll(query: PbiQueryDTO): Promise<PaginatedPbis> {

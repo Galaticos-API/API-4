@@ -13,6 +13,10 @@ export interface ProjectDocument {
   tamanho_bytes: number | null;
   status_processamento: DocumentStatus;
   armazenamento_pendente: boolean;
+  nova_tentativa_pendente?: boolean;
+  tentativas_processamento?: number;
+  proxima_tentativa_em?: string | null;
+  erro_processamento_codigo?: string | null;
   autor_id: string | null;
   autor_nome: string | null;
   created_at: string;
@@ -55,6 +59,10 @@ function parseDocument(value: unknown): ProjectDocument {
     tamanho_bytes: typeof size === "number" ? size : null,
     status_processamento: value.status_processamento as DocumentStatus,
     armazenamento_pendente: value.armazenamento_pendente === true,
+    nova_tentativa_pendente: value.nova_tentativa_pendente === true,
+    tentativas_processamento: typeof value.tentativas_processamento === "number" ? value.tentativas_processamento : 0,
+    proxima_tentativa_em: typeof value.proxima_tentativa_em === "string" ? value.proxima_tentativa_em : null,
+    erro_processamento_codigo: typeof value.erro_processamento_codigo === "string" ? value.erro_processamento_codigo : null,
     autor_id: typeof value.autor_id === "string" ? value.autor_id : null,
     autor_nome: typeof value.autor_nome === "string" ? value.autor_nome : null,
     created_at: value.created_at,
@@ -151,4 +159,8 @@ export function describeRemovalError(error: unknown): string {
     if ((error.status === 500 || error.status === 503) && message) return message;
   }
   return "Não foi possível remover o documento. Ele continua disponível; tente novamente.";
+}
+
+export async function reprocessDocument(projectId: string, documentId: string, signal?: AbortSignal): Promise<void> {
+  await apiRequest(`/projects/${encodeURIComponent(projectId)}/documents/${encodeURIComponent(documentId)}/reprocess`, { method: "POST", signal });
 }

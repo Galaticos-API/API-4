@@ -1,0 +1,78 @@
+import { DocumentsRepository } from "./documents.repository.js";
+import test from "node:test";
+import assert from "node:assert/strict";
+import { randomUUID } from "node:crypto";
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join, resolve, sep } from "node:path";
+import { createServer } from "node:http";
+import { Pool } from "pg";
+import { validateTarget } from "../../database/seed-lib.js";
+import { LocalDocumentStorage } from "./documents.storage.js";
+import { DocumentIngestionRepository, DocumentIngestionWorker } from "./documents.ingestion.js";
+
+test("ingestão: falha, retry, lease, vetores e remoção sem ressuscitar documento", {skip:!process.env.ARCHIVE_TEST_DATABASE_URL}, async () => {
+  const db = new Pool({connectionString:validateTarget(process.env.ARCHIVE_TEST_DATABASE_URL,"test"),max:1});
+  const [project,id] = [randomUUID(),randomUUID()];
+  const folder=await mkdtemp(join(tmpdir(),"sinapse-ingestion-"));
+  assert.ok(resolve(folder).startsWith(resolve(tmpdir())+sep));
+  const storage=new LocalDocumentStorage(folder);
+  const repository=new DocumentIngestionRepository(db);
+  let fail=true;
+  const server=createServer(async (req,res) => {
+    const buffers=[]; for await(const part of req) buffers.push(part);
+    const request=JSON.parse(Buffer.concat(buffers).toString());
+    assert.equal(request.project_id,project);
+    assert.equal(Buffer.from(request.content_base64,"base64").toString(),"Documento de teste");
+    res.setHeader("Content-Type","application/json");
+    res.statusCode=fail?503:200;
+    res.end(JSON.stringify(fail?{error:"offline"}:{document_id:id,project_id:project,chunks:[{text:"Documento de teste",embedding:Array(1024).fill(0.1)}]}));
+  });
+  await new Promise<void>(resolve=>server.listen(0,"127.0.0.1",resolve));
+  const address=server.address() as {port:number};
+  const worker=new DocumentIngestionWorker(repository,storage,`http://127.0.0.1:${address.port}`);
+  const count=async()=>Number((await db.query("SELECT count(*) FROM chunk WHERE projeto_id=$1",[project])).rows[0].count);
+  try {
+    await db.query("INSERT INTO projeto(id,nome,cliente,status) VALUES($1::uuid,$1::text,'Teste','ativo')",[project]);
+    await storage.save(`${project}/${id}`,Buffer.from("Documento de teste"));
+    await storage.finalizeUpload(`${project}/${id}`);
+    await db.query("INSERT INTO documento(id,projeto_id,nome,caminho,status_processamento) VALUES($1,$2,'teste.txt',$3,'pendente')",[id,project,`${project}/${id}`]);
+    await worker.tick(project);
+    assert.equal((await db.query("SELECT status_processamento FROM documento WHERE id=$1",[id])).rows[0].status_processamento,"falha");
+    assert.equal(await count(),0);
+    const listing = new DocumentsRepository(db);
+    const failed = (await listing.listByProject(project,null,20)).items[0];
+    assert.equal(failed.nova_tentativa_pendente,true);
+    assert.equal(failed.erro_processamento_codigo,"SERVICE_HTTP_ERROR");
+    assert.equal(failed.tentativas_processamento,1);
+    assert.match(failed.erro_processamento!, /recusou/);
+    await repository.retry(project,id);
+    await db.query("UPDATE documento SET ingest_attempts=2 WHERE id=$1", [id]);
+    await repository.retry(project,id);
+    assert.equal((await db.query("SELECT ingest_attempts FROM documento WHERE id=$1", [id])).rows[0].ingest_attempts, 2);
+    const job=(await repository.claim(project))!;
+    assert.equal(await repository.claim(project),null);
+    await assert.rejects(repository.finish(job,[{text:"Inválido",embedding:[1]}]));
+    assert.equal(await count(),0);
+    await repository.fail(job,{code:"INVALID_DOCUMENT",retryable:false});
+    assert.equal((await listing.listByProject(project,null,20)).items[0].nova_tentativa_pendente,false);
+    assert.equal(await repository.claim(project),null);
+    await repository.retry(project,id);
+    fail=false; await worker.tick(project);
+    assert.equal(await count(),1);
+    assert.equal((await db.query("SELECT vector_dims(embedding) n FROM chunk WHERE projeto_id=$1",[project])).rows[0].n,1024);
+    assert.equal((await db.query("SELECT status_processamento FROM documento WHERE id=$1",[id])).rows[0].status_processamento,"processado");
+    await repository.retry(project,id); await worker.tick(project);
+    assert.equal(await count(),1);
+    await repository.retry(project,id);
+    const stale=(await repository.claim(project))!;
+    await db.query("DELETE FROM documento WHERE id=$1",[id]);
+    await db.query("DELETE FROM chunk WHERE projeto_id=$1",[project]);
+    await repository.finish(stale,[{text:"Resposta atrasada",embedding:Array(1024).fill(0.1)}]);
+    assert.equal(await count(),0);
+  } finally {
+    server.closeAllConnections(); await new Promise<void>(resolve=>server.close(()=>resolve()));
+    await db.query("DELETE FROM projeto WHERE id=$1",[project]); await db.end();
+    await rm(folder,{recursive:true,force:true});
+  }
+});

@@ -47,6 +47,8 @@ services:
 
     environment:
       - N8N_PORT=5678
+      # Supports the base64 envelope for uploads up to the backend maximum (100 MiB).
+      - N8N_PAYLOAD_SIZE_MAX=150
       - N8N_ENCRYPTION_KEY=${N8N_ENCRYPTION_KEY:-sinapse-shared-dev-encryption-key-2026}
       - GENERIC_TIMEZONE=${GENERIC_TIMEZONE:-America/Sao_Paulo}
       - TZ=${TZ:-America/Sao_Paulo}
@@ -78,6 +80,27 @@ services:
     networks:
       - sinapse-network
 
+  # Ollama no Docker (profile opcional). AGENTS.md padrao e rodar Ollama no
+  # host; este servico ativa somente quando o perfil local-ai e selecionado.
+  ollama:
+    profiles: [local-ai]
+    image: ollama/ollama:latest
+    container_name: sinapse-ollama
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${OLLAMA_PORT:-11434}:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    environment:
+      - OLLAMA_KEEP_ALIVE=${OLLAMA_KEEP_ALIVE:-24h}
+    healthcheck:
+      test: ["CMD-SHELL", "ollama list || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - sinapse-network
 
   backend:
     build:
@@ -104,10 +127,15 @@ services:
       # AI Service dentro da rede Docker
       - AI_SERVICE_URL=http://ai-service:8000
       - REPO_ANALYZER_URL=${REPO_ANALYZER_URL:-http://ai-service:8000}
-
+      - AI_SERVICE_TOKEN=${AI_SERVICE_TOKEN:?Configure AI_SERVICE_TOKEN in .env}
       - DOCUMENT_MAX_SIZE_MB=${DOCUMENT_MAX_SIZE_MB:-20}
+      # /files e bind-mount compartilhado com o container do n8n (./storage no host),
+      # pre-requisito para o pipeline de ingestao da S2-02 ler o arquivo.
       - DOCUMENT_STORAGE_DIR=/files
-      - DOCUMENT_EVENTS_WEBHOOK_URL=${DOCUMENT_EVENTS_WEBHOOK_URL:-}
+      - DOCUMENT_EVENTS_WEBHOOK_URL=${DOCUMENT_EVENTS_WEBHOOK_URL:-http://n8n:5678/webhook/sinapse-document-removed}
+      - DOCUMENT_INGEST_WEBHOOK_URL=${DOCUMENT_INGEST_WEBHOOK_URL:-http://n8n:5678/webhook/sinapse-ingest}
+      # Alias legado consumido por documents.service.ts enquanto nao migrarmos
+      # para DOCUMENT_INGEST_WEBHOOK_URL em todo o backend.
       - N8N_WEBHOOK_URL=${N8N_WEBHOOK_URL:-http://n8n:5678/webhook/sinapse-ingest}
       - N8N_INGEST_TOKEN=${N8N_INGEST_TOKEN:-sinapse-dev-ingest-token}
       - MIGRATIONS_DIR=/database/migrations
@@ -135,11 +163,17 @@ services:
 
     container_name: sinapse-ai-service
     restart: unless-stopped
+    # Limites de recurso herdados da S2-01 para proteger a maquina do desenvolvedor
+    # contra loops do analyzer; nao mexem no comportamento funcional.
+    cpus: 2
+    mem_limit: 1g
+    pids_limit: 128
 
+    # Em dev exposto no host para debug local; em prod feche com `expose: ["8000"]`.
     ports:
       - "${AI_SERVICE_PORT:-8000}:8000"
 
-    # Permite acesso ao Ollama no Windows
+    # Permite acesso ao Ollama rodando no host (fora do Docker).
     extra_hosts:
       - "host.docker.internal:host-gateway"
 
@@ -147,6 +181,7 @@ services:
       - repo_analysis_data:/app/workspace_analyzer
 
     environment:
+      - AI_SERVICE_TOKEN=${AI_SERVICE_TOKEN:?Configure AI_SERVICE_TOKEN in .env}
       - AI_SERVICE_PORT=8000
       - AI_SERVICE_HOST=0.0.0.0
 
@@ -163,6 +198,12 @@ services:
       - MAX_FILES=${MAX_FILES:-1000}
       - ANALYZER_QUICK_FILES=${ANALYZER_QUICK_FILES:-8}
       - ANALYZER_BALANCED_FILES=${ANALYZER_BALANCED_FILES:-80}
+      - ANALYZER_MAX_ACTIVE_RUNS=${ANALYZER_MAX_ACTIVE_RUNS:-2}
+      - ANALYZER_MAX_QUEUED_RUNS=${ANALYZER_MAX_QUEUED_RUNS:-6}
+      - ANALYZER_WORKSPACE_QUOTA_MB=${ANALYZER_WORKSPACE_QUOTA_MB:-2048}
+      - MAX_REPO_SIZE_MB=${MAX_REPO_SIZE_MB:-300}
+      - ANALYZER_CLONE_MEMORY_MB=${ANALYZER_CLONE_MEMORY_MB:-512}
+      - ANALYZER_CLONE_TIMEOUT_SECONDS=${ANALYZER_CLONE_TIMEOUT_SECONDS:-300}
 
       # PostgreSQL dentro do Docker
       - POSTGRES_HOST=postgres
@@ -205,6 +246,9 @@ volumes:
 
   repo_analysis_data:
     name: sinapse_repo_analysis_data
+
+  ollama_data:
+    name: sinapse_ollama_data
 
 
 networks:

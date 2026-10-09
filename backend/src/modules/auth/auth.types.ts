@@ -37,7 +37,7 @@ export const registerSchema = z.object({
   role: z
     .enum(USER_ROLES, { invalid_type_error: "Função inválida." })
     .optional()
-    .default("po"),
+    .default("dev"),
 });
 
 export type RegisterDTO = z.infer<typeof registerSchema>;

@@ -46,10 +46,15 @@ export class FakeChatRepository extends ChatRepository {
     return this.messages.filter((item) => item.conversa_id === conversaId);
   }
 
-  async addMessage(conversaId: string, remetente: "user" | "assistant", conteudo: string, fontes: ChatSource[] = []): Promise<void> {
-    this.messages.push({ id: this.id("d"), conversa_id: conversaId, remetente, conteudo, fontes_json: fontes, created_at: new Date().toISOString() });
+  async addMessage(conversaId: string, remetente: "user" | "assistant", conteudo: string, fontes: ChatSource[] = []): Promise<string> {
+    const id = this.id("d");
+    this.messages.push({ id, conversa_id: conversaId, remetente, conteudo, fontes_json: fontes, created_at: new Date().toISOString(), processing_status: remetente === "user" ? "pending" : "completed" });
+    return id;
   }
 
+  async accessibleProjects() { return [{id:PROJECT_A,nome:"A"},{id:PROJECT_B,nome:"B"}]; }
+  async finishMessage(conversaId: string, messageId: string, conteudo: string, fontes: ChatSource[]) { await this.addMessage(conversaId, "assistant", conteudo, fontes); this.messages.find(m=>m.id===messageId)!.processing_status="completed"; }
+  async failMessage(id: string) { this.messages.find(m=>m.id===id)!.processing_status="failed"; }
   async searchChunks(projetoId: string | null, patterns: string[], limit: number): Promise<ChunkMatch[]> {
     this.searches.push({ projetoId, patterns });
     if (patterns.length === 0) return [];

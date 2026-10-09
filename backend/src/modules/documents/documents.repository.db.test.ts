@@ -207,7 +207,7 @@ test("S1-19/S1-22: documentos, auditoria e outbox no PostgreSQL", { skip: !proce
       const archiver = await pool.connect();
       try {
         await archiver.query("BEGIN");
-        await lockHierarchy(archiver);
+        await lockHierarchy(archiver, "projeto", archivedProject);
         await archiver.query("UPDATE projeto SET status='arquivado' WHERE id=$1", [archivedProject]);
         const write = repo.create({
           id: attemptedDocument,
@@ -223,7 +223,7 @@ test("S1-19/S1-22: documentos, auditoria e outbox no PostgreSQL", { skip: !proce
         let waiting = false;
         while (!waiting && Date.now() < deadline) {
           const result = await pool.query<{ waiting: boolean }>(
-            "SELECT EXISTS (SELECT 1 FROM pg_stat_activity WHERE wait_event_type='Lock' AND query LIKE 'LOCK TABLE projeto,%') AS waiting",
+            "SELECT EXISTS (SELECT 1 FROM pg_stat_activity WHERE wait_event_type='Lock' AND query LIKE '%FOR UPDATE OF p%') AS waiting",
           );
           waiting = result.rows[0].waiting;
           if (!waiting) await new Promise((resolve) => setTimeout(resolve, 10));
@@ -260,14 +260,14 @@ test("S1-19/S1-22: documentos, auditoria e outbox no PostgreSQL", { skip: !proce
       const archiver = await pool.connect();
       try {
         await archiver.query("BEGIN");
-        await lockHierarchy(archiver);
+        await lockHierarchy(archiver, "projeto", archivedProject);
         await archiver.query("UPDATE projeto SET status='arquivado' WHERE id=$1", [archivedProject]);
         const removal = repo.remove({ id: archivedDocument, projetoId: archivedProject, usuarioId: user });
         const deadline = Date.now() + 2_000;
         let waiting = false;
         while (!waiting && Date.now() < deadline) {
           const result = await pool.query<{ waiting: boolean }>(
-            "SELECT EXISTS (SELECT 1 FROM pg_stat_activity WHERE wait_event_type='Lock' AND query LIKE 'LOCK TABLE projeto,%') AS waiting",
+            "SELECT EXISTS (SELECT 1 FROM pg_stat_activity WHERE wait_event_type='Lock' AND query LIKE '%FOR UPDATE OF p%') AS waiting",
           );
           waiting = result.rows[0].waiting;
           if (!waiting) await new Promise((resolve) => setTimeout(resolve, 10));

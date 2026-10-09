@@ -7,6 +7,7 @@ load_dotenv(find_dotenv(usecwd=True))
 
 
 class Settings(BaseSettings):
+    AI_SERVICE_TOKEN: str = ""
     AI_SERVICE_PORT: int = 8000
     AI_SERVICE_HOST: str = "0.0.0.0"
     

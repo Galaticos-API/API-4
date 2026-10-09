@@ -90,6 +90,8 @@ export function createDocumentsRouter(
    *       404:
    *         description: Projeto não encontrado
    */
+  router.post("/:documentId/reprocess", canWrite, controller.reprocess);
+
   router.delete("/:documentId", canWrite, controller.remove);
 
   return router;

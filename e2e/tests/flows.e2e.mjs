@@ -1,3 +1,4 @@
+import { allocateDeveloper } from '../database.mjs';
 import test, { after } from "node:test";
 import assert from "node:assert/strict";
 import { expect } from "./expect.mjs";
@@ -129,6 +130,7 @@ test("Decisões S1-18: registrar no PBI, ver herança do projeto e restrições 
   const po = await createUser("po");
   const dev = await createUser("dev");
   const project = await createProject(po, "Decisões");
+  await allocateDeveloper(dev, project);
   const { epic, feature, pbi } = await createHierarchy(po, project);
   const inherited = await api(`/projects/${project.id}/decisions`, { method: "POST", token: po.token, body: { titulo: "Stack única em TypeScript", contexto: "Equipe pequena", decisao: "Usar TypeScript em todo o código", justificativa: "Reduz troca de contexto", alternativas: "Python no backend" } });
   assert.equal(inherited.status, 201);

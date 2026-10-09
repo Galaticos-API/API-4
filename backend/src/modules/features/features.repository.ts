@@ -1,11 +1,14 @@
-import { lockHierarchy, assertWritable } from "../projects/hierarchy-archive.js";
+import { projectAccessSql } from "../projects/project-access.js";
+import { ValidationError } from "../../shared/errors.js";
 import { Pool, PoolClient } from "pg";
 import { pool } from "../../database/db.js";
-import { CreateFeatureDTO, UpdateFeatureDTO, FeatureQueryDTO, Feature, FeatureWithStats, PaginatedFeatures } from "./features.types.js";
-import { auditService } from "../audit/audit.service.js";
-import { assertJustificationForCompletedItem } from "../quality/completed-item-policy.js";
+import { withTransaction } from "../../database/transaction.js";
 import { buildAuditChangeData } from "../audit/audit.payloads.js";
+import { auditService } from "../audit/audit.service.js";
+import { assertWritable, lockHierarchy } from "../projects/hierarchy-archive.js";
+import { assertJustificationForCompletedItem } from "../quality/completed-item-policy.js";
 import { getEntityTechnologyIds, replaceEntityTechnologies } from "../technologies/entity-technologies.js";
+import { FEATURE_REQUIRED_FIELDS, CreateFeatureDTO, Feature, FeatureQueryDTO, FeatureWithStats, PaginatedFeatures, UpdateFeatureDTO } from "./features.types.js";
 
 const SELECT_WITH_STATS = `
   SELECT
@@ -28,17 +31,15 @@ export class FeaturesRepository {
     this.pool = customPool ?? pool;
   }
 
-  async findById(id: string): Promise<FeatureWithStats | null> {
-    const result = await this.pool.query<FeatureWithStats>(`${SELECT_WITH_STATS} WHERE f.id = $1`, [id]);
+  async findById(id: string, executor: Pool | PoolClient = this.pool): Promise<FeatureWithStats | null> {
+    const result = await executor.query<FeatureWithStats>(`${SELECT_WITH_STATS} WHERE f.id = $1`, [id]);
     return result.rows[0] ?? null;
   }
 
   async create(data: CreateFeatureDTO, usuarioId?: string | null): Promise<Feature> {
-    const client: PoolClient = await this.pool.connect();
+    return withTransaction(this.pool, async (client) => {
 
-    try {
-      await client.query("BEGIN");
-      await lockHierarchy(client);
+      await lockHierarchy(client, "epico", data.epico_id);
       await assertWritable(client, "epico", data.epico_id);
 
       const insertQuery = `
@@ -69,20 +70,19 @@ export class FeaturesRepository {
         client,
       );
 
-      await client.query("COMMIT");
       return created;
-    } catch (error) {
-      await client.query("ROLLBACK");
-      throw error;
-    } finally {
-      client.release();
-    }
+
+    });
   }
 
-  async findAll(query: FeatureQueryDTO): Promise<PaginatedFeatures> {
+  async findAll(query: FeatureQueryDTO, userId?: string): Promise<PaginatedFeatures> {
     const whereConditions: string[] = [];
     const params: unknown[] = [];
     let paramIndex = 1;
+    if (userId) {
+      whereConditions.push(projectAccessSql("(SELECT access_epic.projeto_id FROM epico access_epic WHERE access_epic.id=f.epico_id)", "$" + paramIndex++));
+      params.push(userId);
+    }
 
     if (query.epico_id) {
       whereConditions.push(`f.epico_id = $${paramIndex}`);
@@ -115,17 +115,20 @@ export class FeaturesRepository {
   }
 
   async update(id: string, data: UpdateFeatureDTO, usuarioId?: string | null): Promise<FeatureWithStats | null> {
-    const client: PoolClient = await this.pool.connect();
+    return withTransaction(this.pool, async (client) => {
 
-    try {
-      await client.query("BEGIN");
-      await lockHierarchy(client);
+      await lockHierarchy(client, "feature", id);
       await assertWritable(client, "feature", id);
 
-      const existing = await this.findById(id);
+      const existing = await this.findById(id, client);
       if (!existing) {
-        await client.query("ROLLBACK");
+
         return null;
+      }
+      if (existing.status === "concluido") {
+        const merged = { ...existing, ...data };
+        const missing = FEATURE_REQUIRED_FIELDS.filter(field => !String(merged[field] ?? "").trim());
+        if (missing.length) throw new ValidationError("Não é possível remover campos obrigatórios de um item concluído.", { campos_faltantes: missing });
       }
       await assertJustificationForCompletedItem(
         client,
@@ -171,29 +174,28 @@ export class FeaturesRepository {
         client,
       );
 
-      await client.query("COMMIT");
-      return await this.findById(id);
-    } catch (error) {
-      await client.query("ROLLBACK");
-      throw error;
-    } finally {
-      client.release();
-    }
+      const saved = await this.findById(id, client);
+
+      return saved;
+
+    });
   }
 
   async markConcluded(id: string, usuarioId?: string | null): Promise<FeatureWithStats | null> {
-    const client: PoolClient = await this.pool.connect();
+    return withTransaction(this.pool, async (client) => {
 
-    try {
-      await client.query("BEGIN");
-      await lockHierarchy(client);
+      await lockHierarchy(client, "feature", id);
       await assertWritable(client, "feature", id);
 
-      const existing = await this.findById(id);
+      const existing = await this.findById(id, client);
       if (!existing) {
-        await client.query("ROLLBACK");
+
         return null;
       }
+
+      if (existing.status === "concluido") return existing;
+      const missing: string[] = FEATURE_REQUIRED_FIELDS.filter(field => !String(existing[field] ?? "").trim());
+      if (missing.length) throw new ValidationError("Preencha os campos obrigatórios antes de concluir.", { campos_faltantes: missing });
 
       await client.query(`UPDATE feature SET status = 'concluido', updated_at = CURRENT_TIMESTAMP WHERE id = $1`, [id]);
 
@@ -208,14 +210,11 @@ export class FeaturesRepository {
         client,
       );
 
-      await client.query("COMMIT");
-      return await this.findById(id);
-    } catch (error) {
-      await client.query("ROLLBACK");
-      throw error;
-    } finally {
-      client.release();
-    }
+      const saved = await this.findById(id, client);
+
+      return saved;
+
+    });
   }
 }
 

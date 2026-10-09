@@ -8,45 +8,30 @@ def chunk_document_text(text: str, chunk_size: int = 1000, overlap: int = 150) -
     with an overlap of ~150 chars, breaking primarily on paragraph or sentence boundaries.
     Complies with Sinapse PRD Section 10.3.
     """
+    if chunk_size <= 0 or not 0 <= overlap < chunk_size:
+        raise ValueError("Require chunk_size > 0 and 0 <= overlap < chunk_size")
     if not text or not text.strip():
         return []
 
     # Normalize newlines
     text = text.replace("\r\n", "\n")
-    paragraphs = re.split(r"\n\s*\n", text)
-    
+    text = text.strip()
     chunks: list[str] = []
-    current_chunk: list[str] = []
-    current_len = 0
-
-    for para in paragraphs:
-        para = para.strip()
-        if not para:
-            continue
-        
-        para_len = len(para)
-        
-        if current_len + para_len <= chunk_size:
-            current_chunk.append(para)
-            current_len += para_len + 1
-        else:
-            if current_chunk:
-                chunk_str = "\n\n".join(current_chunk)
-                chunks.append(chunk_str)
-                # Keep overlap if possible
-                overlap_text = chunk_str[-overlap:] if len(chunk_str) > overlap else ""
-                current_chunk = [overlap_text, para] if overlap_text else [para]
-                current_len = sum(len(p) for p in current_chunk) + len(current_chunk) - 1
-            else:
-                # Single paragraph exceeds chunk_size, break by sentence or length
-                chunks.append(para[:chunk_size])
-                current_chunk = [para[chunk_size - overlap:]]
-                current_len = len(current_chunk[0])
-
-    if current_chunk:
-        chunks.append("\n\n".join(current_chunk))
-
-    return [c.strip() for c in chunks if c.strip()]
+    start = 0
+    while start < len(text):
+        end = min(start + chunk_size, len(text))
+        if end < len(text):
+            # Prefer a paragraph boundary only when it leaves meaningful progress.
+            boundary = text.rfind("\n\n", start + max(overlap + 1, chunk_size // 2), end)
+            if boundary >= 0:
+                end = boundary + 2
+        chunk = text[start:end]
+        if chunk.strip():
+            chunks.append(chunk)
+        if end == len(text):
+            break
+        start = end - overlap
+    return chunks
 
 
 def create_structured_chunk(entity_type: str, data: dict[str, Any]) -> dict[str, Any]:

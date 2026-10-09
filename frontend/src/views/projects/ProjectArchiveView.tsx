@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-import { archiveProject, getArchiveImpact, type ArchiveImpact, type Project } from "../../api/api_projects";
 import { ApiError } from "../../api/api_auth";
+import { archiveProject, getArchiveImpact, type ArchiveImpact, type Project } from "../../api/api_projects";
+import { Button } from "../common/ui";
 
 export function ProjectArchiveView({ project, canWrite, onArchived }: { project: Project; canWrite: boolean; onArchived: (project: Project) => void }) {
   const [impact, setImpact] = useState<ArchiveImpact | null>(null);
@@ -35,15 +36,15 @@ export function ProjectArchiveView({ project, canWrite, onArchived }: { project:
     } finally { pending.current = false; if (mounted.current) setBusy(false); }
   }
   return <div className="project-actions">
-    <button className="btn-secondary" disabled={busy} onClick={preview}>{busy ? "Processando…" : "Arquivar projeto"}</button>
+    <Button variant="secondary" disabled={busy} onClick={preview}>{busy ? "Processando…" : "Arquivar projeto"}</Button>
     {error && <p role="alert">{error}</p>}
     <dialog className="archive-dialog" ref={dialog} aria-labelledby="archive-title" onCancel={event => { if (busy) event.preventDefault(); else setImpact(null); }}>
       <h2 id="archive-title">Arquivar {project.nome}?</h2>
       {impact && <><p>Serão arquivados {impact.projeto} projeto, {impact.epicos} épico(s), {impact.features} feature(s) e {impact.pbis} PBI(s).</p>
         <p>Os registros serão preservados para consulta. Os itens já arquivados manterão suas datas.</p></>}
       {busy && <p role="status">Arquivando…</p>}
-      <div className="project-actions"><button className="btn-secondary" autoFocus disabled={busy} onClick={close}>Cancelar</button>
-        <button className="btn-primary" disabled={busy || !impact} onClick={confirm}>Confirmar arquivamento</button></div>
+      <div className="project-actions"><Button variant="secondary" autoFocus disabled={busy} onClick={close}>Cancelar</Button>
+        <Button variant="primary" disabled={busy || !impact} onClick={confirm}>Confirmar arquivamento</Button></div>
     </dialog>
   </div>;
 }

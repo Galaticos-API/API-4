@@ -1,35 +1,12 @@
-import { Router, Request, Response, NextFunction } from "express";
-import { pool } from "../../database/db.js";
+import { Router, type RequestHandler } from "express";
 import { requireAuth } from "../../middleware/requireAuth.js";
+import { DevelopersController } from "./developers.controller.js";
 
-export const developersRouter = Router();
+export function createDevelopersRouter(controller = new DevelopersController(), authenticate: RequestHandler = requireAuth) {
+  const router = Router();
+  router.use(authenticate);
+  router.get("/", controller.list);
+  return router;
+}
 
-developersRouter.use(requireAuth);
-
-// GET /api/v1/developers - Mapeamento de Desenvolvedores e Competências
-developersRouter.get("/", async (_req: Request, res: Response, next: NextFunction) => {
-  try {
-    const devsRes = await pool.query(`
-      SELECT d.id, d.senioridade, d.bio, u.nome, u.email, u.role
-      FROM desenvolvedor d
-      JOIN usuario u ON d.usuario_id = u.id
-      ORDER BY u.nome ASC
-    `);
-
-    const techRes = await pool.query("SELECT id, nome, categoria FROM tecnologia ORDER BY nome ASC");
-
-    const compsRes = await pool.query(`
-      SELECT c.id, c.desenvolvedor_id, c.tecnologia_id, c.nivel, c.evidencia, t.nome as tecnologia_nome
-      FROM competencia c
-      JOIN tecnologia t ON c.tecnologia_id = t.id
-    `);
-
-    res.json({
-      desenvolvedores: devsRes.rows,
-      tecnologias: techRes.rows,
-      competencias: compsRes.rows,
-    });
-  } catch (error) {
-    next(error);
-  }
-});
+export const developersRouter = createDevelopersRouter();

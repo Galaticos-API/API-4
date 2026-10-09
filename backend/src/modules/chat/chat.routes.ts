@@ -16,6 +16,8 @@ export function createChatRouter(service: ChatService = new ChatService(), authe
   const router = Router();
   router.use(authentication);
 
+  router.get("/projects", async (req, res, next) => { try { res.json({ items: await service.accessibleProjects(userId(req)) }); } catch (error) { next(error); } });
+
   router.get("/conversations", async (req: Request, res: Response, next: NextFunction) => {
     try {
       const items = await service.listConversations(userId(req));

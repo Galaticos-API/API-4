@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { listTechnologies, type TechnologyOption } from "../../api/api_backlog";
+import { Button } from "../common/ui";
 
 type LoadState =
   | { state: "loading" }
@@ -46,9 +47,9 @@ export function BacklogTechnologySelector({
       {result.state === "error" && (
         <div>
           <p role="alert">Não foi possível carregar o catálogo de tecnologias.</p>
-          <button type="button" className="btn-secondary" onClick={() => setAttempt((count) => count + 1)}>
+          <Button type="button" variant="secondary" onClick={() => setAttempt((count) => count + 1)}>
             Tentar novamente
-          </button>
+          </Button>
         </div>
       )}
       {result.state === "ready" && result.items.length === 0 && (
