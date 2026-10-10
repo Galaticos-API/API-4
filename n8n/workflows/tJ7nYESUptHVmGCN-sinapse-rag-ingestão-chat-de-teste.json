@@ -2711,45 +2711,7 @@
       "typeVersion": 1
     }
   ],
-  "pinData": {
-    "Webhook": [
-      {
-        "binary": {
-          "file": {
-            "bytes": 3485,
-            "data": "filesystem-v2",
-            "fileExtension": "md",
-            "fileName": "README.md",
-            "fileSize": "3.48 kB",
-            "fileType": "text",
-            "id": "filesystem-v2:workflows/tJ7nYESUptHVmGCN/executions/42/binary_data/74f099d7-4fee-45fa-a1be-6b3c7bb76a47",
-            "mimeType": "text/markdown"
-          }
-        },
-        "json": {
-          "body": {},
-          "executionMode": "production",
-          "headers": {
-            "accept": "*/*",
-            "accept-encoding": "gzip, deflate, br",
-            "connection": "keep-alive",
-            "content-length": "3695",
-            "content-type": "multipart/form-data; boundary=--------------------------043393677051449907951077",
-            "cookie": "sinapse_session=6eab6149e4d96b756bc7da9b06a4077c2c62fdd7fecf1d9fef4448b21fc72a0e",
-            "host": "localhost:5678",
-            "postman-token": "8a33071c-fefb-4337-9645-37ce87b94918",
-            "user-agent": "PostmanRuntime/2.10.1"
-          },
-          "params": {},
-          "query": {},
-          "webhookUrl": "http://localhost:5678/webhook/teste-recebimento"
-        },
-        "pairedItem": {
-          "item": 0
-        }
-      }
-    ]
-  },
+  "pinData": {},
   "settings": {
     "binaryMode": "separate",
     "executionOrder": "v1"
