@@ -7,14 +7,17 @@ export const PASSWORD = "Senha-forte-123";
 
 export async function api(path, { token, method = "GET", body, headers = {} } = {}) {
   const raw = body instanceof Uint8Array;
+  const form = body instanceof FormData;
   const response = await fetch(`${API}${path}`, {
     method,
     headers: {
-      ...(body && !raw ? { "Content-Type": "application/json" } : {}),
+      // FormData: o fetch gera o Content-Type com boundary sozinho; forçar
+      // aqui quebraria o parsing multipart do multer no backend.
+      ...(body && !raw && !form ? { "Content-Type": "application/json" } : {}),
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...headers,
     },
-    body: raw ? body : body ? JSON.stringify(body) : undefined,
+    body: raw || form ? body : body ? JSON.stringify(body) : undefined,
   });
   const text = await response.text();
   let json;
@@ -54,11 +57,15 @@ export async function archiveProject(account, project) {
 }
 
 export function uploadRaw(account, projectId, name, content) {
+  // Backend usa multer com upload.single("file"): exige multipart/form-data,
+  // campo "file" — mesmo contrato que o frontend usa (ver api_documents.ts).
+  const bytes = typeof content === "string" ? new TextEncoder().encode(content) : content;
+  const form = new FormData();
+  form.append("file", new Blob([bytes]), name);
   return api(`/projects/${projectId}/documents`, {
     method: "POST",
     token: account.token,
-    body: typeof content === "string" ? new TextEncoder().encode(content) : content,
-    headers: { "Content-Type": "application/octet-stream", "X-File-Name": encodeURIComponent(name) },
+    body: form,
   });
 }
 
