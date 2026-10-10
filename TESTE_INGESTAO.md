@@ -23,7 +23,118 @@ foi reconstruída dentro da própria aplicação, em `/admin/ingestion`.
 O workflow do n8n continua disponível como **ferramenta opcional de debug
 manual** — tudo que se precisa pra validar fluxo normal já está na UI.
 
-## 0. Pré-requisitos
+## Modo nativo (sem Docker Desktop / sem WSL2)
+
+Se a máquina não tem WSL2 (Docker Desktop no Windows Home exige WSL2, não
+tem alternativa via Hyper-V), dá pra rodar o pipeline inteiro nativo. Testado
+e validado ponta a ponta nesta sessão. Resumo das pegadinhas encontradas:
+
+### O que instalar
+
+```powershell
+winget install --id Ollama.Ollama --source winget
+winget install --id Python.Python.3.11 --source winget
+winget install --id PostgreSQL.PostgreSQL.16 --source winget
+```
+
+Node já precisa estar instalado (qualquer LTS recente). Depois:
+
+```bash
+cd backend && npm install
+cd ../frontend && npm install
+cd ../ai-service && python -m venv .venv && ./.venv/Scripts/pip install -r requirements.txt
+```
+
+### Senha do Postgres (instalador silencioso via winget)
+
+O instalador EDB via `winget --silent` usa `postgres` como senha do
+superusuário sem perguntar. Crie o role/banco do projeto:
+
+```bash
+psql -h localhost -U postgres -d postgres -c "CREATE ROLE sinapse LOGIN PASSWORD 'sinapse_dev_password' SUPERUSER;"
+psql -h localhost -U postgres -d postgres -c "CREATE DATABASE sinapse OWNER sinapse;"
+```
+
+### Sem pgvector (bloqueio real, sem solução nativa simples)
+
+PostgreSQL nativo no Windows **não tem pacote de pgvector**. A extensão só
+vem pronta na imagem Docker `pgvector/pgvector:pg16`, ou compilando do zero
+com Visual Studio Build Tools. Isso afeta duas coisas:
+
+1. **`CREATE EXTENSION vector`** falha nas migrations — use o script
+   `backend/scripts/apply-native-no-vector.mjs`, que aplica `init.sql` +
+   todas as migrations com um *shim* (remove a extensão, troca
+   `vector(1024)` por `real[]`, remove índices HNSW):
+
+   ```bash
+   cd backend && node scripts/apply-native-no-vector.mjs
+   ```
+
+2. **O INSERT de chunks usa `$N::vector`** (em `documents.repository.ts` e
+   `chunks.service.ts`). Esse cast falha porque o tipo `vector` não existe
+   de verdade. Para persistir chunks localmente, troque temporariamente
+   `::vector` → `::real[]` e o literal `[a,b,c]` → `{a,b,c}` nesse INSERT.
+   **Nunca commite essa troca** — no Docker do time, com pgvector de
+   verdade, o código correto é `::vector`. É puramente uma muleta local.
+
+   Consequência: a busca híbrida (`/api/v1/search`) não funciona nesse modo
+   (o `embedding <=> $3::vector` também precisa do tipo real) — ela dá erro
+   mesmo com o shim de persistência. Tudo o resto (upload, worker, extração,
+   chunking, embeddings reais, observabilidade) funciona normalmente.
+
+### `.env` para modo nativo
+
+Use `localhost` em vez dos nomes de serviço do Docker (`backend`, `n8n`,
+`ai-service`) e gere um `DOCUMENT_INGESTION_TOKEN` de 32+ caracteres:
+
+```env
+POSTGRES_HOST=localhost
+POSTGRES_PORT=5432
+AI_SERVICE_URL=http://localhost:8000
+OLLAMA_BASE_URL=http://localhost:11434
+DOCUMENT_STORAGE_DIR=storage/documents
+DOCUMENT_INGEST_WEBHOOK_URL=
+AI_SERVICE_TOKEN=<qualquer-valor-compartilhado>
+DOCUMENT_INGESTION_TOKEN=<node -e "console.log(require('crypto').randomBytes(32).toString('hex'))">
+```
+
+### Ollama: nunca rode duas instâncias
+
+O instalador do Ollama registra um app de bandeja que já sobe `ollama serve`
+sozinho. Se você também rodar `ollama serve` manualmente, as duas brigam
+pela porta 11434 — uma delas vence o bind, mas o processo de inferência por
+trás pode ficar instável e derrubar a conexão no meio de uma chamada de
+embedding (erro `wsarecv: conexão forçada a cancelar pelo host remoto`).
+Confira antes de subir:
+
+```powershell
+Get-Process -Name "ollama*"
+```
+
+Se houver mais de um `ollama.exe`/`ollama app.exe`, mate todos e suba só um:
+
+```powershell
+Get-Process -Name "ollama*" | Stop-Process -Force
+```
+```bash
+OLLAMA_KEEP_ALIVE=24h ollama serve
+```
+
+### Subindo os três serviços
+
+```bash
+cd backend && npm run dev          # porta 3001
+cd ai-service && ./.venv/Scripts/python -m uvicorn main:app --port 8000
+cd frontend && npm run dev         # porta 5173
+```
+
+### Criando o primeiro admin
+
+Cadastro público só cria `dev` (ver seção "como logar como admin" — resumo:
+registre pela UI, depois `UPDATE usuario SET role='admin' WHERE email=...`
+direto no Postgres, relogue para pegar sessão com o role novo).
+
+## 0. Pré-requisitos (modo Docker)
 
 - Docker Desktop rodando.
 - Ollama **no host** (fora do Docker, conforme AGENTS.md) com o modelo
