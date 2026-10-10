@@ -349,9 +349,9 @@
         ]
       }
     },
-    "createdAt": "2026-10-09T00:22:17.992Z",
+    "createdAt": "2026-10-09T11:27:16.400Z",
     "description": "",
-    "name": "Version e1ea0b16",
+    "name": "Version 9211f0d3",
     "nodeGroups": [],
     "nodes": [
       {
@@ -773,6 +773,7 @@
         "typeVersion": 1
       },
       {
+        "alwaysOutputData": true,
         "id": "32a8bd5c-3650-4d61-87f5-5d603379a0f1",
         "name": "Ler arquivo de /files",
         "parameters": {
@@ -1122,7 +1123,7 @@
         "id": "eac5b8eb-fec3-4ce4-b49f-42259f41a78e",
         "name": "Extrair texto1",
         "parameters": {
-          "binaryPropertyName": "={{ $('Webhook').item.binary.data }}",
+          "binaryPropertyName": "={{ 'file' }}",
           "operation": "text",
           "options": {}
         },
@@ -1141,8 +1142,8 @@
           "options": {}
         },
         "position": [
-          2512,
-          832
+          2928,
+          528
         ],
         "type": "n8n-nodes-base.extractFromFile",
         "typeVersion": 1
@@ -1172,7 +1173,7 @@
           },
           "sendBody": true,
           "specifyBody": "json",
-          "url": "={{ $json.aiServiceUrl + '/chunk' }}",
+          "url": "={{ $('Normalizar entrada1').item.json.aiServiceUrl + '/chunk' }}",
           "sendHeaders": true,
           "headerParameters": {
             "parameters": [
@@ -1319,6 +1320,7 @@
               }
             ]
           },
+          "includeOtherFields": true,
           "options": {}
         },
         "position": [
@@ -1345,21 +1347,21 @@
         "typeVersion": 1
       }
     ],
-    "updatedAt": "2026-10-09T00:22:22.845Z",
-    "versionId": "e1ea0b16-ff26-4d06-bfff-ab1058f94df0",
+    "updatedAt": "2026-10-09T11:27:24.171Z",
+    "versionId": "9211f0d3-1446-4155-b862-30fb9e79d175",
     "workflowId": "tJ7nYESUptHVmGCN",
     "workflowPublishHistory": [
       {
-        "createdAt": "2026-10-09T00:22:22.823Z",
+        "createdAt": "2026-10-09T11:27:24.155Z",
         "event": "activated",
-        "id": 19,
+        "id": 23,
         "userId": "c3e04826-8789-4bbf-bc18-8a2bb24421fd",
-        "versionId": "e1ea0b16-ff26-4d06-bfff-ab1058f94df0",
+        "versionId": "9211f0d3-1446-4155-b862-30fb9e79d175",
         "workflowId": "tJ7nYESUptHVmGCN"
       }
     ]
   },
-  "activeVersionId": "e1ea0b16-ff26-4d06-bfff-ab1058f94df0",
+  "activeVersionId": "9211f0d3-1446-4155-b862-30fb9e79d175",
   "connections": {
     "Chunking (ai-service)": {
       "main": [
@@ -2135,6 +2137,7 @@
       "typeVersion": 1
     },
     {
+      "alwaysOutputData": true,
       "id": "32a8bd5c-3650-4d61-87f5-5d603379a0f1",
       "name": "Ler arquivo de /files",
       "parameters": {
@@ -2775,5 +2778,5 @@
   "staticData": null,
   "tags": [],
   "triggerCount": 4,
-  "versionCounter": 75
+  "versionCounter": 76
 }

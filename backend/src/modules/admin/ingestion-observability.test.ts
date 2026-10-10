@@ -52,7 +52,7 @@ async function withServer(repository: FakeIngestionRepository, run: (base: strin
   app.use("/admin", createAdminRouter(controller, auth));
   app.use(errorHandler);
   let server!: Server;
-  await new Promise<void>((resolve) => { server = app.listen(0, "127.0.0.1", () => resolve()); });
+  await new Promise<void>((resolve, reject) => { server = app.listen(0, "127.0.0.1", (error) => error ? reject(error) : resolve()); });
   const base = `http://127.0.0.1:${(server.address() as AddressInfo).port}/admin`;
   try { await run(base); }
   finally { await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve())); }
