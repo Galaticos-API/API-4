@@ -1,6 +1,7 @@
 import axios from "axios";
 import { env } from "../../config/env.js";
 import { AppError } from "../../shared/errors.js";
+import { serviceHeaders } from "../../shared/service-auth.js";
 import type { ExtractedDocumentChunk, PendingIngestionDocument } from "./documents.types.js";
 
 export interface DocumentIngestionClient {
@@ -27,7 +28,7 @@ export class HttpDocumentIngestionClient implements DocumentIngestionClient {
         timeout: 600_000,
         maxContentLength: 15 * 1024 * 1024,
         maxBodyLength: 30 * 1024 * 1024,
-        headers: { "X-Document-Ingestion-Token": this.token },
+        headers: { ...serviceHeaders(), "X-Document-Ingestion-Token": this.token },
       });
       if (response.data?.document_id !== document.id || response.data?.project_id !== document.projeto_id) {
         throw new Error("response scope mismatch");
