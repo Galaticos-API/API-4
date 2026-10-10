@@ -134,9 +134,9 @@ export function AISuggestion({
       <Badge tone="ai">Sugestão da IA</Badge>
       <div style={{ marginTop: 12 }}>{children}</div>
       <div style={{ display: "flex", gap: 8, marginTop: 16, flexWrap: "wrap" }}>
-        <Button onClick={onAccept}>Aceitar</Button>
-        <Button variant="secondary" onClick={onEdit}>Editar antes de aceitar</Button>
-        <Button variant="ghost" onClick={onDiscard}>Descartar</Button>
+        {onAccept && <Button onClick={onAccept}>Aceitar</Button>}
+        {onEdit && <Button variant="secondary" onClick={onEdit}>Editar antes de aceitar</Button>}
+        {onDiscard && <Button variant="ghost" onClick={onDiscard}>Descartar</Button>}
       </div>
     </section>
   );

@@ -8,6 +8,7 @@ import { auditService } from "../audit/audit.service.js";
 import { assertWritable, lockHierarchy } from "../projects/hierarchy-archive.js";
 import { assertJustificationForCompletedItem } from "../quality/completed-item-policy.js";
 import { getEntityTechnologyIds, replaceEntityTechnologies } from "../technologies/entity-technologies.js";
+import { markFieldsHumanAuthored } from "../provenance/provenance.js";
 import { EPIC_REQUIRED_FIELDS, CreateEpicDTO, Epic, EpicQueryDTO, EpicWithStats, PaginatedEpics, UpdateEpicDTO } from "./epics.types.js";
 
 export class EpicsRepository {
@@ -144,13 +145,14 @@ export class EpicsRepository {
 
       const updates: string[] = [];
       const values: unknown[] = [];
+      const changedFields: string[] = [];
       let valIndex = 1;
 
-      if (data.titulo !== undefined) { updates.push(`titulo = $${valIndex}`); values.push(data.titulo.trim()); valIndex++; }
-      if (data.descricao !== undefined) { updates.push(`descricao = $${valIndex}`); values.push(data.descricao?.trim() ?? null); valIndex++; }
-      if (data.objetivo !== undefined) { updates.push(`objetivo = $${valIndex}`); values.push(data.objetivo?.trim() ?? null); valIndex++; }
-      if (data.escopo_macro !== undefined) { updates.push(`escopo_macro = $${valIndex}`); values.push(data.escopo_macro?.trim() ?? null); valIndex++; }
-      if (data.resultado_esperado !== undefined) { updates.push(`resultado_esperado = $${valIndex}`); values.push(data.resultado_esperado?.trim() ?? null); valIndex++; }
+      if (data.titulo !== undefined) { updates.push(`titulo = $${valIndex}`); values.push(data.titulo.trim()); valIndex++; changedFields.push("titulo"); }
+      if (data.descricao !== undefined) { updates.push(`descricao = $${valIndex}`); values.push(data.descricao?.trim() ?? null); valIndex++; changedFields.push("descricao"); }
+      if (data.objetivo !== undefined) { updates.push(`objetivo = $${valIndex}`); values.push(data.objetivo?.trim() ?? null); valIndex++; changedFields.push("objetivo"); }
+      if (data.escopo_macro !== undefined) { updates.push(`escopo_macro = $${valIndex}`); values.push(data.escopo_macro?.trim() ?? null); valIndex++; changedFields.push("escopo_macro"); }
+      if (data.resultado_esperado !== undefined) { updates.push(`resultado_esperado = $${valIndex}`); values.push(data.resultado_esperado?.trim() ?? null); valIndex++; changedFields.push("resultado_esperado"); }
       if (data.prioridade !== undefined) { updates.push(`prioridade = $${valIndex}`); values.push(data.prioridade); valIndex++; }
 
       updates.push(`updated_at = CURRENT_TIMESTAMP`);
@@ -161,6 +163,10 @@ export class EpicsRepository {
         values,
       );
       const updated = result.rows[0];
+      // A human submitted this edit through the ordinary update endpoint: any
+      // changed free-text field is explicitly human-authored from now on,
+      // overriding whatever AI provenance it may have had before (S2-13).
+      await markFieldsHumanAuthored(client, "epico", id, changedFields);
       await replaceEntityTechnologies(client, "epico", id, data.tecnologias_ids);
       const updatedWithTechnologies = {
         ...updated,

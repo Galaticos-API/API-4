@@ -52,6 +52,7 @@ export interface Feature {
   tecnologias_ids?: string[];
   prioridade: FeaturePriority;
   status: FeatureStatus;
+  provenance_json?: Record<string, string>;
   created_at: Date | string;
   updated_at: Date | string;
 }

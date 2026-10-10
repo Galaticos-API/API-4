@@ -21,6 +21,8 @@ import { BacklogBreadcrumb } from "./BacklogBreadcrumb";
 import { BacklogTechnologySelector } from "./BacklogTechnologySelector";
 import { CriteriaEditor } from "./CriteriaView";
 import { DecisionsPanel } from "./DecisionsPanel";
+import { SuggestionsPanel } from "./SuggestionsPanel";
+import { ProvenanceBadge } from "./ProvenanceBadge";
 import { ItemHistoryView } from "./ItemHistoryView";
 import { QualityPanelView as QualityPanel } from "./QualityPanelView";
 
@@ -264,6 +266,8 @@ export function PbiDetail({
             {pbi!.codigo}
             {" — "}
             {pbi!.titulo}
+            {" "}
+            <ProvenanceBadge provenance={pbi!.provenance_json} field="titulo" />
           </h2>
         </div>
 
@@ -626,7 +630,7 @@ export function PbiDetail({
           : (
             <>
               <dl>
-                <dt>COMO UM</dt>
+                <dt>COMO UM <ProvenanceBadge provenance={pbi!.provenance_json} field="historia_como_um" /></dt>
                 <dd
                   id="historia_como_um"
                   tabIndex={-1}
@@ -634,7 +638,7 @@ export function PbiDetail({
                   {pbi!.historia_como_um}
                 </dd>
 
-                <dt>EU QUERO</dt>
+                <dt>EU QUERO <ProvenanceBadge provenance={pbi!.provenance_json} field="historia_eu_quero" /></dt>
                 <dd
                   id="historia_eu_quero"
                   tabIndex={-1}
@@ -642,7 +646,7 @@ export function PbiDetail({
                   {pbi!.historia_eu_quero}
                 </dd>
 
-                <dt>PARA QUE</dt>
+                <dt>PARA QUE <ProvenanceBadge provenance={pbi!.provenance_json} field="historia_para_que" /></dt>
                 <dd
                   id="historia_para_que"
                   tabIndex={-1}
@@ -765,6 +769,13 @@ export function PbiDetail({
         entidadeId={featureId}
         canEdit={false}
         titulo="Critérios da feature (consulta)"
+      />
+
+      <SuggestionsPanel
+        kind="pbi"
+        id={pbi!.id}
+        canWrite={canEdit && !readOnly}
+        readOnlyNote={readOnly ? "Item ou ancestral arquivado: as sugestões ficam disponíveis somente para consulta." : undefined}
       />
 
       <DecisionsPanel

@@ -8,6 +8,7 @@ import { auditService } from "../audit/audit.service.js";
 import { assertWritable, lockHierarchy } from "../projects/hierarchy-archive.js";
 import { assertJustificationForCompletedItem } from "../quality/completed-item-policy.js";
 import { getEntityTechnologyIds, replaceEntityTechnologies } from "../technologies/entity-technologies.js";
+import { markFieldsHumanAuthored } from "../provenance/provenance.js";
 import { FEATURE_REQUIRED_FIELDS, CreateFeatureDTO, Feature, FeatureQueryDTO, FeatureWithStats, PaginatedFeatures, UpdateFeatureDTO } from "./features.types.js";
 
 const SELECT_WITH_STATS = `
@@ -139,11 +140,12 @@ export class FeaturesRepository {
 
       const updates: string[] = [];
       const values: unknown[] = [];
+      const changedFields: string[] = [];
       let valIndex = 1;
 
-      if (data.titulo !== undefined) { updates.push(`titulo = $${valIndex}`); values.push(data.titulo.trim()); valIndex++; }
-      if (data.descricao !== undefined) { updates.push(`descricao = $${valIndex}`); values.push(data.descricao?.trim() ?? null); valIndex++; }
-      if (data.objetivo !== undefined) { updates.push(`objetivo = $${valIndex}`); values.push(data.objetivo?.trim() ?? null); valIndex++; }
+      if (data.titulo !== undefined) { updates.push(`titulo = $${valIndex}`); values.push(data.titulo.trim()); valIndex++; changedFields.push("titulo"); }
+      if (data.descricao !== undefined) { updates.push(`descricao = $${valIndex}`); values.push(data.descricao?.trim() ?? null); valIndex++; changedFields.push("descricao"); }
+      if (data.objetivo !== undefined) { updates.push(`objetivo = $${valIndex}`); values.push(data.objetivo?.trim() ?? null); valIndex++; changedFields.push("objetivo"); }
       if (data.prioridade !== undefined) { updates.push(`prioridade = $${valIndex}`); values.push(data.prioridade); valIndex++; }
 
       updates.push(`updated_at = CURRENT_TIMESTAMP`);
@@ -154,6 +156,10 @@ export class FeaturesRepository {
         values,
       );
       const updated = result.rows[0];
+      // A human submitted this edit through the ordinary update endpoint: any
+      // changed free-text field is explicitly human-authored from now on,
+      // overriding whatever AI provenance it may have had before (S2-13).
+      await markFieldsHumanAuthored(client, "feature", id, changedFields);
       await replaceEntityTechnologies(client, "feature", id, data.tecnologias_ids);
       const updatedWithTechnologies = {
         ...updated,

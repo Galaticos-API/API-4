@@ -7,6 +7,7 @@ import { auditService } from "../audit/audit.service.js";
 import { assertWritable, lockHierarchy } from "../projects/hierarchy-archive.js";
 import { assertJustificationForCompletedItem, normalizeJustification } from "../quality/completed-item-policy.js";
 import { getEntityTechnologyIds, replaceEntityTechnologies } from "../technologies/entity-technologies.js";
+import { markFieldsHumanAuthored } from "../provenance/provenance.js";
 import { CreatePbiDTO, PaginatedPbis, Pbi, PbiQueryDTO, PbiWithContext, UpdatePbiDTO } from "./pbis.types.js";
 
 const SELECT_WITH_CONTEXT = `
@@ -148,13 +149,14 @@ export class PbisRepository {
 
       const updates: string[] = [];
       const values: unknown[] = [];
+      const changedFields: string[] = [];
       let valIndex = 1;
 
-      if (data.titulo !== undefined) { updates.push(`titulo = $${valIndex}`); values.push(data.titulo.trim()); valIndex++; }
-      if (data.historia_como_um !== undefined) { updates.push(`historia_como_um = $${valIndex}`); values.push(data.historia_como_um.trim()); valIndex++; }
-      if (data.historia_eu_quero !== undefined) { updates.push(`historia_eu_quero = $${valIndex}`); values.push(data.historia_eu_quero.trim()); valIndex++; }
-      if (data.historia_para_que !== undefined) { updates.push(`historia_para_que = $${valIndex}`); values.push(data.historia_para_que.trim()); valIndex++; }
-      if (data.regras_observacoes !== undefined) { updates.push(`regras_observacoes = $${valIndex}`); values.push(data.regras_observacoes?.trim() ?? null); valIndex++; }
+      if (data.titulo !== undefined) { updates.push(`titulo = $${valIndex}`); values.push(data.titulo.trim()); valIndex++; changedFields.push("titulo"); }
+      if (data.historia_como_um !== undefined) { updates.push(`historia_como_um = $${valIndex}`); values.push(data.historia_como_um.trim()); valIndex++; changedFields.push("historia_como_um"); }
+      if (data.historia_eu_quero !== undefined) { updates.push(`historia_eu_quero = $${valIndex}`); values.push(data.historia_eu_quero.trim()); valIndex++; changedFields.push("historia_eu_quero"); }
+      if (data.historia_para_que !== undefined) { updates.push(`historia_para_que = $${valIndex}`); values.push(data.historia_para_que.trim()); valIndex++; changedFields.push("historia_para_que"); }
+      if (data.regras_observacoes !== undefined) { updates.push(`regras_observacoes = $${valIndex}`); values.push(data.regras_observacoes?.trim() ?? null); valIndex++; changedFields.push("regras_observacoes"); }
       if (data.tipo !== undefined) { updates.push(`tipo = $${valIndex}`); values.push(data.tipo); valIndex++; }
       if (data.prioridade !== undefined) { updates.push(`prioridade = $${valIndex}`); values.push(data.prioridade); valIndex++; }
       if (data.requer_interface !== undefined) { updates.push(`requer_interface = $${valIndex}`); values.push(data.requer_interface); valIndex++; }
@@ -167,6 +169,10 @@ export class PbisRepository {
         values,
       );
       const updated = result.rows[0];
+      // A human submitted this edit through the ordinary update endpoint: any
+      // changed free-text field is explicitly human-authored from now on,
+      // overriding whatever AI provenance it may have had before (S2-13).
+      await markFieldsHumanAuthored(client, "pbi", id, changedFields);
       await replaceEntityTechnologies(client, "pbi", id, data.tecnologias_ids);
       const updatedWithTechnologies = {
         ...updated,

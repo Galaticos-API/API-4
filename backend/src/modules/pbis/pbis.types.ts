@@ -75,6 +75,7 @@ export interface Pbi {
   status: PbiStatus;
   score_completude: number | null;
   provenance: string;
+  provenance_json?: Record<string, string>;
   created_at: Date | string;
   updated_at: Date | string;
 }

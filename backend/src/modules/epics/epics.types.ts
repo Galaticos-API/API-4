@@ -63,6 +63,7 @@ export interface Epic {
   tecnologias_ids?: string[];
   prioridade: EpicPriority;
   status: EpicStatus;
+  provenance_json?: Record<string, string>;
   created_at: Date | string;
   updated_at: Date | string;
 }
