@@ -54,6 +54,13 @@ const envSchema = z.object({
       message: "Configure um segredo aleatório privado para a ingestão de documentos em produção.",
     });
   }
+  if (value.NODE_ENV === "production" && value.N8N_INGEST_TOKEN === "sinapse-dev-ingest-token") {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["N8N_INGEST_TOKEN"],
+      message: "Configure um segredo aleatório privado para N8N_INGEST_TOKEN em produção; o valor padrão de desenvolvimento não é aceito.",
+    });
+  }
 });
 
 export const env = envSchema.parse(process.env);

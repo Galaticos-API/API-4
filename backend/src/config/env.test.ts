@@ -26,6 +26,21 @@ test("produção exige um segredo privado para a ingestão", () => {
   assert.match(result.stderr, /Configure um segredo aleatório privado/);
 });
 
+test("produção rejeita o token padrão de desenvolvimento do n8n", () => {
+  const result = spawnSync(process.execPath, ["--import", "tsx", "-e", "import('./src/config/env.ts')"], {
+    cwd: process.cwd(),
+    env: {
+      ...process.env,
+      NODE_ENV: "production",
+      DOCUMENT_INGESTION_TOKEN: "a".repeat(32),
+      N8N_INGEST_TOKEN: "sinapse-dev-ingest-token",
+    },
+    encoding: "utf8",
+  });
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /N8N_INGEST_TOKEN/);
+});
+
 test("limite configurável de documentos não pode exceder a capacidade da ingestão", () => {
   const result = spawnSync(process.execPath, ["--import", "tsx", "-e", "import('./src/config/env.ts')"], {
     cwd: process.cwd(),
