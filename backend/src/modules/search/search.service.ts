@@ -1,6 +1,7 @@
 import axios from "axios";
 import { env } from "../../config/env.js";
 import { AppError, NotFoundError, ValidationError, validateUuid } from "../../shared/errors.js";
+import { serviceHeaders } from "../../shared/service-auth.js";
 import { SearchRepository } from "./search.repository.js";
 import { SEARCH_LEVELS, type HybridSearchInput, type HybridSearchResult, type SearchLevel } from "./search.types.js";
 
@@ -13,7 +14,7 @@ export class HttpSearchEmbeddingClient implements SearchEmbeddingClient {
 
   async embed(text: string): Promise<number[]> {
     try {
-      const response = await axios.post(`${this.baseUrl.replace(/\/$/, "")}/embeddings`, { text }, { timeout: 10_000 });
+      const response = await axios.post(`${this.baseUrl.replace(/\/$/, "")}/embeddings`, { text }, { timeout: 10_000, headers: serviceHeaders() });
       return response.data?.embedding;
     } catch (error) {
       if (axios.isAxiosError(error) && error.response) {
