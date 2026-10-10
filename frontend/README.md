@@ -14,4 +14,6 @@ Projetos têm componentes separados para listagem, formulário e detalhe. PBIs s
 
 O dashboard distingue serviços verificados de serviços sem diagnóstico. O estado do banco vem do healthcheck do backend; falhas de acesso pelo navegador não são tratadas como prova de indisponibilidade dos serviços não verificados.
 
+`src/views/admin/IngestionObservabilityView.tsx` (rota `/admin/ingestion`, só admin) acompanha em tempo real o pipeline de ingestão de documentos — substitui o editor do n8n como ferramenta visual. Ver [../IMPLEMENTACAO_PIPELINE_INGESTAO.md](../IMPLEMENTACAO_PIPELINE_INGESTAO.md).
+
 Execute `npm test` e `npm run build` nesta pasta.

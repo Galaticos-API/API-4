@@ -16,6 +16,8 @@ A busca preserva os parâmetros projeto_id e projectId e o acervo global quando 
 
 As estatísticas administrativas usam uma única consulta. As três leituras independentes do painel de desenvolvedores executam em paralelo. A carga demonstrativa usa POST /api/v1/admin/demo-seed com projeto_id obrigatório. O alias /ingest-seed continua disponível com o mesmo corpo obrigatório. Não existe escolha implícita do primeiro projeto, geração de vetores ou reindexação nessa ação. Identificadores estáveis por projeto e versão impedem duplicação; a carga é auditada na mesma transação e rejeita projetos arquivados. Dados demonstrativos antigos não são removidos automaticamente. chunksIndexados conta somente trechos com embedding não nulo.
 
+GET /api/v1/admin/ingestion expõe o snapshot do pipeline de documentos (contagens por status, ativos, falhas) para a tela `/admin/ingestion` do frontend. `npm run bootstrap:admin` cria ou promove o admin local de teste sem precisar de SQL manual. Ver [../IMPLEMENTACAO_PIPELINE_INGESTAO.md](../IMPLEMENTACAO_PIPELINE_INGESTAO.md) para a arquitetura completa do pipeline e [../TESTE_INGESTAO.md](../TESTE_INGESTAO.md) para rodar e validar, com ou sem Docker.
+
 ## Validação
 
 Execute npm test e npm run typecheck nesta pasta. architecture.routes.test.ts cobre permissões administrativas, carga sem projeto, aliases e validação da busca, parâmetros SQL e propagação segura de erros. O teste de tecnologias e a suíte OpenAPI verificam os contratos existentes.

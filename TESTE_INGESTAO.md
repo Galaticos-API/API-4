@@ -130,9 +130,23 @@ cd frontend && npm run dev         # porta 5173
 
 ### Criando o primeiro admin
 
-Cadastro público só cria `dev` (ver seção "como logar como admin" — resumo:
-registre pela UI, depois `UPDATE usuario SET role='admin' WHERE email=...`
-direto no Postgres, relogue para pegar sessão com o role novo).
+Cadastro público só cria `dev` — criar `po`/`admin` exige já estar
+autenticado como admin, de propósito. Use o script oficial (idempotente,
+reaproveita o `hashPassword` real do backend, então o login funciona de
+primeira):
+
+```bash
+cd backend && npm run bootstrap:admin
+```
+
+Cria (ou promove, se já existir) o admin de teste padrão:
+
+- **E-mail:** `admin@sinapse.local`
+- **Senha:** `Admin@123`
+
+Para outro e-mail/senha: `npx tsx scripts/bootstrap-admin.mts --email=... --password=... --nome="..."`.
+Rodar de novo é seguro — se a conta já existir só garante `role='admin'`
+sem mexer na senha (a menos que passe `--force-password`).
 
 ## 0. Pré-requisitos (modo Docker)
 
@@ -176,6 +190,15 @@ curl http://localhost:8000/health   # ai-service (ollama: "connected")
 
 ## 2. Testar via UI (fluxo oficial)
 
+0. Sem usuário ainda? Crie o admin de teste padrão (idempotente):
+
+   ```bash
+   cd backend && npm run bootstrap:admin
+   ```
+
+   - **E-mail:** `admin@sinapse.local`
+   - **Senha:** `Admin@123`
+
 1. Entre no frontend (`http://localhost:5173`), logue como `admin` ou `po`.
 2. Abra um projeto ativo e vá na aba **Documentos**.
 3. Envie um PDF, DOCX, MD ou TXT (até 20 MB).
@@ -190,7 +213,8 @@ curl http://localhost:8000/health   # ai-service (ollama: "connected")
 
 Em outra aba, logado como `admin`:
 
-- **Admin → Pipeline de ingestão** (ou direto `http://localhost:5173/admin/ingestion`).
+**→ http://localhost:5173/admin/ingestion** (ou menu **Admin → Pipeline de ingestão**).
+
 - A tela mostra 4 contadores (`Pendente`, `Processando`, `Processado`, `Falha`),
   a lista de documentos **em andamento** com barra de progresso animada,
   e uma seção de **falhas recentes** com botão de reprocessar.
@@ -269,8 +293,10 @@ no ai-service.
 | Status muda para `falha` com `processamento_erro: "A autenticação interna da ingestão não está configurada."` | `DOCUMENT_INGESTION_TOKEN` diferente entre backend e ai-service | Confirme o mesmo valor nos dois (`docker exec sinapse-backend env`, `docker exec sinapse-ai-service env`) |
 | Status `falha` com `invalid embedding dimension` | Ollama rodando com modelo diferente de `bge-m3` | `ollama pull bge-m3`; checar `OLLAMA_EMBEDDING_MODEL` |
 | Status `falha` com `503 service unavailable` | ai-service não está no ar ou Ollama caiu | `docker logs sinapse-ai-service` / `curl http://localhost:11434` |
-| `/admin/ingestion` dá 403 | Logado como PO/dev, não admin | Sessão de admin |
+| `/admin/ingestion` dá 403 | Logado como PO/dev, não admin | `npm run bootstrap:admin` (backend/) |
 | UI "Reprocessar" responde mas documento não sai da fila | Worker reivindicou e falhou de novo | Olhe `processamento_erro` na próxima atualização; se for `503`, aguarde Ollama responder |
+| Documento sempre falha com `401` do ai-service (logs do ai-service) | Bug já corrigido (commit `b1c7a60`): `HttpDocumentIngestionClient` não mandava `X-Service-Token`, só `X-Document-Ingestion-Token` | `git pull`; se persistir, confirme que está na branch atualizada |
+| Erro de embedding some sozinho na próxima tentativa, ou Ollama trava/derruba conexão no meio da chamada | Duas instâncias de `ollama serve` rodando ao mesmo tempo (comum no Windows: o app de bandeja já sobe uma) | `Get-Process -Name "ollama*"`; mate todas e suba uma única com `OLLAMA_KEEP_ALIVE=24h ollama serve` |
 
 ## 7. Avaliação da busca (S2-17)
 
