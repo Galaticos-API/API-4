@@ -1,5 +1,4 @@
 from typing import Any
-import re
 
 
 def chunk_document_text(text: str, chunk_size: int = 1000, overlap: int = 150) -> list[str]:
@@ -13,43 +12,28 @@ def chunk_document_text(text: str, chunk_size: int = 1000, overlap: int = 150) -
     if not text or not text.strip():
         return []
 
-    text = text.replace("\r\n", "\n").replace("\r", "\n")
-    paragraphs = re.split(r"\n\s*\n", text)
+    # Fixed-offset slicing (not paragraph reflow): each chunk is a contiguous
+    # slice of the original text, overlapping the previous one by exactly
+    # `overlap` chars. This guarantees lossless reconstruction
+    # (chunks[0] + "".join(c[overlap:] for c in chunks[1:]) == text), which
+    # the ingestion pipeline's safety tests rely on. Paragraph boundaries are
+    # only a soft preference for where to cut, never reflowed.
+    text = text.replace("\r\n", "\n").strip()
     chunks: list[str] = []
-    current = ""
-    for para in paragraphs:
-        para = para.strip()
-        if not para:
-            continue
-        # Long paragraphs are split without dropping their tail. Prefer whitespace
-        # boundaries, while guaranteeing forward progress for unbroken tokens.
-        pieces: list[str] = []
-        remaining = para
-        while len(remaining) > chunk_size:
-            cut = remaining.rfind(" ", 0, chunk_size + 1)
-            if cut <= 0:
-                cut = chunk_size
-            pieces.append(remaining[:cut].strip())
-            remaining = remaining[max(1, cut - overlap):].lstrip()
-        if remaining:
-            pieces.append(remaining)
-
-        for piece in pieces:
-            candidate = f"{current}\n\n{piece}" if current else piece
-            if len(candidate) <= chunk_size:
-                current = candidate
-            else:
-                if current:
-                    chunks.append(current)
-                carry = current[-overlap:].strip() if current and overlap else ""
-                current = f"{carry}\n{piece}" if carry else piece
-                if len(current) > chunk_size:
-                    chunks.append(current[:chunk_size])
-                    current = current[chunk_size - overlap:]
-    if current:
-        chunks.append(current)
-
-    return [c.strip() for c in chunks if c.strip()]
+    start = 0
+    while start < len(text):
+        end = min(start + chunk_size, len(text))
+        if end < len(text):
+            boundary = text.rfind("\n\n", start + max(overlap + 1, chunk_size // 2), end)
+            if boundary >= 0:
+                end = boundary + 2
+        chunk = text[start:end]
+        if chunk.strip():
+            chunks.append(chunk)
+        if end == len(text):
+            break
+        start = end - overlap
+    return chunks
 
 
 def create_structured_chunk(entity_type: str, data: dict[str, Any]) -> dict[str, Any]:
