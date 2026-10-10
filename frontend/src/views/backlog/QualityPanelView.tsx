@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { RealtimeQualityReport, RealtimeQualityCheck } from "../../models/qualityEngine";
+import { RealtimeQualityCheck, RealtimeQualityReport } from "../../models/qualityEngine";
+import { Button } from "../common/ui";
 
 export interface QualityPanelProps {
   report: RealtimeQualityReport;
@@ -32,20 +33,20 @@ export function QualityPanelView({
   const [expanded, setExpanded] = useState(defaultExpanded);
 
   const getBadgeClass = (score: number | null) => {
-    if (score === null) return "badge-warning";
-    if (score >= 80) return "badge-success";
-    if (score >= 50) return "badge-warning";
-    return "badge-error";
+    if (score === null) return "ds-badge--warning";
+    if (score >= 80) return "ds-badge--success";
+    if (score >= 50) return "ds-badge--warning";
+    return "ds-badge--danger";
   };
 
   const statusGeral = report.has_blocking_issues
-    ? { texto: "Pendências impeditivas", classe: "badge-error" }
+    ? { texto: "Pendências impeditivas", classe: "ds-badge--danger" }
     : report.checks.some((c) => !c.passed)
-      ? { texto: "Conforme com alertas", classe: "badge-warning" }
-      : { texto: "Em conformidade", classe: "badge-success" };
+      ? { texto: "Conforme com alertas", classe: "ds-badge--warning" }
+      : { texto: "Em conformidade", classe: "ds-badge--success" };
 
   return (
-    <section className="glass-panel quality-panel" aria-label={title}>
+    <section className="ds-card ds-card--glass quality-panel" aria-label={title}>
       <header className="quality-panel-header">
         <div className="quality-panel-header-left">
           <span className="projects-eyebrow">
@@ -55,13 +56,13 @@ export function QualityPanelView({
         </div>
 
         <div className="quality-panel-header-right">
-          <span className={`badge ${statusGeral.classe}`} role="status">
+          <span className={`ds-badge ${statusGeral.classe}`} role="status">
             {statusGeral.texto}
           </span>
 
           {report.score_completude !== null && (
             <span
-              className={`badge ${getBadgeClass(
+              className={`ds-badge ${getBadgeClass(
                 report.score_completude,
               )}`}
             >
@@ -69,9 +70,9 @@ export function QualityPanelView({
             </span>
           )}
 
-          <button
+          <Button
             type="button"
-            className="btn-secondary quality-toggle-btn"
+            variant="secondary" className="quality-toggle-btn"
             onClick={() => setExpanded(!expanded)}
             aria-expanded={expanded}
             aria-controls="quality-checklist-content"
@@ -79,7 +80,7 @@ export function QualityPanelView({
             {expanded
               ? "Recolher painel"
               : "Abrir painel de qualidade"}
-          </button>
+          </Button>
         </div>
       </header>
 
@@ -107,13 +108,12 @@ export function QualityPanelView({
                 return (
                   <li
                     key={check.check_id}
-                    className={`quality-check-item ${
-                      check.passed
+                    className={`quality-check-item ${check.passed
                         ? "passed"
                         : isAlertOnly
                           ? "warning"
                           : "failed"
-                    }`}
+                      }`}
                     data-testid={`quality-check-${check.check_id}`}
                   >
                     <div className="quality-check-indicator">
@@ -165,9 +165,9 @@ export function QualityPanelView({
 
                     {!check.passed && (
                       <div className="quality-check-action">
-                        <button
+                        <Button
                           type="button"
-                          className="btn-secondary quality-nav-btn"
+                          variant="secondary" className="quality-nav-btn"
                           onClick={() =>
                             scrollToField(check.target_field_id)
                           }
@@ -175,7 +175,7 @@ export function QualityPanelView({
                           aria-label={`Corrigir ${check.check_name}`}
                         >
                           Corrigir campo →
-                        </button>
+                        </Button>
                       </div>
                     )}
                   </li>

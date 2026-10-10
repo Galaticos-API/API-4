@@ -1,1 +1,0 @@
-export { LandingPageView } from "../views/landing/LandingPageView";

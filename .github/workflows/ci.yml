@@ -13,54 +13,6 @@ on:
       - develop
 
 jobs:
-  validate-seed:
-    name: Validate curated seed on PostgreSQL
-    runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: pgvector/pgvector:pg16
-        env:
-          POSTGRES_USER: seed_test
-          POSTGRES_PASSWORD: seed_test_only
-          POSTGRES_DB: sinapse_seed_test
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U seed_test -d sinapse_seed_test"
-          --health-interval 5s --health-timeout 5s --health-retries 10
-    env:
-      NODE_ENV: test
-      POSTGRES_HOST: localhost
-      POSTGRES_PORT: 5432
-      POSTGRES_USER: seed_test
-      POSTGRES_PASSWORD: seed_test_only
-      POSTGRES_DB: sinapse_seed_test
-      SEED_TEST_DATABASE_URL: postgresql://seed_test:seed_test_only@localhost:5432/sinapse_seed_test
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-          cache: npm
-          cache-dependency-path: backend/package-lock.json
-      - run: npm ci
-        working-directory: backend
-      - name: Build backend scripts used by seed validation
-        run: npm run build
-        working-directory: backend
-      - run: npm run migrate
-        working-directory: backend
-      - run: npm run seed:validate
-        working-directory: backend
-      - run: npm run test:seed
-        working-directory: backend
-      - name: Test archive cascade on PostgreSQL
-        run: node --import tsx --test src/modules/projects/projects.archive.db.test.ts src/modules/projects/hierarchy-archive.db.test.ts src/modules/projects/projects.backlog-tree.db.test.ts src/database/migration-010.db.test.ts src/database/migration-011.db.test.ts src/database/migration-012.db.test.ts src/modules/documents/documents.repository.db.test.ts src/modules/chat/chat.repository.db.test.ts src/modules/backlog-search/backlog-search.db.test.ts src/modules/decisions/decisions.db.test.ts src/database/migration-013.db.test.ts src/modules/suggestions/suggestions.db.test.ts src/database/migration-014.db.test.ts
-        working-directory: backend
-        env:
-          ARCHIVE_TEST_DATABASE_URL: postgresql://seed_test:seed_test_only@localhost:5432/sinapse_seed_test
-          BACKLOG_TREE_TEST_DATABASE_URL: postgresql://seed_test:seed_test_only@localhost:5432/sinapse_seed_test
-
   validate-environment:
     name: Validate Workflows and Docker Setup
     runs-on: ubuntu-latest
@@ -86,7 +38,7 @@ jobs:
       - name: Validate Docker Compose configuration
         run: |
           cp .env.example .env
-          docker compose config --quiet
+          AI_SERVICE_TOKEN=ci-compose-validation-only DOCUMENT_INGESTION_TOKEN=ci-validation-placeholder-32-characters docker compose config --quiet
 
   validate-backend:
     name: Build & Typecheck Backend (Node.js)

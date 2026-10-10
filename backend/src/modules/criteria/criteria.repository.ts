@@ -1,13 +1,14 @@
-import { lockHierarchy, assertWritable } from "../projects/hierarchy-archive.js";
 import { Pool, PoolClient } from "pg";
 import { pool } from "../../database/db.js";
-import { CreateCriterionDTO, Criterion, CriterionEntityType } from "./criteria.types.js";
-import { auditService } from "../audit/audit.service.js";
+import { withTransaction } from "../../database/transaction.js";
 import { ValidationError } from "../../shared/errors.js";
+import { auditService } from "../audit/audit.service.js";
+import { assertWritable, lockHierarchy } from "../projects/hierarchy-archive.js";
 import {
   assertJustificationForCompletedItem,
   normalizeJustification,
 } from "../quality/completed-item-policy.js";
+import { CreateCriterionDTO, Criterion, CriterionEntityType } from "./criteria.types.js";
 
 const ENTITY_TABLE: Record<CriterionEntityType, string> = {
   epico: "epico",
@@ -100,6 +101,7 @@ export class CriteriaRepository {
   // entre movimentos concorrentes em direções opostas (dois SELECT ... FOR UPDATE em ordens
   // diferentes causariam espera circular). O lock é liberado automaticamente no COMMIT/ROLLBACK.
   private async lockEntity(client: PoolClient, tipo: CriterionEntityType, entidadeId: string): Promise<void> {
+    await lockHierarchy(client, tipo, entidadeId);
     await client.query(`SELECT pg_advisory_xact_lock(hashtext($1))`, [`${tipo}:${entidadeId}`]);
     await assertWritable(client, tipo, entidadeId);
   }
@@ -109,8 +111,8 @@ export class CriteriaRepository {
     return result.rows[0] ?? null;
   }
 
-  async listByEntity(tipo: CriterionEntityType, entidadeId: string): Promise<Criterion[]> {
-    const result = await this.pool.query<Criterion>(
+  async listByEntity(tipo: CriterionEntityType, entidadeId: string, executor: Pool | PoolClient = this.pool): Promise<Criterion[]> {
+    const result = await executor.query<Criterion>(
       `SELECT * FROM criterio_aceitacao WHERE entidade_tipo = $1 AND entidade_id = $2 ORDER BY ordem ASC`,
       [tipo, entidadeId],
     );
@@ -135,11 +137,7 @@ export class CriteriaRepository {
   }
 
   async create(dto: CreateCriterionDTO, usuarioId?: string | null): Promise<Criterion> {
-    const client: PoolClient = await this.pool.connect();
-
-    try {
-      await client.query("BEGIN");
-      await lockHierarchy(client);
+    return withTransaction(this.pool, async (client) => {
       await this.lockEntity(client, dto.entidade_tipo, dto.entidade_id);
       await assertJustificationForCompletedItem(
         client,
@@ -186,14 +184,9 @@ export class CriteriaRepository {
         client,
       );
 
-      await client.query("COMMIT");
       return created;
-    } catch (error) {
-      await client.query("ROLLBACK");
-      throw error;
-    } finally {
-      client.release();
-    }
+
+    });
   }
 
   async delete(
@@ -201,15 +194,11 @@ export class CriteriaRepository {
     usuarioId?: string | null,
     justificativa?: string | null,
   ): Promise<Criterion | null> {
-    const client: PoolClient = await this.pool.connect();
-
-    try {
-      await client.query("BEGIN");
-      await lockHierarchy(client);
+    return withTransaction(this.pool, async (client) => {
 
       const peek = await client.query<Criterion>(`SELECT entidade_tipo, entidade_id FROM criterio_aceitacao WHERE id = $1`, [id]);
       if (!peek.rows[0]) {
-        await client.query("ROLLBACK");
+
         return null;
       }
       await this.lockEntity(client, peek.rows[0].entidade_tipo, peek.rows[0].entidade_id);
@@ -217,7 +206,7 @@ export class CriteriaRepository {
       const existing = await client.query<Criterion>(`SELECT * FROM criterio_aceitacao WHERE id = $1`, [id]);
       const removed = existing.rows[0];
       if (!removed) {
-        await client.query("ROLLBACK");
+
         return null;
       }
 
@@ -255,14 +244,9 @@ export class CriteriaRepository {
         client,
       );
 
-      await client.query("COMMIT");
       return removed;
-    } catch (error) {
-      await client.query("ROLLBACK");
-      throw error;
-    } finally {
-      client.release();
-    }
+
+    });
   }
 
   async move(
@@ -271,15 +255,11 @@ export class CriteriaRepository {
     usuarioId?: string | null,
     justificativa?: string | null,
   ): Promise<Criterion[] | null> {
-    const client: PoolClient = await this.pool.connect();
-
-    try {
-      await client.query("BEGIN");
-      await lockHierarchy(client);
+    return withTransaction(this.pool, async (client) => {
 
       const peek = await client.query<Criterion>(`SELECT entidade_tipo, entidade_id FROM criterio_aceitacao WHERE id = $1`, [id]);
       if (!peek.rows[0]) {
-        await client.query("ROLLBACK");
+
         return null;
       }
       await this.lockEntity(client, peek.rows[0].entidade_tipo, peek.rows[0].entidade_id);
@@ -287,7 +267,7 @@ export class CriteriaRepository {
       const currentResult = await client.query<Criterion>(`SELECT * FROM criterio_aceitacao WHERE id = $1`, [id]);
       const current = currentResult.rows[0];
       if (!current) {
-        await client.query("ROLLBACK");
+
         return null;
       }
 
@@ -306,7 +286,7 @@ export class CriteriaRepository {
           `SELECT * FROM criterio_aceitacao WHERE entidade_tipo = $1 AND entidade_id = $2 ORDER BY ordem ASC`,
           [current.entidade_tipo, current.entidade_id],
         );
-        await client.query("COMMIT");
+
         return listaSemAlteracao.rows;
       }
 
@@ -339,14 +319,9 @@ export class CriteriaRepository {
         [current.entidade_tipo, current.entidade_id],
       );
 
-      await client.query("COMMIT");
       return listaAtualizada.rows;
-    } catch (error) {
-      await client.query("ROLLBACK");
-      throw error;
-    } finally {
-      client.release();
-    }
+
+    });
   }
 }
 

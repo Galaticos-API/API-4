@@ -20,18 +20,7 @@ export interface AuthContextType {
 export const AuthContext = createContext<AuthContextType | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [session, setSessionState] = useState<Session>(() => {
-    try {
-      const cached = localStorage.getItem(USER_STORAGE_KEY);
-      if (cached) {
-        const user = JSON.parse(cached);
-        return { status: "authenticated", user };
-      }
-    } catch {
-      // Ignora erro de leitura no storage
-    }
-    return { status: "loading" };
-  });
+  const [session, setSessionState] = useState<Session>({ status: "loading" });
 
   const sessionStatus = useRef<Session["status"]>(session.status);
 
@@ -107,16 +96,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const revalidate = () => {
       if (sessionStatus.current === "authenticated") {
-        void restore(true);
+        void restore();
       }
     };
 
     window.addEventListener("focus", revalidate);
-    window.addEventListener("popstate", revalidate);
 
     return () => {
       window.removeEventListener("focus", revalidate);
-      window.removeEventListener("popstate", revalidate);
     };
   }, [restore]);
 
@@ -130,7 +117,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setSession({ status: "authenticated", user });
   }
 
-  async function register(nome: string, email: string, password: string, role: "admin" | "po" | "dev" = "po") {
+  async function register(nome: string, email: string, password: string, role: "admin" | "po" | "dev" = "dev") {
     const current = ++revision.current;
     const user = await readUser(await apiRequest("/auth/register", {
       method: "POST",

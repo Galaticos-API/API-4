@@ -7,7 +7,7 @@ import { LocalDocumentStorage } from "./documents.storage.js";
 
 const PROJECT = "a0000000-0000-4000-8000-000000000001";
 const DOCUMENT = "c0000000-0000-4000-8000-000000000001";
-const KEY = `${PROJECT}/${DOCUMENT}`;
+const KEY = `${PROJECT}/${DOCUMENT}.pdf`;
 
 let directory: string;
 let storage: LocalDocumentStorage;
@@ -46,7 +46,7 @@ test("remoção em duas fases: restaura em caso de falha e descarta após confir
 });
 
 test("recusa chaves fora do formato para impedir travessia de diretório", async () => {
-  for (const key of ["../fora", "a/b", `${PROJECT}/../${DOCUMENT}`, `${PROJECT}/${DOCUMENT}/extra`]) {
+  for (const key of ["../fora", "a/b", `${PROJECT}/../${DOCUMENT}`, `${PROJECT}/${DOCUMENT}/extra`, `${PROJECT}/${DOCUMENT}.pdf/extra`]) {
     await assert.rejects(storage.save(key, Buffer.from("x")), /inválido/, key);
   }
 });

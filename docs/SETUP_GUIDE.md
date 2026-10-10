@@ -22,11 +22,13 @@ Este guia cobre dois caminhos: subir o produto em containers ou executar backend
 git clone https://github.com/Galaticos-API/API-4.git
 cd API-4
 cp .env.example .env
+# Gere um segredo com: python -c "import secrets; print(secrets.token_hex(32))"
+# Copie a saída para DOCUMENT_INGESTION_TOKEN no arquivo .env
 docker compose up --build -d
 docker compose ps
 ```
 
-No PowerShell, substitua `cp .env.example .env` por `Copy-Item .env.example .env`.
+No PowerShell, substitua `cp .env.example .env` por `Copy-Item .env.example .env`. Antes de iniciar os containers, gere um valor aleatório com o comando Python mostrado acima e preencha `DOCUMENT_INGESTION_TOKEN` no `.env`; backend e serviço de IA precisam compartilhar esse mesmo segredo. O Compose falha explicitamente se o valor estiver vazio.
 
 O Compose padrão inicia PostgreSQL, n8n, backend e frontend. O backend aplica migrations pendentes antes de aceitar tráfego. URLs padrão:
 
@@ -134,7 +136,7 @@ O serviço lê sua configuração a partir de `ai-service/config.py`. O serviço
 | `BACKEND_PORT` | `3001` | Porta publicada da API. |
 | `FRONTEND_PORT` | `5173` | Porta publicada da SPA. |
 | `N8N_PORT` | `5678` | Porta publicada do n8n. |
-| `DOCUMENT_MAX_SIZE_MB` | `20` | Tamanho máximo de upload aceito pela API. |
+| `DOCUMENT_MAX_SIZE_MB` | `20` | Tamanho máximo de upload aceito pela API e ingestão local (máximo `20`). |
 | `DOCUMENT_EVENTS_WEBHOOK_URL` | vazio | Destino HTTP dos eventos de remoção de documento. Sem consumidor configurado, o evento permanece pendente e é tentado novamente. |
 | `OLLAMA_PORT` | `11434` | Porta do Ollama executado no host. |
 | `OLLAMA_DOCKER_BASE_URL` | `http://host.docker.internal:11434` | URL do Ollama vista pelo `ai-service` dentro do Docker. |

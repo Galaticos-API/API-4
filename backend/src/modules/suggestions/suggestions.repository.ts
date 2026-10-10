@@ -92,7 +92,7 @@ export class SuggestionsRepository {
     const client = await this.pool.connect();
     try {
       await client.query("BEGIN");
-      await lockHierarchy(client);
+      await lockHierarchy(client, input.entidadeTipo, input.entidadeId);
       const current = await client.query<SuggestionRow>(
         `SELECT ${SELECT_COLUMNS} ${FROM_CLAUSE} WHERE s.id = $1 AND s.entidade_tipo = $2 AND s.entidade_id = $3 FOR UPDATE OF s`,
         [input.suggestionId, input.entidadeTipo, input.entidadeId],

@@ -1,12 +1,15 @@
-import { lockHierarchy, assertWritable } from "../projects/hierarchy-archive.js";
+import { projectAccessSql } from "../projects/project-access.js";
+import { ValidationError } from "../../shared/errors.js";
 import { Pool, PoolClient } from "pg";
 import { pool } from "../../database/db.js";
-import { CreateEpicDTO, UpdateEpicDTO, EpicQueryDTO, Epic, EpicWithStats, PaginatedEpics } from "./epics.types.js";
-import { auditService } from "../audit/audit.service.js";
-import { assertJustificationForCompletedItem } from "../quality/completed-item-policy.js";
+import { withTransaction } from "../../database/transaction.js";
 import { buildAuditChangeData } from "../audit/audit.payloads.js";
+import { auditService } from "../audit/audit.service.js";
+import { assertWritable, lockHierarchy } from "../projects/hierarchy-archive.js";
+import { assertJustificationForCompletedItem } from "../quality/completed-item-policy.js";
 import { getEntityTechnologyIds, replaceEntityTechnologies } from "../technologies/entity-technologies.js";
 import { markFieldsHumanAuthored } from "../provenance/provenance.js";
+import { EPIC_REQUIRED_FIELDS, CreateEpicDTO, Epic, EpicQueryDTO, EpicWithStats, PaginatedEpics, UpdateEpicDTO } from "./epics.types.js";
 
 export class EpicsRepository {
   private pool: Pool;
@@ -15,7 +18,7 @@ export class EpicsRepository {
     this.pool = customPool ?? pool;
   }
 
-  async findById(id: string): Promise<EpicWithStats | null> {
+  async findById(id: string, executor: Pool | PoolClient = this.pool): Promise<EpicWithStats | null> {
     const query = `
       SELECT
         e.*,
@@ -27,16 +30,14 @@ export class EpicsRepository {
       JOIN projeto p ON p.id = e.projeto_id
       WHERE e.id = $1
     `;
-    const result = await this.pool.query<EpicWithStats>(query, [id]);
+    const result = await executor.query<EpicWithStats>(query, [id]);
     return result.rows[0] ?? null;
   }
 
   async create(data: CreateEpicDTO, usuarioId?: string | null): Promise<Epic> {
-    const client: PoolClient = await this.pool.connect();
+    return withTransaction(this.pool, async (client) => {
 
-    try {
-      await client.query("BEGIN");
-      await lockHierarchy(client);
+      await lockHierarchy(client, "projeto", data.projeto_id);
       await assertWritable(client, "projeto", data.projeto_id);
 
       const insertQuery = `
@@ -69,20 +70,19 @@ export class EpicsRepository {
         client,
       );
 
-      await client.query("COMMIT");
       return created;
-    } catch (error) {
-      await client.query("ROLLBACK");
-      throw error;
-    } finally {
-      client.release();
-    }
+
+    });
   }
 
-  async findAll(query: EpicQueryDTO): Promise<PaginatedEpics> {
+  async findAll(query: EpicQueryDTO, userId?: string): Promise<PaginatedEpics> {
     const whereConditions: string[] = [];
     const params: unknown[] = [];
     let paramIndex = 1;
+    if (userId) {
+      whereConditions.push(projectAccessSql("e.projeto_id", "$" + paramIndex++));
+      params.push(userId);
+    }
 
     if (query.projeto_id) {
       whereConditions.push(`e.projeto_id = $${paramIndex}`);
@@ -121,17 +121,20 @@ export class EpicsRepository {
   }
 
   async update(id: string, data: UpdateEpicDTO, usuarioId?: string | null): Promise<EpicWithStats | null> {
-    const client: PoolClient = await this.pool.connect();
+    return withTransaction(this.pool, async (client) => {
 
-    try {
-      await client.query("BEGIN");
-      await lockHierarchy(client);
+      await lockHierarchy(client, "epico", id);
       await assertWritable(client, "epico", id);
 
-      const existing = await this.findById(id);
+      const existing = await this.findById(id, client);
       if (!existing) {
-        await client.query("ROLLBACK");
+
         return null;
+      }
+      if (existing.status === "concluido") {
+        const merged = { ...existing, ...data };
+        const missing = EPIC_REQUIRED_FIELDS.filter(field => !String(merged[field] ?? "").trim());
+        if (missing.length) throw new ValidationError("Não é possível remover campos obrigatórios de um item concluído.", { campos_faltantes: missing });
       }
       await assertJustificationForCompletedItem(
         client,
@@ -184,29 +187,29 @@ export class EpicsRepository {
         client,
       );
 
-      await client.query("COMMIT");
-      return await this.findById(id);
-    } catch (error) {
-      await client.query("ROLLBACK");
-      throw error;
-    } finally {
-      client.release();
-    }
+      const saved = await this.findById(id, client);
+
+      return saved;
+
+    });
   }
 
   async markConcluded(id: string, usuarioId?: string | null): Promise<EpicWithStats | null> {
-    const client: PoolClient = await this.pool.connect();
+    return withTransaction(this.pool, async (client) => {
 
-    try {
-      await client.query("BEGIN");
-      await lockHierarchy(client);
+      await lockHierarchy(client, "epico", id);
       await assertWritable(client, "epico", id);
 
-      const existing = await this.findById(id);
+      const existing = await this.findById(id, client);
       if (!existing) {
-        await client.query("ROLLBACK");
+
         return null;
       }
+
+      if (existing.status === "concluido") return existing;
+      const missing: string[] = EPIC_REQUIRED_FIELDS.filter(field => !String(existing[field] ?? "").trim());
+      if (!existing.criterios_count) missing.push("criterios_aceitacao");
+      if (missing.length) throw new ValidationError("Preencha os campos obrigatórios antes de concluir.", { campos_faltantes: missing });
 
       await client.query(`UPDATE epico SET status = 'concluido', updated_at = CURRENT_TIMESTAMP WHERE id = $1`, [id]);
 
@@ -221,14 +224,11 @@ export class EpicsRepository {
         client,
       );
 
-      await client.query("COMMIT");
-      return await this.findById(id);
-    } catch (error) {
-      await client.query("ROLLBACK");
-      throw error;
-    } finally {
-      client.release();
-    }
+      const saved = await this.findById(id, client);
+
+      return saved;
+
+    });
   }
 }
 

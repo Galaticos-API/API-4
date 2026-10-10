@@ -14,6 +14,21 @@ class ChunkerTests(unittest.TestCase):
         self.assertIn("Primeiro parágrafo.", chunks[0])
         self.assertTrue(all(chunk.strip() for chunk in chunks))
 
+    def test_long_paragraph_is_fully_preserved_without_oversized_chunks(self):
+        text = " ".join(f"token-{index}" for index in range(500))
+        chunks = chunk_document_text(text, chunk_size=100, overlap=15)
+        self.assertGreater(len(chunks), 2)
+        self.assertTrue(all(len(chunk) <= 100 for chunk in chunks))
+        for index in (0, 100, 250, 499):
+            token = f"token-{index}"
+            self.assertTrue(any(token in chunk for chunk in chunks), token)
+
+    def test_invalid_chunk_sizes_are_rejected(self):
+        with self.assertRaises(ValueError):
+            chunk_document_text("text", chunk_size=0)
+        with self.assertRaises(ValueError):
+            chunk_document_text("text", chunk_size=10, overlap=10)
+
     def test_structured_chunk_keeps_project_metadata_and_provenance(self):
         result = create_structured_chunk(
             "pbi",

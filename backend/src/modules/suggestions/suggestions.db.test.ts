@@ -88,7 +88,7 @@ test("S2-13: ciclo humano de sugestões, proveniência por campo e fallback manu
       const archiver = await pool.connect();
       try {
         await archiver.query("BEGIN");
-        await lockHierarchy(archiver);
+        await lockHierarchy(archiver, "pbi", archivedPbi);
         await archiver.query("UPDATE pbi SET status='arquivado' WHERE id=$1", [archivedPbi]);
         const attempt = service.accept("pbi", archivedPbi, created.id, user, {});
         await new Promise((resolve) => setTimeout(resolve, 150));

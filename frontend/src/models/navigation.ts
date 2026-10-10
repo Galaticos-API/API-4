@@ -8,6 +8,7 @@ export const routes = {
   rag: "/rag",
   documents: "/documents",
   admin: "/admin",
+  ingestion: "/admin/ingestion",
 } as const;
 
 const SEGMENT = "[a-zA-Z0-9_-]+";

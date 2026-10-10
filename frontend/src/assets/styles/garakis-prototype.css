@@ -583,6 +583,17 @@ h2 {
   color: var(--orange);
 }
 
+.knowledge-search-controls {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(200px, 240px) auto;
+  gap: 16px;
+  align-items: end;
+}
+
+.knowledge-search-controls > button {
+  min-height: 42px;
+}
+
 @media (max-width: 820px) {
   .top-header {
     padding: 0 18px;
@@ -607,6 +618,12 @@ h2 {
     border-right: 0;
     border-bottom: 1px solid var(--line);
     padding-bottom: 16px;
+  }
+  .knowledge-search-controls {
+    grid-template-columns: 1fr;
+  }
+  .knowledge-search-controls > button {
+    width: 100%;
   }
 }
 

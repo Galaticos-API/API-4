@@ -12,7 +12,12 @@ export interface ProjectDocument {
   mime: string | null;
   tamanho_bytes: number | null;
   status_processamento: DocumentStatus;
+  processamento_erro?: string | null;
   armazenamento_pendente: boolean;
+  nova_tentativa_pendente?: boolean;
+  tentativas_processamento?: number;
+  proxima_tentativa_em?: string | null;
+  erro_processamento_codigo?: string | null;
   autor_id: string | null;
   autor_nome: string | null;
   created_at: string;
@@ -54,7 +59,12 @@ function parseDocument(value: unknown): ProjectDocument {
     mime: typeof value.mime === "string" ? value.mime : null,
     tamanho_bytes: typeof size === "number" ? size : null,
     status_processamento: value.status_processamento as DocumentStatus,
+    processamento_erro: typeof value.processamento_erro === "string" ? value.processamento_erro : null,
     armazenamento_pendente: value.armazenamento_pendente === true,
+    nova_tentativa_pendente: value.nova_tentativa_pendente === true,
+    tentativas_processamento: typeof value.tentativas_processamento === "number" ? value.tentativas_processamento : 0,
+    proxima_tentativa_em: typeof value.proxima_tentativa_em === "string" ? value.proxima_tentativa_em : null,
+    erro_processamento_codigo: typeof value.erro_processamento_codigo === "string" ? value.erro_processamento_codigo : null,
     autor_id: typeof value.autor_id === "string" ? value.autor_id : null,
     autor_nome: typeof value.autor_nome === "string" ? value.autor_nome : null,
     created_at: value.created_at,
@@ -89,13 +99,13 @@ export async function listDocuments(
 }
 
 export async function uploadDocument(projectId: string, file: File, signal?: AbortSignal): Promise<ProjectDocument> {
+  // Backend usa multer com upload.single("file"), que exige multipart/form-data.
+  // Não passamos Content-Type manualmente — o fetch gera o boundary correto.
+  const body = new FormData();
+  body.append("file", file, file.name);
   const response = await apiRequest(`/projects/${encodeURIComponent(projectId)}/documents`, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/octet-stream",
-      "X-File-Name": encodeURIComponent(file.name),
-    },
-    body: file,
+    body,
     signal: signal ?? AbortSignal.timeout(UPLOAD_TIMEOUT_MS),
   });
   return parseDocument(await response.json());
@@ -105,6 +115,13 @@ export async function removeDocument(projectId: string, documentId: string, sign
   await apiRequest(`/projects/${encodeURIComponent(projectId)}/documents/${encodeURIComponent(documentId)}`, {
     method: "DELETE",
     signal,
+  });
+}
+
+export async function retryDocumentProcessing(projectId: string, documentId: string, signal?: AbortSignal): Promise<void> {
+  await apiRequest(`/projects/${encodeURIComponent(projectId)}/documents/${encodeURIComponent(documentId)}/retry`, {
+    method: "POST",
+    signal: signal ?? AbortSignal.timeout(15_000),
   });
 }
 
@@ -151,4 +168,8 @@ export function describeRemovalError(error: unknown): string {
     if ((error.status === 500 || error.status === 503) && message) return message;
   }
   return "Não foi possível remover o documento. Ele continua disponível; tente novamente.";
+}
+
+export async function reprocessDocument(projectId: string, documentId: string, signal?: AbortSignal): Promise<void> {
+  await apiRequest(`/projects/${encodeURIComponent(projectId)}/documents/${encodeURIComponent(documentId)}/reprocess`, { method: "POST", signal });
 }

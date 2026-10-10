@@ -1,3 +1,4 @@
+import { allocateDeveloper } from '../database.mjs';
 import test, { after } from "node:test";
 import assert from "node:assert/strict";
 import { expect } from "./expect.mjs";
@@ -129,6 +130,7 @@ test("Decisões S1-18: registrar no PBI, ver herança do projeto e restrições 
   const po = await createUser("po");
   const dev = await createUser("dev");
   const project = await createProject(po, "Decisões");
+  await allocateDeveloper(dev, project);
   const { epic, feature, pbi } = await createHierarchy(po, project);
   const inherited = await api(`/projects/${project.id}/decisions`, { method: "POST", token: po.token, body: { titulo: "Stack única em TypeScript", contexto: "Equipe pequena", decisao: "Usar TypeScript em todo o código", justificativa: "Reduz troca de contexto", alternativas: "Python no backend" } });
   assert.equal(inherited.status, 201);
@@ -189,7 +191,7 @@ test("Autorização e isolamento: perfis, sessão e itens de outro projeto", asy
   const cross = await api(`/projects/${project.id}/backlog-search?q=${encodeURIComponent("credenciais")}`, { token: po.token });
   assert.ok(!cross.json.items.some((item) => item.id === pbi.id), "item do outro projeto nunca aparece na busca deste");
   assert.equal((await api("/search?projeto_id=nao-uuid", { token: po.token })).status, 400);
-  assert.equal((await api("/search?q=teste", { token: po.token })).status, 200);
+  assert.equal((await api("/search?q=teste", { token: po.token })).status, 400, "busca do acervo exige escopo explícito de projeto");
   assert.equal((await api("/auth/me")).status, 401);
   assert.equal((await api("/auth/me", { token: "token-invalido" })).status, 401);
   assert.equal((await api("/admin/stats", { token: dev.token })).status === 200, false);

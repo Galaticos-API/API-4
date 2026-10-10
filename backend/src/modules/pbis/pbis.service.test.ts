@@ -1,3 +1,4 @@
+import type { PoolClient } from "pg";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { PbisService } from "./pbis.service.js";
@@ -94,12 +95,15 @@ class InMemoryPbisRepository extends PbisRepository {
     }
   }
 
-  async markConcluded(id: string): Promise<PbiWithContext | null> {
+  async markConcluded(id: string, validate: (client: PoolClient) => Promise<void>): Promise<PbiWithContext | null> {
     const index = this.pbis.findIndex((p) => p.id === id);
 
     if (index === -1) {
       return null;
     }
+
+    if (this.statusProjeto === "arquivado") throw new ValidationError("Não é possível alterar PBIs de um projeto arquivado.");
+    if (this.pbis[index].status !== "concluido") await validate({} as PoolClient);
 
     this.pbis[index] = {
       ...this.pbis[index],

@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { listProjects, type Project } from "../../api/api_projects";
-import { EpicList } from "./EpicsView";
 import { navigate } from "../../models/navigation";
-import "../../assets/styles/garakis-prototype.css";
+import { Button } from "../common/ui";
+import { EpicList } from "./EpicsView";
 
 export const RequirementsView: React.FC<{ canCreate?: boolean }> = ({ canCreate = false }) => {
   const [projects, setProjects] = useState<Project[]>([]);
@@ -45,41 +45,41 @@ export const RequirementsView: React.FC<{ canCreate?: boolean }> = ({ canCreate 
         </div>
 
         {selectedProjectId && canCreate && (
-          <button className="btn-garakis primary" onClick={() => navigate(`/projects/${selectedProjectId}/epics/new`)}>
+          <Button variant="primary" onClick={() => navigate(`/projects/${selectedProjectId}/epics/new`)}>
             + Novo Épico
-          </button>
+          </Button>
         )}
       </div>
 
       {loading ? (
-        <div className="card-garakis" role="status" style={{ textAlign: "center", padding: "32px", marginTop: "16px" }}>
+        <div className="ds-card" role="status" style={{ textAlign: "center", padding: "32px", marginTop: "16px" }}>
           Carregando backlog do backend...
         </div>
       ) : error ? (
-        <div className="card-garakis" style={{ background: "rgba(239, 68, 68, 0.1)", color: "#fca5a5", marginTop: "16px" }}>
+        <div className="ds-card" style={{ background: "rgba(239, 68, 68, 0.1)", color: "#fca5a5", marginTop: "16px" }}>
           {error}
         </div>
       ) : projects.length === 0 ? (
-        <div className="card-garakis" style={{ textAlign: "center", padding: "48px 24px", marginTop: "16px" }}>
+        <div className="ds-card" style={{ textAlign: "center", padding: "48px 24px", marginTop: "16px" }}>
           <h3>Nenhum projeto cadastrado no banco de dados</h3>
           <p className="muted">Crie seu primeiro projeto para começar a adicionar itens ao backlog.</p>
           {canCreate && (
-            <button className="btn-garakis primary" onClick={() => navigate("/projects/new")} style={{ marginTop: "16px" }}>
+            <Button variant="primary" onClick={() => navigate("/projects/new")} style={{ marginTop: "16px" }}>
               Criar Primeiro Projeto
-            </button>
+            </Button>
           )}
         </div>
       ) : (
         <>
           {/* Seletor do Projeto */}
-          <div className="card-garakis" style={{ marginTop: "16px", padding: "16px 20px" }}>
-            <div className="field-garakis" style={{ margin: 0 }}>
-              <label htmlFor="select-backlog-project" style={{ fontSize: "0.85rem", color: "var(--muted)" }}>
+          <div className="ds-card" style={{ marginTop: "16px", padding: "16px 20px" }}>
+            <div className="ds-field ds-field--spaced" style={{ margin: 0 }}>
+              <label htmlFor="select-backlog-project" style={{ fontSize: "0.85rem", color: "var(--text-secondary)" }}>
                 Selecione o Projeto para Exibir o Backlog:
               </label>
               <select
                 id="select-backlog-project"
-                className="input-garakis"
+                className="ds-input"
                 value={selectedProjectId}
                 onChange={(e) => setSelectedProjectId(e.target.value)}
                 style={{ fontSize: "1rem", fontWeight: 600 }}

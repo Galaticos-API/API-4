@@ -68,7 +68,7 @@ export class DecisionsRepository {
     const client = await this.pool.connect();
     try {
       await client.query("BEGIN");
-      await lockHierarchy(client);
+      await lockHierarchy(client, input.entidadeTipo, input.entidadeId);
       await assertWritable(client, input.entidadeTipo, input.entidadeId);
       const inserted = await client.query<{ id: string }>(
         `INSERT INTO decisao (entidade_tipo, entidade_id, titulo, contexto, decisao, justificativa, alternativas, autor_id)

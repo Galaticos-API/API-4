@@ -4,11 +4,23 @@ import { applyDataset, loadDataset, validateDataset, validateTarget } from "./se
 import { Pool } from "pg";
 
 test("acervo curado contém três projetos, seis documentos e seis chunks com origem", async () => {
+  delete process.env.SEED_DATASET_VERSION;
   const data = await loadDataset();
   assert.equal(data.records.filter(row => row.table === "projeto").length, 3);
   assert.equal(data.records.filter(row => row.table === "documento").length, 6);
   assert.equal(data.records.filter(row => row.table === "chunk").length, 6);
   assert.equal(data.records.some(row => ["usuario", "competencia", "alocacao"].includes(row.table)), false);
+});
+test("PRE-06 v2 preserva o acervo e publica localizadores GRF como metadados pesquisáveis", async () => {
+  process.env.SEED_DATASET_VERSION = "2";
+  try {
+    const data = await loadDataset();
+    assert.equal(data.dataset, "pre06-historical-v2");
+    assert.equal(data.version, 2);
+    const locators = data.records.filter(row => row.table === "chunk").map(row => (row.values.metadados_json as Record<string, unknown>).source_locator).filter(Boolean);
+    assert.deepEqual(locators.sort(), ["GRF-01", "GRF-08"]);
+    assert.equal(data.records.filter(row => row.table === "chunk").length, 6);
+  } finally { delete process.env.SEED_DATASET_VERSION; }
 });
 test("recusa registro sem origem", async () => {
   const data = await loadDataset(); data.records[0].source.revision = "";

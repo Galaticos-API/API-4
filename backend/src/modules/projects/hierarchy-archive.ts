@@ -20,8 +20,15 @@ export const hierarchyArchiveSchema = z.object({
 });
 
 // The same lock order is used by archive and ordinary hierarchy writers.
-export async function lockHierarchy(client: PoolClient) {
-  await client.query("LOCK TABLE projeto, epico, feature, pbi IN SHARE ROW EXCLUSIVE MODE");
+export async function lockHierarchy(client: PoolClient, kind: Kind | "projeto", id: string) {
+  const queries = {
+    projeto: "SELECT p.id FROM projeto p WHERE p.id=$1 FOR UPDATE OF p",
+    epico: "SELECT p.id FROM projeto p JOIN epico e ON e.projeto_id=p.id WHERE e.id=$1 FOR UPDATE OF p",
+    feature: "SELECT p.id FROM projeto p JOIN epico e ON e.projeto_id=p.id JOIN feature f ON f.epico_id=e.id WHERE f.id=$1 FOR UPDATE OF p",
+    pbi: "SELECT p.id FROM projeto p JOIN epico e ON e.projeto_id=p.id JOIN feature f ON f.epico_id=e.id JOIN pbi b ON b.feature_id=f.id WHERE b.id=$1 FOR UPDATE OF p",
+  };
+  // Lock only the owning project. All hierarchy writers acquire this before child locks.
+  await client.query(queries[kind], [id]);
 }
 
 export async function assertWritable(client: PoolClient, kind: Kind | "projeto", id: string) {
@@ -51,7 +58,7 @@ export class HierarchyArchiveRepository {
     const client = await this.db.connect();
     try {
       await client.query("BEGIN");
-      await lockHierarchy(client);
+      await lockHierarchy(client, kind, id);
       const root = (await client.query(`SELECT * FROM ${kind} WHERE id=$1`, [id])).rows[0];
       if (!root) throw new NotFoundError();
       if (root.status === "arquivado") { await client.query("COMMIT"); return root; }

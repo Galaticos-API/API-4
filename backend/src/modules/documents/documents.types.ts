@@ -12,7 +12,14 @@ export interface DocumentRecord {
   mime: string | null;
   tamanho_bytes: number | null;
   status_processamento: DocumentStatus;
+  processamento_erro?: string | null;
+  processamento_tentativas?: number;
   armazenamento_pendente: boolean;
+  nova_tentativa_pendente?: boolean;
+  tentativas_processamento?: number;
+  proxima_tentativa_em?: string | null;
+  erro_processamento?: string | null;
+  erro_processamento_codigo?: string | null;
   autor_id: string | null;
   autor_nome: string | null;
   created_at: string;
@@ -48,6 +55,20 @@ export interface StoredDocument {
   nome: string;
   caminho: string;
   status_processamento: DocumentStatus;
+}
+
+export interface PendingIngestionDocument extends StoredDocument {
+  mime: string | null;
+  extensao: string | null;
+  /** Fencing token: only the worker holding this lease may commit its result. */
+  processamento_lease_id: string;
+}
+
+export interface ExtractedDocumentChunk {
+  chunk_index: number;
+  text: string;
+  embedding: number[];
+  metadata: Record<string, unknown>;
 }
 
 export interface RemovalResult {

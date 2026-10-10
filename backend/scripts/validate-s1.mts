@@ -5,12 +5,16 @@ import { once } from "node:events";
 import { app } from "../src/index.js";
 import { pool } from "../src/database/db.js";
 import { env } from "../src/config/env.js";
+import { assertValidationDatabase } from "../src/database/validation-target.js";
 import { hashPassword } from "../src/modules/auth/pssword.service.js";
-import { apiRequest, readUser } from "../../frontend/src/auth/api.ts";
-import { createProject, getProject, listProjects } from "../../frontend/src/projects/api.ts";
+import { apiRequest, readUser } from "../../frontend/src/api/api_auth.ts";
+import { createProject, getProject, listProjects } from "../../frontend/src/api/api_projects.ts";
 
 assert.equal(env.NODE_ENV, "test", "Execute com NODE_ENV=test");
-assert.match(env.POSTGRES_DB, /_s1_validation$/, "Use um banco descartável terminado em _s1_validation");
+// Check the connected server, including DATABASE_URL and PostgreSQL defaults.
+const target = await pool.query('SELECT current_database() AS database');
+try { assertValidationDatabase(target.rows[0]?.database); }
+catch (error) { await pool.end(); throw error; }
 const server = app.listen(0, "127.0.0.1");
 await once(server, "listening");
 const address = server.address();

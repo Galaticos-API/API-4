@@ -103,6 +103,11 @@ CREATE TABLE IF NOT EXISTS documento (
     mime VARCHAR(100),
     caminho VARCHAR(500) NOT NULL,
     status_processamento VARCHAR(50) DEFAULT 'pendente',
+    processamento_tentativas INTEGER NOT NULL DEFAULT 0,
+    processamento_proxima_tentativa TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    processamento_bloqueado_ate TIMESTAMPTZ,
+    processamento_lease_id UUID,
+    processamento_erro VARCHAR(300),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
@@ -227,4 +232,9 @@ CREATE INDEX IF NOT EXISTS idx_analise_repositorio_created_at ON analise_reposit
 
 -- Índice HNSW no pgvector para busca por similaridade de cosseno ultrarrápida
 CREATE INDEX IF NOT EXISTS idx_chunk_embedding ON chunk USING hnsw (embedding vector_cosine_ops);
+CREATE INDEX IF NOT EXISTS idx_chunk_text_search_portuguese
+    ON chunk USING GIN (to_tsvector('portuguese', texto));
+CREATE INDEX IF NOT EXISTS idx_documento_ingestao_pendente
+    ON documento(processamento_proxima_tentativa, created_at)
+    WHERE status_processamento IN ('pendente', 'processando');
 

@@ -1,0 +1,137 @@
+import { createProjectAccessRouter } from "./middleware/projectAccess.js";
+import express, { Request, Response } from "express";
+import cors from "cors";
+import swaggerUi from 'swagger-ui-express';
+import { env } from "./config/env.js";
+import { checkDatabaseConnection } from "./database/db.js";
+import { swaggerSpec } from "./config/swagger.config.js";
+import { projectsRouter } from "./modules/projects/projects.routes.js";
+import { epicsRouter } from "./modules/epics/epics.routes.js";
+import { featuresRouter } from "./modules/features/features.routes.js";
+import { pbisRouter } from "./modules/pbis/pbis.routes.js";
+import { criteriaRouter } from "./modules/criteria/criteria.routes.js";
+import qualityRouter from "./modules/quality/quality.routes.js";
+import { epicsCompatRouter } from "./modules/epics/epics.compat.routes.js";
+import { repoAnalysesRouter } from './modules/repo-analyses/repo-analyses.routes';
+import { epicDecisionsRouter, featureDecisionsRouter, pbiDecisionsRouter, projectDecisionsRouter } from "./modules/decisions/decisions.routes.js";
+import { epicSuggestionsRouter, featureSuggestionsRouter, pbiSuggestionsRouter } from "./modules/suggestions/suggestions.routes.js";
+import { backlogSearchRouter } from "./modules/backlog-search/backlog-search.routes.js";
+import { documentsRouter } from "./modules/documents/documents.routes.js";
+import { chunksRouter } from "./modules/documents/chunks.routes.js";
+import { documentsService } from "./modules/documents/documents.service.js";
+import { authRouter } from "./modules/auth/auth.routes.js";
+import { searchRouter } from "./modules/search/search.routes.js";
+import { chatRouter } from "./modules/chat/chat.routes.js";
+import { developersRouter } from "./modules/developers/developers.routes.js";
+import { technologiesRouter } from "./modules/technologies/technologies.routes.js";
+import { adminRouter } from "./modules/admin/admin.routes.js";
+import { auditRouter } from "./modules/audit/audit.routes.js";
+import { errorHandler } from "./middleware/errorHandler.js";
+import { requireAuth } from "./middleware/requireAuth.js";
+
+export const app = express();
+
+app.use(cors());
+app.use(express.json());
+
+app.use("/api/v1/auth", authRouter);
+
+// Health Check Endpoint
+app.get("/health", async (_req: Request, res: Response) => {
+  const dbHealthy = await checkDatabaseConnection();
+  const documents = dbHealthy ? await documentsService.health().catch(() => null) : null;
+
+  res.status(dbHealthy ? 200 : 503).json({
+    status: dbHealthy ? "healthy" : "degraded",
+    timestamp: new Date().toISOString(),
+    service: "sinapse-backend",
+    version: "0.1.0",
+    dependencies: {
+      database: dbHealthy ? "connected" : "disconnected",
+      aiService: env.AI_SERVICE_URL,
+    },
+    documents,
+  });
+});
+
+app.use("/api/v1", createProjectAccessRouter());
+app.use("/api", createProjectAccessRouter());
+
+// Projects API Endpoints (v1 e alias)
+app.use("/api/v1/projects", requireAuth, projectsRouter);
+app.use("/api/projects", requireAuth, projectsRouter);
+// Compatibilidade das rotas de épicos da implementação anterior
+app.use("/api/v1", requireAuth, epicsCompatRouter);
+app.use("/api", requireAuth, epicsCompatRouter);
+
+// Hierarquia do backlog: épicos, features, PBIs e critérios de aceitação (S1-05/06/07/10)
+app.use("/api/v1/epics", requireAuth, epicsRouter);
+app.use("/api/v1/features", requireAuth, featuresRouter);
+app.use("/api/v1/pbis", requireAuth, pbisRouter);
+app.use("/api/v1/criteria", requireAuth, criteriaRouter);
+app.use("/api/v1/quality", qualityRouter);
+app.use("/api/v1/audit", auditRouter);
+
+// Busca híbrida e acervo
+app.use("/api/v1/search", searchRouter);
+
+// Chat assistivo e conversas
+app.use("/api/v1/chat", chatRouter);
+
+// Desenvolvedores e competências
+app.use("/api/v1/developers", developersRouter);
+app.use("/api/v1/technologies", requireAuth, technologiesRouter);
+
+// Painel administrativo
+app.use("/api/v1/admin", adminRouter);
+
+// Repo analyzer
+app.use('/api/v1/projects/:projectId/repo-analyses', repoAnalysesRouter);
+
+// Decisões em qualquer nível da hierarquia (S1-18)
+app.use("/api/v1/projects/:entityId/decisions", projectDecisionsRouter);
+app.use("/api/v1/epics/:entityId/decisions", epicDecisionsRouter);
+app.use("/api/v1/features/:entityId/decisions", featureDecisionsRouter);
+app.use("/api/v1/pbis/:entityId/decisions", pbiDecisionsRouter);
+
+// Ciclo humano de sugestões da IA e proveniência por campo (S2-13)
+app.use("/api/v1/epics/:entityId/suggestions", epicSuggestionsRouter);
+app.use("/api/v1/features/:entityId/suggestions", featureSuggestionsRouter);
+app.use("/api/v1/pbis/:entityId/suggestions", pbiSuggestionsRouter);
+
+// Busca textual no backlog (S1-17)
+app.use("/api/v1/projects/:projectId/backlog-search", backlogSearchRouter);
+
+// Documentos do projeto (S1-19/S1-20/S1-22)
+app.use("/api/v1/projects/:projectId/documents", requireAuth, documentsRouter);
+// Server-to-server: pipeline n8n persistindo chunks indexados do documento.
+app.use("/api/v1/projects/:projectId/documents/:documentId/chunks", chunksRouter);
+
+// Swagger Documentation
+app.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+
+// Root Information Endpoint
+app.get("/api/v1", (_req: Request, res: Response) => {
+  res.json({
+    name: "Sinapse API",
+    version: "v1",
+    description: "API de Backend do Sinapse - Base Inteligente de Requisitos",
+    documentation: "/docs",
+    modules: [
+      { name: "projects", status: "ready" },
+      { name: "epics", status: "ready" },
+      { name: "features", status: "ready" },
+      { name: "pbis", status: "ready" },
+      { name: "criteria", status: "ready" },
+      { name: "decisions", status: "in_development" },
+      { name: "suggestions", status: "ready" },
+      { name: "ai-bridge", status: "ready" },
+    ],
+  });
+});
+
+// Global Error Handler
+app.use(errorHandler);
+
+
+export default app;

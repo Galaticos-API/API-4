@@ -1,3 +1,4 @@
+import type { PoolClient } from "pg";
 import type { Pbi } from "../pbis/pbis.types.js";
 
 export const ENTITY_TYPES = ["epico", "feature", "pbi"] as const;
@@ -44,7 +45,7 @@ export interface PbiQualityConfigurationRecord extends PbiQualityConfigurationIn
 }
 
 export interface QualityRuleConfigurationProvider {
-  getCurrentPbiConfiguration(): Promise<PbiQualityRuleConfiguration>;
+  getCurrentPbiConfiguration(client?: PoolClient): Promise<PbiQualityRuleConfiguration>;
 }
 
 export interface QualityReport {

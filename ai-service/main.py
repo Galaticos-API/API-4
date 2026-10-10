@@ -1,14 +1,30 @@
+import hmac
+import math
+from fastapi import Request
+from fastapi.responses import JSONResponse
+from document_text import extract_document_text
 from contextlib import asynccontextmanager
+import base64
+import binascii
+import hmac
+import io
+from pathlib import PurePath
+import zipfile
 from typing import Any, Literal
-from fastapi import FastAPI, HTTPException, status
+from fastapi import FastAPI, Header, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import PlainTextResponse
 from pydantic import BaseModel, Field
+from docx import Document as WordDocument
+from docx.table import Table as WordTable
+from docx.text.paragraph import Paragraph as WordParagraph
+from pypdf import PdfReader
 
 from config import settings
 from services.ollama_client import ollama_client
 from services.chunker import chunk_document_text, create_structured_chunk
 from analyzer import Analyzer, AnalysisError, AnalyzerSettings
+from analyzer.pipeline import AnalysisBusy
 
 analyzer = Analyzer(AnalyzerSettings())
 
@@ -25,6 +41,18 @@ app = FastAPI(
     version="0.2.0",
     lifespan=lifespan,
 )
+
+@app.middleware("http")
+async def authenticate_service(request: Request, call_next):
+    if request.url.path != "/health":
+        expected = settings.AI_SERVICE_TOKEN
+        supplied = request.headers.get("x-service-token", "")
+        if not expected:
+            return JSONResponse(status_code=503, content={"detail": "Autenticação interna não configurada"})
+        if not hmac.compare_digest(supplied.encode(), expected.encode()):
+            return JSONResponse(status_code=401, content={"detail": "Autenticação interna necessária"})
+    return await call_next(request)
+
 
 app.add_middleware(
     CORSMiddleware,
@@ -51,6 +79,43 @@ class IngestEntityRequest(BaseModel):
 class EmbeddingRequest(BaseModel):
     text: str = Field(..., description="Texto para cálculo de embeddings")
     model: str | None = Field(None, description="Modelo de embedding (padrão do settings)")
+
+
+class ChunkRequest(BaseModel):
+    document_id: str = Field(..., description="ID do documento no backend")
+    project_id: str | None = Field(None, description="ID do projeto")
+    filename: str | None = Field(None, description="Nome original do arquivo")
+    text: str = Field(..., description="Texto extraído do documento, já consolidado")
+
+
+class EmbedBatchRequest(BaseModel):
+    model: str | None = Field(None, description="Modelo de embedding (padrão bge-m3)")
+    texts: list[str] = Field(..., description="Lote de textos para gerar embeddings")
+
+
+class ProcessDocumentRequest(BaseModel):
+    document_id: str = Field(..., min_length=36, max_length=36)
+    project_id: str = Field(..., min_length=36, max_length=36)
+    filename: str = Field(..., min_length=1, max_length=255)
+    content_base64: str = Field(..., min_length=1, max_length=28_000_000)
+
+
+def extract_docx_text(content: bytes) -> str:
+    """Extract body paragraphs and tables in document order (python-docx omits tables from paragraphs)."""
+    document = WordDocument(io.BytesIO(content))
+    parts: list[str] = []
+    for element in document.element.body.iterchildren():
+        if element.tag.endswith("}p"):
+            paragraph = WordParagraph(element, document)
+            if paragraph.text.strip():
+                parts.append(paragraph.text)
+        elif element.tag.endswith("}tbl"):
+            table = WordTable(element, document)
+            for row in table.rows:
+                cells = [cell.text.strip() for cell in row.cells]
+                if any(cells):
+                    parts.append(" | ".join(cells))
+    return "\n\n".join(parts)
 
 
 class RagQueryRequest(BaseModel):
@@ -86,28 +151,37 @@ async def ingest_document(req: IngestDocumentRequest):
     """
     chunks = chunk_document_text(req.text_content)
     
-    # Process each chunk with embedding
+    if not req.project_id or not chunks:
+        raise HTTPException(status_code=422, detail="Projeto e texto são obrigatórios")
     processed = []
     for idx, chunk in enumerate(chunks):
         try:
             vector = await ollama_client.get_embedding(chunk)
-            vector_dim = len(vector)
+            if len(vector) != 1024:
+                raise ValueError("Dimensão de vetor inválida")
         except Exception:
-            vector_dim = 0
-            
-        processed.append({
-            "chunk_index": idx,
-            "text": chunk,
-            "vector_dimension": vector_dim,
-            "project_id": req.project_id,
-        })
-        
-    return {
-        "document_id": req.document_id,
-        "total_chunks": len(chunks),
-        "status": "chunked_and_indexed",
-        "chunks": processed,
-    }
+            raise HTTPException(status_code=502, detail="Não foi possível gerar embeddings")
+        processed.append({"chunk_index": idx, "text": chunk, "embedding": vector,
+                          "vector_dimension": len(vector), "project_id": req.project_id})
+    return {"document_id": req.document_id, "project_id": req.project_id,
+            "total_chunks": len(chunks), "status": "prepared", "chunks": processed}
+
+
+class IngestFileRequest(BaseModel):
+    document_id: str
+    project_id: str
+    file_name: str
+    content_base64: str
+
+
+@app.post("/ingest/file")
+async def ingest_file(req: IngestFileRequest):
+    try:
+        text = extract_document_text(req.file_name, req.content_base64)
+    except Exception:
+        raise HTTPException(status_code=422, detail="Não foi possível extrair texto do documento")
+    return await ingest_document(IngestDocumentRequest(document_id=req.document_id,
+        project_id=req.project_id, text_content=text))
 
 
 @app.post("/ingest/entity", status_code=status.HTTP_200_OK)
@@ -119,15 +193,18 @@ async def ingest_structured_entity(req: IngestEntityRequest):
     chunk = create_structured_chunk(req.entity_type, req.data)
     try:
         vector = await ollama_client.get_embedding(chunk["content"])
+        if len(vector) != 1024 or not all(math.isfinite(v) for v in vector) or not any(vector):
+            raise ValueError("Embedding inválido")
         vector_dim = len(vector)
     except Exception:
-        vector_dim = 0
+        raise HTTPException(status_code=502, detail="Não foi possível gerar embeddings")
 
     return {
         "entity_type": req.entity_type,
         "content": chunk["content"],
         "metadata": chunk["metadata"],
         "vector_dimension": vector_dim,
+        "embedding": vector,
     }
 
 
@@ -145,6 +222,130 @@ async def generate_embedding(req: EmbeddingRequest):
         )
 
 
+@app.post("/chunk", status_code=status.HTTP_200_OK)
+async def chunk_text(req: ChunkRequest):
+    """
+    Divide o texto em chunks (sem calcular embeddings). Shape pensado para o
+    pipeline do n8n em modo debug: Chunking -> Embeddings -> Persistir chunks (backend).
+    """
+    pieces = chunk_document_text(req.text)
+    chunks = [
+        {
+            "index": idx,
+            "content": piece,
+            "metadata": {
+                "document_id": req.document_id,
+                "project_id": req.project_id,
+                "filename": req.filename,
+            },
+        }
+        for idx, piece in enumerate(pieces)
+    ]
+    return {
+        "document_id": req.document_id,
+        "project_id": req.project_id,
+        "total_chunks": len(chunks),
+        "chunks": chunks,
+    }
+
+
+@app.post("/embed", status_code=status.HTTP_200_OK)
+async def embed_batch(req: EmbedBatchRequest):
+    """
+    Gera embeddings em lote. Ollama processa um por vez; o loop aqui mantém a
+    ordem para casar vetor com chunk no caller.
+    """
+    if not req.texts:
+        return {"model": req.model or settings.OLLAMA_EMBEDDING_MODEL, "dimension": 0, "embeddings": []}
+    model = req.model or settings.OLLAMA_EMBEDDING_MODEL
+    try:
+        vectors = [await ollama_client.get_embedding(text, model=model) for text in req.texts]
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"Falha ao comunicar com Ollama: {e}",
+        )
+    dimension = len(vectors[0]) if vectors and vectors[0] else 0
+    return {"model": model, "dimension": dimension, "embeddings": vectors}
+
+
+@app.post("/documents/process")
+async def process_document(req: ProcessDocumentRequest, internal_token: str | None = Header(None, alias="X-Document-Ingestion-Token")):
+    """Fluxo oficial da S2-01: extrai, fragmenta e vetoriza; somente o backend persiste no banco."""
+    expected_token = settings.DOCUMENT_INGESTION_TOKEN
+    if len(expected_token) < 32:
+        raise HTTPException(status_code=503, detail="A autenticação interna da ingestão não está configurada.")
+    if not internal_token or not hmac.compare_digest(internal_token, expected_token):
+        raise HTTPException(status_code=401, detail="Não autorizado.")
+    extension = PurePath(req.filename).suffix.lower()
+    try:
+        content = base64.b64decode(req.content_base64, validate=True)
+    except (binascii.Error, ValueError):
+        raise HTTPException(status_code=400, detail="Conteúdo do documento inválido.") from None
+    if not content or len(content) > 20 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="Documento vazio ou acima do limite suportado.")
+    try:
+        if extension == ".pdf":
+            reader = PdfReader(io.BytesIO(content), strict=True)
+            if reader.is_encrypted:
+                raise ValueError("encrypted PDF")
+            if len(reader.pages) > 5000:
+                raise HTTPException(status_code=413, detail="O PDF excede o limite de páginas suportado.")
+            text_parts = []
+            total_chars = 0
+            for page in reader.pages:
+                page_text = page.extract_text() or ""
+                total_chars += len(page_text)
+                if total_chars > 2_000_000:
+                    raise HTTPException(status_code=413, detail="O texto extraído excede o limite de indexação.")
+                text_parts.append(page_text)
+            text = "\n\n".join(text_parts)
+        elif extension == ".docx":
+            with zipfile.ZipFile(io.BytesIO(content)) as archive:
+                entries = archive.infolist()
+                if len(entries) > 5000 or sum(item.file_size for item in entries) > 100_000_000:
+                    raise HTTPException(status_code=413, detail="O DOCX excede os limites de conteúdo descompactado.")
+                if any(item.file_size > max(item.compress_size, 1) * 100 for item in entries):
+                    raise HTTPException(status_code=413, detail="O DOCX contém dados excessivamente comprimidos.")
+            text = extract_docx_text(content)
+            if len(text) > 2_000_000:
+                raise HTTPException(status_code=413, detail="O texto extraído excede o limite de indexação.")
+        elif extension in {".md", ".txt"}:
+            text = content.decode("utf-8-sig", errors="strict")
+            if len(text) > 2_000_000:
+                raise HTTPException(status_code=413, detail="O texto extraído excede o limite de indexação.")
+        else:
+            raise ValueError("unsupported extension")
+    except HTTPException:
+        raise
+    except Exception:
+        raise HTTPException(status_code=422, detail="Não foi possível extrair texto válido do documento.") from None
+    chunks = chunk_document_text(text)
+    if not chunks:
+        raise HTTPException(status_code=422, detail="O documento não contém texto extraível para indexação.")
+    if len(chunks) > 500:
+        raise HTTPException(status_code=413, detail="O documento excede o limite de 500 trechos indexáveis.")
+    processed = []
+    try:
+        for index, chunk in enumerate(chunks):
+            embedding = await ollama_client.get_embedding(chunk)
+            if len(embedding) != 1024:
+                raise ValueError("invalid embedding dimension")
+            processed.append({
+                "chunk_index": index,
+                "text": chunk,
+                "embedding": embedding,
+                "metadata": {
+                    "project_id": req.project_id,
+                    "document_id": req.document_id,
+                    "source_name": req.filename,
+                },
+            })
+    except Exception:
+        raise HTTPException(status_code=503, detail="Não foi possível gerar os embeddings locais.") from None
+    return {"document_id": req.document_id, "project_id": req.project_id, "chunks": processed}
+
+
 @app.post("/rag/query")
 async def query_rag(req: RagQueryRequest):
     """
@@ -155,9 +356,13 @@ async def query_rag(req: RagQueryRequest):
         "Você é o assistente inteligente do Sinapse (memória da fábrica de software PRO4TECH). "
         "Suas respostas devem ser estritamente baseadas no contexto fornecido. "
         "Se a evidência não estiver no contexto, responda honestamente que a informação não foi encontrada no acervo. "
-        "Sempre cite a fonte (ID do projeto, requisito ou documento) ao justificar uma resposta."
+        "Cite os trechos usados com seus IDs exatamente entre colchetes, como [ID], conforme o contexto. Nunca invente IDs."
     )
     
+    if not req.project_id:
+        raise HTTPException(status_code=422, detail="Projeto obrigatório")
+    if not req.context_chunks:
+        return {"response": "Informação não encontrada no acervo do projeto.", "project_id": req.project_id}
     context_str = "\n\n---\n\n".join(req.context_chunks) if req.context_chunks else "Nenhum contexto recuperado."
     user_prompt = f"Contexto do Acervo:\n{context_str}\n\nPergunta do Product Owner:\n{req.query}"
     
@@ -182,6 +387,7 @@ async def query_rag(req: RagQueryRequest):
 
 class AnalyzeRequest(BaseModel):
     url: str = Field(..., description="URL pública do repositório GitHub")
+    run_id: str | None = Field(None, pattern=r"^[A-Za-z0-9-]{1,64}$")
     profile: Literal["quick", "balanced", "complete"] = Field(
         "quick", description="Quantidade e prioridade dos arquivos enviados ao modelo local"
     )
@@ -191,8 +397,10 @@ class AnalyzeRequest(BaseModel):
 def analyze_repository(req: AnalyzeRequest):
     """Inicia a análise assíncrona de um repositório GitHub."""
     try:
-        run_id = analyzer.start(str(req.url), req.profile)
+        run_id = analyzer.start(str(req.url), req.profile, req.run_id)
         return {"run_id": run_id, "status": "started"}
+    except AnalysisBusy as exc:
+        raise HTTPException(status_code=429, detail=str(exc))
     except AnalysisError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
     except Exception as exc:
@@ -211,6 +419,8 @@ def pause_analysis(run_id: str):
 def resume_analysis(run_id: str):
     try:
         return analyzer.resume(run_id)
+    except AnalysisBusy as exc:
+        raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail=str(exc))
     except AnalysisError as exc:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc))
 

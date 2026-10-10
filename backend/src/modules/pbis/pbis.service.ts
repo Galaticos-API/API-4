@@ -45,14 +45,14 @@ export class PbisService {
     return created;
   }
 
-  async list(queryInput: unknown): Promise<PaginatedPbis> {
+  async list(queryInput: unknown, userId?: string): Promise<PaginatedPbis> {
     const parseResult = pbiQuerySchema.safeParse(queryInput);
     if (!parseResult.success) {
       const issue = parseResult.error.issues[0];
       throw new ValidationError(issue.message, parseResult.error.format());
     }
 
-    const page = await this.repository.findAll(parseResult.data);
+    const page = await this.repository.findAll(parseResult.data, userId);
     const reports = await this.qualityChecker.validatePbis(page.items);
 
     const items = page.items.map((pbi) => ({
@@ -128,41 +128,28 @@ export class PbisService {
   ): Promise<PbiWithContext> {
     validateUuid(id, "ID do PBI");
 
-    const existing = await this.repository.findById(id);
-    if (!existing) {
-      throw new NotFoundError("PBI não encontrado.");
-    }
+    const completed = await this.repository.markConcluded(id, async (client) => {
+      const qualityReport = await this.qualityChecker.validatePbi(id, client);
 
-    this.assertProjetoAtivo(existing);
+      const camposFaltantes = qualityReport.checks
+        .filter(
+          (check) =>
+            !check.passed
+            && COMPLETION_BLOCKING_FIELDS[check.check_id],
+        )
+        .map(
+          (check) =>
+            COMPLETION_BLOCKING_FIELDS[check.check_id],
+        );
 
-    if (existing.status === "concluido") {
-      return existing;
-    }
+      if (camposFaltantes.length > 0) {
+        throw new ValidationError(
+          "Não é possível concluir o PBI: corrija os itens de conformidade com o guia antes de concluir.",
+          { campos_faltantes: camposFaltantes },
+        );
+      }
 
-    // O relatório contém somente as verificações ativas e aplicáveis da
-    // configuração vigente. Alertas informativos não fazem parte deste mapa e,
-    // portanto, nunca impedem a conclusão.
-    const qualityReport = await this.qualityChecker.validatePbi(id);
-
-    const camposFaltantes = qualityReport.checks
-      .filter(
-        (check) =>
-          !check.passed
-          && COMPLETION_BLOCKING_FIELDS[check.check_id],
-      )
-      .map(
-        (check) =>
-          COMPLETION_BLOCKING_FIELDS[check.check_id],
-      );
-
-    if (camposFaltantes.length > 0) {
-      throw new ValidationError(
-        "Não é possível concluir o PBI: corrija os itens de conformidade com o guia antes de concluir.",
-        { campos_faltantes: camposFaltantes },
-      );
-    }
-
-    const completed = await this.repository.markConcluded(id, usuarioId);
+    }, usuarioId);
 
     if (!completed) {
       throw new NotFoundError("PBI não encontrado.");

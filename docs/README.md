@@ -8,6 +8,8 @@ Este índice separa os guias operacionais, contratos e especificações de produ
 |---|---|
 | [Guia de setup](SETUP_GUIDE.md) | Docker Compose, execução local, variáveis, testes e solução de problemas. |
 | [Testes E2E](../e2e/README.md) | Suítes de navegador, dependências e execução com dados descartáveis. |
+| [Avaliação da busca (S2-17)](../ai-service/evaluation/README.md) | Dataset PT-BR versionado, gabarito PRE-06, métricas e execução do avaliador. |
+| [Estado QA de 02/10/2026](STATUS_REVISAO_2026-10-02.md) | Evidências por entrega local, gates executados, pendências de aceite e plano de correção da busca. |
 | [Migrations](../database/migrations/README.md) | Baseline, migrations versionadas e validação do banco. |
 | [Seed](../database/seed/README.md) | Acervo curado, validação, modo de aplicação e política de segurança. |
 
@@ -26,10 +28,13 @@ Este índice separa os guias operacionais, contratos e especificações de produ
 
 - [OpenAPI do backend](api/openapi.yaml): endpoints, autenticação, payloads e respostas.
 - [Compatibilidade de rotas legadas](api/epics-compat.yaml): rotas mantidas para clientes antigos.
+- [Upload de Documentos](DOCUMENT_UPLOAD.md): guia completo para desenvolvedores sobre upload, arquitetura, fluxo de processamento e exemplos de requisição.
 - [Integração de remoção de documentos](integrations/n8n-document-removed.example.json): exemplo do evento enviado ao n8n.
 - [Documento de integração](DOCUMENTOS_INTEGRACAO.md): fluxos entre serviços e convenções de integração.
 
-## QA e decisões registradas
+## QA e registros históricos
+
+Os planos de correção por PR abaixo guardam evidências e decisões da época. Não são o status atual das PRs; use o [registro QA de 02/10/2026](STATUS_REVISAO_2026-10-02.md) para o checkout atual.
 
 - [Matriz de cenários S1-23](qa/S1-23-matriz-cenarios.md)
 - [Roteiro de review S1-23](qa/S1-23-roteiro-review.md)
