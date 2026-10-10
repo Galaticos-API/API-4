@@ -10,6 +10,24 @@ function setup() {
   return { repository, assistant, service: new ChatService(repository, assistant) };
 }
 
+test("recusa consultas globais e troca de projeto antes de gravar mensagens", async () => {
+  const { service, repository, assistant } = setup();
+  await assert.rejects(service.query(ANA,{pergunta:"Consultar decisões"}),ValidationError);
+  const conversation = await repository.createConversation(ANA,PROJECT_A,"A");
+  await assert.rejects(service.query(ANA,{pergunta:"Consultar decisões",conversaId:conversation.id,projetoId:PROJECT_B}),ValidationError);
+  assert.equal(repository.messages.length,0);
+  assert.equal(assistant.calls.length,0);
+});
+
+test("falha do processamento fica registrada no histórico", async () => {
+  const { service, repository, assistant } = setup();
+  assistant.available=false;
+  repository.searchChunks=async () => { throw new Error("banco indisponível"); };
+  await assert.rejects(service.query(ANA,{pergunta:"Consultar decisões",projetoId:PROJECT_A}), /Não foi possível processar/);
+  assert.equal(repository.messages.length,1);
+  assert.equal(repository.messages[0].processing_status,"failed");
+});
+
 test("nova pergunta cria a conversa, registra as duas mensagens e devolve as fontes do assistente", async () => {
   const { service, repository, assistant } = setup();
   const result = await service.query(ANA, { pergunta: "  Quais decisões definem o login?  ", projetoId: PROJECT_A });
@@ -99,7 +117,7 @@ test("fontes do assistente são saneadas e limitadas", () => {
 
 test("cria conversa com título padrão e valida o projeto", async () => {
   const { service } = setup();
-  assert.equal((await service.createConversation(ANA, {})).titulo, "Nova conversa");
+  assert.equal((await service.createConversation(ANA, { projetoId: PROJECT_A })).titulo, "Nova conversa");
   assert.equal((await service.createConversation(ANA, { titulo: "  Reunião  ", projetoId: PROJECT_A })).titulo, "Reunião");
   await assert.rejects(service.createConversation(ANA, { projetoId: "x" }), ValidationError);
   assert.equal((await service.listConversations(BRUNO)).length, 0);

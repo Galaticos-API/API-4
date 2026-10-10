@@ -40,7 +40,7 @@ test("upload válido persiste projeto, nome original, tipo, tamanho, autor e gua
   assert.equal(repository.audit[0].acao, "ENVIAR_DOCUMENTO");
 
   const [key] = [...storage.files.keys()];
-  assert.match(key, /^[0-9a-f-]{36}\/[0-9a-f-]{36}$/);
+  assert.match(key, /^[0-9a-f-]{36}\/[0-9a-f-]{36}\.pdf$/);
   assert.ok(!key.includes("Escopo"));
   assert.deepEqual(storage.files.get(key), content);
 });
@@ -101,7 +101,7 @@ test("projeto inexistente, inválido ou arquivado não recebe documentos", async
 
 test("listagem retorna apenas documentos do projeto e informa os limites", async () => {
   const { service, repository } = setup();
-  repository.seed({ id: DOCUMENT_ID, projeto_id: PROJECT_ID, caminho: `${PROJECT_ID}/${DOCUMENT_ID}` });
+  repository.seed({ id: DOCUMENT_ID, projeto_id: PROJECT_ID, caminho: `${PROJECT_ID}/${DOCUMENT_ID}.pdf` });
   repository.seed({ id: "c0000000-0000-4000-8000-000000000002", projeto_id: OTHER_PROJECT_ID, caminho: "x/y" });
 
   const result = await service.list(PROJECT_ID);
@@ -113,7 +113,7 @@ test("listagem retorna apenas documentos do projeto e informa os limites", async
 
 test("remoção apaga metadados e arquivo, audita e não gera evento para documento não indexado", async () => {
   const { service, repository, storage, publisher } = setup();
-  const caminho = `${PROJECT_ID}/${DOCUMENT_ID}`;
+  const caminho = `${PROJECT_ID}/${DOCUMENT_ID}.pdf`;
   repository.seed({ id: DOCUMENT_ID, projeto_id: PROJECT_ID, caminho });
   storage.files.set(caminho, pdfBuffer());
 
@@ -129,7 +129,7 @@ test("remoção apaga metadados e arquivo, audita e não gera evento para docume
 
 test("remoção de documento indexado publica evento com identificadores estáveis", async () => {
   const { service, repository, storage, publisher } = setup();
-  const caminho = `${PROJECT_ID}/${DOCUMENT_ID}`;
+  const caminho = `${PROJECT_ID}/${DOCUMENT_ID}.pdf`;
   repository.seed({ id: DOCUMENT_ID, projeto_id: PROJECT_ID, caminho, status_processamento: "processado" });
   repository.chunks.set(DOCUMENT_ID, 7);
   storage.files.set(caminho, pdfBuffer());
@@ -149,24 +149,24 @@ test("remoção de documento indexado publica evento com identificadores estáve
 test("repetir a remoção não falha, não duplica o evento e não afeta outro conteúdo", async () => {
   const { service, repository, storage, publisher } = setup();
   const otherId = "c0000000-0000-4000-8000-000000000002";
-  repository.seed({ id: DOCUMENT_ID, projeto_id: PROJECT_ID, caminho: `${PROJECT_ID}/${DOCUMENT_ID}`, status_processamento: "processado" });
-  repository.seed({ id: otherId, projeto_id: PROJECT_ID, caminho: `${PROJECT_ID}/${otherId}` });
-  storage.files.set(`${PROJECT_ID}/${DOCUMENT_ID}`, pdfBuffer());
-  storage.files.set(`${PROJECT_ID}/${otherId}`, pdfBuffer());
+  repository.seed({ id: DOCUMENT_ID, projeto_id: PROJECT_ID, caminho: `${PROJECT_ID}/${DOCUMENT_ID}.pdf`, status_processamento: "processado" });
+  repository.seed({ id: otherId, projeto_id: PROJECT_ID, caminho: `${PROJECT_ID}/${otherId}.pdf` });
+  storage.files.set(`${PROJECT_ID}/${DOCUMENT_ID}.pdf`, pdfBuffer());
+  storage.files.set(`${PROJECT_ID}/${otherId}.pdf`, pdfBuffer());
 
   await service.remove({ projetoId: PROJECT_ID, documentoId: DOCUMENT_ID, usuarioId: USER_ID });
   await service.remove({ projetoId: PROJECT_ID, documentoId: DOCUMENT_ID, usuarioId: USER_ID });
   await service.flushPendingEvents();
 
   assert.deepEqual(repository.rows.map((row) => row.id), [otherId]);
-  assert.ok(storage.files.has(`${PROJECT_ID}/${otherId}`));
+  assert.ok(storage.files.has(`${PROJECT_ID}/${otherId}.pdf`));
   assert.equal(publisher.published.length, 1);
   assert.equal(repository.audit.filter((item) => item.acao === "REMOVER_DOCUMENTO").length, 1);
 });
 
 test("documento de outro projeto não é removido pelo caminho de um projeto alheio", async () => {
   const { service, repository, storage } = setup();
-  const caminho = `${OTHER_PROJECT_ID}/${DOCUMENT_ID}`;
+  const caminho = `${OTHER_PROJECT_ID}/${DOCUMENT_ID}.pdf`;
   repository.seed({ id: DOCUMENT_ID, projeto_id: OTHER_PROJECT_ID, caminho });
   storage.files.set(caminho, pdfBuffer());
 
@@ -179,7 +179,7 @@ test("documento de outro projeto não é removido pelo caminho de um projeto alh
 
 test("falha ao remover mantém o documento e restaura o arquivo", async () => {
   const { service, repository, storage } = setup();
-  const caminho = `${PROJECT_ID}/${DOCUMENT_ID}`;
+  const caminho = `${PROJECT_ID}/${DOCUMENT_ID}.pdf`;
   repository.seed({ id: DOCUMENT_ID, projeto_id: PROJECT_ID, caminho });
   storage.files.set(caminho, pdfBuffer());
   repository.failRemove = true;
@@ -195,7 +195,7 @@ test("falha ao remover mantém o documento e restaura o arquivo", async () => {
 
 test("falha no armazenamento ao remover mantém o documento", async () => {
   const { service, repository, storage } = setup();
-  const caminho = `${PROJECT_ID}/${DOCUMENT_ID}`;
+  const caminho = `${PROJECT_ID}/${DOCUMENT_ID}.pdf`;
   repository.seed({ id: DOCUMENT_ID, projeto_id: PROJECT_ID, caminho });
   storage.files.set(caminho, pdfBuffer());
   storage.failStage = true;
@@ -206,7 +206,7 @@ test("falha no armazenamento ao remover mantém o documento", async () => {
 
 test("evento não publicado fica pendente e pode ser reenviado pelo worker sem outra remoção", async () => {
   const { service, repository, storage, publisher } = setup();
-  const caminho = `${PROJECT_ID}/${DOCUMENT_ID}`;
+  const caminho = `${PROJECT_ID}/${DOCUMENT_ID}.pdf`;
   repository.seed({ id: DOCUMENT_ID, projeto_id: PROJECT_ID, caminho, status_processamento: "processado" });
   storage.files.set(caminho, pdfBuffer());
   publisher.available = false;
@@ -225,7 +225,7 @@ test("evento não publicado fica pendente e pode ser reenviado pelo worker sem o
 
 test("DELETE em projeto arquivado retorna conflito e preserva documento e arquivo", async () => {
   const { service, repository, storage } = setup();
-  const caminho = `${ARCHIVED_PROJECT_ID}/${DOCUMENT_ID}`;
+  const caminho = `${ARCHIVED_PROJECT_ID}/${DOCUMENT_ID}.pdf`;
   repository.seed({ id: DOCUMENT_ID, projeto_id: ARCHIVED_PROJECT_ID, caminho });
   storage.files.set(caminho, pdfBuffer());
 
@@ -255,6 +255,56 @@ test("falha ao finalizar o arquivo fica marcada e é recuperável sem repetir o 
   await service.processPendingStorageOperations();
   assert.equal(repository.rows[0].armazenamento_pendente, false);
   assert.equal(storage.files.size, 1);
+});
+
+test("pipeline assíncrono persiste chunks via backend e conclui o documento", async () => {
+  const repository = new FakeDocumentsRepository();
+  const storage = new FakeStorage();
+  const extracted = [{ chunk_index: 0, text: "Conteúdo extraído", embedding: Array(1024).fill(0.1), metadata: { project_id: PROJECT_ID } }];
+  const service = new DocumentsService(repository, storage, new FakePublisher(), projectLookup, LIMIT, {
+    async process(document, content) {
+      assert.equal(document.projeto_id, PROJECT_ID);
+      assert.equal(content.toString(), "documento de texto longo o suficiente");
+      return extracted;
+    },
+  });
+  const created = await service.upload({ projetoId: PROJECT_ID, usuarioId: USER_ID, fileName: "manual.txt", content: Buffer.from("documento de texto longo o suficiente") });
+  assert.equal(created.status_processamento, "pendente");
+  await service.processPendingDocuments();
+  assert.equal(repository.rows[0].status_processamento, "processado");
+  assert.equal(repository.chunks.get(created.id), 1);
+});
+
+test("falha de ingestão fica visível e pode ser reprocessada sem duplicar chunks", async () => {
+  const repository = new FakeDocumentsRepository();
+  const storage = new FakeStorage();
+  let unavailable = true;
+  const service = new DocumentsService(repository, storage, new FakePublisher(), projectLookup, LIMIT, {
+    async process() {
+      if (unavailable) throw new AppError("O serviço local de processamento está indisponível.", 503, "DOCUMENT_PROCESSING_UNAVAILABLE");
+      return [{ chunk_index: 0, text: "Conteúdo válido", embedding: Array(1024).fill(0.2), metadata: {} }];
+    },
+  });
+  const created = await service.upload({ projetoId: PROJECT_ID, usuarioId: USER_ID, fileName: "manual.txt", content: Buffer.from("conteúdo para ingestão") });
+  await service.processPendingDocuments();
+  assert.equal(repository.rows[0].status_processamento, "falha");
+  assert.match(repository.rows[0].processamento_erro ?? "", /indisponível/);
+  await service.retryProcessing(PROJECT_ID, created.id);
+  await service.retryProcessing(PROJECT_ID, created.id);
+  assert.equal(repository.rows[0].status_processamento, "pendente");
+  unavailable = false;
+  await service.processPendingDocuments();
+  await service.processPendingDocuments();
+  assert.equal(repository.rows[0].status_processamento, "processado");
+  assert.equal(repository.chunks.get(created.id), 1);
+});
+
+test("retry preserva escopo e não reinicia documento já processado", async () => {
+  const { service, repository } = setup();
+  repository.seed({ id: DOCUMENT_ID, projeto_id: PROJECT_ID, caminho: `${PROJECT_ID}/${DOCUMENT_ID}` });
+  await assert.rejects(service.retryProcessing(OTHER_PROJECT_ID, DOCUMENT_ID), NotFoundError);
+  repository.rows[0].status_processamento = "processado";
+  await assert.rejects(service.retryProcessing(PROJECT_ID, DOCUMENT_ID), ValidationError);
 });
 
 test("listagem usa cursor estável sem duplicar documentos entre páginas", async () => {

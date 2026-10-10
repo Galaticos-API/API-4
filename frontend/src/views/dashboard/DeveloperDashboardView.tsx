@@ -5,29 +5,31 @@ interface ServiceStatus {
     name: string;
     category: string;
     port: number;
-    status: "online" | "offline" | "checking";
+    status: "online" | "offline" | "checking" | "unknown";
     endpoint: string;
     description: string;
 }
 
 export const DeveloperDashboardView: React.FC = () => {
-    const [backendHealth, setBackendHealth] = useState<string>("checking");
-    const [ollamaHealth, setOllamaHealth] = useState<string>("checking");
+    const [backendHealth, setBackendHealth] = useState<ServiceStatus["status"]>("checking");
+    const [ollamaHealth, setOllamaHealth] = useState<ServiceStatus["status"]>("checking");
+
+    const [databaseHealth, setDatabaseHealth] = useState<ServiceStatus["status"]>("checking");
 
     const services: ServiceStatus[] = [
         {
             name: "PostgreSQL + pgvector",
             category: "Persistência Vetorial & Relacional",
-            port: 5432,
-            status: "online",
-            endpoint: "localhost:5432",
+            port: 55432,
+            status: databaseHealth,
+            endpoint: "localhost:55432",
             description: "Banco unificado com extensão pgvector (HNSW) para tabelas de negócio e embeddings.",
         },
         {
             name: "n8n (Orquestrador)",
             category: "Pipeline & Gatilhos",
             port: 5678,
-            status: "online",
+            status: "unknown",
             endpoint: "http://localhost:5678",
             description: "Orquestrador de ingestão de documentos em /files e versionamento via n8n-local-sync.",
         },
@@ -35,7 +37,7 @@ export const DeveloperDashboardView: React.FC = () => {
             name: "Ollama (LLM & Embeddings)",
             category: "Runtime Local de IA",
             port: 11434,
-            status: (ollamaHealth === "online" ? "online" : "checking") as any,
+            status: ollamaHealth,
             endpoint: "http://localhost:11434",
             description: "Serviço local para inferência de LLM (Qwen 2.5) e geração de vetores (bge-m3).",
         },
@@ -43,7 +45,7 @@ export const DeveloperDashboardView: React.FC = () => {
             name: "Backend Node.js",
             category: "API & Regras de Negócio",
             port: 3001,
-            status: (backendHealth === "online" ? "online" : "checking") as any,
+            status: backendHealth,
             endpoint: "http://localhost:3001/health",
             description: "CRUD de requisitos, validação determinística e fronteira segura de escrita.",
         },
@@ -51,7 +53,7 @@ export const DeveloperDashboardView: React.FC = () => {
             name: "Serviço de IA (Python)",
             category: "RAG & Harness",
             port: 8000,
-            status: "checking",
+            status: "unknown",
             endpoint: "http://localhost:8000/health",
             description: "Fonte única da verdade para chunking, RAG e integração direta com Ollama.",
         },
@@ -66,13 +68,25 @@ export const DeveloperDashboardView: React.FC = () => {
     ];
 
     useEffect(() => {
-        fetch("http://localhost:3001/health")
-            .then((res) => (res.ok ? setBackendHealth("online") : setBackendHealth("offline")))
-            .catch(() => setBackendHealth("offline"));
-
-        fetch("http://localhost:11434/api/tags")
-            .then((res) => (res.ok ? setOllamaHealth("online") : setOllamaHealth("offline")))
-            .catch(() => setOllamaHealth("offline"));
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 5000);
+        let active = true;
+        fetch("/health", { signal: controller.signal })
+            .then(async (res) => {
+                const health = await res.json();
+                if (!active) return;
+                setBackendHealth(res.ok ? "online" : "offline");
+                setDatabaseHealth(health.dependencies?.database === "connected" ? "online" : "offline");
+            })
+            .catch(() => {
+                if (!active) return;
+                setBackendHealth("offline");
+                setDatabaseHealth("unknown");
+            });
+        fetch("http://localhost:11434/api/tags", { signal: controller.signal })
+            .then((res) => { if (active) setOllamaHealth(res.ok ? "online" : "offline"); })
+            .catch(() => { if (active) setOllamaHealth("unknown"); });
+        return () => { active = false; clearTimeout(timeout); controller.abort(); };
     }, []);
 
     return (
@@ -88,7 +102,7 @@ export const DeveloperDashboardView: React.FC = () => {
 
             <div className="architecture-grid" style={{ display: "grid", gap: "20px", marginBottom: "36px" }}>
                 {services.map((svc) => (
-                    <div key={svc.name} className="glass-panel" style={{ padding: "24px" }}>
+                    <div key={svc.name} className="ds-card ds-card--glass" style={{ padding: "24px" }}>
                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "12px" }}>
                             <div>
                                 <span style={{ fontSize: "0.75rem", color: "var(--accent-secondary)", fontWeight: 600, textTransform: "uppercase" }}>
@@ -96,8 +110,8 @@ export const DeveloperDashboardView: React.FC = () => {
                                 </span>
                                 <h3 style={{ fontSize: "1.15rem", fontWeight: 600, marginTop: "2px" }}>{svc.name}</h3>
                             </div>
-                            <span className={`badge ${svc.status === "online" ? "badge-success" : svc.status === "offline" ? "badge-warning" : "badge-info"}`}>
-                                {svc.status === "online" ? "Saudável" : svc.status === "offline" ? "Pendente" : "Inicializando"}
+                            <span className={`ds-badge ${svc.status === "online" ? "ds-badge--success" : svc.status === "offline" ? "ds-badge--warning" : "ds-badge--brand"}`}>
+                                {svc.status === "online" ? "Saudável" : svc.status === "offline" ? "Indisponível" : svc.status === "unknown" ? "Não verificado" : "Verificando"}
                             </span>
                         </div>
 
@@ -113,7 +127,7 @@ export const DeveloperDashboardView: React.FC = () => {
                 ))}
             </div>
 
-            <div className="glass-panel" style={{ padding: "24px", borderLeft: "4px solid var(--accent-primary)", background: "linear-gradient(90deg, rgba(99, 102, 241, 0.08) 0%, transparent 100%)" }}>
+            <div className="ds-card ds-card--glass" style={{ padding: "24px", borderLeft: "4px solid var(--accent-primary)", background: "linear-gradient(90deg, rgba(99, 102, 241, 0.08) 0%, transparent 100%)" }}>
                 <h4 style={{ fontSize: "1rem", fontWeight: 600, marginBottom: "8px", display: "flex", alignItems: "center", gap: "8px" }}>
                     <AlertCircle size={18} color="var(--accent-primary)" />
                     Fronteira Arquitetural Crítica (RNF-01 e PRD 10.2)

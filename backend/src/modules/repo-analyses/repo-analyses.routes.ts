@@ -62,7 +62,9 @@ export function createRepoAnalysesRouter(
             if (!['quick', 'balanced', 'complete'].includes(profile)) {
                 throw new ValidationError('Perfil inválido. Use quick, balanced ou complete.');
             }
-            const analysis = await service.startAnalysis(String(req.params.projectId), req.auth?.id ?? '', url, profile);
+            const requestKey = req.get('Idempotency-Key');
+            if (requestKey) validateUuid(requestKey, 'Chave da solicitação');
+            const analysis = await service.startAnalysis(String(req.params.projectId), req.auth?.id ?? '', url, profile, requestKey);
             res.status(201).json(analysis);
         } catch (error) {
             next(error);

@@ -1,1 +1,0 @@
-export { DeveloperDashboardView as DeveloperDashboard } from "../views/dashboard/DeveloperDashboardView";

@@ -42,7 +42,7 @@ export class AuthRepository {
           created_at,
           updated_at
       `,
-      [data.nome.trim(), data.email.trim().toLowerCase(), data.senha_hash, data.role ?? "po"],
+      [data.nome.trim(), data.email.trim().toLowerCase(), data.senha_hash, data.role ?? "dev"],
     );
 
     return result.rows[0];

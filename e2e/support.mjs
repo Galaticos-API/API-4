@@ -7,14 +7,17 @@ export const PASSWORD = "Senha-forte-123";
 
 export async function api(path, { token, method = "GET", body, headers = {} } = {}) {
   const raw = body instanceof Uint8Array;
+  const form = body instanceof FormData;
   const response = await fetch(`${API}${path}`, {
     method,
     headers: {
-      ...(body && !raw ? { "Content-Type": "application/json" } : {}),
+      // FormData: o fetch gera o Content-Type com boundary sozinho; forçar
+      // aqui quebraria o parsing multipart do multer no backend.
+      ...(body && !raw && !form ? { "Content-Type": "application/json" } : {}),
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...headers,
     },
-    body: raw ? body : body ? JSON.stringify(body) : undefined,
+    body: raw || form ? body : body ? JSON.stringify(body) : undefined,
   });
   const text = await response.text();
   let json;
@@ -23,8 +26,14 @@ export async function api(path, { token, method = "GET", body, headers = {} } = 
 }
 
 export async function createUser(role) {
+  let token;
+  if (role !== 'dev') {
+    const admin = await api('/auth/login', { method: 'POST', body: { email: 'admin@e2e.test', password: 'E2E-admin-only-123' } });
+    if (admin.status !== 200) throw new Error('Execute o setup do banco E2E isolado antes dos testes.');
+    token = admin.json.token;
+  }
   const email = `${role}-${randomUUID().slice(0, 8)}@e2e.test`;
-  const registered = await api("/auth/register", { method: "POST", body: { nome: `E2E ${role}`, email, password: PASSWORD, role } });
+  const registered = await api("/auth/register", { token, method: "POST", body: { nome: `E2E ${role}`, email, password: PASSWORD, role } });
   if (registered.status !== 201 && registered.status !== 200) throw new Error(`register ${role}: ${registered.status} ${JSON.stringify(registered.json)}`);
   const login = await api("/auth/login", { method: "POST", body: { email, password: PASSWORD } });
   if (login.status !== 200) throw new Error(`login ${role}: ${login.status}`);
@@ -48,11 +57,15 @@ export async function archiveProject(account, project) {
 }
 
 export function uploadRaw(account, projectId, name, content) {
+  // Backend usa multer com upload.single("file"): exige multipart/form-data,
+  // campo "file" — mesmo contrato que o frontend usa (ver api_documents.ts).
+  const bytes = typeof content === "string" ? new TextEncoder().encode(content) : content;
+  const form = new FormData();
+  form.append("file", new Blob([bytes]), name);
   return api(`/projects/${projectId}/documents`, {
     method: "POST",
     token: account.token,
-    body: typeof content === "string" ? new TextEncoder().encode(content) : content,
-    headers: { "Content-Type": "application/octet-stream", "X-File-Name": encodeURIComponent(name) },
+    body: form,
   });
 }
 
@@ -86,9 +99,9 @@ export async function assertNoHorizontalOverflow(page, label) {
 }
 
 export async function createHierarchy(account, project, labels = {}) {
-  const epic = await api("/epics", { method: "POST", token: account.token, body: { projeto_id: project.id, titulo: labels.epic ?? "Épico de autenticação", descricao: "Objetivo de acesso seguro à plataforma" } });
+  const epic = await api("/epics", { method: "POST", token: account.token, body: { projeto_id: project.id, titulo: labels.epic ?? "Épico de autenticação", descricao: "Objetivo de acesso seguro à plataforma", objetivo: "Garantir acesso seguro", escopo_macro: "Autenticação e sessão", resultado_esperado: "Acessos autenticados" } });
   if (epic.status !== 201) throw new Error(`épico: ${epic.status} ${JSON.stringify(epic.json)}`);
-  const feature = await api("/features", { method: "POST", token: account.token, body: { epico_id: epic.json.id, titulo: labels.feature ?? "Sessão do usuário", descricao: "Controle de sessão e expiração" } });
+  const feature = await api("/features", { method: "POST", token: account.token, body: { epico_id: epic.json.id, titulo: labels.feature ?? "Sessão do usuário", descricao: "Controle de sessão e expiração", objetivo: "Gerenciar sessão", criterios_sucesso: "Sessão válida", comportamento_esperado: "Expirar acesso inválido" } });
   if (feature.status !== 201) throw new Error(`feature: ${feature.status} ${JSON.stringify(feature.json)}`);
   const pbi = await api("/pbis", {
     method: "POST",

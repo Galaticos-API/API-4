@@ -22,8 +22,12 @@ test("RepoAnalyzer: valida a URL, explica a indisponibilidade do motor e respeit
 
     await page.getByLabel(/URL do repositório/).fill("https://github.com/acme/api");
     await page.getByRole("button", { name: "Iniciar análise" }).click();
-    await expect(page.getByText(/Falha ao iniciar análise no motor de IA/)).toBeVisible();
-    assert.equal(await page.getByLabel(/URL do repositório/).inputValue(), "https://github.com/acme/api");
+    await expect(page.getByRole('button', { name: 'Cancelar análise', exact: true })).toBeVisible();
+    const pending = await api(`/projects/${project.id}/repo-analyses`, { token: po.token });
+    assert.equal(pending.json.length, 1);
+    assert.equal(pending.json[0].dispatch_pending, true);
+    const cancelled = await api(`/projects/${project.id}/repo-analyses/${pending.json[0].id}/cancel`, { method:'POST', token:po.token });
+    assert.ok(['cancelada','cancelando'].includes(cancelled.json.status));
   } finally {
     await context.close();
   }

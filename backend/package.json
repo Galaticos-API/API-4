@@ -13,16 +13,20 @@
     "start": "node dist/index.js",
     "typecheck": "tsc --noEmit",
     "migrate": "tsx src/database/migrate.ts",
+    "bootstrap:admin": "tsx scripts/bootstrap-admin.mts",
     "audit:security": "npm audit --omit=dev",
     "test": "node scripts/test.mjs",
     "test:integration:s1": "tsx scripts/validate-s1.mts",
-    "test:integration:s105": "tsx scripts/validate-s105.mts"
+    "test:integration:s105": "tsx scripts/validate-s105.mts",
+    "test:integration:search": "tsx --test src/modules/search/search.repository.db.test.ts"
   },
   "dependencies": {
+    "@types/multer": "^2.3.0",
     "axios": "^1.20.0",
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
+    "multer": "^2.4.0",
     "pg": "^8.13.1",
     "pgvector": "^0.2.0",
     "swagger-jsdoc": "^6.3.0",

@@ -28,6 +28,11 @@ class AnalyzerSettings:
     ollama_max_retries: int = int(os.getenv("OLLAMA_MAX_RETRIES", "2"))
     ollama_retry_backoff_seconds: float = float(os.getenv("OLLAMA_RETRY_BACKOFF_SECONDS", "3"))
     max_synthesis_chars: int = int(os.getenv("MAX_SYNTHESIS_CHARS", "60000"))
+    max_active_runs: int = max(1, int(os.getenv("ANALYZER_MAX_ACTIVE_RUNS", "2")))
+    max_queued_runs: int = max(0, int(os.getenv("ANALYZER_MAX_QUEUED_RUNS", "6")))
+    workspace_quota_mb: int = max(1, int(os.getenv("ANALYZER_WORKSPACE_QUOTA_MB", "2048")))
+    clone_timeout_seconds: int = max(1, int(os.getenv("ANALYZER_CLONE_TIMEOUT_SECONDS", "300")))
+    clone_memory_mb: int = max(128, int(os.getenv("ANALYZER_CLONE_MEMORY_MB", "512")))
     ollama_concurrency: int = max(1, int(os.getenv("OLLAMA_CONCURRENCY", "1")))
 
 

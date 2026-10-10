@@ -1,3 +1,4 @@
+import { Button } from "../common/ui";
 import { useEffect, useState, type ReactNode } from "react";
 import { ApiError } from "../../api/api_auth";
 import { useAuth } from "../../viewmodels/useAuthViewModel";
@@ -26,11 +27,11 @@ export function AuthGate({ children }: { children: ReactNode }) {
 
   if (session.status === "loading") return <div className="auth-shell" role="status">Verificando sessão…</div>;
 
-  if (session.status === "error") return <main className="auth-shell"><section className="glass-panel auth-card">
+  if (session.status === "error") return <main className="auth-shell"><section className="ds-card ds-card--glass auth-card">
     <h1>Não foi possível verificar a sessão</h1>
     <p role="alert">{notice || "Verifique sua conexão e tente novamente."}</p>
-    <button className="btn-primary" onClick={() => void restore()}>Tentar novamente</button>
-    <button className="btn-secondary" onClick={() => void logout()}>Encerrar sessão</button>
+    <Button variant="primary" onClick={() => void restore()}>Tentar novamente</Button>
+    <Button variant="secondary" onClick={() => void logout()}>Encerrar sessão</Button>
   </section></main>;
 
   if (session.status === "anonymous") return isAuthRoute ? <AuthScreen initialMode={url.pathname === "/register" ? "register" : "login"} /> : null;
@@ -51,28 +52,28 @@ export function AuthScreen({ initialMode }: { initialMode: "login" | "register" 
 
   return (
     <main className="auth-shell">
-      <section className="glass-panel auth-card">
+      <section className="ds-card ds-card--glass auth-card">
         <div style={{ display: "flex", gap: "6px" }}>
           {mode === "register" && (
-            <button
+            <Button
               type="button"
-              className="btn-secondary"
+              variant="secondary"
               style={{ padding: "4px 12px", fontSize: "0.8rem" }}
               onClick={() => switchMode("login")}
             >
               Entrar
-            </button>
+            </Button>
           )}
 
           {mode === "login" && (
-            <button
+            <Button
               type="button"
-              className="btn-secondary"
+              variant="secondary"
               style={{ padding: "4px 12px", fontSize: "0.8rem" }}
               onClick={() => switchMode("register")}
             >
               Cadastrar
-            </button>
+            </Button>
           )}
         </div>
 
@@ -124,9 +125,9 @@ export function LoginOnCard() {
         <input id="login-password" type="password" autoComplete="current-password" required value={password} onChange={e => setPassword(e.target.value)} disabled={busy} placeholder="••••••••" />
 
         {error && <p role="alert">{error}</p>}
-        <button className="btn-primary" disabled={busy} type="submit">
+        <Button variant="primary" disabled={busy} type="submit">
           {busy ? "Entrando…" : "Entrar"}
-        </button>
+        </Button>
       </form>
     </>
   );
@@ -138,7 +139,6 @@ export function RegisterOnCard({ onSwitch }: { onSwitch: () => void }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [role, setRole] = useState<"po" | "dev">("po");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -165,7 +165,7 @@ export function RegisterOnCard({ onSwitch }: { onSwitch: () => void }) {
 
         setBusy(true); setError("");
         try {
-          await register(nome.trim(), email.trim(), password, role);
+          await register(nome.trim(), email.trim(), password, "dev");
         } catch (failure) {
           setError(
             failure instanceof ApiError && failure.status === 409
@@ -184,11 +184,7 @@ export function RegisterOnCard({ onSwitch }: { onSwitch: () => void }) {
         <label htmlFor="reg-email" style={{ fontSize: "0.85rem", fontWeight: 600 }}>E-mail Corporativo</label>
         <input id="reg-email" type="email" autoComplete="username" required value={email} onChange={e => setEmail(e.target.value)} disabled={busy} placeholder="seu.email@empresa.com" />
 
-        <label htmlFor="reg-role" style={{ fontSize: "0.85rem", fontWeight: 600 }}>Função no Projeto</label>
-        <select id="reg-role" value={role} onChange={e => setRole(e.target.value as "po" | "dev")} disabled={busy}>
-          <option value="po">Product Owner (PO)</option>
-          <option value="dev">Desenvolvedor (DEV)</option>
-        </select>
+        <p>Novas contas recebem o perfil Desenvolvedor. O acesso de PO é concedido por um administrador.</p>
 
         <label htmlFor="reg-password" style={{ fontSize: "0.85rem", fontWeight: 600 }}>Senha (mínimo 6 caracteres)</label>
         <input id="reg-password" type="password" autoComplete="new-password" required value={password} onChange={e => setPassword(e.target.value)} disabled={busy} placeholder="••••••••" />
@@ -197,7 +193,7 @@ export function RegisterOnCard({ onSwitch }: { onSwitch: () => void }) {
         <input id="reg-confirm" type="password" autoComplete="new-password" required value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} disabled={busy} placeholder="••••••••" />
 
         {error && <p role="alert">{error}</p>}
-        <button className="btn-primary" disabled={busy} type="submit">{busy ? "Cadastrando…" : "Cadastrar e Entrar"}</button>
+        <Button variant="primary" disabled={busy} type="submit">{busy ? "Cadastrando…" : "Cadastrar e Entrar"}</Button>
       </form>
 
       <div style={{ textAlign: "center", marginTop: "8px", fontSize: "0.85rem", color: "var(--text-muted)" }}>

@@ -1,9 +1,18 @@
 {
   "active": false,
-  "activeVersion": null,
-  "activeVersionId": null,
   "connections": {
-    "Webhook Ingest\u00e3o": {
+    "Webhook Ingestão": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Ler arquivo de /files",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Ler arquivo de /files": {
       "main": [
         [
           {
@@ -35,7 +44,7 @@
   "nodes": [
     {
       "id": "1b9d6bcd-bbfd-4b2d-9b5d-ab8dfbbd4bed",
-      "name": "Webhook Ingest\u00e3o",
+      "name": "Webhook Ingestão",
       "parameters": {
         "httpMethod": "POST",
         "options": {},
@@ -52,19 +61,48 @@
     },
     {
       "id": "4f23ad8d-b8e6-4f06-a65e-7c0bf15d2c01",
-      "name": "Enviar para AI Service",
+      "name": "Ler arquivo de /files",
       "parameters": {
-        "method": "POST",
-        "url": "http://ai-service:8000/ingest/document",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ { document_id: $json.document_id, text_content: $json.text_content, project_id: $json.project_id, metadata: $json.metadata || {} } }}",
-        "options": {
-          "timeout": 120000
-        }
+        "filePath": "={{ '/files/' + $json.storagePath }}",
+        "options": {}
       },
       "position": [
         480,
+        300
+      ],
+      "type": "n8n-nodes-base.readBinaryFile",
+      "typeVersion": 1
+    },
+    {
+      "id": "5f34e9e9-c9f7-5e3d-ac0e-8d1cf0e3d7c2",
+      "name": "Enviar para AI Service",
+      "parameters": {
+        "method": "POST",
+        "url": "http://ai-service:8000/ingest/file",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.body }}",
+        "options": {
+          "timeout": 120000,
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
+            }
+          }
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Service-Token",
+              "value": "={{ $json.headers[\"x-service-token\"] }}"
+            }
+          ]
+        }
+      },
+      "position": [
+        710,
         300
       ],
       "type": "n8n-nodes-base.httpRequest",
@@ -74,12 +112,14 @@
       "id": "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d",
       "name": "Resposta HTTP",
       "parameters": {
-        "options": {},
+        "options": {
+          "responseCode": "={{ $json.statusCode }}"
+        },
         "respondWith": "json",
-        "responseBody": "={{ { status: $json.status || 'received', document_id: $json.document_id, total_chunks: $json.total_chunks } }}"
+        "responseBody": "={{ $json.body }}"
       },
       "position": [
-        710,
+        940,
         300
       ],
       "type": "n8n-nodes-base.respondToWebhook",
@@ -88,28 +128,11 @@
   ],
   "pinData": null,
   "settings": {
-    "executionOrder": "v1"
+    "executionOrder": "v1",
+    "saveDataSuccessExecution": "none",
+    "saveDataErrorExecution": "none",
+    "saveManualExecutions": false
   },
-  "shared": [
-    {
-      "createdAt": "2026-09-04T16:05:19.905Z",
-      "project": {
-        "createdAt": "2026-09-04T15:48:46.781Z",
-        "creatorId": "e5e5ae0c-2378-4760-9d12-df630ec0a254",
-        "customTelemetryTags": [],
-        "description": null,
-        "icon": null,
-        "id": "aRQxNxjlWLdGSczA",
-        "name": "Daniel Dias Pereira <dani.pereira8539@gmail.com>",
-        "type": "personal",
-        "updatedAt": "2026-09-04T15:52:20.173Z"
-      },
-      "projectId": "aRQxNxjlWLdGSczA",
-      "role": "workflow:owner",
-      "updatedAt": "2026-09-04T16:05:19.905Z",
-      "workflowId": "kbeyMs38qerFoS65"
-    }
-  ],
   "sourceWorkflowId": null,
   "staticData": null,
   "tags": [],

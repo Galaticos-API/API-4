@@ -54,7 +54,7 @@ it("lista somente os documentos do projeto com metadados e status honestos sobre
   expect(within(rows[2]).getByText("Disponível no acervo")).toBeInTheDocument();
   expect(within(rows[2]).getByText("Não informado")).toBeInTheDocument();
   expect(within(rows[3]).getByText("Falha no processamento")).toBeInTheDocument();
-  expect(screen.getByText(/depende da S2-01/)).toBeInTheDocument();
+  expect(screen.getByText(/processados em segundo plano/)).toBeInTheDocument();
 });
 
 it("mostra estado de armazenamento em finalização quando o servidor sinaliza pendência", async () => {
@@ -101,15 +101,15 @@ it("Atualizar recarrega a lista e mantém os dados quando a atualização falha"
   expect(screen.getByText("Disponível no acervo")).toBeInTheDocument();
 });
 
-it("atualiza sozinho enquanto há documento em processamento", async () => {
+it("atualiza sozinho enquanto há documento pendente ou em processamento", async () => {
   vi.useFakeTimers({ shouldAdvanceTime: true });
   const request = vi.fn()
-    .mockImplementationOnce(() => listing([doc({ status_processamento: "processando" })]))
+    .mockImplementationOnce(() => listing([doc({ status_processamento: "pendente" })]))
     .mockImplementation(() => listing([doc({ status_processamento: "processado" })]));
   vi.stubGlobal("fetch", request);
   view();
 
-  await screen.findByText("Processando");
+  await screen.findByText("Aguardando ingestão");
   await vi.advanceTimersByTimeAsync(10_100);
   expect(await screen.findByText("Disponível no acervo")).toBeInTheDocument();
 });
@@ -163,7 +163,7 @@ it("recusa no cliente formato e tamanho inválidos sem chamar o servidor", async
   expect(request).toHaveBeenCalledTimes(1);
 });
 
-it("envia o arquivo como corpo binário, adiciona à lista e avisa que a indexação depende da S2-01", async () => {
+it("envia o arquivo como corpo binário, adiciona à lista e avisa que a indexação será feita em segundo plano", async () => {
   const created = doc({ id: "d-9", nome: "Nova.txt", extensao: ".txt", tamanho_bytes: 5 });
   const request = vi.fn()
     .mockImplementationOnce(() => listing([]))
@@ -177,13 +177,46 @@ it("envia o arquivo como corpo binário, adiciona à lista e avisa que a indexa�
   fireEvent.click(screen.getByRole("button", { name: "Enviar documento" }));
 
   await waitFor(() => expect(screen.getByRole("table")).toBeInTheDocument());
-  expect(screen.getByText(/foi armazenado\. A indexação do acervo depende da integração da S2-01/)).toBeInTheDocument();
+  expect(screen.getByText(/foi armazenado/)).toBeInTheDocument();
   expect(screen.queryByRole("button", { name: "Limpar seleção" })).toBeNull();
   const [url, init] = request.mock.calls[1] as [string, RequestInit];
   expect(url).toBe("/api/v1/projects/p-1/documents");
   expect(init.method).toBe("POST");
-  expect(init.body).toBe(file);
-  expect((init.headers as Record<string, string>)["Content-Type"]).toBe("application/octet-stream");
+  // Pos-S2-01: backend passou a usar multer com upload.single("file"), que
+  // exige multipart/form-data (ver fix em frontend/src/api/api_documents.ts).
+  expect(init.body).toBeInstanceOf(FormData);
+  expect(((init.body as FormData).get("file") as File).name).toBe(file.name);
+  expect((init.headers as Record<string, string>)["Content-Type"]).toBeUndefined();
+});
+
+it("agenda retry de documento falho e reflete estado pendente enquanto a lista atualiza", async () => {
+  const failed = doc({ status_processamento: "falha", processamento_erro: "Ollama indisponível." });
+  const request = vi.fn()
+    .mockImplementationOnce(() => listing([failed]))
+    .mockImplementationOnce(() => new Response(JSON.stringify({ status_processamento: "pendente" }), { status: 202 }))
+    .mockImplementationOnce(() => listing([doc({ status_processamento: "pendente" })]));
+  vi.stubGlobal("fetch", request);
+  view();
+
+  const retry = await screen.findByRole("button", { name: "Tentar novamente" });
+  fireEvent.click(retry);
+  expect(await screen.findByText(/reprocessamento .* foi agendado/)).toBeInTheDocument();
+  expect(await screen.findByText("Aguardando ingestão")).toBeInTheDocument();
+  expect(urlOf(request.mock.calls[1])).toBe("/api/v1/projects/p-1/documents/d-1/retry");
+  expect((request.mock.calls[1] as [string, RequestInit])[1].method).toBe("POST");
+});
+
+it("mostra falha do retry no contexto de processamento, sem rotular como falha de upload", async () => {
+  const request = vi.fn()
+    .mockImplementationOnce(() => listing([doc({ status_processamento: "falha" })]))
+    .mockImplementationOnce(() => json({ error: "indisponível" }, 503));
+  vi.stubGlobal("fetch", request);
+  view();
+
+  fireEvent.click(await screen.findByRole("button", { name: "Tentar novamente" }));
+  expect(await screen.findByText("Não foi possível agendar o reprocessamento. Atualize a lista e tente novamente.")).toBeInTheDocument();
+  expect(screen.getByText("Falha no reprocessamento")).toBeInTheDocument();
+  expect(screen.queryByText("Falha no envio")).toBeNull();
 });
 
 it("armazenamento pendente após o envio é informado ao usuário", async () => {

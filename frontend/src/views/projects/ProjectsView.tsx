@@ -1,23 +1,18 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { ApiError } from "../../api/api_auth";
-import { navigate } from "../../models/navigation";
 import {
-  createProject,
   getProject,
   listProjects,
-  type Project,
-  type ProjectInput,
+  type Project
 } from "../../api/api_projects";
-import { parseBacklogRoute } from "../../models/navigation";
-import { BacklogScreen } from "../backlog/BacklogView";
-import { BacklogTreeView } from "../backlog/BacklogTreeView";
-import { RepoAnalyzerView } from "./RepoAnalyzerView";
-import { DocumentsView } from "../documents/DocumentsView";
-import { DecisionsPanel } from "../backlog/DecisionsPanel";
-import "../../assets/styles/garakis-prototype.css";
 import "../../assets/styles/projects.css";
-import { ProjectArchiveView } from "./ProjectArchiveView";
+import { navigate, parseBacklogRoute } from "../../models/navigation";
+import { BacklogScreen } from "../backlog/BacklogView";
 import { SearchField } from "../common/SearchField";
+import { Button } from "../common/ui";
+import { ProjectArchiveView } from "./ProjectArchiveView";
+import { ProjectDetail } from "./ProjectDetail";
+import { ProjectForm } from "./ProjectForm";
 
 type Result =
   | { state: "loading" }
@@ -27,12 +22,6 @@ type Result =
     projects: Project[];
     total: number;
   };
-
-const empty: ProjectInput = {
-  nome: "",
-  cliente: "",
-  descricao: "",
-};
 
 export function ProjectsView({
   pathname,
@@ -139,19 +128,19 @@ export function ProjectsView({
       <ProjectForm />
     ) : (
       <div className="page-container">
-        <div className="card-garakis">
+        <div className="ds-card">
           <h2>Acesso de leitura</h2>
 
           <p role="alert">
             Seu perfil não permite criar projetos.
           </p>
 
-          <button
-            className="btn-garakis secondary"
+          <Button
+            variant="secondary"
             onClick={() => navigate("/projects")}
           >
             Voltar aos projetos
-          </button>
+          </Button>
         </div>
       </div>
     );
@@ -174,8 +163,8 @@ export function ProjectsView({
         </div>
 
         {(isDetail || canCreate) && (
-          <button
-            className="btn-garakis primary"
+          <Button
+            variant="primary"
             onClick={() =>
               navigate(
                 isDetail
@@ -187,13 +176,13 @@ export function ProjectsView({
             {isDetail
               ? "← Voltar aos projetos"
               : "+ Criar projeto"}
-          </button>
+          </Button>
         )}
       </div>
 
       {result.state === "loading" && (
         <div
-          className="card-garakis"
+          className="ds-card"
           role="status"
         >
           Carregando{" "}
@@ -205,22 +194,22 @@ export function ProjectsView({
       )}
 
       {result.state === "error" && (
-        <div className="card-garakis">
+        <div className="ds-card">
           <p
             role="alert"
-            style={{ color: "var(--red)" }}
+            style={{ color: "var(--status-danger)" }}
           >
             {result.message}
           </p>
 
-          <button
-            className="btn-garakis secondary"
+          <Button
+            variant="secondary"
             onClick={() =>
               setAttempt((value) => value + 1)
             }
           >
             Tentar novamente
-          </button>
+          </Button>
         </div>
       )}
 
@@ -252,7 +241,7 @@ export function ProjectsView({
           </>
         ) : result.projects.length === 0 ? (
           <div
-            className="card-garakis"
+            className="ds-card"
             style={{
               textAlign: "center",
               padding: "48px 24px",
@@ -272,8 +261,8 @@ export function ProjectsView({
 
             {canCreate &&
               status !== "arquivado" && (
-                <button
-                  className="btn-garakis primary"
+                <Button
+                  variant="primary"
                   style={{
                     marginTop: "16px",
                   }}
@@ -282,11 +271,11 @@ export function ProjectsView({
                   }
                 >
                   Criar primeiro projeto
-                </button>
+                </Button>
               )}
           </div>
         ) : (
-          <div className="grid-garakis three">
+          <div className="ds-grid ds-grid--three">
             {result.projects
               .filter((project) =>
                 `${project.nome} ${project.cliente} ${project.descricao}`
@@ -299,7 +288,7 @@ export function ProjectsView({
               )
               .map((project) => (
                 <article
-                  className="card-garakis"
+                  className="ds-card"
                   key={project.id}
                   style={{
                     display: "flex",
@@ -311,9 +300,9 @@ export function ProjectsView({
                 >
                   <div>
                     <span
-                      className={`badge-garakis ${project.status === "ativo"
-                          ? "green"
-                          : ""
+                      className={`ds-badge ${project.status === "ativo"
+                        ? "ds-badge--success"
+                        : ""
                         }`}
                     >
                       {project.status}
@@ -348,7 +337,7 @@ export function ProjectsView({
                         className="project-excerpt"
                         style={{
                           fontSize: "0.88rem",
-                          color: "var(--muted)",
+                          color: "var(--text-secondary)",
                         }}
                       >
                         {project.descricao}
@@ -361,8 +350,8 @@ export function ProjectsView({
                       marginTop: "16px",
                     }}
                   >
-                    <button
-                      className="btn-garakis ghost"
+                    <Button
+                      variant="ghost"
                       onClick={() =>
                         navigate(
                           `/projects/${project.id}`,
@@ -371,7 +360,7 @@ export function ProjectsView({
                       aria-label={`Abrir projeto ${project.nome}`}
                     >
                       Abrir projeto →
-                    </button>
+                    </Button>
 
                     {project.status ===
                       "arquivado" && (
@@ -441,8 +430,8 @@ export function ProjectsView({
           aria-label="Paginação de projetos"
           style={{ marginTop: "16px" }}
         >
-          <button
-            className="btn-garakis secondary"
+          <Button
+            variant="secondary"
             disabled={
               offset === 0 ||
               result.state === "loading"
@@ -454,7 +443,7 @@ export function ProjectsView({
             }
           >
             Anterior
-          </button>
+          </Button>
 
           <span>
             Página {Math.floor(offset / 50) + 1}
@@ -463,8 +452,8 @@ export function ProjectsView({
               : ""}
           </span>
 
-          <button
-            className="btn-garakis secondary"
+          <Button
+            variant="secondary"
             disabled={
               result.state !== "ready" ||
               offset + 50 >= result.total
@@ -474,603 +463,9 @@ export function ProjectsView({
             }
           >
             Próxima
-          </button>
+          </Button>
         </nav>
       )}
-    </div>
-  );
-}
-
-type ProjectTab = "overview" | "backlog" | "decisions" | "documents" | "repo-analyzer";
-
-const PROJECT_TABS: ReadonlyArray<{ id: ProjectTab; label: string }> = [
-  { id: "overview", label: "Visão geral" },
-  { id: "backlog", label: "Backlog" },
-  { id: "decisions", label: "Decisões" },
-  { id: "documents", label: "Documentos" },
-  { id: "repo-analyzer", label: "Análise de repositório" },
-];
-
-const TAB_HASH: Record<ProjectTab, string> = {
-  overview: "",
-  backlog: "#backlog",
-  decisions: "#decisions",
-  documents: "#documents",
-  "repo-analyzer": "#repo-analyzer",
-};
-
-function tabFromHash(hash: string): ProjectTab {
-  const found = (Object.keys(TAB_HASH) as ProjectTab[]).find((tab) => TAB_HASH[tab] && TAB_HASH[tab] === hash);
-  return found ?? "overview";
-}
-
-function ProjectDetail({
-  project,
-  canCreate,
-  initialTab,
-}: {
-  project: Project;
-  canCreate: boolean;
-  initialTab?: ProjectTab;
-}) {
-  const [activeTab, setActiveTab] = useState<ProjectTab>(() => initialTab ?? tabFromHash(window.location.hash));
-
-  const selectTab = (tab: ProjectTab) => {
-    setActiveTab(tab);
-    const hash = TAB_HASH[tab];
-    window.history.replaceState(null, "", hash ? `${window.location.pathname}${hash}` : window.location.pathname);
-  };
-
-  useEffect(() => {
-    const onHashChange = () => setActiveTab(tabFromHash(window.location.hash));
-    window.addEventListener("hashchange", onHashChange);
-    return () => window.removeEventListener("hashchange", onHashChange);
-  }, []);
-
-  const moveTab = (event: React.KeyboardEvent<HTMLButtonElement>, index: number) => {
-    const last = PROJECT_TABS.length - 1;
-    const target =
-      event.key === "ArrowRight" ? (index + 1) % PROJECT_TABS.length
-        : event.key === "ArrowLeft" ? (index - 1 + PROJECT_TABS.length) % PROJECT_TABS.length
-          : event.key === "Home" ? 0
-            : event.key === "End" ? last
-              : -1;
-    if (target < 0) return;
-    event.preventDefault();
-    selectTab(PROJECT_TABS[target].id);
-    document.getElementById(`project-tab-${PROJECT_TABS[target].id}`)?.focus();
-  };
-
-  const archived = project.status === "arquivado";
-
-  return (
-    <>
-      <div className="crumb-bar">
-        <button
-          onClick={() => navigate("/projects")}
-        >
-          Projetos
-        </button>
-
-        <span>/</span>
-
-        <b>{project.nome}</b>
-      </div>
-
-      <div className="head-section">
-        <div>
-          <span
-            className={`badge-garakis ${project.status === "ativo"
-                ? "green"
-                : ""
-              }`}
-          >
-            {project.status}
-          </span>
-
-          <h1 style={{ marginTop: "8px" }}>
-            {project.nome}
-          </h1>
-
-          <p className="muted">
-            Cliente: {project.cliente} · Contexto
-            central do produto.
-          </p>
-
-          {project.descricao && (
-            <p
-              className="project-description"
-              style={{
-                color: "var(--text-secondary)",
-                marginTop: "6px",
-              }}
-            >
-              {project.descricao}
-            </p>
-          )}
-        </div>
-
-        <button
-          className="btn-garakis secondary"
-          onClick={() => selectTab("backlog")}
-        >
-          Abrir backlog
-        </button>
-      </div>
-
-      {project.status === "arquivado" && (
-        <div
-          className="card-garakis"
-          style={{
-            background:
-              "rgba(239, 68, 68, 0.1)",
-            borderColor:
-              "rgba(239, 68, 68, 0.3)",
-            margin: "16px 0",
-            color: "#fca5a5",
-          }}
-        >
-          Somente leitura · Arquivado em:{" "}
-          {project.archived_at
-            ? new Date(
-              project.archived_at,
-            ).toLocaleString("pt-BR")
-            : "data não registrada"}
-        </div>
-      )}
-
-      <div className="project-tabs-garakis" role="tablist" aria-label="Contexto do projeto">
-        {PROJECT_TABS.map((tab, index) => (
-          <button
-            key={tab.id}
-            id={`project-tab-${tab.id}`}
-            type="button"
-            role="tab"
-            className={activeTab === tab.id ? "active" : ""}
-            aria-selected={activeTab === tab.id}
-            aria-controls={`project-panel-${tab.id}`}
-            tabIndex={activeTab === tab.id ? 0 : -1}
-            onClick={() => selectTab(tab.id)}
-            onKeyDown={(event) => moveTab(event, index)}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
-
-      <div id={`project-panel-${activeTab}`} role="tabpanel" aria-labelledby={`project-tab-${activeTab}`}>
-        {activeTab === "overview" && (
-          <div className="grid-garakis three">
-            <article className="card-garakis">
-              <h2>Backlog</h2>
-
-              <p className="muted">
-                Épicos, features e comportamentos
-                testáveis em PBIs.
-              </p>
-
-              <button
-                className="btn-garakis ghost"
-                onClick={() =>
-                  selectTab("backlog")
-                }
-              >
-                Ver itens de trabalho →
-              </button>
-            </article>
-
-            <article className="card-garakis">
-              <h2>Documentos</h2>
-
-              <p className="muted">
-                Referências e documentos de
-                especificação indexados.
-              </p>
-
-              <button
-                className="btn-garakis ghost"
-                onClick={() =>
-                  selectTab("documents")
-                }
-              >
-                Ver documentos →
-              </button>
-            </article>
-
-            <article className="card-garakis">
-              <h2>Conhecimento</h2>
-
-              <p className="muted">
-                O conteúdo processado pode ser
-                pesquisado e consultado.
-              </p>
-
-              <button
-                className="btn-garakis ghost"
-                onClick={() =>
-                  navigate("/knowledge")
-                }
-              >
-                Pesquisar acervo →
-              </button>
-            </article>
-          </div>
-        )}
-
-        {activeTab === "backlog" && (
-          <BacklogTreeView
-            key={`${project.id}-${project.status}`}
-            projectId={project.id}
-            canCreate={canCreate}
-          />
-        )}
-
-        {activeTab === "decisions" && (
-          <DecisionsPanel
-            key={project.id}
-            kind="projeto"
-            id={project.id}
-            canWrite={canCreate}
-            readOnlyNote={archived ? "Projeto arquivado: as decisões ficam disponíveis somente para consulta." : undefined}
-          />
-        )}
-
-        {activeTab === "documents" && (
-          <DocumentsView
-            embedded
-            projectId={project.id}
-            projectName={project.nome}
-            canWrite={canCreate}
-            archived={project.status === "arquivado"}
-          />
-        )}
-
-        {activeTab === "repo-analyzer" && (
-          <RepoAnalyzerView
-            key={project.id}
-            projectId={project.id}
-            canStart={!archived}
-          />
-        )}
-      </div>
-    </>
-  );
-}
-
-function ProjectForm() {
-  const [values, setValues] =
-    useState<ProjectInput>(empty);
-
-  const [errors, setErrors] = useState<
-    Partial<ProjectInput>
-  >({});
-
-  const [busy, setBusy] = useState(false);
-  const [message, setMessage] = useState("");
-  const submitting = useRef(false);
-  const mounted = useRef(true);
-
-  const form =
-    useRef<HTMLFormElement>(null);
-
-  useEffect(() => {
-    mounted.current = true;
-
-    return () => {
-      mounted.current = false;
-    };
-  }, []);
-
-  const valid =
-    values.nome.trim().length > 0 &&
-    values.cliente.trim().length > 0 &&
-    values.nome.trim().length <= 255 &&
-    values.cliente.trim().length <= 255 &&
-    Object.keys(errors).length === 0;
-
-  return (
-    <div className="page-container">
-      <div className="crumb-bar">
-        <button
-          onClick={() => navigate("/projects")}
-        >
-          Projetos
-        </button>
-
-        <span>/</span>
-
-        <b>Novo projeto</b>
-      </div>
-
-      <h1>Crie um espaço de trabalho</h1>
-
-      <p className="muted">
-        O projeto será o contexto para backlog,
-        documentos e decisões.
-      </p>
-
-      <article
-        className="card-garakis"
-        style={{
-          maxWidth: "700px",
-          marginTop: "24px",
-        }}
-      >
-        <form
-          ref={form}
-          noValidate
-          aria-busy={busy}
-          onSubmit={async (event) => {
-            event.preventDefault();
-
-            if (submitting.current) {
-              return;
-            }
-
-            const input = Object.fromEntries(
-              Object.entries(values).map(
-                ([key, value]) => [
-                  key,
-                  value.trim(),
-                ],
-              ),
-            ) as unknown as ProjectInput;
-
-            const invalid: Partial<ProjectInput> =
-              {};
-
-            if (!input.nome) {
-              invalid.nome =
-                "Informe o nome do projeto.";
-            }
-
-            if (!input.cliente) {
-              invalid.cliente =
-                "Informe o cliente.";
-            }
-
-            if (input.nome.length > 255) {
-              invalid.nome =
-                "O nome não pode exceder 255 caracteres.";
-            }
-
-            if (input.cliente.length > 255) {
-              invalid.cliente =
-                "O cliente não pode exceder 255 caracteres.";
-            }
-
-            setErrors(invalid);
-            setMessage("");
-
-            if (
-              Object.keys(invalid).length
-            ) {
-              form.current
-                ?.querySelector<HTMLElement>(
-                  `[name="${Object.keys(invalid)[0]}"]`,
-                )
-                ?.focus();
-
-              return;
-            }
-
-            submitting.current = true;
-            setBusy(true);
-
-            try {
-              const project =
-                await createProject(input);
-
-              if (mounted.current) {
-                navigate(
-                  `/projects/${project.id}`,
-                );
-              }
-            } catch (error) {
-              if (!mounted.current) {
-                return;
-              }
-
-              if (
-                error instanceof ApiError &&
-                error.status === 409
-              ) {
-                setErrors({
-                  nome: "Este nome já está em uso por um projeto ativo.",
-                });
-              } else {
-                setMessage(
-                  error instanceof ApiError &&
-                    error.status === 401
-                    ? "É necessário entrar para criar projetos."
-                    : error instanceof
-                      ApiError &&
-                      error.status === 403
-                      ? "Você não tem permissão para criar projetos. Entre em contato com o administrador."
-                      : error instanceof
-                        ApiError &&
-                        [400, 422].includes(
-                          error.status,
-                        )
-                        ? "Revise os dados informados. O servidor recusou o cadastro."
-                        : "Não foi possível confirmar a criação. Consulte a lista de projetos antes de tentar novamente.",
-                );
-              }
-            } finally {
-              submitting.current = false;
-
-              if (mounted.current) {
-                setBusy(false);
-              }
-            }
-          }}
-        >
-          <div className="field-garakis">
-            <label htmlFor="nome">
-              Nome do projeto
-            </label>
-
-            <input
-              id="nome"
-              name="nome"
-              type="text"
-              className="input-garakis"
-              required
-              disabled={busy}
-              value={values.nome}
-              aria-invalid={Boolean(
-                errors.nome,
-              )}
-              onChange={(event) => {
-                setValues((value) => ({
-                  ...value,
-                  nome: event.target.value,
-                }));
-
-                setErrors((value) => {
-                  const next = {
-                    ...value,
-                  };
-
-                  delete next.nome;
-                  return next;
-                });
-
-                setMessage("");
-              }}
-            />
-
-            <span className="help">
-              O nome deve ser único entre
-              projetos ativos.
-            </span>
-
-            {errors.nome && (
-              <p
-                id="nome-error"
-                role="alert"
-                style={{
-                  color: "var(--red)",
-                  fontSize: "12px",
-                  margin: "2px 0 0",
-                }}
-              >
-                {errors.nome}
-              </p>
-            )}
-          </div>
-
-          <div className="field-garakis">
-            <label htmlFor="cliente">
-              Cliente
-            </label>
-
-            <input
-              id="cliente"
-              name="cliente"
-              type="text"
-              className="input-garakis"
-              required
-              disabled={busy}
-              value={values.cliente}
-              aria-invalid={Boolean(
-                errors.cliente,
-              )}
-              onChange={(event) => {
-                setValues((value) => ({
-                  ...value,
-                  cliente:
-                    event.target.value,
-                }));
-
-                setErrors((value) => {
-                  const next = {
-                    ...value,
-                  };
-
-                  delete next.cliente;
-                  return next;
-                });
-
-                setMessage("");
-              }}
-            />
-
-            {errors.cliente && (
-              <p
-                id="cliente-error"
-                role="alert"
-                style={{
-                  color: "var(--red)",
-                  fontSize: "12px",
-                  margin: "2px 0 0",
-                }}
-              >
-                {errors.cliente}
-              </p>
-            )}
-          </div>
-
-          <div className="field-garakis">
-            <label htmlFor="descricao">
-              Descrição
-            </label>
-
-            <input
-              id="descricao"
-              name="descricao"
-              type="text"
-              className="input-garakis"
-              disabled={busy}
-              value={values.descricao}
-              onChange={(event) => {
-                setValues((value) => ({
-                  ...value,
-                  descricao:
-                    event.target.value,
-                }));
-
-                setMessage("");
-              }}
-            />
-          </div>
-
-          {message && (
-            <p
-              role="alert"
-              style={{
-                color: "var(--red)",
-              }}
-            >
-              {message}
-            </p>
-          )}
-
-          <p role="status">
-            {busy
-              ? "Criando projeto…"
-              : valid
-                ? "Dados preenchidos. Pronto para criar."
-                : "Preencha os campos para criar o projeto."}
-          </p>
-
-          <div
-            style={{
-              marginTop: "20px",
-            }}
-          >
-            <button
-              type="submit"
-              className="btn-garakis primary"
-              disabled={busy}
-            >
-              {busy
-                ? "Criando…"
-                : "Criar projeto"}
-            </button>
-          </div>
-        </form>
-      </article>
     </div>
   );
 }

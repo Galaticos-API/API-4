@@ -1,13 +1,13 @@
 :root {
-  /* Fonte única de tokens. Os valores de marca e superfície derivam do protótipo
-     navegável (assets/styles/garakis-prototype.css) para que a tela tenha uma só
-     cor de marca; os fallbacks seguem o mesmo protótipo. */
-  --surface-base: var(--bg, #0b0d10);
-  --brand-primary: var(--orange, #ed6a32);
+  /* Canonical tokens for all application components and layouts. */
+  --surface-base: #0b0d10;
+  --brand-primary: #ed6a32;
   --brand-primary-hover: color-mix(in srgb, var(--brand-primary) 82%, #000);
   --text-primary: #ffffff;
-  --text-secondary: var(--muted, #a6aab3);
-  --text-muted: var(--dim, #8b93a1);
+  --text-secondary: #a6aab3;
+  --text-muted: #8b93a1;
+  --brand-surface: #4a200f;
+  --status-info: #4097ff;
   --on-brand: #17191c;
   --brand-gradient: linear-gradient(135deg, #f1885b, var(--brand-primary));
 
@@ -26,23 +26,23 @@
   --radius-lg: 12px;
 
   --bg-primary: var(--surface-base);
-  --bg-secondary: var(--surface, #111827);
-  --bg-tertiary: var(--card, #171a21);
-  --bg-card: color-mix(in srgb, var(--surface, #111827) 94%, transparent);
-  --bg-card-hover: color-mix(in srgb, var(--card, #171a21) 82%, #fff);
+  --bg-secondary: #111827;
+  --bg-tertiary: #171a21;
+  --bg-card: color-mix(in srgb, var(--bg-secondary) 94%, transparent);
+  --bg-card-hover: color-mix(in srgb, var(--bg-tertiary) 82%, #fff);
 
-  --border-subtle: var(--line, rgba(196, 199, 204, 0.18));
-  --border-strong: var(--strong, rgba(196, 199, 204, 0.3));
+  --border-subtle: rgba(196, 199, 204, 0.18);
+  --border-strong: rgba(196, 199, 204, 0.3);
   --border-active: color-mix(in srgb, var(--brand-primary) 60%, transparent);
 
   --accent-primary: var(--brand-primary);
   --accent-secondary: color-mix(in srgb, var(--brand-primary) 72%, #fff);
   --accent-glow: color-mix(in srgb, var(--brand-primary) 28%, transparent);
 
-  --status-success: var(--green, #22b458);
+  --status-success: #22b458;
   --status-warning: #fbbf24;
-  --status-danger: var(--red, #f0635d);
-  --status-danger-strong: var(--red, #f0635d);
+  --status-danger: #f0635d;
+  --status-danger-strong: var(--status-danger);
   --accent-emerald: var(--status-success);
   --accent-amber: var(--status-warning);
 

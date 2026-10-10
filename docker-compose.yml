@@ -47,6 +47,8 @@ services:
 
     environment:
       - N8N_PORT=5678
+      # Supports the base64 envelope for uploads up to the backend maximum (100 MiB).
+      - N8N_PAYLOAD_SIZE_MAX=150
       - N8N_ENCRYPTION_KEY=${N8N_ENCRYPTION_KEY:-sinapse-shared-dev-encryption-key-2026}
       - GENERIC_TIMEZONE=${GENERIC_TIMEZONE:-America/Sao_Paulo}
       - TZ=${TZ:-America/Sao_Paulo}
@@ -59,6 +61,12 @@ services:
       # Ollama executando no Windows
       - OLLAMA_BASE_URL=${OLLAMA_DOCKER_BASE_URL:-http://host.docker.internal:11434}
 
+      # Tokens usados pelas chamadas HTTP do workflow (via $env nas expressoes
+      # do n8n). AI_SERVICE_TOKEN autentica em /chunk e /embed do ai-service;
+      # N8N_INGEST_TOKEN autentica em POST /documents/.../chunks do backend.
+      - AI_SERVICE_TOKEN=${AI_SERVICE_TOKEN:?Configure AI_SERVICE_TOKEN in .env}
+      - N8N_INGEST_TOKEN=${N8N_INGEST_TOKEN:-sinapse-dev-ingest-token}
+
       # PostgreSQL executando no Docker
       - DB_TYPE=postgresdb
       - DB_POSTGRESDB_HOST=postgres
@@ -69,7 +77,7 @@ services:
 
     volumes:
       - n8n_data:/home/node/.n8n
-      - ./n8n/local-files:/files
+      - ./storage:/files
 
     depends_on:
       postgres:
@@ -78,6 +86,27 @@ services:
     networks:
       - sinapse-network
 
+  # Ollama no Docker (profile opcional). AGENTS.md padrao e rodar Ollama no
+  # host; este servico ativa somente quando o perfil local-ai e selecionado.
+  ollama:
+    profiles: [local-ai]
+    image: ollama/ollama:latest
+    container_name: sinapse-ollama
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${OLLAMA_PORT:-11434}:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    environment:
+      - OLLAMA_KEEP_ALIVE=${OLLAMA_KEEP_ALIVE:-24h}
+    healthcheck:
+      test: ["CMD-SHELL", "ollama list || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - sinapse-network
 
   backend:
     build:
@@ -103,16 +132,29 @@ services:
 
       # AI Service dentro da rede Docker
       - AI_SERVICE_URL=http://ai-service:8000
+      - DOCUMENT_INGESTION_TOKEN=${DOCUMENT_INGESTION_TOKEN:?Defina um segredo aleatório privado em DOCUMENT_INGESTION_TOKEN no .env}
       - REPO_ANALYZER_URL=${REPO_ANALYZER_URL:-http://ai-service:8000}
-
+      - AI_SERVICE_TOKEN=${AI_SERVICE_TOKEN:?Configure AI_SERVICE_TOKEN in .env}
       - DOCUMENT_MAX_SIZE_MB=${DOCUMENT_MAX_SIZE_MB:-20}
-      - DOCUMENT_STORAGE_DIR=/data/documents
+      # /files e bind-mount compartilhado com o container do n8n (./storage no host),
+      # pre-requisito para o workflow de debug manual do n8n enxergar o arquivo.
+      # O fluxo canonico (worker DocumentIngestionWorker) le o arquivo direto do
+      # storage e chama o ai-service, sem passar pelo volume do n8n.
+      - DOCUMENT_STORAGE_DIR=/files
       - DOCUMENT_EVENTS_WEBHOOK_URL=${DOCUMENT_EVENTS_WEBHOOK_URL:-}
+      # Vazio por padrao: HttpDocumentIngestionClient usa ${AI_SERVICE_URL}/documents/process
+      # (fluxo canonico da S2-01, com retry/lease). Preencha para redirecionar.
+      - DOCUMENT_INGEST_WEBHOOK_URL=${DOCUMENT_INGEST_WEBHOOK_URL:-}
+      - SEARCH_MIN_VECTOR_SIMILARITY=${SEARCH_MIN_VECTOR_SIMILARITY:-0.55}
+      - SEARCH_MIN_TEXT_RANK=${SEARCH_MIN_TEXT_RANK:-0.05}
+      # Token server-to-server para o backend aceitar o POST .../documents/.../chunks
+      # vindo do workflow do n8n (quando usado como ferramenta de debug manual).
+      - N8N_INGEST_TOKEN=${N8N_INGEST_TOKEN:-sinapse-dev-ingest-token}
       - MIGRATIONS_DIR=/database/migrations
       - INIT_SQL_PATH=/database/init.sql
 
     volumes:
-      - documents_data:/data/documents
+      - ./storage:/files
       - ./database/migrations:/database/migrations:ro
       - ./database/init.sql:/database/init.sql:ro
       - ./database/seed:/database/seed:ro
@@ -133,11 +175,18 @@ services:
 
     container_name: sinapse-ai-service
     restart: unless-stopped
+    # Limites de recurso herdados da S2-01 para proteger a maquina do desenvolvedor
+    # contra loops do analyzer; nao mexem no comportamento funcional.
+    cpus: 2
+    mem_limit: 1g
+    pids_limit: 128
 
+    # Em dev exposto no host para debug local; em prod feche com `expose: ["8000"]`.
     ports:
-      - "${AI_SERVICE_PORT:-8000}:8000"
+      - "${AI_SERVICE_BIND:-127.0.0.1}:${AI_SERVICE_PORT:-8000}:8000"
 
-    # Permite acesso ao Ollama no Windows
+    # Permite acesso ao Ollama rodando no host (fora do Docker). O backend acessa
+    # pelo DNS interno do Compose; a porta no host fica local por padrao.
     extra_hosts:
       - "host.docker.internal:host-gateway"
 
@@ -145,7 +194,10 @@ services:
       - repo_analysis_data:/app/workspace_analyzer
 
     environment:
+      - AI_SERVICE_TOKEN=${AI_SERVICE_TOKEN:?Configure AI_SERVICE_TOKEN in .env}
       - AI_SERVICE_PORT=8000
+      - NODE_ENV=production
+      - DOCUMENT_INGESTION_TOKEN=${DOCUMENT_INGESTION_TOKEN:?Defina um segredo aleatório privado em DOCUMENT_INGESTION_TOKEN no .env}
       - AI_SERVICE_HOST=0.0.0.0
 
       # Ollama no Windows
@@ -161,6 +213,12 @@ services:
       - MAX_FILES=${MAX_FILES:-1000}
       - ANALYZER_QUICK_FILES=${ANALYZER_QUICK_FILES:-8}
       - ANALYZER_BALANCED_FILES=${ANALYZER_BALANCED_FILES:-80}
+      - ANALYZER_MAX_ACTIVE_RUNS=${ANALYZER_MAX_ACTIVE_RUNS:-2}
+      - ANALYZER_MAX_QUEUED_RUNS=${ANALYZER_MAX_QUEUED_RUNS:-6}
+      - ANALYZER_WORKSPACE_QUOTA_MB=${ANALYZER_WORKSPACE_QUOTA_MB:-2048}
+      - MAX_REPO_SIZE_MB=${MAX_REPO_SIZE_MB:-300}
+      - ANALYZER_CLONE_MEMORY_MB=${ANALYZER_CLONE_MEMORY_MB:-512}
+      - ANALYZER_CLONE_TIMEOUT_SECONDS=${ANALYZER_CLONE_TIMEOUT_SECONDS:-300}
 
       # PostgreSQL dentro do Docker
       - POSTGRES_HOST=postgres
@@ -201,11 +259,11 @@ volumes:
   n8n_data:
     name: sinapse_n8n_data
 
-  documents_data:
-    name: sinapse_documents_data
-
   repo_analysis_data:
     name: sinapse_repo_analysis_data
+
+  ollama_data:
+    name: sinapse_ollama_data
 
 
 networks:

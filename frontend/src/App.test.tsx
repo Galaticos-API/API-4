@@ -6,7 +6,7 @@ const { mockUser } = vi.hoisted(() => ({
   mockUser: { id: "test-user", name: "Test User", role: "po" as "admin" | "po" | "dev" },
 }));
 
-vi.mock("./auth/Auth", () => ({
+vi.mock("./viewmodels/useAuthViewModel", () => ({
   useAuth: () => ({
     session: { status: "authenticated", user: mockUser },
     logout: vi.fn(),

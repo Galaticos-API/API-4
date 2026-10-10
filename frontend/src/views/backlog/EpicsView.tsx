@@ -1,16 +1,17 @@
-import { ReadOnlyContext } from "../../models/ReadOnlyContext";
-import { ItemArchiveView } from "./ItemArchiveView";
 import { useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { ApiError } from "../../api/api_auth";
-import { navigate } from "../../models/navigation";
-import { createEpic, completeEpic, updateEpic, getEpic, listEpics, camposFaltantesDe, type Epic, type EpicInput } from "../../api/api_backlog";
+import { camposFaltantesDe, completeEpic, createEpic, getEpic, listEpics, updateEpic, type Epic, type EpicInput } from "../../api/api_backlog";
+import "../../assets/styles/projects.css";
 import { descreverCamposFaltantes } from "../../models/fields";
-import { useUnsavedChangesGuard } from "../../viewmodels/useUnsavedChangesGuard";
+import { navigate } from "../../models/navigation";
+import { ReadOnlyContext } from "../../models/ReadOnlyContext";
 import { usePbiQualityConfiguration } from "../../viewmodels/usePbiQualityConfiguration";
-import { CriteriaEditor } from "./CriteriaView";
+import { useUnsavedChangesGuard } from "../../viewmodels/useUnsavedChangesGuard";
+import { Button } from "../common/ui";
 import { BacklogBreadcrumb } from "./BacklogBreadcrumb";
 import { BacklogTechnologySelector } from "./BacklogTechnologySelector";
-import "../../assets/styles/projects.css";
+import { CriteriaEditor } from "./CriteriaView";
+import { ItemArchiveView } from "./ItemArchiveView";
 
 type ListResult = { state: "loading" } | { state: "error"; message: string } | { state: "ready"; epics: Epic[] };
 const emptyInput: EpicInput = { projeto_id: "", titulo: "", descricao: "", objetivo: "", escopo_macro: "", resultado_esperado: "", tecnologias_ids: [] };
@@ -38,21 +39,21 @@ export function EpicList({ projetoId, canCreate: allowedToCreate }: { projetoId:
     <section className="projects-page">
       <div className="projects-heading">
         <div><p className="projects-eyebrow">Épicos do projeto</p><h3>Épicos</h3></div>
-        {canCreate && <button className="btn-primary" onClick={() => navigate(`/projects/${projetoId}/epics/new`)}>Novo épico</button>}
+        {canCreate && <Button variant="primary" onClick={() => navigate(`/projects/${projetoId}/epics/new`)}>Novo épico</Button>}
       </div>
       <label>Exibir itens <select value={status} onChange={event => setStatus(event.target.value)}><option value="">Não arquivados</option><option value="arquivado">Arquivados</option><option value="todos">Todos</option></select></label>
-      {result.state === "loading" && <div className="glass-panel projects-state" role="status">Carregando épicos…</div>}
-      {result.state === "error" && <div className="glass-panel projects-state"><p role="alert">{result.message}</p>
-        <button className="btn-secondary" onClick={() => setAttempt((v) => v + 1)}>Tentar novamente</button></div>}
+      {result.state === "loading" && <div className="ds-card ds-card--glass projects-state" role="status">Carregando épicos…</div>}
+      {result.state === "error" && <div className="ds-card ds-card--glass projects-state"><p role="alert">{result.message}</p>
+        <Button variant="secondary" onClick={() => setAttempt((v) => v + 1)}>Tentar novamente</Button></div>}
       {result.state === "ready" && (result.epics.length === 0
-        ? <div className="glass-panel projects-state"><h4>Nenhum épico cadastrado</h4><p>Crie o primeiro épico para começar a especificar este projeto.</p>
-          {canCreate && <button className="btn-primary" onClick={() => navigate(`/projects/${projetoId}/epics/new`)}>Criar primeiro épico</button>}</div>
+        ? <div className="ds-card ds-card--glass projects-state"><h4>Nenhum épico cadastrado</h4><p>Crie o primeiro épico para começar a especificar este projeto.</p>
+          {canCreate && <Button variant="primary" onClick={() => navigate(`/projects/${projetoId}/epics/new`)}>Criar primeiro épico</Button>}</div>
         : <div className="projects-grid">{result.epics.map((epic) => (
-          <article className="glass-panel project-card" key={epic.id}>
-            <span className={`badge ${epic.status === "concluido" ? "badge-success" : "badge-warning"}`}>{epic.status}</span>
+          <article className="ds-card ds-card--glass project-card" key={epic.id}>
+            <span className={`ds-badge ${epic.status === "concluido" ? "ds-badge--success" : "ds-badge--warning"}`}>{epic.status}</span>
             <h4>{epic.titulo}</h4>
             <p className="project-excerpt">{epic.objetivo || "Sem objetivo registrado."}</p>
-            <button className="btn-secondary" onClick={() => navigate(`/projects/${projetoId}/epics/${epic.id}`)}>Ver épico</button>
+            <Button variant="secondary" onClick={() => navigate(`/projects/${projetoId}/epics/${epic.id}`)}>Ver épico</Button>
           </article>
         ))}</div>)}
     </section>
@@ -73,7 +74,7 @@ export function EpicForm({ projetoId }: { projetoId: string }) {
     <section className="projects-page">
       <div className="projects-heading"><div><p className="projects-eyebrow">Épicos / Novo épico</p><h2>Criar épico</h2>
         <p>Apenas o título é obrigatório para salvar como rascunho. Os demais campos do guia são exigidos para concluir.</p></div></div>
-      <form className="glass-panel project-form" noValidate aria-busy={busy} onSubmit={async (event) => {
+      <form className="ds-card ds-card--glass project-form" noValidate aria-busy={busy} onSubmit={async (event) => {
         event.preventDefault();
         if (submitting.current) return;
         if (!values.titulo.trim()) { setMessage("Informe o título do épico."); return; }
@@ -107,16 +108,16 @@ export function EpicForm({ projetoId }: { projetoId: string }) {
         />
         {message && <p role="alert">{message}</p>}
         <div className="project-actions">
-          <button type="submit" className="btn-primary" disabled={busy}>{busy ? "Criando…" : "Criar épico"}</button>
-          <button type="button" className="btn-secondary" disabled={busy} onClick={() => { if (confirmLeave()) navigate(`/projects/${projetoId}`); }}>Voltar ao projeto</button>
+          <Button type="submit" variant="primary" disabled={busy}>{busy ? "Criando…" : "Criar épico"}</Button>
+          <Button type="button" variant="secondary" disabled={busy} onClick={() => { if (confirmLeave()) navigate(`/projects/${projetoId}`); }}>Voltar ao projeto</Button>
         </div>
       </form>
     </section>
   );
 }
 
-import { ItemHistoryView } from "./ItemHistoryView";
 import { DecisionsPanel } from "./DecisionsPanel";
+import { ItemHistoryView } from "./ItemHistoryView";
 
 type EpicFields = Pick<EpicInput, "titulo" | "descricao" | "objetivo" | "escopo_macro" | "resultado_esperado" | "tecnologias_ids"> & { justificativa?: string };
 
@@ -153,9 +154,9 @@ export function EpicDetail({ projectId, epicId, canEdit, children }: { projectId
   const isDirty = editing && epic !== null && formValues !== null && JSON.stringify(formValues) !== JSON.stringify(toFields(epic));
   const { confirmLeave } = useUnsavedChangesGuard(isDirty);
 
-  if (result.state === "loading") return <div className="glass-panel projects-state" role="status">Carregando épico…</div>;
-  if (result.state === "error") return <div className="glass-panel projects-state"><p role="alert">{result.message}</p>
-    <button className="btn-secondary" onClick={() => setAttempt((v) => v + 1)}>Tentar novamente</button></div>;
+  if (result.state === "loading") return <div className="ds-card ds-card--glass projects-state" role="status">Carregando épico…</div>;
+  if (result.state === "error") return <div className="ds-card ds-card--glass projects-state"><p role="alert">{result.message}</p>
+    <Button variant="secondary" onClick={() => setAttempt((v) => v + 1)}>Tentar novamente</Button></div>;
   if (!epic) return null;
 
   const epicoArquivado = epic.status === "arquivado";
@@ -185,10 +186,10 @@ export function EpicDetail({ projectId, epicId, canEdit, children }: { projectId
       />
       <div className="projects-heading">
         <div><p className="projects-eyebrow">Épico</p><h2>{epic.titulo}</h2></div>
-        <button className="btn-secondary" onClick={() => { if (confirmLeave()) navigate(`/projects/${projectId}`); }}>Voltar ao projeto</button>
+        <Button variant="secondary" onClick={() => { if (confirmLeave()) navigate(`/projects/${projectId}`); }}>Voltar ao projeto</Button>
       </div>
       {readOnly && (
-        <div className="glass-panel projects-state">
+        <div className="ds-card ds-card--glass projects-state">
           <p role="status">
             {epicoArquivado
               ? "Este épico está arquivado e está disponível apenas para leitura."
@@ -196,8 +197,8 @@ export function EpicDetail({ projectId, epicId, canEdit, children }: { projectId
           </p>
         </div>
       )}
-      <article className="glass-panel project-card">
-        <span className={`badge ${epic.status === "concluido" ? "badge-success" : "badge-warning"}`}>{epic.status}</span>
+      <article className="ds-card ds-card--glass project-card">
+        <span className={`ds-badge ${epic.status === "concluido" ? "ds-badge--success" : "ds-badge--warning"}`}>{epic.status}</span>
         {editing && formValues ? (
           <>
             {([
@@ -231,7 +232,7 @@ export function EpicDetail({ projectId, epicId, canEdit, children }: { projectId
             )}
             {editMessage && <p role="alert">{editMessage}</p>}
             <div className="project-actions">
-              <button className="btn-primary" disabled={saving} onClick={async () => {
+              <Button variant="primary" disabled={saving} onClick={async () => {
                 if (!formValues?.titulo.trim()) { setEditMessage("O título não pode ficar vazio."); return; }
                 if (justificationRequired && !formValues?.justificativa?.trim()) {
                   setEditMessage("A justificativa é obrigatória ao alterar um item concluído.");
@@ -255,8 +256,8 @@ export function EpicDetail({ projectId, epicId, canEdit, children }: { projectId
                 } finally {
                   setSaving(false);
                 }
-              }}>{saving ? "Salvando…" : "Salvar alterações"}</button>
-              <button className="btn-secondary" disabled={saving} onClick={() => { if (confirmLeave()) { setEditing(false); setEditMessage(""); } }}>Cancelar</button>
+              }}>{saving ? "Salvando…" : "Salvar alterações"}</Button>
+              <Button variant="secondary" disabled={saving} onClick={() => { if (confirmLeave()) { setEditing(false); setEditMessage(""); } }}>Cancelar</Button>
             </div>
           </>
         ) : (
@@ -270,9 +271,9 @@ export function EpicDetail({ projectId, epicId, canEdit, children }: { projectId
             </dl>
             {canWrite && (
               <div className="project-actions">
-                <button className="btn-secondary" onClick={() => { setFormValues(toFields(epic)); setEditing(true); }}>Editar</button>
+                <Button variant="secondary" onClick={() => { setFormValues(toFields(epic)); setEditing(true); }}>Editar</Button>
                 {(epic.status === "rascunho" || epic.status === "ativo") && (
-                  <button className="btn-primary" disabled={completing} onClick={async () => {
+                  <Button variant="primary" disabled={completing} onClick={async () => {
                     setCompleting(true); setCompletionMessage("");
                     try {
                       const completed = await completeEpic(epic.id);
@@ -284,7 +285,7 @@ export function EpicDetail({ projectId, epicId, canEdit, children }: { projectId
                     } finally {
                       setCompleting(false);
                     }
-                  }}>{completing ? "Concluindo…" : "Marcar como concluído"}</button>
+                  }}>{completing ? "Concluindo…" : "Marcar como concluído"}</Button>
                 )}
               </div>
             )}

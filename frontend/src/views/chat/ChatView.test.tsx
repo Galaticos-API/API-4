@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { ChatView } from "./ChatView";
 
 const PROJECT = { id: "p-1", nome: "Sinapse", cliente: "C", descricao: "", status: "ativo" };
@@ -21,7 +21,7 @@ interface Routes {
 function api(routes: Routes = {}) {
   return vi.fn((url: RequestInfo | URL, init?: RequestInit) => {
     const path = String(url);
-    if (path.startsWith("/api/v1/projects")) return json({ items: [PROJECT], total: 1, limit: 50, offset: 0 });
+    if (path.startsWith("/api/v1/chat/projects")) return json({ items: [PROJECT], total: 1, limit: 50, offset: 0 });
     if (path === "/api/v1/chat/conversations") {
       return routes.conversations === "error" ? json({ error: "x" }, 500) : json({ items: routes.conversations ?? [], total: 0 });
     }
@@ -67,6 +67,7 @@ it("sem conversas mostra orientação, sugestões preenchem o campo e o escopo �
   expect(screen.getByRole("heading", { name: "Como posso ajudar?" })).toBeInTheDocument();
   fireEvent.click(screen.getByRole("button", { name: /Quais decisões já foram tomadas/ }));
   expect(composer().value).toMatch(/Quais decisões já foram tomadas/);
+  expect(screen.getByRole("button", { name: "Enviar" })).toBeDisabled();
   expect(await screen.findByRole("option", { name: "Sinapse" })).toBeInTheDocument();
   expect(screen.getByLabelText("Escopo da consulta")).toBeEnabled();
 });
@@ -97,6 +98,8 @@ it("Shift+Enter não envia e o limite de caracteres bloqueia o envio", async () 
   vi.stubGlobal("fetch", request);
   render(<ChatView />);
   await screen.findByText(/Nenhuma conversa ainda/);
+  await screen.findByRole("option", { name: "Sinapse" });
+  fireEvent.change(screen.getByLabelText("Escopo da consulta"), { target: { value: "p-1" } });
 
   fireEvent.change(composer(), { target: { value: "linha 1" } });
   fireEvent.keyDown(composer(), { key: "Enter", shiftKey: true });
@@ -131,6 +134,8 @@ it("falha ao enviar marca a mensagem, explica e permite tentar novamente sem dup
   render(<ChatView />);
   await screen.findByText(/Nenhuma conversa ainda/);
 
+  await screen.findByRole("option", { name: "Sinapse" });
+  fireEvent.change(screen.getByLabelText("Escopo da consulta"), { target: { value: "p-1" } });
   fireEvent.change(composer(), { target: { value: "Pergunta importante" } });
   fireEvent.click(screen.getByRole("button", { name: "Enviar" }));
 
@@ -148,6 +153,8 @@ it("erro 400 do servidor exibe a mensagem específica", async () => {
   vi.stubGlobal("fetch", api({ query: () => json({ error: "A pergunta pode ter no máximo 2000 caracteres." }, 400) }));
   render(<ChatView />);
   await screen.findByText(/Nenhuma conversa ainda/);
+  await screen.findByRole("option", { name: "Sinapse" });
+  fireEvent.change(screen.getByLabelText("Escopo da consulta"), { target: { value: "p-1" } });
   fireEvent.change(composer(), { target: { value: "oi" } });
   fireEvent.click(screen.getByRole("button", { name: "Enviar" }));
   expect(await screen.findByText("A pergunta pode ter no máximo 2000 caracteres.")).toBeInTheDocument();
@@ -162,6 +169,8 @@ it("marca respostas vindas de busca textual e mantém o texto padrão quando nã
   render(<ChatView />);
   await screen.findByText(/Nenhuma conversa ainda/);
 
+  await screen.findByRole("option", { name: "Sinapse" });
+  fireEvent.change(screen.getByLabelText("Escopo da consulta"), { target: { value: "p-1" } });
   fireEvent.change(composer(), { target: { value: "primeira pergunta" } });
   fireEvent.click(screen.getByRole("button", { name: "Enviar" }));
   expect(await screen.findByText("Busca textual")).toBeInTheDocument();
@@ -231,4 +240,37 @@ it("copia a resposta do assistente", async () => {
   fireEvent.click(screen.getByRole("button", { name: "Copiar resposta" }));
   await waitFor(() => expect(writeText).toHaveBeenCalledWith("Resposta **importante**"));
   expect(await screen.findByRole("button", { name: "Copiado" })).toBeInTheDocument();
+});
+
+it("permite enviar em B enquanto A responde e recupera A ao retornar", async () => {
+  let finish!: (response: Response) => void;
+  const routes: Routes = {
+    conversations: [conversation(), conversation({ id: 'c-2', titulo: 'Conversa B' })],
+    messages: { 'c-1': [message()], 'c-2': [] },
+    query: body => body.conversa_id === 'c-1'
+      ? new Promise(resolve => { finish = resolve; })
+      : json({ conversa_id: 'c-2', resposta: 'Resposta B', fontes: [], origem: 'assistente' }),
+  };
+  const request = api(routes);
+  vi.stubGlobal('fetch', request);
+  render(<ChatView />);
+  await screen.findByText('importante');
+  fireEvent.change(composer(), { target: { value: 'Pergunta A' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Enviar' }));
+  await waitFor(() => expect(finish).toBeDefined());
+  fireEvent.click(screen.getByRole('button', { name: /Conversa B/ }));
+  expect(composer()).toBeEnabled();
+  fireEvent.change(composer(), { target: { value: 'Pergunta B' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Enviar' }));
+  await screen.findByText('Resposta B');
+  fireEvent.click(screen.getByRole('button', { name: /Decisões do login/ }));
+  await screen.findByText('importante');
+  expect(composer()).toBeDisabled();
+  routes.messages!['c-1'] = [message({ conteudo: 'Resposta A concluída' })];
+  await act(async () => {
+    finish(await json({ conversa_id: 'c-1', resposta: 'Resposta A concluída', fontes: [], origem: 'assistente' }));
+  });
+  expect(await screen.findByText('Resposta A concluída')).toBeInTheDocument();
+  expect(screen.queryByText('Resposta B')).not.toBeInTheDocument();
+  expect(composer()).toBeEnabled();
 });

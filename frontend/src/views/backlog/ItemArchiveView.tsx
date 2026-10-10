@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { apiRequest, ApiError } from "../../api/api_auth";
+import { ApiError, apiRequest } from "../../api/api_auth";
+import { Button } from "../common/ui";
 type ArchiveImpact = { epicos: number; features: number; pbis: number };
 type Item = { id: string; titulo: string; status: string };
 
@@ -36,15 +37,15 @@ export function ItemArchiveView({ project, kind, canWrite, onArchived }: { proje
     } finally { pending.current = false; if (mounted.current) setBusy(false); }
   }
   return <div className="project-actions">
-    <button className="btn-secondary" disabled={busy} onClick={preview}>{busy ? "Processando…" : "Arquivar item"}</button>
+    <Button variant="secondary" disabled={busy} onClick={preview}>{busy ? "Processando…" : "Arquivar item"}</Button>
     {error && <p role="alert">{error}</p>}
     <dialog className="archive-dialog" ref={dialog} aria-labelledby="archive-title" onCancel={event => { if (busy) event.preventDefault(); else setImpact(null); }}>
       <h2 id="archive-title">Arquivar {project.titulo}?</h2>
       {impact && <><p>Serão arquivados {impact.epicos} épico(s), {impact.features} feature(s) e {impact.pbis} PBI(s).</p>
         <p>Os registros serão preservados para consulta. Os itens já arquivados manterão suas datas.</p></>}
       {busy && <p role="status">Arquivando…</p>}
-      <div className="project-actions"><button className="btn-secondary" autoFocus disabled={busy} onClick={close}>Cancelar</button>
-        <button className="btn-primary" disabled={busy || !impact} onClick={confirm}>Confirmar arquivamento</button></div>
+      <div className="project-actions"><Button variant="secondary" autoFocus disabled={busy} onClick={close}>Cancelar</Button>
+        <Button variant="primary" disabled={busy || !impact} onClick={confirm}>Confirmar arquivamento</Button></div>
     </dialog>
   </div>;
 }

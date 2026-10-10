@@ -3,6 +3,9 @@ import math
 import os
 import re
 import shutil
+import signal
+import sys
+import tempfile
 import subprocess
 import threading
 import time
@@ -21,10 +24,14 @@ from .prompts import (
     project_synthesis_prompt,
     single_chunk_prompt,
 )
-from .scanner import scan_repository, select_analysis_files
+from .scanner import scan_repository, select_analysis_files, read_repository_text
 
 
 class AnalysisError(RuntimeError):
+    pass
+
+
+class AnalysisBusy(AnalysisError):
     pass
 
 
@@ -66,9 +73,23 @@ class Analyzer:
         self.runs: dict[str, RunState] = {}
         self.lock = threading.Lock()
         self.checkpoint_lock = threading.Lock()
+        self.admission_lock = threading.RLock()
+        self.worker_slots = threading.BoundedSemaphore(settings.max_active_runs)
         self._restore_runs()
 
-    def start(self, url: str, profile: str = "quick") -> str:
+    def start(self, url: str, profile: str = "quick", run_id: str | None = None) -> str:
+        with self.admission_lock:
+            return self._start(url, profile, run_id)
+
+    def _check_capacity(self):
+        with self.lock:
+            active = sum(s.status in {"queued", "running", "pausing", "cancelling"} for s in self.runs.values())
+        if active >= self.settings.max_active_runs + self.settings.max_queued_runs:
+            raise AnalysisBusy("Fila de análises cheia. Tente novamente mais tarde.")
+        if self._directory_size(self.settings.workspace_dir) >= self.settings.workspace_quota_mb * 1024**2:
+            raise AnalysisBusy("Cota de armazenamento das análises atingida.")
+
+    def _start(self, url: str, profile: str, run_id: str | None) -> str:
         normalized_url = self._normalize_github_url(url)
         if not normalized_url:
             raise AnalysisError(
@@ -79,32 +100,74 @@ class Analyzer:
         if profile not in {"quick", "balanced", "complete"}:
             raise AnalysisError("Perfil inválido. Use quick, balanced ou complete.")
 
-        run_id = uuid.uuid4().hex[:12]
+        run_id = run_id or uuid.uuid4().hex[:12]
+        if not re.fullmatch(r"[A-Za-z0-9-]{1,64}", run_id):
+            raise AnalysisError("Identificador de execução inválido.")
+        existing = self.runs.get(run_id) or self._load_persisted_run(run_id)
+        if existing:
+            if existing.url != normalized_url or existing.profile != profile:
+                raise AnalysisError("Identificador já usado para outra solicitação.")
+            return run_id
+        self._check_capacity()
         state = RunState(run_id=run_id, url=normalized_url, status="queued", profile=profile)
         with self.lock:
             self.runs[run_id] = state
-        self._persist_checkpoint(state)
+        try:
+            self._persist_checkpoint(state)
+        except Exception:
+            with self.lock:
+                self.runs.pop(run_id, None)
+            raise
         self._start_worker(state)
         return run_id
 
     def _start_worker(self, state: RunState) -> None:
-        thread = threading.Thread(target=self._run, args=(state.run_id,), daemon=True)
+        thread = threading.Thread(target=self._queued_run, args=(state.run_id,), daemon=True)
         state.worker_thread = thread
         thread.start()
 
+    def _queued_run(self, run_id: str):
+        acquired = False
+        try:
+            while not acquired:
+                self._check_control(run_id)
+                acquired = self.worker_slots.acquire(timeout=0.1)
+            self._check_control(run_id)
+            self._run(run_id)
+        except AnalysisPaused:
+            self._push(run_id, status="paused", message="Análise pausada na fila.")
+        except AnalysisCancelled:
+            self._push(run_id, status="cancelled", message="Análise cancelada na fila.")
+        finally:
+            if acquired:
+                self.worker_slots.release()
+
     def pause(self, run_id: str) -> dict:
         state = self._get_run(run_id)
-        if state.status not in {"queued", "running"}:
-            raise AnalysisError("Só é possível pausar uma análise em andamento.")
-        self._push(run_id, status="pausing", message="Aguardando concluir a etapa atual para salvar o progresso…")
-        state.pause_event.set()
+        with self.lock:
+            if state.status not in {"queued", "running"}:
+                raise AnalysisError("Só é possível pausar uma análise em andamento.")
+            state.status = "pausing"
+            state.message = "Aguardando concluir a etapa atual para salvar o progresso…"
+            state.pause_event.set()
+            state.stats = self._snapshot(state)
+        self._persist_checkpoint(state)
         return self.status(run_id)
 
     def resume(self, run_id: str) -> dict:
+        with self.admission_lock:
+            return self._resume(run_id)
+
+    def _resume(self, run_id: str) -> dict:
         state = self._get_run(run_id)
+        if state.status in {"queued", "running", "completed"}:
+            return self.status(run_id)
         has_progress = bool(state.completed_summaries or state.partial_chunk_summaries or state.project_summary)
         if state.status != "paused" and not (state.status == "failed" and has_progress):
             raise AnalysisError("A análise não está pausada ou não possui progresso recuperável.")
+        if state.worker_thread and state.worker_thread.is_alive():
+            raise AnalysisError("Aguarde o encerramento da etapa atual antes de retomar.")
+        self._check_capacity()
         state.pause_event.clear()
         state.cancel_event.clear()
         self._push(run_id, status="queued", error="", message="Retomando do último ponto salvo…")
@@ -113,14 +176,16 @@ class Analyzer:
 
     def cancel(self, run_id: str) -> dict:
         state = self._get_run(run_id)
-        if state.status not in {"queued", "running", "pausing", "paused"}:
-            raise AnalysisError("Só é possível cancelar uma análise não finalizada.")
-        was_paused = state.status == "paused"
-        state.pause_event.clear()
-        self._push(run_id, status="cancelling", message="Cancelamento solicitado. A chamada atual ao modelo será concluída.")
-        state.cancel_event.set()
-        if was_paused:
-            self._push(run_id, status="cancelled", message="Análise cancelada pelo usuário.", current_files=[])
+        with self.admission_lock:
+            with self.lock:
+                if state.status not in {"cancelled", "cancelling", "completed", "failed"}:
+                    was_paused = state.status == "paused"
+                    state.pause_event.clear()
+                    state.cancel_event.set()
+                    state.status = "cancelled" if was_paused else "cancelling"
+                    state.message = "Cancelamento solicitado."
+                    state.stats = self._snapshot(state)
+            self._persist_checkpoint(state)
         return self.status(run_id)
 
     def _get_run(self, run_id: str) -> RunState:
@@ -175,6 +240,8 @@ class Analyzer:
                 continue
 
     def _load_persisted_run(self, run_id: str) -> RunState | None:
+        if not re.fullmatch(r"[A-Za-z0-9-]{1,64}", run_id):
+            raise AnalysisError("Identificador de execução inválido.")
         checkpoint_path = self.settings.workspace_dir / "runs" / run_id / "checkpoint.json"
         if checkpoint_path.exists():
             try:
@@ -448,9 +515,14 @@ class Analyzer:
             run_dir.mkdir(parents=True, exist_ok=True)
 
             self._check_control(run_id)
-            if not repo_dir.exists():
+            clone_marker = run_dir / "clone.complete"
+            if not repo_dir.exists() or not clone_marker.exists():
+                state.completed_summaries.clear()
+                state.partial_chunk_summaries.clear()
+                state.project_summary = ""
                 self._push(run_id, stage="clone", message="Clonando repositório (raso, 1 commit)...")
                 self._clone(state.url, repo_dir)
+                clone_marker.write_text("complete", encoding="utf-8")
 
             size_mb = self._directory_size(repo_dir) / (1024 * 1024)
             if size_mb > self.settings.max_repo_size_mb:
@@ -639,15 +711,7 @@ class Analyzer:
         succeeded = False
         try:
             path = repo_dir / info.path
-            raw = path.read_bytes()
-            if raw.startswith((b"\x00\x00\xfe\xff", b"\xff\xfe\x00\x00")):
-                text = raw.decode("utf-32", errors="replace")
-            elif raw.startswith((b"\xff\xfe", b"\xfe\xff")):
-                text = raw.decode("utf-16", errors="replace")
-            elif raw.startswith(b"\xef\xbb\xbf"):
-                text = raw.decode("utf-8-sig", errors="replace")
-            else:
-                text = raw.decode("utf-8", errors="replace")
+            text = read_repository_text(repo_dir.resolve(), path.absolute(), self.settings.max_file_size_kb * 1024)
             chunks = self._chunks(text, self.settings.max_chunk_chars)
             symbols_json = json.dumps(info.symbols, ensure_ascii=False)
             state = self.runs[run_id]
@@ -769,32 +833,36 @@ class Analyzer:
 
         destination.parent.mkdir(parents=True, exist_ok=True)
 
-        try:
-            result = subprocess.run(
-                [
-                    "git", "clone",
-                    "--depth", "1",
-                    "--single-branch",
-                    "--no-tags",
-                    url,
-                    str(destination),
-                ],
-                capture_output=True,
-                text=True,
-                timeout=300,
-            )
-        except FileNotFoundError as exc:
-            raise AnalysisError(
-                "Git não foi encontrado no PATH. Instale o Git e tente novamente."
-            ) from exc
-        except subprocess.TimeoutExpired as exc:
-            raise AnalysisError("O clone excedeu o tempo limite.") from exc
-
-        if result.returncode != 0:
-            raise AnalysisError(
-                "Falha ao clonar o repositório:\n" +
-                (result.stderr.strip() or result.stdout.strip())
-            )
+        run_id = destination.parent.name
+        command = [sys.executable, "-m", "analyzer.limited_git", str(self.settings.max_repo_size_mb),
+                   str(self.settings.clone_memory_mb), str(self.settings.clone_timeout_seconds),
+                   "clone", "--depth", "1", "--single-branch", "--no-tags", url, str(destination)]
+        started = time.monotonic()
+        with tempfile.TemporaryFile() as output:
+            process = subprocess.Popen(command, stdout=output, stderr=output, start_new_session=True,
+                                       env={**os.environ, "GIT_TERMINAL_PROMPT": "0", "GIT_LFS_SKIP_SMUDGE": "1"})
+            try:
+                while process.poll() is None:
+                    if run_id in self.runs:
+                        self._check_control(run_id)
+                    if time.monotonic() - started > self.settings.clone_timeout_seconds:
+                        raise AnalysisError("O clone excedeu o tempo limite.")
+                    if self._directory_size(destination) > self.settings.max_repo_size_mb * 1024**2:
+                        raise AnalysisError("O clone excedeu a cota de disco por repositório.")
+                    if self._directory_size(self.settings.workspace_dir) > self.settings.workspace_quota_mb * 1024**2:
+                        raise AnalysisError("O clone excedeu a cota global de disco.")
+                    time.sleep(0.1)
+                if process.returncode != 0:
+                    raise AnalysisError("Falha ao clonar o repositório ou limite de recursos atingido.")
+                if self._directory_size(destination) > self.settings.max_repo_size_mb * 1024**2:
+                    raise AnalysisError("O clone excedeu a cota de disco por repositório.")
+            except BaseException:
+                if process.poll() is None:
+                    os.killpg(process.pid, signal.SIGKILL)
+                process.wait()
+                if destination.exists():
+                    shutil.rmtree(destination)
+                raise
 
     @staticmethod
     def _directory_size(path: Path) -> int:

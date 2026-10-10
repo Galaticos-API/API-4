@@ -22,6 +22,7 @@ export interface ChatMessage {
   remetente: "user" | "assistant" | "system";
   conteudo: string;
   fontes_json: ChatSource[];
+  processing_status?: "pending" | "completed" | "failed";
   created_at: string;
 }
 

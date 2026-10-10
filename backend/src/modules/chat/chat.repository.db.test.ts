@@ -25,10 +25,24 @@ test("chat: posse da conversa e busca textual isolada por projeto no PostgreSQL"
 
     const found = await repository.searchChunks(projectA, searchPatterns("Como funciona o arquivamento?"), 5);
     assert.deepEqual(found.map((item) => item.id), [chunkA]);
-    const unscoped = await repository.searchChunks(null, searchPatterns("arquivamento"), 5);
-    assert.deepEqual(unscoped.map((item) => item.id).sort(), [chunkA, chunkB].sort());
+    await assert.rejects(service.query(ana, { pergunta: "arquivamento" }), /Escolha um projeto/);
     assert.deepEqual(await repository.searchChunks(projectA, searchPatterns("inexistente"), 5), []);
     assert.deepEqual(await repository.searchChunks(projectA, [], 5), []);
+
+    // An unallocated developer cannot query a project, including via an old conversation.
+    await pool.query("UPDATE usuario SET role='dev' WHERE id=$1",[bruno]);
+    assert.equal(await repository.projectExists(projectA,bruno),false);
+    await assert.rejects(service.query(bruno,{pergunta:"arquivamento",projetoId:projectA}),NotFoundError);
+    const developer = (await pool.query("INSERT INTO desenvolvedor(usuario_id) VALUES($1) RETURNING id",[bruno])).rows[0].id;
+    await pool.query("INSERT INTO alocacao(desenvolvedor_id,projeto_id) VALUES($1,$2)",[developer,projectA]);
+    assert.equal(await repository.projectExists(projectA,bruno),true);
+    assert.equal(await repository.projectExists(projectB,bruno),false);
+    assert.deepEqual((await repository.accessibleProjects(bruno)).map(p=>p.id),[projectA]);
+
+    // S2-06 trocou a busca por uma versao hibrida (vetor + full-text) com API
+    // propria em search.*. Esses asserts foram substituidos pelos testes
+    // dedicados em search.repository.db.test.ts, search.repository.test.ts
+    // e search.routes.test.ts.
 
     const result = await service.query(ana, { pergunta: "Como funciona o arquivamento?", projetoId: projectA });
     assert.equal(result.origem, "busca_textual");
@@ -38,6 +52,12 @@ test("chat: posse da conversa e busca textual isolada por projeto no PostgreSQL"
     await assert.rejects(service.query(bruno, { pergunta: "invasão", conversaId: result.conversa_id }), NotFoundError);
     const messages = await service.listMessages(ana, result.conversa_id);
     assert.deepEqual(messages.map((item) => item.remetente), ["user", "assistant"]);
+    const pending = await repository.addMessage(result.conversa_id,"user","Outra pergunta");
+    await assert.rejects(repository.addMessage(result.conversa_id,"user","Concorrente"), /Aguarde/);
+    await assert.rejects(repository.finishMessage(result.conversa_id,pending,"Inválido\u0000",[]));
+    assert.equal((await repository.listMessages(result.conversa_id)).find(m=>m.id===pending)?.processing_status,"pending");
+    await repository.failMessage(pending);
+    assert.equal((await repository.listMessages(result.conversa_id)).find(m=>m.id===pending)?.processing_status,"failed");
     assert.equal((await service.listConversations(bruno)).length, 0);
     assert.equal((await service.listConversations(ana))[0].projeto_nome, projectA);
   } finally {

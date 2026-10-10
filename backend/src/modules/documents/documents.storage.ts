@@ -1,12 +1,13 @@
-import { access, mkdir, readdir, rename, rm, stat, writeFile } from "node:fs/promises";
+import { access, mkdir, readFile, readdir, rename, rm, stat, writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 
-const STORAGE_KEY = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+const STORAGE_KEY = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?:\.(?:pdf|docx|md|txt))?$/;
 const STAGING_SUFFIX = ".removing";
 const UPLOAD_SUFFIX = ".uploading";
 
 export interface DocumentStorage {
   save(key: string, content: Buffer): Promise<void>;
+  read(key: string): Promise<Buffer>;
   finalizeUpload(key: string): Promise<void>;
   remove(key: string): Promise<void>;
   stageRemoval(key: string): Promise<boolean>;
@@ -33,7 +34,7 @@ export class LocalDocumentStorage implements DocumentStorage {
 
   async save(key: string, content: Buffer): Promise<void> {
     const path = this.pathOf(key);
-    await mkdir(dirname(path), { recursive: true });
+    await mkdir(dirname(path), { recursive: true, mode: 0o755 });
     try {
       await access(path);
       const duplicate = new Error("Arquivo já existe.") as NodeJS.ErrnoException;
@@ -42,7 +43,9 @@ export class LocalDocumentStorage implements DocumentStorage {
     } catch (error) {
       if (!isMissing(error)) throw error;
     }
-    await writeFile(`${path}${UPLOAD_SUFFIX}`, content, { flag: "wx", mode: 0o600 });
+    // 0o644 (não 0o600): o volume /files é compartilhado com o container do n8n,
+    // que roda como o usuário não-root "node" e precisa ler o arquivo para a ingestão.
+    await writeFile(`${path}${UPLOAD_SUFFIX}`, content, { flag: "wx", mode: 0o644 });
   }
 
   async finalizeUpload(key: string): Promise<void> {
@@ -55,6 +58,10 @@ export class LocalDocumentStorage implements DocumentStorage {
       // is successful when the final file is already present.
       await access(path);
     }
+  }
+
+  async read(key: string): Promise<Buffer> {
+    return readFile(this.pathOf(key));
   }
 
   async remove(key: string): Promise<void> {
@@ -120,7 +127,8 @@ export class LocalDocumentStorage implements DocumentStorage {
             : null;
         if (!suffix) continue;
         const name = file.name.slice(0, -suffix.length);
-        if (!/^[0-9a-f-]{36}$/.test(name)) continue;
+        // Allow UUID or UUID.extension pattern
+        if (!/^[0-9a-f-]{36}(?:\.[a-z0-9]+)?$/.test(name)) continue;
         const key = `${project.name}/${name}`;
         const filePath = join(directory, file.name);
         const fileInfo = await stat(filePath).catch(() => null);

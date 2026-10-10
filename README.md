@@ -63,6 +63,10 @@ A primeira sprint teve como objetivo construir a **base funcional do Sinapse** e
 
 📌 [Planejamento completo da Sprint](docs/PLANEJAMENTO_SCRUM.md)
 
+### 📍 Estado atual do trabalho
+
+A Sprint 1 foi concluída em **27/09/2026**. A Sprint 2 está planejada para **05/10 a 25/10/2026**. A implementação candidata de ingestão, busca e avaliação está em [PR de revisão](https://github.com/Galaticos-API/API-4/pull/44) e ainda não foi aceita: o baseline encontrou latência acima de 2 s e pendências de relevância (Q008 e Q022). Veja o [registro QA](docs/STATUS_REVISAO_2026-10-02.md) para evidências, limites e próximos passos.
+
 ---
 
 ## 🖥️ Conheça o Sinapse
@@ -229,6 +233,8 @@ Permite registrar decisões relacionadas aos elementos do projeto, mantendo o co
 
 Documentos podem ser associados aos projetos e posteriormente consultados ou removidos.
 
+📖 [Guia completo de upload de documentos](docs/DOCUMENT_UPLOAD.md)
+
 ---
 
 ### 👥 Usuários e permissões
@@ -289,6 +295,8 @@ cp .env.example .env
 
 ```powershell
 Copy-Item .env.example .env
+# Gere com: python -c "import secrets; print(secrets.token_hex(32))"
+# Cole o resultado na variável DOCUMENT_INGESTION_TOKEN dentro do arquivo .env
 ```
 
 ---
@@ -298,6 +306,8 @@ Copy-Item .env.example .env
 ```bash
 docker compose up --build -d
 ```
+
+O Compose exige esse segredo compartilhado pelo backend e pelo serviço local de IA; não há mais token padrão no código.
 
 Verifique os containers:
 
@@ -426,3 +436,8 @@ O **Sinapse** é um **Projeto de Aprendizagem Interdisciplinar (API)** desenvolv
 **Grupo Galáticos · Fatec São José dos Campos · 2026**
 
 </div>
+
+
+### Segredo da comunicação interna
+
+Antes de iniciar o Compose, configure `AI_SERVICE_TOKEN` em `.env` com um segredo aleatório (por exemplo, 32 bytes gerados com `crypto.randomBytes` do Node). Não versione o valor. O mesmo segredo é usado pelo backend e pelo serviço Python. A porta 8000 não é publicada; acessos ao Python passam pelo backend e pelo workflow autenticado descrito em [n8n/README.md](n8n/README.md).

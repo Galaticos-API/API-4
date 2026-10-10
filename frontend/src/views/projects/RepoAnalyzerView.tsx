@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ApiError } from "../../api/api_auth";
 import { serverMessage } from "../../api/api_errors";
+import { controlRepoAnalysis, type RepoAnalysisAction, type RepoAnalysisProfile, listRepoAnalyses, startRepoAnalysis, type RepoAnalysis } from "../../api/api_repo_analyzer";
+import "../../assets/styles/repo-analyzer.css";
 import {
   ANALYSIS_STAGES,
   STATUS_VIEW,
@@ -13,10 +15,8 @@ import {
   stageStates,
   validateRepositoryUrl,
 } from "../../models/repoAnalyzer";
-import { controlRepoAnalysis, listRepoAnalyses, startRepoAnalysis, type RepoAnalysis, type RepoAnalysisAction, type RepoAnalysisProfile } from "../../projects/repo-analyzer.api";
-import { Alert, Badge, Button, EmptyState, Field, Progress } from "../common/ui";
 import { Markdown } from "../common/Markdown";
-import "../../assets/styles/repo-analyzer.css";
+import { Alert, Badge, Button, EmptyState, Field, Progress } from "../common/ui";
 
 const POLL_INTERVAL_MS = 4000;
 
@@ -72,6 +72,7 @@ export function RepoAnalyzerView({ projectId, canStart = true }: { projectId: st
   const [controlBusy, setControlBusy] = useState(false);
   const [controlError, setControlError] = useState("");
   const startingRef = useRef(false);
+  const requestKey = useRef<{ input: string; key: string } | null>(null);
   const mounted = useRef(true);
   const requestId = useRef(0);
 
@@ -104,7 +105,7 @@ export function RepoAnalyzerView({ projectId, canStart = true }: { projectId: st
     void refresh(false);
   }, [refresh]);
 
-  const hasActive = analyses.some(isActive);
+  const hasActive = analyses.some(item => isActive(item) || (item.status === "concluido" && !item.relatorio_markdown));
   const now = useNow(hasActive);
 
   useEffect(() => {
@@ -119,7 +120,10 @@ export function RepoAnalyzerView({ projectId, canStart = true }: { projectId: st
     setStarting(true);
     setStartError("");
     try {
-      const created = await startRepoAnalysis(projectId, url, selectedProfile);
+      const input = JSON.stringify([projectId, url, selectedProfile]);
+      if (requestKey.current?.input !== input) requestKey.current = { input, key: crypto.randomUUID() };
+      const created = await startRepoAnalysis(projectId, url, selectedProfile, undefined, requestKey.current.key);
+      requestKey.current = null;
       if (!mounted.current) return;
       setRepoUrl("");
       setAnalyses((previous) => [created, ...previous.filter((item) => item.id !== created.id)]);
@@ -175,7 +179,7 @@ export function RepoAnalyzerView({ projectId, canStart = true }: { projectId: st
       </header>
 
       {canStart ? (
-        <form className="card-garakis repo-analyzer-form" onSubmit={submit} noValidate>
+        <form className="ds-card repo-analyzer-form" onSubmit={submit} noValidate>
           <Field label="URL do repositório" error={urlError} help="Exemplo: https://github.com/usuario/repositorio">
             <input
               className="ds-input"
@@ -203,10 +207,10 @@ export function RepoAnalyzerView({ projectId, canStart = true }: { projectId: st
       )}
       {startError && <Alert tone="danger" role="alert" title="Não foi possível iniciar a análise">{startError}</Alert>}
 
-      {load.state === "loading" && <div className="card-garakis repo-analyzer-state" role="status">Carregando análises…</div>}
+      {load.state === "loading" && <div className="ds-card repo-analyzer-state" role="status">Carregando análises…</div>}
 
       {load.state === "error" && (
-        <div className="card-garakis repo-analyzer-state">
+        <div className="ds-card repo-analyzer-state">
           <p role="alert">{load.message}</p>
           <Button variant="secondary" onClick={() => void refresh(false)}>Tentar novamente</Button>
         </div>
@@ -214,7 +218,7 @@ export function RepoAnalyzerView({ projectId, canStart = true }: { projectId: st
 
       {load.state === "ready" && (
         <div className="repo-analyzer-layout">
-          <aside className="card-garakis analysis-history" aria-label="Histórico de análises">
+          <aside className="ds-card analysis-history" aria-label="Histórico de análises">
             <div className="analysis-history-header">
               <h3>Histórico</h3>
               <Button variant="ghost" size="sm" disabled={refreshing} aria-busy={refreshing} onClick={() => void refresh(true)}>
@@ -223,7 +227,7 @@ export function RepoAnalyzerView({ projectId, canStart = true }: { projectId: st
             </div>
             {pollFailed && <Alert tone="warning">Não foi possível atualizar agora. Tentaremos novamente em instantes.</Alert>}
             {analyses.length === 0 ? (
-              <p className="help">Nenhuma análise realizada neste projeto.</p>
+              <p className="ds-help">Nenhuma análise realizada neste projeto.</p>
             ) : (
               <ul className="analysis-list">
                 {analyses.map((item) => {
@@ -249,7 +253,7 @@ export function RepoAnalyzerView({ projectId, canStart = true }: { projectId: st
             )}
           </aside>
 
-          <div className="card-garakis analysis-details" aria-live="polite">
+          <div className="ds-card analysis-details" aria-live="polite">
             {selected ? (
               <AnalysisDetails
                 analysis={selected}
@@ -314,7 +318,7 @@ function AnalysisDetails({ analysis, now, canRetry, canControl, controlBusy, con
           <h3>
             <a href={analysis.repositorio_url} target="_blank" rel="noopener noreferrer">{repositoryLabel(analysis.repositorio_url)}</a>
           </h3>
-          <p className="help">
+          <p className="ds-help">
             Iniciada em {formatDateTime(analysis.created_at)}
             {analysis.autor_nome ? ` por ${analysis.autor_nome}` : ""}
             {duration !== null ? ` · duração ${formatDuration(duration)}` : ""}
@@ -342,9 +346,9 @@ function AnalysisDetails({ analysis, now, canRetry, canControl, controlBusy, con
             <span>{progress}%</span>
           </div>
           <Progress value={progress} label="Progresso da análise" />
-          {analysis.mensagem && <p className="help">{analysis.mensagem}</p>}
+          {analysis.mensagem && <p className="ds-help">{analysis.mensagem}</p>}
           {stats.filesTotal !== null && stats.filesProcessed !== null && (
-            <p className="help">
+            <p className="ds-help">
               {stats.filesProcessed} de {stats.filesTotal} arquivos analisados
               {typeof analysis.metadados?.files_candidates === "number" && analysis.metadados.files_candidates > stats.filesTotal
                 ? ` · ${analysis.metadados.files_candidates - stats.filesTotal} fora do escopo` : ""}
@@ -364,9 +368,9 @@ function AnalysisDetails({ analysis, now, canRetry, canControl, controlBusy, con
               )}
             </div>
           )}
-          {analysis.status === "pausando" && <p className="help" role="status">A pausa será aplicada após a chamada atual ao modelo.</p>}
-          {analysis.status === "cancelando" && <p className="help" role="status">O cancelamento será aplicado após a chamada atual ao modelo.</p>}
-          {analysis.status === "falha" && canResume && <p className="help" role="status">O checkpoint preservou os arquivos já concluídos; você pode continuar sem analisá-los novamente.</p>}
+          {analysis.status === "pausando" && <p className="ds-help" role="status">A pausa será aplicada após a chamada atual ao modelo.</p>}
+          {analysis.status === "cancelando" && <p className="ds-help" role="status">O cancelamento será aplicado após a chamada atual ao modelo.</p>}
+          {analysis.status === "falha" && canResume && <p className="ds-help" role="status">O checkpoint preservou os arquivos já concluídos; você pode continuar sem analisá-los novamente.</p>}
         </div>
       )}
       {controlError && <Alert tone="danger" role="alert">{controlError}</Alert>}
@@ -391,7 +395,7 @@ function AnalysisDetails({ analysis, now, canRetry, canControl, controlBusy, con
       )}
 
       {analysis.status === "concluido" && !report && (
-        <Alert tone="warning">A análise foi concluída, mas o relatório ainda não está disponível. Use Atualizar em instantes.</Alert>
+        <Alert tone="warning">A análise foi concluída, mas o relatório ainda não está disponível. A recuperação será tentada novamente automaticamente.</Alert>
       )}
 
       {analysis.status === "concluido" && report && (

@@ -1,0 +1,451 @@
+# Upload de Documentos - Guia para Desenvolvedores
+
+## Visão Geral
+
+O sistema Sinapse permite que usuários façam upload de documentos (PDF, DOCX, MD, TXT) associados a projetos. Após o upload, os documentos são processados pelo pipeline RAG para indexação e busca semântica.
+
+## Arquitetura
+
+```
+Frontend/Cliente
+    ↓
+Backend (Node.js/Express)
+    ↓
+Storage Compartilhado (./storage:/files)
+    ↓
+PostgreSQL (metadados)
+    ↓
+n8n Webhook
+    ↓
+Pipeline RAG (AI Service)
+```
+
+### Componentes
+
+| Componente | Tecnologia | Função |
+|-----------|-----------|--------|
+| **Frontend** | React 19 | Interface para upload de arquivos |
+| **Backend** | Node.js 20 + Express | API REST, validação, armazenamento |
+| **Storage** | Bind mount `./storage:/files` | Armazenamento compartilhado entre backend e n8n |
+| **PostgreSQL** | PostgreSQL 16 + pgvector | Metadados dos documentos |
+| **n8n** | n8n latest | Orquestrador de workflows de ingestão |
+| **AI Service** | Python 3.11 + FastAPI | Processamento RAG e embeddings |
+
+## Estrutura de Armazenamento
+
+Os arquivos são salvos no storage compartilhado com a seguinte estrutura:
+
+```
+./storage/
+└── {projectId}/
+    └── {documentId}.{extensao}
+```
+
+**Exemplo:**
+```
+./storage/
+└── a0000000-0000-4000-8000-000000000001/
+    └── c0000000-0000-4000-8000-000000000001.pdf
+```
+
+### Extensões Suportadas
+
+- `.pdf` - Documentos PDF
+- `.docx` - Documentos Word
+- `.md` - Markdown
+- `.txt` - Texto puro
+
+## API de Upload
+
+### Endpoint
+
+```
+POST /api/v1/projects/{projectId}/documents
+```
+
+### Headers
+
+```
+Authorization: Bearer {token}
+Content-Type: multipart/form-data
+```
+
+### Body (multipart/form-data)
+
+| Campo | Tipo | Obrigatório | Descrição |
+|-------|------|-------------|-----------|
+| `file` | File | Sim | Arquivo a ser enviado |
+
+### Resposta de Sucesso (201)
+
+```json
+{
+  "id": "c0000000-0000-4000-8000-000000000001",
+  "projeto_id": "a0000000-0000-4000-8000-000000000001",
+  "nome": "documento.pdf",
+  "extensao": ".pdf",
+  "mime": "application/pdf",
+  "tamanho_bytes": 123456,
+  "status_processamento": "pendente",
+  "armazenamento_pendente": false,
+  "autor_id": "b0000000-0000-4000-8000-000000000001",
+  "autor_nome": "Ana PO",
+  "created_at": "2026-10-02T15:30:00.000Z",
+  "updated_at": "2026-10-02T15:30:00.000Z"
+}
+```
+
+### Respostas de Erro
+
+| Código | Descrição |
+|-------|-----------|
+| 400 | Arquivo inválido, vazio ou formato não suportado |
+| 403 | Sem permissão de escrita (perfil dev) |
+| 404 | Projeto não encontrado |
+| 409 | Projeto arquivado (somente leitura) |
+| 413 | Arquivo acima do limite configurado (default: 20MB) |
+
+## Fluxo de Processamento
+
+### 1. Upload do Arquivo
+
+O usuário envia o arquivo via frontend para o endpoint do backend.
+
+### 2. Validação
+
+O backend valida:
+- Tamanho do arquivo (limite configurado via `DOCUMENT_MAX_SIZE_MB`)
+- Extensão do arquivo (deve ser .pdf, .docx, .md ou .txt)
+- Conteúdo do arquivo (correspondência entre extensão e MIME real)
+- Nome do arquivo (sanitização para path traversal)
+
+### 3. Armazenamento
+
+O arquivo é salvo no storage compartilhado:
+- Caminho: `{projectId}/{documentId}.{extensao}`
+- Processo atômico com staging (`.{extensao}.uploading`)
+- Finalização via rename para garantir consistência
+
+### 4. Registro no PostgreSQL
+
+Os metadados são registrados na tabela `documento`:
+- `id`: UUID do documento
+- `projeto_id`: UUID do projeto
+- `nome`: Nome original do arquivo
+- `extensao`: Extensão do arquivo
+- `mime`: Tipo MIME detectado
+- `tamanho_bytes`: Tamanho em bytes
+- `caminho`: Caminho no storage
+- `usuario_id`: UUID do usuário que fez upload
+- `status_processamento`: `pendente` (inicial)
+
+### 5. Webhook n8n
+
+Após armazenamento bem-sucedido, o backend chama o webhook do n8n:
+
+**URL (do container backend):** `POST http://n8n:5678/webhook/sinapse-ingest`
+**URL (local):** `POST http://localhost:5678/webhook/sinapse-ingest`
+
+**Importante:** sempre use `/webhook/` (produção), em qualquer ambiente, para a chamada automática do backend.
+O endpoint `/webhook-test/` só responde a **uma única chamada manual** feita logo após clicar em
+"Execute workflow" no editor do n8n — ele não fica escutando de verdade. Usá-lo como `N8N_WEBHOOK_URL`
+funciona enquanto alguém testa com o editor aberto, mas falha com `404 - webhook not registered` assim
+que o backend chama o webhook sem um humano armando o teste no editor antes. Para que `/webhook/`
+responda, o workflow precisa estar **ativado** (veja "Ativação do Workflow" abaixo).
+
+**Configuração:**
+- Defina `N8N_WEBHOOK_URL` no `.env` ou docker-compose.yml
+- Default: `http://n8n:5678/webhook/sinapse-ingest`
+
+**Payload:**
+```json
+{
+  "documentId": "c0000000-0000-4000-8000-000000000001",
+  "projectId": "a0000000-0000-4000-8000-000000000001",
+  "filename": "documento.pdf",
+  "storagePath": "a0000000-0000-4000-8000-000000000001/c0000000-0000-4000-8000-000000000001.pdf"
+}
+```
+
+### 6. Processamento RAG
+
+O workflow n8n (`Sinapse - RAG Ingestão / Chat de teste`) encadeia:
+1. **Normalizar entrada** → extrai `documentId`, `projectId`, `filename`, `storagePath` do payload do webhook.
+2. **Ler arquivo de /files** → lê o binário do storage compartilhado.
+3. **Extrair PDF / CSV / texto** (switch por extensão) + **Consolidar texto**.
+4. **Chunking (ai-service)** → `POST http://ai-service:8000/chunk` com `{document_id, project_id, filename, text}`;
+   resposta: `{chunks: [{index, content, metadata}]}`.
+5. **Embeddings bge-m3 (ai-service)** → `POST http://ai-service:8000/embed` com `{model, texts: [...]}`;
+   resposta: `{model, dimension, embeddings: [[1024 floats], ...]}`.
+6. **Montar e validar chunks** → casa cada embedding ao chunk correspondente e valida 1024d.
+7. **Persistir chunks (backend)** → `POST http://backend:3001/api/v1/projects/{projectId}/documents/{documentId}/chunks`
+   com `{chunks: [{chunk_index, content, metadata, embedding}]}`. Essa chamada é **server-to-server** e
+   autentica com `Authorization: Bearer $N8N_INGEST_TOKEN` (nunca sessão de usuário). O backend substitui
+   quaisquer chunks anteriores do documento (reindexação idempotente), persiste em `chunk` com `vector(1024)`
+   e marca `status_processamento = 'processado'`.
+8. **Resposta HTTP** confirma o recebimento ao backend que chamou o webhook.
+
+Toda a persistência em `chunk` passa pelo backend Node — o ai-service só gera conteúdo
+(chunking + embeddings), nunca grava direto, conforme AGENTS.md §12 ("Node.js como único
+escritor persistente").
+
+**Credencial `Header Auth` no n8n:** `Name = Authorization`, `Value = Bearer <N8N_INGEST_TOKEN>`.
+
+## Exemplos de Requisição
+
+### Testar Webhook n8n Diretamente
+
+Para testar o webhook do n8n sem fazer upload pelo backend:
+
+```bash
+curl -X POST http://localhost:5678/webhook/sinapse-ingest \
+  -H "Content-Type: application/json" \
+  -d '{
+    "documentId": "test-001",
+    "projectId": "760bf960-d302-4219-aba5-0e29f7eb03b5",
+    "filename": "documento.pdf",
+    "storagePath": "760bf960-d302-4219-aba5-0e29f7eb03b5/test.pdf"
+  }'
+```
+
+**Nota:** o workflow precisa estar ativado para que `/webhook/` responda (veja "Ativação do Workflow"
+abaixo). Use `/webhook-test/` apenas para testar manualmente dentro do editor do n8n — nunca para
+automação, pois ele só atende uma chamada por clique em "Execute workflow".
+
+### cURL
+
+```bash
+# 1. Login para obter token
+TOKEN=$(curl -s -X POST http://localhost:3001/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"danieldias@galaticos.com","password":"123456"}' \
+  | jq -r '.token')
+
+# 2. Listar projetos para obter o projectId
+curl -s http://localhost:3001/api/v1/projects \
+  -H "Authorization: Bearer $TOKEN"
+
+# 3. Upload do documento (substitua {projectId} pelo ID real)
+curl -X POST http://localhost:3001/api/v1/projects/{projectId}/documents \
+  -H "Authorization: Bearer $TOKEN" \
+  -F "file=@/caminho/do/documento.pdf"
+```
+
+### Postman
+
+1. Configure a nova requisição:
+   - **Method:** `POST`
+   - **URL:** `http://localhost:3001/api/v1/projects/{projectId}/documents`
+   - **Headers:**
+     - `Authorization`: `Bearer {token}`
+   - **Body:**
+     - Selecione `form-data`
+     - Chave: `file`
+     - Tipo: `File`
+     - Valor: selecione o arquivo
+
+### JavaScript/Fetch
+
+```javascript
+const formData = new FormData();
+formData.append('file', fileInput.files[0]);
+
+const response = await fetch(
+  `http://localhost:3001/api/v1/projects/${projectId}/documents`,
+  {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+    },
+    body: formData,
+  }
+);
+
+const result = await response.json();
+```
+
+## Configuração
+
+### Variáveis de Ambiente
+
+| Variável | Default | Descrição |
+|----------|---------|-----------|
+| `DOCUMENT_MAX_SIZE_MB` | 20 | Tamanho máximo do arquivo em MB |
+| `DOCUMENT_STORAGE_DIR` | `/files` | Diretório de armazenamento no container |
+| `N8N_WEBHOOK_URL` | `http://n8n:5678/webhook/sinapse-ingest` | URL do webhook n8n |
+
+### Docker Compose
+
+O `docker-compose.yml` configura o storage compartilhado:
+
+```yaml
+services:
+  backend:
+    volumes:
+      - ./storage:/files
+    environment:
+      - DOCUMENT_STORAGE_DIR=/files
+      - N8N_WEBHOOK_URL=http://n8n:5678/webhook/sinapse-ingest
+
+  n8n:
+    volumes:
+      - ./storage:/files
+```
+
+## Verificação e Debug
+
+### Verificar arquivo no storage
+
+```bash
+# Listar arquivos do projeto
+ls -la ./storage/{projectId}/
+
+# Verificar arquivo específico
+file ./storage/{projectId}/{documentId}.{extensao}
+```
+
+### Verificar arquivo no container n8n
+
+```bash
+# Entrar no container n8n
+docker exec -it sinapse-n8n sh
+
+# Listar arquivos
+ls -la /files/{projectId}/
+
+# Ler arquivo
+cat /files/{projectId}/{documentId}.{extensao}
+```
+
+Nota: arquivos enviados **antes** do fix de permissão de `documents.storage.ts` (modo `0o600`, legível
+só pelo dono) ainda aparecem sem acesso de leitura para o container n8n. Reenvie o documento ou rode
+`chmod -R o+r ./storage` no host para liberar os arquivos já existentes.
+```
+
+### Verificar metadados no PostgreSQL
+
+```bash
+# Entrar no container postgres
+docker exec -it sinapse-postgres psql -U sinapse -d sinapse
+
+# Consultar documento
+SELECT id, nome, extensao, caminho, status_processamento 
+FROM documento 
+WHERE projeto_id = '{projectId}';
+```
+
+### Verificar chunks gerados
+
+```bash
+# Consultar chunks do documento
+SELECT id, texto, metadados_json 
+FROM chunk 
+WHERE entidade_tipo = 'documento' 
+  AND entidade_id = '{documentId}';
+```
+
+## Tratamento de Erros
+
+### Erros de Upload
+
+| Erro | Causa | Solução |
+|------|-------|---------|
+| 400 - "Arquivo inválido" | Extensão não suportada | Use PDF, DOCX, MD ou TXT |
+| 400 - "O arquivo está vazio" | Arquivo sem conteúdo | Envie um arquivo com conteúdo |
+| 413 - "Arquivo acima do limite" | Arquivo muito grande | Reduza o tamanho ou aumente `DOCUMENT_MAX_SIZE_MB` |
+| 404 - "Projeto não encontrado" | ID do projeto inválido | Verifique o projectId |
+| 409 - "Projeto arquivado" | Projeto em modo leitura | O projeto arquivado não aceita novos documentos |
+
+### Erros de Webhook n8n
+
+| Erro | Causa | Solução |
+|------|-------|---------|
+| 404 - "Webhook not registered" | Workflow não ativado | Ative o workflow na interface do n8n (nunca troque para `/webhook-test/`) |
+| 403 / EACCES ao ler o arquivo | Arquivo gravado antes do fix de permissão (0o600) | Reenvie o documento ou rode `chmod -R o+r ./storage` |
+| Timeout | n8n não respondeu | Verifique se o container n8n está rodando |
+| Connection refused | Porta errada ou n8n parado | Verifique `docker compose ps` |
+
+### Erros de Processamento
+
+| Erro | Causa | Solução |
+|------|-------|---------|
+| 400 - "Arquivo inválido" | Extensão não suportada | Use PDF, DOCX, MD ou TXT |
+| 400 - "O arquivo está vazio" | Arquivo sem conteúdo | Envie um arquivo com conteúdo |
+| 413 - "Arquivo acima do limite" | Arquivo muito grande | Reduza o tamanho ou aumente `DOCUMENT_MAX_SIZE_MB` |
+| 404 - "Projeto não encontrado" | ID do projeto inválido | Verifique o projectId |
+| 409 - "Projeto arquivado" | Projeto em modo leitura | O projeto arquivado não aceita novos documentos |
+
+### Erros de Processamento
+
+Se o webhook n8n falhar:
+- O documento permanece salvo no storage
+- `status_processamento` permanece `pendente`
+- O background worker pode reprocessar documentos pendentes
+- Verifique logs do backend e n8n para detalhes
+
+## Segurança
+
+### Sanitização de Caminhos
+
+- Nomes de arquivos são sanitizados para remover caminhos relativos (`../`)
+- Extensões são validadas contra lista permitida
+- IDs gerados via UUID para evitar colisões
+- Paths são construídos com template string seguro
+
+### Isolamento por Projeto
+
+- Cada projeto tem seu próprio diretório no storage
+- Queries PostgreSQL sempre filtram por `projeto_id`
+- n8n workflow processa no contexto do projeto específico
+
+## Manutenção
+
+### Limpeza de Arquivos Órfãos
+
+O background worker do backend:
+- Reconcilia arquivos em staging (`.uploading`, `.removing`)
+- Remove arquivos sem registro no PostgreSQL
+- Marca operações falhadas para retry
+
+### Reindexação
+
+Para reprocessar documentos com status `pendente`:
+```bash
+# O background worker processa automaticamente
+# Ou chame manualmente o endpoint de manutenção (se disponível)
+```
+
+## Workflow n8n
+
+O workflow atual está em `n8n/workflows/kbeyMs38qerFoS65-sinapse-document-ingestion-trigger.json`:
+
+1. **Webhook Ingestão** - Recebe payload do backend
+2. **Ler arquivo de /files** - Lê arquivo do storage compartilhado
+3. **Enviar para AI Service** - Envia conteúdo para processamento
+4. **Resposta HTTP** - Confirma recebimento
+
+### Ativação do Workflow
+
+O backend sempre chama `/webhook/sinapse-ingest` (produção), em qualquer ambiente — essa é a única
+forma de o n8n responder sem um humano com o editor aberto. Importar o JSON do workflow **não** ativa
+automaticamente a instância (o campo `"active": true` do arquivo descreve a intenção, não o estado
+real após importar); é preciso ativar explicitamente:
+
+1. Acesse `http://localhost:5678`
+2. Abra o workflow "Sinapse - Document Ingestion Trigger"
+3. Clique no toggle no canto superior direito até aparecer "Active"
+4. Confirme com `curl -X POST http://localhost:5678/webhook/sinapse-ingest -d '{}'` — enquanto
+   inativo, a resposta é `404` com `"The requested webhook is not registered"`
+
+Ou, com `n8n-local-sync` configurado:
+  1. Configure `N8N_API_KEY` no `.env`
+  2. Execute: `n8n-local-sync validate`
+
+Use `/webhook-test/` **somente** para depurar o workflow manualmente dentro do editor (clicar em
+"Execute workflow" arma um único recebimento); nunca como `N8N_WEBHOOK_URL`.
+
+## Referências
+
+- [AGENTS.md](../AGENTS.md) - Contexto do projeto
+- [OpenAPI](api/openapi.yaml) - Contrato completo da API
+- [Architecture README](Architecture/README.md) - Arquitetura do sistema

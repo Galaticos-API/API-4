@@ -40,12 +40,12 @@ export class AuthController {
         return;
       }
 
-      if (parsed.data.role === "admin") {
+      if (parsed.data.role !== "dev") {
         const token = extractSessionToken(req);
         const session = token ? await this.sessions.validateSession(token) : null;
         if (!session?.valid || session.user.role !== "admin") {
           res.status(403).json({
-            error: "Somente administradores podem criar contas de administrador.",
+            error: "Somente administradores podem criar contas de PO ou administrador.",
             code: "FORBIDDEN",
           });
           return;
