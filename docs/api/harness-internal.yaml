@@ -1,0 +1,66 @@
+openapi: 3.0.3
+info:
+  title: Harness interno do Sinapse
+  version: 1.0.0
+  description: Contrato privado backend → IA local. O backend fornece a revisão vigente e valida novamente a saída antes de apresentá-la.
+servers:
+  - url: http://localhost:8000
+paths:
+  /harness/run:
+    post:
+      operationId: generateHarnessOutput
+      summary: Executa uma revisão explícita com JSON Schema e sem persistência
+      security: [{serviceToken: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [mode, operation, level, version, schema_version, config, output_schema, fields]
+              properties:
+                mode: {type: string, enum: [levantamento, consulta, recomendacao]}
+                operation: {type: string, enum: [questionar, padronizar, cenarios, responder, similares]}
+                level: {type: string, enum: [epico, feature, pbi]}
+                version: {type: integer, minimum: 0}
+                schema_version: {type: integer, enum: [1]}
+                config: {$ref: './openapi.yaml#/components/schemas/HarnessConfig'}
+                output_schema:
+                  type: object
+                  description: Schema JSON fechado, controlado pelo backend; referências externas não são permitidas
+                fields:
+                  type: object
+                  additionalProperties: {type: string}
+                context:
+                  type: array
+                  maxItems: 10
+                  items:
+                    type: object
+                    additionalProperties: false
+                    required: [id, text]
+                    properties:
+                      id: {type: string}
+                      text: {type: string, minLength: 1, maxLength: 8000}
+      responses:
+        '200':
+          description: JSON validado contra o schema recebido; modo e versões permitem conferir o contrato da resposta
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [mode, version, schema_version, result]
+                properties:
+                  mode: {type: string, enum: [levantamento, consulta, recomendacao]}
+                  version: {type: integer, minimum: 0}
+                  schema_version: {type: integer, enum: [1]}
+                  result: {type: object}
+        '401': {description: Token interno ausente ou incorreto}
+        '422': {description: Contrato, operação ou schema inválido}
+        '503': {description: Token interno não configurado, timeout, falha local ou saída fora do schema}
+components:
+  securitySchemes:
+    serviceToken:
+      type: apiKey
+      in: header
+      name: X-Service-Token

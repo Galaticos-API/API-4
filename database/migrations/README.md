@@ -98,3 +98,11 @@ Testes de integração devem apontar para bases descartáveis com os sufixos
 exigidos por cada script (`_test`, `_s105_test` etc.). Não use a base local
 compartilhada. Consulte os comandos e as proteções no [guia de setup](../../docs/SETUP_GUIDE.md)
 e nos scripts de `backend/package.json`.
+
+## Harness da IA por modo (S2-09)
+
+`019_ai_harness.sql` cria o histórico de revisões da configuração dos modos de IA.
+A versão zero é distribuída no código; as demais revisões são acrescentadas pelo
+backend com autoria e data. O teste `npm run test:integration:harness` aplica a
+migration em PostgreSQL descartável e verifica concorrência e atualização sem
+reinício. Consulte [S2-09](../../docs/S2-09-HARNESS.md) para configuração e execução.
