@@ -1,0 +1,24 @@
+.knowledge-page { padding-bottom:40px; }
+.knowledge-form { margin-top:20px; padding:24px; }
+.knowledge-form .search-field { width:100%; box-sizing:border-box; }
+.knowledge-filters { display:grid; grid-template-columns:2fr 1fr 1fr auto; gap:16px; align-items:end; margin-top:20px; }
+.knowledge-filters label { display:grid; gap:8px; font-size:.9rem; }
+.knowledge-filters select { min-width:0; width:100%; border:1px solid var(--border-subtle,#353c4a); background:var(--surface-base,#0a0d14); color:var(--text-primary,#fff); border-radius:8px; padding:12px; font:inherit; }
+.knowledge-results { margin-top:24px; }
+.knowledge-result { margin-top:16px; padding:24px; }
+.knowledge-result header { display:flex; justify-content:space-between; flex-wrap:wrap; gap:12px; }
+.knowledge-result h2 { margin:16px 0 12px; font-size:1.15rem; }
+.knowledge-excerpt { white-space:pre-wrap; overflow-wrap:anywhere; line-height:1.7; }
+.knowledge-empty { padding:40px 24px; text-align:center; }
+.knowledge-empty h2 { font-size:1.15rem; }
+.knowledge-document { margin:auto; width:min(850px,calc(100vw - 40px)); max-height:85vh; padding:24px; border:1px solid var(--border-subtle,#353c4a); border-radius:12px; color:var(--text-primary,#fff); background:var(--surface-base,#0a0d14); }
+.knowledge-document::backdrop { background:#000b; }
+.knowledge-document header,.knowledge-document nav { display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px; }
+.knowledge-document-text section { white-space:pre-wrap; overflow-wrap:anywhere; padding:16px; margin-block:16px; border:1px solid transparent; border-radius:8px; }
+.knowledge-document-text h3 { font-size:.9rem; color:var(--text-secondary,#9ca3af); }
+.knowledge-matched-excerpt,.knowledge-source-focus { outline:2px solid var(--brand-primary,#f97316); outline-offset:4px; scroll-margin-top:100px; }
+.knowledge-document nav { border-top:1px solid var(--border-subtle,#353c4a); padding-top:16px; }
+@media(max-width:760px) { .knowledge-filters { grid-template-columns:1fr; } .knowledge-form,.knowledge-result { padding:18px; } }
+
+
+.knowledge-filter { display:grid; gap:8px; min-width:0; }

@@ -43,7 +43,7 @@ function formatDate(value: string): string {
 function DecisionCard({ decision }: { decision: Decision }) {
   const inherited = decision.origem.herdada;
   return (
-    <li className={`decision-card${inherited ? " decision-card--inherited" : ""}`} data-level={decision.origem.tipo}>
+    <li id={`decision-${decision.id}`} className={`decision-card${inherited ? " decision-card--inherited" : ""}`} data-level={decision.origem.tipo}>
       <header>
         <h4>{decision.titulo}</h4>
         {inherited && (

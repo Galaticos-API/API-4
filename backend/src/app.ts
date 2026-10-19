@@ -1,3 +1,4 @@
+import { documentTextRouter } from "./modules/documents/documents.text.js";
 import { createProjectAccessRouter } from "./middleware/projectAccess.js";
 import express, { Request, Response } from "express";
 import cors from "cors";
@@ -106,6 +107,8 @@ app.use("/api/v1/projects/:projectId/backlog-search", backlogSearchRouter);
 app.use("/api/v1/projects/:projectId/documents", requireAuth, documentsRouter);
 // Server-to-server: pipeline de ingestão persistindo chunks indexados do documento.
 app.use("/api/v1/projects/:projectId/documents/:documentId/chunks", chunksRouter);
+
+app.use("/api/v1/projects/:projectId/documents", documentTextRouter);
 
 // Swagger Documentation
 app.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));

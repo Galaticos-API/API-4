@@ -1,3 +1,5 @@
+import { SearchOriginFocus } from "./views/knowledge/SearchOriginFocus";
+import "./assets/styles/knowledge.css";
 import { Button } from "./views/common/ui";
 import React, { useState, useEffect } from "react";
 import { isProjectPath, navigate, routes } from "./models/navigation";
@@ -85,6 +87,7 @@ export const App: React.FC = () => {
 
       {/* Main Content Area */}
       <main className="app-content">
+        <SearchOriginFocus pathname={pathname} />
         {activeTab === "projects" && <ProjectsView key={pathname} pathname={pathname} canCreate={session.user?.role === "po" || session.user?.role === "admin"} />}
         {activeTab === "requirements" && <RequirementsView canCreate={session.user?.role === "po" || session.user?.role === "admin"} />}
         {activeTab === "documents" && <DocumentsView />}
