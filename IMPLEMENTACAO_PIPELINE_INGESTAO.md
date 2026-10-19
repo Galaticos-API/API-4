@@ -58,8 +58,8 @@ ai-service direto, sem depender do n8n estar no ar.
 
 ### Endpoint novo no backend
 - `POST /api/v1/projects/:projectId/documents/:documentId/chunks` —
-  recebe chunks já processados (usado pelo workflow do n8n em modo debug).
-  Autenticado com `Authorization: Bearer <N8N_INGEST_TOKEN>`, separado da
+  recebe chunks já processados.
+  Autenticado com `Authorization: Bearer <DOCUMENT_INGESTION_TOKEN>`, separado da
   sessão de usuário humano.
 
 ### Tela de observabilidade (`/admin/ingestion`)

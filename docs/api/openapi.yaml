@@ -2696,12 +2696,11 @@ paths:
 
   /api/v1/projects/{projectId}/documents/{documentId}/chunks:
     post:
-      summary: Persiste chunks indexados do documento (ferramenta de debug via n8n, S2-02)
+      summary: Persiste chunks indexados do documento (pipeline de ingestão, S2-02)
       description: >
-        Endpoint server-to-server opcional usado apenas quando o workflow do n8n
-        é ativado como ferramenta de debug manual. O fluxo canônico (worker)
-        chama o ai-service direto e persiste pelos métodos internos do
-        repository. Esta rota aceita `Authorization: Bearer <N8N_INGEST_TOKEN>`
+        Endpoint server-to-server opcional usado pelo pipeline de ingestão.
+        O fluxo canônico (worker) chama o ai-service direto e persiste pelos
+        métodos internos do repository. Esta rota aceita `Authorization: Bearer <DOCUMENT_INGESTION_TOKEN>`
         separado da sessão de usuário. Cada embedding deve ter 1024 dimensões
         (bge-m3). Substitui qualquer chunk anterior do mesmo documento.
       operationId: persistDocumentChunks

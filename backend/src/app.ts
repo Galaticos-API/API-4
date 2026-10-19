@@ -104,7 +104,7 @@ app.use("/api/v1/projects/:projectId/backlog-search", backlogSearchRouter);
 
 // Documentos do projeto (S1-19/S1-20/S1-22)
 app.use("/api/v1/projects/:projectId/documents", requireAuth, documentsRouter);
-// Server-to-server: pipeline n8n persistindo chunks indexados do documento.
+// Server-to-server: pipeline de ingestão persistindo chunks indexados do documento.
 app.use("/api/v1/projects/:projectId/documents/:documentId/chunks", chunksRouter);
 
 // Swagger Documentation
