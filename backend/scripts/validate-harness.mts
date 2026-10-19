@@ -19,6 +19,8 @@ function port(name: string, p: string) {
     .HostPort;
 }
 let invalid = false;
+let unavailable = false;
+let delayMs = 0;
 const captures: any[] = [];
 const model = createServer(async (req, res) => {
   res.setHeader("Content-Type", "application/json");
@@ -31,16 +33,56 @@ const model = createServer(async (req, res) => {
   const payload = JSON.parse(raw);
   captures.push(payload);
   const data = JSON.parse(payload.prompt);
+  if (unavailable) {
+    res.statusCode = 503;
+    res.end(JSON.stringify({ error: "Indisponível" }));
+    return;
+  }
+  if (delayMs) await new Promise((resolve) => setTimeout(resolve, delayMs));
+  const proposalSchema = payload.format.properties.proposal;
   const result = invalid
     ? { questions: [], summary: "SEGREDO", extra: "proibido" }
-    : payload.format.properties.questions
+    : proposalSchema
       ? {
+          proposal: Object.fromEntries(
+            Object.keys(
+              (proposalSchema.anyOf
+                ? proposalSchema.anyOf.find(
+                    (item: any) => item.type === "object",
+                  )
+                : proposalSchema
+              ).properties,
+            ).map((field) => [
+              field,
+              field === "titulo"
+                ? "Consultar pagamento padronizado"
+                : field === "regras_observacoes"
+                  ? ""
+                  : data.fields[field] || "Resultado funcional do produto",
+            ]),
+          ),
           questions: [],
-          summary: payload.system.includes("orientacao-v2")
-            ? "Nova revisão"
-            : "Revisão inicial",
         }
-      : { answer: "Evidência do projeto", sources: [data.context[0].id] };
+      : payload.format.properties.questions
+        ? {
+            questions: data.fields.titulo?.includes("pagamento")
+              ? [
+                  {
+                    dimension: "validacoes",
+                    question:
+                      "Qual o tempo máximo para considerar a consulta rápida?",
+                  },
+                  {
+                    dimension: "permissoes_seguranca",
+                    question: "Quem pode consultar o pagamento?",
+                  },
+                ]
+              : [],
+            summary: payload.system.includes("orientacao-v2")
+              ? "Nova revisão"
+              : "Revisão inicial",
+          }
+        : { answer: "Evidência do projeto", sources: [data.context[0].id] };
   res.end(JSON.stringify({ response: JSON.stringify(result) }));
 });
 await new Promise<void>((r) => model.listen(0, "0.0.0.0", r));
@@ -262,6 +304,38 @@ try {
       .rows[0].n,
     3,
   );
+  if (process.argv.includes("--browser")) {
+    const { verifyCopilotBrowser } =
+      await import("./verify-copilot-browser.mjs");
+    await verifyCopilotBrowser({
+      harnessEvidence: {
+        before: { version: initial.body.version, result: initial.body.result },
+        after: { version: next.body.version, result: next.body.result },
+        history: (await call(configPath + "/history")).body.items.map(
+          (item: any) => ({
+            version: item.version,
+            created_at: item.created_at,
+          }),
+        ),
+        control: {
+          consulta_version: (await call("/admin/ai-harness/consulta")).body
+            .version,
+          concurrent_statuses: concurrent.map((item) => item.status),
+          rollback_creates_new_version: 3,
+        },
+      },
+      apiUrl: base.replace(/\/api\/v1$/, ""),
+      pool,
+      token: sessions[1].token,
+      projectId: a,
+      setUnavailable: (value: boolean) => {
+        unavailable = value;
+      },
+      setDelay: (value: number) => {
+        delayMs = value;
+      },
+    });
+  }
   console.log(
     "S2-09 aprovada: PostgreSQL + backend + FastAPI + Ollama simulado; revisão imediata, histórico, concorrência, rollback, autenticação, isolamento, schema inválido e chat.",
   );

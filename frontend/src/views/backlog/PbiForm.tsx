@@ -1,3 +1,4 @@
+import { CopilotPanel } from "./CopilotPanel";
 import { useEffect, useRef, useState } from "react";
 import { ApiError } from "../../api/api_auth";
 import {
@@ -312,6 +313,8 @@ export function PbiForm({
           onChange={(tecnologias_ids) => setValues((current) => ({ ...current, tecnologias_ids }))}
           disabled={busy}
         />
+
+        <CopilotPanel projectId={projectId} level="pbi" values={values} disabled={busy} />
 
         {message && (
           <p role="alert">
