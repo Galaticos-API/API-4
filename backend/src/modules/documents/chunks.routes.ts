@@ -9,14 +9,15 @@ function paramOf(value: string | string[] | undefined): string {
 }
 
 /**
- * Middleware server-to-server para o pipeline n8n. Confere o token compartilhado
- * em Authorization: Bearer <N8N_INGEST_TOKEN>; mantido separado do fluxo de
- * usuário humano (requireAuth) porque o n8n não tem sessão.
+ * Middleware server-to-server para o pipeline de ingestão. Confere o token compartilhado
+ * em Authorization: Bearer <DOCUMENT_INGESTION_TOKEN>; mantido separado do fluxo de
+ * usuário humano (requireAuth) porque a ingestão não tem sessão.
  */
 export function requireIngestToken(req: Request, res: Response, next: NextFunction): void {
   const header = req.headers.authorization ?? "";
   const [scheme, token] = header.split(" ", 2);
-  if (scheme !== "Bearer" || !token || token !== env.N8N_INGEST_TOKEN) {
+  const expectedToken = env.DOCUMENT_INGESTION_TOKEN || "sinapse-dev-document-ingestion-token-2026";
+  if (scheme !== "Bearer" || !token || !expectedToken || token !== expectedToken) {
     res.status(401).json({ error: "Token de ingestão ausente ou inválido.", code: "INGEST_TOKEN_INVALID" });
     return;
   }
@@ -30,12 +31,12 @@ export function createChunksRouter(service: ChunksService = chunksService): Rout
    * @swagger
    * /api/v1/projects/{projectId}/documents/{documentId}/chunks:
    *   post:
-   *     summary: Persiste chunks com embeddings (pipeline n8n -> backend)
+   *     summary: Persiste chunks com embeddings (pipeline de ingestão -> backend)
    *     description: >
-   *       Chamado pelo workflow do n8n após extrair texto, chunking e embeddings.
+   *       Chamado pelo pipeline após extrair texto, chunking e embeddings.
    *       Substitui qualquer chunk anterior do mesmo documento (reindexação
    *       idempotente) e marca o documento como 'processado'. Autenticação por
-   *       token compartilhado em Authorization: Bearer <N8N_INGEST_TOKEN>.
+   *       token compartilhado em Authorization: Bearer <DOCUMENT_INGESTION_TOKEN>.
    *     tags: [Documents]
    *     security:
    *       - bearerAuth: []

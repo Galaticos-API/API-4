@@ -41,13 +41,14 @@ after(() => {
   server.close();
 });
 
+const TEST_TOKEN = env.DOCUMENT_INGESTION_TOKEN || "sinapse-dev-document-ingestion-token-2026";
 const validEmbedding = () => Array.from({ length: 1024 }, () => 0.1);
 const call = (init: { token?: string | null; body?: unknown } = {}) =>
   fetch(baseUrl, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      ...(init.token === null ? {} : { Authorization: `Bearer ${init.token ?? env.N8N_INGEST_TOKEN}` }),
+      ...(init.token === null ? {} : { Authorization: `Bearer ${init.token ?? TEST_TOKEN}` }),
     },
     body: init.body === undefined ? JSON.stringify({ chunks: [{ chunk_index: 0, content: "x", embedding: validEmbedding() }] }) : JSON.stringify(init.body),
   });

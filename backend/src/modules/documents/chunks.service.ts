@@ -124,7 +124,7 @@ export class ChunksService {
           dados_json: {
             projeto_id: input.projetoId,
             total_chunks: input.chunks.length,
-            fonte: "n8n_pipeline",
+            fonte: "pipeline_ingestao",
           },
         },
         client,

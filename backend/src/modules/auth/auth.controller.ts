@@ -65,7 +65,7 @@ export class AuthController {
       } else {
         res.cookie(SESSION_COOKIE_NAME, result.token, {
           httpOnly: true,
-          secure: env.NODE_ENV === "production",
+          secure: env.NODE_ENV === "production" && !env.COOKIE_INSECURE_DEV,
           sameSite: "lax",
           path: "/",
           maxAge:
@@ -131,7 +131,7 @@ export class AuthController {
 
       res.cookie(SESSION_COOKIE_NAME, result.token, {
         httpOnly: true,
-        secure: env.NODE_ENV === "production",
+        secure: env.NODE_ENV === "production" && !env.COOKIE_INSECURE_DEV,
         sameSite: "lax",
         path: "/",
         maxAge:
@@ -161,7 +161,7 @@ export class AuthController {
 
       res.clearCookie(SESSION_COOKIE_NAME, {
         httpOnly: true,
-        secure: env.NODE_ENV === "production",
+        secure: env.NODE_ENV === "production" && !env.COOKIE_INSECURE_DEV,
         sameSite: "lax",
         path: "/",
       });

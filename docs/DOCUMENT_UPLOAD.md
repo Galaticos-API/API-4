@@ -180,7 +180,7 @@ O workflow n8n (`Sinapse - RAG Ingestão / Chat de teste`) encadeia:
 6. **Montar e validar chunks** → casa cada embedding ao chunk correspondente e valida 1024d.
 7. **Persistir chunks (backend)** → `POST http://backend:3001/api/v1/projects/{projectId}/documents/{documentId}/chunks`
    com `{chunks: [{chunk_index, content, metadata, embedding}]}`. Essa chamada é **server-to-server** e
-   autentica com `Authorization: Bearer $N8N_INGEST_TOKEN` (nunca sessão de usuário). O backend substitui
+   autentica com `Authorization: Bearer $DOCUMENT_INGESTION_TOKEN` (nunca sessão de usuário). O backend substitui
    quaisquer chunks anteriores do documento (reindexação idempotente), persiste em `chunk` com `vector(1024)`
    e marca `status_processamento = 'processado'`.
 8. **Resposta HTTP** confirma o recebimento ao backend que chamou o webhook.
@@ -189,7 +189,7 @@ Toda a persistência em `chunk` passa pelo backend Node — o ai-service só ger
 (chunking + embeddings), nunca grava direto, conforme AGENTS.md §12 ("Node.js como único
 escritor persistente").
 
-**Credencial `Header Auth` no n8n:** `Name = Authorization`, `Value = Bearer <N8N_INGEST_TOKEN>`.
+**Credencial `Header Auth`:** `Name = Authorization`, `Value = Bearer <DOCUMENT_INGESTION_TOKEN>`.
 
 ## Exemplos de Requisição
 
