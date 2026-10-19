@@ -74,8 +74,12 @@ npm run test:integration:harness
 
 O teste cria PostgreSQL e FastAPI temporários, aplica as migrations e simula somente as respostas do Ollama. Valida sessão, perfil, atualização imediata, duas instâncias lendo a revisão, concorrência, histórico, reversão, rejeição de JSON inválido, isolamento entre projetos e integração com o chat. Remove os containers e volumes temporários ao terminar e preserva os serviços de desenvolvimento. O mesmo fluxo foi incluído no CI.
 
-Validação local: 345 testes do backend passaram, com 24 condicionais ignorados na suíte padrão; 81 testes Python passaram. Compilação e verificação de tipos do backend passaram, além do teste integrado em PostgreSQL/FastAPI. Os schemas usados nos testes Python são comparados automaticamente com os publicados pelo backend.
+Validação local: 345 testes do backend passaram, com 24 condicionais ignorados na suíte padrão; 87 testes Python passaram. Compilação e verificação de tipos do backend passaram, além do teste integrado em PostgreSQL/FastAPI. Os schemas usados nos testes Python são comparados automaticamente com os publicados pelo backend.
 
-Os testes comprovam os contratos e as regras determinísticas. A qualidade semântica das respostas do modelo real não foi medida nesta entrega; instruções e validação estrutural não constituem prova de ausência de invenções do modelo.
+Os testes comprovam os contratos e as regras determinísticas. A revisão adicional executou uma amostra com o modelo local real nos modos questionador e padronizador. Essa amostra não é uma avaliação ampla da qualidade semântica; instruções e validação estrutural não constituem prova de ausência de invenções do modelo.
 
 A interface dos modos questionador e padronizador continua no escopo da S2-10. A revisão de PR por outra pessoa é uma etapa externa à implementação local.
+
+## Revisão adicional de 19/10/2026
+
+A revisão ampliada bloqueou também referências `$dynamicRef` e `$recursiveRef`, estruturou o contexto dos critérios para o modelo e aplicou regras de geração por contexto: interface fora do escopo não gera pergunta; caminho principal explicitamente identificado e preenchido não é perguntado novamente; campos obrigatórios preenchidos geram proposta sem pedir os mesmos dados. A condição “rapidamente” sem medida é questionada por regra objetiva, respeitando limites de tempo já informados. A geração usa até seis perguntas e orçamento de 1.024 tokens. Foram acrescentados testes de regressão. O teste optativo `npm run test:smoke:harness:local` usa o modelo local real e dados fictícios; ele não acessa o banco de desenvolvimento.

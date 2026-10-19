@@ -26,7 +26,9 @@ class HarnessTests(unittest.IsolatedAsyncioTestCase):
             response=await self.post(self.request())
             self.assertEqual(response.status_code, 200)
             self.assertEqual(response.json()["result"], answer)
-            self.assertEqual(model.call_args.kwargs["output_schema"], FIXTURE["schemas"]["questionar"]["pbi"])
+            expected=json.loads(json.dumps(FIXTURE["schemas"]["questionar"]["pbi"]))
+            expected["properties"]["questions"]["maxItems"]=6
+            self.assertEqual(model.call_args.kwargs["output_schema"], expected)
             self.assertIn("historia_como_um", model.call_args.kwargs["system_prompt"])
 
     async def test_invalid_outputs_fail_without_exposing_content(self):
@@ -85,3 +87,70 @@ class HarnessTests(unittest.IsolatedAsyncioTestCase):
             schema=FIXTURE["schemas"]["questionar"]["pbi"]
             await OllamaClient().generate_response("texto", output_schema=schema)
             self.assertEqual(client.post.call_args.kwargs["json"]["format"],schema)
+
+    async def test_rejects_all_external_reference_keywords_before_generation(self):
+        from harness import has_reference
+        for keyword in ["$ref", "$dynamicRef", "$recursiveRef"]:
+            with self.subTest(keyword=keyword):
+                schema={"properties":{"nested":{"anyOf":[{keyword:"https://example.invalid/schema"}]}}}
+                self.assertTrue(has_reference(schema))
+                with patch("harness.ollama_client.generate_response",new=AsyncMock()) as model:
+                    response=await self.post(self.request(output_schema=schema))
+                    self.assertEqual(response.status_code,422)
+                    model.assert_not_called()
+
+    async def test_editing_context_is_structured_and_free_text_is_preserved(self):
+        context={"requer_interface":False,"criterios_salvos":[{"dado":"Cliente","quando":"Consultar","entao":"Exibir"}],"ignorar":"Não deve ser encaminhado"}
+        answer='{"questions":[],"summary":"Análise concluída"}'
+        with patch("harness.ollama_client.generate_response",new=AsyncMock(return_value=answer)) as model:
+            response=await self.post(self.request(fields={"titulo":"Consultar","texto_livre":json.dumps(context)}))
+            self.assertEqual(response.status_code,200)
+            sent=json.loads(model.call_args.args[0])
+            self.assertFalse(sent["editing_context"]["requer_interface"])
+            self.assertNotIn("ignorar",sent["editing_context"])
+            self.assertNotIn("texto_livre",sent["fields"])
+            await self.post(self.request(fields={"texto_livre":"Descrição livre original"}))
+            self.assertEqual(json.loads(model.call_args.args[0])["fields"]["texto_livre"],"Descrição livre original")
+
+    async def test_applicable_schema_blocks_interface_and_unnecessary_null_proposal(self):
+        context=json.dumps({"requer_interface":False,"criterios_salvos":[]})
+        answer={"questions":[{"dimension":"interface","question":"Qual tela?"}],"summary":"Lacuna"}
+        with patch("harness.ollama_client.generate_response",new=AsyncMock(return_value=json.dumps(answer))) as model:
+            response=await self.post(self.request(fields={"titulo":"Consultar","texto_livre":context}))
+            self.assertEqual(response.status_code,503)
+            dimensions=model.call_args.kwargs["output_schema"]["properties"]["questions"]["items"]["properties"]["dimension"]["enum"]
+            self.assertNotIn("interface",dimensions)
+        fields={"titulo":"Consultar pedido","historia_como_um":"cliente","historia_eu_quero":"consultar pedido","historia_para_que":"acompanhar entrega","regras_observacoes":""}
+        with patch("harness.ollama_client.generate_response",new=AsyncMock(return_value='{"proposal":null,"questions":["Qual ator?"]}')) as model:
+            response=await self.post(self.request(operation="padronizar",fields=fields,output_schema=FIXTURE["schemas"]["padronizar"]["pbi"]))
+            self.assertEqual(response.status_code,503)
+            self.assertEqual(model.call_args.kwargs["output_schema"]["properties"]["proposal"]["type"],"object")
+
+    async def test_fast_condition_is_questioned_only_when_no_measurable_limit_exists(self):
+        answer='{"questions":[],"summary":"Sem lacunas"}'
+        with patch("harness.ollama_client.generate_response",new=AsyncMock(return_value=answer)):
+            fields={"historia_eu_quero":"consultar pedido rapidamente"}
+            response=await self.post(self.request(fields=fields))
+            self.assertEqual(response.status_code,200)
+            question=response.json()["result"]["questions"][0]
+            self.assertEqual(question["dimension"],"validacoes")
+            self.assertIn("consultar pedido rapidamente",question["question"])
+            fields["texto_livre"]=json.dumps({"criterios_salvos":[{"entao":"Exibir em até 2 segundos"}]})
+            measured=await self.post(self.request(fields=fields))
+            self.assertEqual(measured.json()["result"]["questions"],[])
+
+    async def test_generation_has_bounded_output_budget(self):
+        answer='{"questions":[],"summary":"Nenhuma lacuna relevante."}'
+        with patch("harness.ollama_client.generate_response",new=AsyncMock(return_value=answer)) as model:
+            response=await self.post(self.request())
+            self.assertEqual(response.status_code,200)
+            self.assertEqual(model.call_args.kwargs["max_tokens"],1024)
+            self.assertEqual(model.call_args.kwargs["output_schema"]["properties"]["questions"]["maxItems"],6)
+
+    async def test_named_main_scenario_is_not_requested_again(self):
+        context={"criterios_salvos":[{"nome":"Caminho principal","dado":"Cliente autenticado","quando":"Consultar","entao":"Exibir"}]}
+        with patch("harness.ollama_client.generate_response",new=AsyncMock(return_value='{"questions":[],"summary":"Análise"}')) as model:
+            response=await self.post(self.request(fields={"titulo":"Consultar pedido","texto_livre":json.dumps(context)}))
+            self.assertEqual(response.status_code,200)
+            dimensions=model.call_args.kwargs["output_schema"]["properties"]["questions"]["items"]["properties"]["dimension"]["enum"]
+            self.assertNotIn("caminho_principal",dimensions)
