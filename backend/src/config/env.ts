@@ -29,16 +29,16 @@ const envSchema = z.object({
   AUTH_LOCKOUT_MINUTES: z.coerce.number().int().min(1).default(15),
   AUTH_SESSION_IDLE_MINUTES: z.coerce.number().int().min(1).default(30),
   AUTH_SESSION_MAX_HOURS: z.coerce.number().int().min(1).default(12),
+  // Permite servir cookies de sessão sem a flag `secure` em ambientes Docker
+  // que rodam sobre HTTP mesmo com NODE_ENV=production (dev local da equipe).
+  // NUNCA definir como true em produção real com HTTPS.
+  COOKIE_INSECURE_DEV: z.coerce.boolean().default(false),
 
   // S1-19/S1-22 — Documentos
   DOCUMENT_MAX_SIZE_MB: z.coerce.number().positive().max(20).default(20),
   DOCUMENT_STORAGE_DIR: z.string().min(1).default("storage/documents"),
   DOCUMENT_INGEST_WEBHOOK_URL: z.string().optional(),
   DOCUMENT_EVENTS_WEBHOOK_URL: z.string().optional(),
-  // Token server-to-server para o backend aceitar POST .../documents/.../chunks
-  // vindo do workflow do n8n (ferramenta de debug manual). Em dev tem default
-  // pra nao bloquear o fluxo local; em prod obrigatorio sobrescrever.
-  N8N_INGEST_TOKEN: z.string().min(8).default("sinapse-dev-ingest-token"),
 }).superRefine((value, context) => {
   if (value.DOCUMENT_INGESTION_TOKEN.length > 0 && value.DOCUMENT_INGESTION_TOKEN.length < 32) {
     context.addIssue({
@@ -47,18 +47,14 @@ const envSchema = z.object({
       message: "DOCUMENT_INGESTION_TOKEN deve ter ao menos 32 caracteres.",
     });
   }
-  if (value.NODE_ENV === "production" && value.DOCUMENT_INGESTION_TOKEN.length < 32) {
+  // Em modo Docker dev local (COOKIE_INSECURE_DEV=true), as validações de
+  // "segredo de produção" são ignoradas para permitir valores padrão compartilhados.
+  const isProdReal = value.NODE_ENV === "production" && !value.COOKIE_INSECURE_DEV;
+  if (isProdReal && value.DOCUMENT_INGESTION_TOKEN.length < 32) {
     context.addIssue({
       code: z.ZodIssueCode.custom,
       path: ["DOCUMENT_INGESTION_TOKEN"],
       message: "Configure um segredo aleatório privado para a ingestão de documentos em produção.",
-    });
-  }
-  if (value.NODE_ENV === "production" && value.N8N_INGEST_TOKEN === "sinapse-dev-ingest-token") {
-    context.addIssue({
-      code: z.ZodIssueCode.custom,
-      path: ["N8N_INGEST_TOKEN"],
-      message: "Configure um segredo aleatório privado para N8N_INGEST_TOKEN em produção; o valor padrão de desenvolvimento não é aceito.",
     });
   }
 });
