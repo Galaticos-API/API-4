@@ -21,3 +21,15 @@ describe("origem da busca", () => {
     expect(originLink({ ...hit, source_url: null }, "jwt")).toBeNull();
   });
 });
+
+it.each([
+  ["pbi", "/projects/p1/epics/b1"],
+  ["feature", "/projects/p1/epics/b1"],
+  ["epico", "/projects/p1/epics/e1/features/b1"],
+] as const)("recusa rota incompatível com o nível %s", (entity_type, source_url) => {
+  expect(originLink({...hit,entity_type,source_url}, "jwt")).toBeNull();
+});
+
+it.each(["/projects/p1/documents", "/projects/p1/epics/new"])("não envia uma decisão para uma tela sem decisões: %s", source_url => {
+  expect(originLink({...hit,entity_type:"decisao",source_url},"jwt")).toBeNull();
+});

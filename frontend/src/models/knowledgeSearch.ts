@@ -1,4 +1,4 @@
-import { isProjectPath } from "./navigation";
+import { isProjectPath, parseBacklogRoute } from "./navigation";
 import type { KnowledgeHit } from "../api/api_knowledge";
 
 export function searchExcerpt(text: string, query: string, max = 300): string {
@@ -17,6 +17,12 @@ export function originLink(hit: KnowledgeHit, query: string): string | null {
   if (url.origin !== "https://sinapse.invalid" || !isProjectPath(url.pathname)
     || !url.pathname.startsWith("/projects/" + hit.project_id + "/") && url.pathname !== "/projects/" + hit.project_id) return null;
   if (hit.entity_type !== "decisao" && hit.entity_type !== "documento" && !url.pathname.endsWith("/" + hit.entity_id)) return null;
+  const route = parseBacklogRoute(url.pathname);
+  const screens = { epico: "epic-detail", feature: "feature-detail", pbi: "pbi-detail" } as const;
+  if (hit.entity_type === "epico" || hit.entity_type === "feature" || hit.entity_type === "pbi") {
+    if (route?.screen !== screens[hit.entity_type]) return null;
+  }
+  if (hit.entity_type === "decisao" && url.pathname !== "/projects/" + hit.project_id && !route?.screen.endsWith("-detail")) return null;
   const hash = hit.entity_type === "decisao" ? "decision-" + hit.entity_id
     : "search-origin=" + encodeURIComponent(searchExcerpt(hit.text, query).replace(/^…|…$/g, ""));
   return url.pathname + "#" + hash;

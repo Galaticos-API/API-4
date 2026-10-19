@@ -25,7 +25,7 @@ O frontend rejeita resultados de outro projeto e links externos ou incompatívei
 
 | Camada | Resultado |
 | --- | --- |
-| Interface | 249 testes passaram, incluindo filtros, respostas atrasadas, isolamento, ausência de resultados e leitor paginado |
+| Interface | 254 testes passaram, incluindo filtros, respostas atrasadas, isolamento, ausência de resultados e leitor paginado |
 | Backend | 335 testes passaram; 25 condicionais foram ignorados na suíte padrão |
 | PostgreSQL isolado | Teste dedicado passou: autenticação, projeto, documento, trecho, paginação, parâmetros inválidos, estados não processados, exclusão e arquivamento |
 | Navegador + API + PostgreSQL | Busca, abertura no trecho 24, paginação, retorno de foco, navegação ao PBI, ausência de resultados, recuperação de erro 503, tecla Esc e viewport de 390 px passaram |
@@ -46,3 +46,5 @@ Revisão do PR por outra pessoa é uma etapa externa à implementação e aos te
 ## Revisão adicional
 
 A revisão encontrou carregamento de projetos sem limite de espera quando a rede trava. Foi aplicado o limite de 15 segundos, com mensagem e nova tentativa. A validação do leitor também passou a rejeitar páginas vazias, índices incoerentes e próxima página incompatível com o total. Os novos testes cobrem essas respostas, carregamento de várias páginas de projetos, projetos arquivados, foco após carregamento assíncrono e fragmentos inválidos.
+
+A revisão adicional confirmou que URLs de origem devem corresponder também ao nível do resultado. Links de PBI apontando para épico/feature e links de decisão para telas sem decisões são recusados. Cinco novos casos de regressão passaram.
