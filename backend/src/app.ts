@@ -1,4 +1,5 @@
 import { indexingRouter } from "./modules/indexing/indexing.routes.js";
+import { documentTextRouter } from "./modules/documents/documents.text.js";
 import { createProjectAccessRouter } from "./middleware/projectAccess.js";
 import express, { Request, Response } from "express";
 import cors from "cors";
@@ -109,6 +110,7 @@ app.use("/api/v1/projects/:projectId/documents", requireAuth, documentsRouter);
 app.use("/api/v1/projects/:projectId/documents/:documentId/chunks", chunksRouter);
 
 app.use("/api/v1/projects/:projectId/index-events", indexingRouter);
+app.use("/api/v1/projects/:projectId/documents", documentTextRouter);
 
 // Swagger Documentation
 app.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));

@@ -56,6 +56,46 @@ paths:
         '403': {description: Sem permissão de escrita}
         '404': {description: Projeto ou evento inexistente ou sem acesso}
         '409': {description: Projeto arquivado ou evento em processamento}
+  /api/v1/projects/{projectId}/documents/{documentId}/excerpts:
+    parameters:
+      - {name: projectId, in: path, required: true, schema: {type: string, format: uuid}}
+      - {name: documentId, in: path, required: true, schema: {type: string, format: uuid}}
+    get:
+      summary: Lê o texto indexado do documento na página do trecho selecionado
+      operationId: readDocumentExcerpts
+      security: [{cookieAuth: []}]
+      parameters:
+        - {name: chunk_id, in: query, required: true, schema: {type: string, format: uuid}}
+        - {name: offset, in: query, schema: {type: integer, minimum: 0, maximum: 99999999}}
+      responses:
+        '200':
+          description: Página de até 20 trechos em ordem de origem, sem embeddings.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [document, items, offset, total, next_offset]
+                properties:
+                  document:
+                    type: object
+                    properties:
+                      id: {type: string, format: uuid}
+                      name: {type: string}
+                      project_id: {type: string, format: uuid}
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id: {type: string, format: uuid}
+                        text: {type: string}
+                        index: {type: integer, minimum: 0}
+                  offset: {type: integer, minimum: 0}
+                  total: {type: integer, minimum: 0}
+                  next_offset: {type: integer, nullable: true}
+        '400': {$ref: '#/components/responses/ValidationError'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '404': {description: Documento ou trecho indisponível ou sem acesso ao projeto}
   /api/v1/projects/{projectId}/epicos:
     $ref: './epics-compat.yaml#/collection'
   /api/projects/{projectId}/epicos:

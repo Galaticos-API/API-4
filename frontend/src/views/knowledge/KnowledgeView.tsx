@@ -1,179 +1,112 @@
-import React, { useCallback, useEffect, useState } from "react";
-import { ApiError, apiRequest } from "../../api/api_auth";
+import { useEffect, useRef, useState, type FormEvent } from "react";
+import { ApiError } from "../../api/api_auth";
 import { listProjects, type Project } from "../../api/api_projects";
+import { listTechnologies, type TechnologyOption } from "../../api/api_backlog";
+import { searchKnowledge, SEARCH_LEVELS, type KnowledgeHit } from "../../api/api_knowledge";
+import { originLink, searchExcerpt } from "../../models/knowledgeSearch";
 import { SearchField } from "../common/SearchField";
+import { DocumentTextDialog } from "./DocumentTextDialog";
 import "../../assets/styles/garakis-prototype.css";
+import "../../assets/styles/knowledge.css";
 
-interface SearchItem {
-  id: string;
-  project_id: string;
-  project_name: string;
-  entity_type: string;
-  entity_id: string;
-  title: string | null;
-  text: string;
-  metadata: Record<string, unknown>;
-  source_url: string | null;
-  relevance_score: number;
-}
-
-function parseSearchItems(value: unknown): SearchItem[] {
-  if (!value || typeof value !== "object" || !Array.isArray((value as Record<string, unknown>).items)) {
-    throw new Error("A resposta da busca está em formato inesperado.");
-  }
-  return ((value as { items: unknown[] }).items).map((item): SearchItem => {
-    if (!item || typeof item !== "object") throw new Error("A resposta da busca contém uma origem inválida.");
-    const row = item as Record<string, unknown>;
-    if (typeof row.id !== "string" || typeof row.project_id !== "string" || typeof row.project_name !== "string"
-      || typeof row.entity_type !== "string" || typeof row.entity_id !== "string" || typeof row.text !== "string"
-      || (row.title !== null && typeof row.title !== "string")
-      || (row.source_url !== null && typeof row.source_url !== "string")
-      || typeof row.relevance_score !== "number" || !Number.isFinite(row.relevance_score)
-      || (row.metadata !== null && (typeof row.metadata !== "object" || Array.isArray(row.metadata)))) {
-      throw new Error("A resposta da busca contém uma origem inválida.");
-    }
-    return { ...row, metadata: row.metadata ?? {} } as SearchItem;
-  });
-}
-
-function describeError(error: unknown): string {
+function errorMessage(error: unknown): string {
   if (error instanceof ApiError && error.details && typeof error.details === "object") {
     const message = (error.details as Record<string, unknown>).error;
     if (typeof message === "string") return message;
   }
-  return error instanceof Error ? error.message : "Não foi possível pesquisar no acervo.";
+  return "Não foi possível pesquisar no acervo. Tente novamente.";
 }
 
-export const KnowledgeView: React.FC = () => {
+export function KnowledgeView() {
   const [query, setQuery] = useState("");
-  const [selectedProject, setSelectedProject] = useState("");
+  const [project, setProject] = useState("");
+  const [technology, setTechnology] = useState("");
+  const [level, setLevel] = useState("");
   const [projects, setProjects] = useState<Project[]>([]);
+  const [technologies, setTechnologies] = useState<TechnologyOption[]>([]);
+  const [catalogError, setCatalogError] = useState(false);
+  const [projectsError, setProjectsError] = useState(false);
   const [projectsLoading, setProjectsLoading] = useState(true);
-  const [projectsError, setProjectsError] = useState<string | null>(null);
-  const [results, setResults] = useState<SearchItem[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [searched, setSearched] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [attempt, setAttempt] = useState(0);
+  const [results, setResults] = useState<KnowledgeHit[]>([]);
+  const [state, setState] = useState<"initial" | "loading" | "ready" | "error">("initial");
+  const [error, setError] = useState("");
+  const [documentHit, setDocumentHit] = useState<KnowledgeHit | null>(null);
+  const request = useRef<AbortController | null>(null);
 
   useEffect(() => {
     const controller = new AbortController();
-    void listProjects(controller.signal)
-      .then(page => setProjects(page.projects))
-      .catch(cause => {
-        if (!controller.signal.aborted) setProjectsError(describeError(cause));
-      })
+    const signal = AbortSignal.any([controller.signal, AbortSignal.timeout(15000)]);
+    setProjectsLoading(true); setProjectsError(false);
+    void (async () => {
+      const all: Project[] = [];
+      let offset = 0;
+      do {
+        const page = await listProjects(signal, offset);
+        all.push(...page.projects);
+        offset += page.limit;
+        if (offset >= page.total || page.projects.length === 0) break;
+      } while (!controller.signal.aborted);
+      if (!controller.signal.aborted) setProjects(all.filter(item => item.status !== "arquivado"));
+    })().catch(() => { if (!controller.signal.aborted) setProjectsError(true); })
       .finally(() => { if (!controller.signal.aborted) setProjectsLoading(false); });
+    void listTechnologies(signal).then(items => { if (!controller.signal.aborted) { setTechnologies(items); setCatalogError(false); } })
+      .catch(() => { if (!controller.signal.aborted) setCatalogError(true); });
     return () => controller.abort();
-  }, []);
+  }, [attempt]);
+  useEffect(() => () => request.current?.abort(), []);
 
-  const handleSearch = useCallback(async (event?: React.FormEvent) => {
+  function reset() {
+    request.current?.abort();
+    setResults([]); setState("initial"); setError(""); setDocumentHit(null);
+  }
+  async function submit(event?: FormEvent) {
     event?.preventDefault();
-    if (!selectedProject || query.trim().length < 3 || loading) return;
-    setLoading(true);
-    setSearched(true);
-    setError(null);
-    setResults([]);
+    if (!project || query.trim().length < 3 || query.trim().length > 200) return;
+    request.current?.abort();
+    const controller = new AbortController();
+    request.current = controller;
+    setState("loading"); setError(""); setResults([]);
     try {
-      const params = new URLSearchParams({ q: query.trim(), projeto_id: selectedProject });
-      const response = await apiRequest(`/search?${params.toString()}`);
-      setResults(parseSearchItems(await response.json()));
+      const items = await searchKnowledge({ query, project, technology, level }, AbortSignal.any([controller.signal, AbortSignal.timeout(15000)]));
+      if (!controller.signal.aborted) { setResults(items); setState("ready"); }
     } catch (cause) {
-      setError(describeError(cause));
-    } finally {
-      setLoading(false);
+      if (!controller.signal.aborted) { setError(errorMessage(cause)); setState("error"); }
     }
-  }, [query, selectedProject, loading]);
-
-  const resetSearch = () => {
-    setResults([]);
-    setSearched(false);
-    setError(null);
-  };
-
-  return (
-    <div className="page-container" style={{ paddingBottom: "40px" }}>
-      <div className="head-section">
-        <div>
-          <div className="eyebrow">BASE INTELIGENTE DE REQUISITOS</div>
-          <h1>Consulta de Conhecimento do Acervo</h1>
-          <p className="muted">
-            Pesquise decisões, requisitos e documentos de um projeto. Cada resultado informa sua origem para você abrir o item correspondente.
-          </p>
-        </div>
+  }
+  return <div className="page-container knowledge-page">
+    <div className="head-section"><div><div className="eyebrow">ACERVO DO PROJETO</div><h1>Buscar conhecimento</h1><p className="muted">Encontre requisitos, decisões e documentos. Consulte o trecho e abra a fonte para continuar a leitura.</p></div></div>
+    <form className="card-garakis knowledge-form" onSubmit={event => void submit(event)}>
+      <SearchField label="Pesquisar no acervo" value={query} onChange={value => { reset(); setQuery(value); }} placeholder="Ex.: integração PIX, autenticação, regras de negócio" />
+      <div className="knowledge-filters">
+        <div className="knowledge-filter"><label htmlFor="knowledge-project">Escopo do projeto</label><select id="knowledge-project" value={project} disabled={projectsLoading || projectsError} onChange={event => { reset(); setProject(event.target.value); }}><option value="">{projectsLoading ? "Carregando projetos..." : "Selecione um projeto"}</option>{projects.map(item => <option key={item.id} value={item.id}>{item.nome}</option>)}</select></div>
+        <div className="knowledge-filter"><label htmlFor="knowledge-technology">Tecnologia</label><select id="knowledge-technology" value={technology} disabled={catalogError} onChange={event => { reset(); setTechnology(event.target.value); }}><option value="">Todas as tecnologias</option>{technologies.map(item => <option key={item.id} value={item.id}>{item.nome}</option>)}</select></div>
+        <div className="knowledge-filter"><label htmlFor="knowledge-level">Nível</label><select id="knowledge-level" value={level} onChange={event => { reset(); setLevel(event.target.value); }}><option value="">Todos os níveis</option>{Object.entries(SEARCH_LEVELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></div>
+        <button className="btn-garakis primary" type="submit" disabled={state === "loading" || !project || projectsError || projectsLoading || query.trim().length < 3 || query.trim().length > 200}>{state === "loading" ? "Buscando..." : "Pesquisar"}</button>
       </div>
-
-      <form className="card-garakis" style={{ marginTop: "16px", padding: "24px" }} onSubmit={event => void handleSearch(event)}>
-        <div className="knowledge-search-controls">
-          <SearchField
-            label="Pesquisar no acervo"
-            value={query}
-            onChange={value => { setQuery(value); resetSearch(); }}
-            placeholder="Ex.: autenticação JWT, integração PIX, regras de completude"
-          />
-          <div className="field-garakis" style={{ margin: 0 }}>
-            <label htmlFor="select-project-scope">Escopo do projeto</label>
-            <select
-              id="select-project-scope"
-              className="input-garakis"
-              value={selectedProject}
-              onChange={event => { setSelectedProject(event.target.value); resetSearch(); }}
-              disabled={projectsLoading || Boolean(projectsError)}
-            >
-              <option value="">{projectsLoading ? "Carregando projetos..." : "Selecione um projeto"}</option>
-              {projects.map(project => <option key={project.id} value={project.id}>{project.nome}</option>)}
-            </select>
-          </div>
-          <button className="btn-garakis primary" type="submit" disabled={loading || !selectedProject || query.trim().length < 3}>
-            {loading ? "Buscando..." : "Pesquisar"}
-          </button>
-        </div>
-        {projectsError && <p className="ds-help" role="alert">Não foi possível carregar os projetos: {projectsError}</p>}
-        {!projectsLoading && !projectsError && projects.length === 0 && <p className="ds-help" role="status">Nenhum projeto disponível para pesquisa.</p>}
-      </form>
-
-      <div style={{ marginTop: "24px" }} aria-live="polite">
-        {error ? (
-          <div className="card-garakis" role="alert" style={{ textAlign: "center", padding: "32px" }}>{error}</div>
-        ) : loading ? (
-          <div className="card-garakis" role="status" style={{ textAlign: "center", padding: "32px" }}>
-            Consultando o acervo deste projeto...
-          </div>
-        ) : results.length === 0 ? (
-          <div className="card-garakis" style={{ textAlign: "center", padding: "48px 24px" }}>
-            <h3>{searched ? "Nenhum resultado encontrado" : "Pesquise no acervo do projeto"}</h3>
-            <p className="muted">
-              {searched
-                ? "Tente outros termos. A consulta permanece limitada ao projeto selecionado."
-                : "Selecione um projeto e digite pelo menos 3 caracteres para começar."}
-            </p>
-          </div>
-        ) : (
-          <div className="grid-garakis one" style={{ gap: "16px" }}>
-            {results.map(item => {
-              const title = item.title?.trim() || `Origem do tipo ${item.entity_type}`;
-              const sourceName = item.metadata.source_name ?? item.metadata.nome_arquivo ?? item.metadata.fonte;
-              return (
-                <article className="card-garakis" key={item.id}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "12px", marginBottom: "12px", flexWrap: "wrap" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
-                      <span className="badge-garakis green">{item.entity_type}</span>
-                      <strong>{title}</strong>
-                    </div>
-                    <span className="muted" style={{ fontSize: "0.85rem" }}>Projeto: {item.project_name}</span>
-                  </div>
-                  <p style={{ color: "#fff", fontSize: "0.95rem", lineHeight: 1.6, margin: "0 0 12px", whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>
-                    {item.text}
-                  </p>
-                  {typeof sourceName === "string" && <p className="muted" style={{ fontSize: "0.85rem" }}>Documento de origem: {sourceName}</p>}
-                  {item.source_url
-                    ? <a className="btn-garakis secondary" href={item.source_url}>Abrir origem</a>
-                    : <span className="muted" role="note">Origem sem rota disponível.</span>}
-                </article>
-              );
-            })}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-};
+      <p className="muted">Digite de 3 a 200 caracteres. A consulta usa somente o projeto selecionado.</p>
+      {projectsError && <p role="alert">Não foi possível carregar os projetos. <button type="button" onClick={() => setAttempt(attempt + 1)}>Tentar novamente</button></p>}
+      {catalogError && <p role="status">Filtro de tecnologia indisponível. Você pode pesquisar pelos outros filtros.</p>}
+      {!projectsLoading && !projectsError && !projects.length && <p role="status">Nenhum projeto disponível para pesquisa.</p>}
+    </form>
+    <section className="knowledge-results" aria-label="Resultados da busca" aria-busy={state === "loading"} aria-live="polite">
+      {state === "loading" ? <p className="card-garakis" role="status">Consultando o acervo deste projeto...</p>
+        : state === "error" ? <div className="card-garakis" role="alert"><p>{error}</p><button className="btn-garakis secondary" onClick={() => void submit()}>Tentar busca novamente</button></div>
+        : state === "initial" ? <div className="card-garakis knowledge-empty"><h2>Pesquise no acervo do projeto</h2><p className="muted">Selecione um projeto e digite pelo menos 3 caracteres para começar.</p></div>
+        : !results.length ? <div className="card-garakis knowledge-empty"><h2>Nenhum resultado encontrado</h2><p className="muted">Tente outros termos ou amplie os filtros de tecnologia e nível. A consulta permanece limitada ao projeto selecionado.</p></div>
+        : <><p role="status">{results.length} {results.length === 1 ? "resultado encontrado" : "resultados encontrados"} para “{query.trim()}”</p>{results.map(item => {
+          const href = originLink(item, query);
+          const sourceName = item.metadata.source_name ?? item.metadata.nome_arquivo ?? item.metadata.fonte;
+          return <article className="card-garakis knowledge-result" key={item.id}>
+            <header><span className="badge-garakis">{SEARCH_LEVELS[item.entity_type]}</span><span className="muted">Projeto: {item.project_name}</span></header>
+            <h2>{item.title?.trim() || SEARCH_LEVELS[item.entity_type] + " de origem"}</h2>
+            <p className="knowledge-excerpt">{searchExcerpt(item.text, query)}</p>
+            {typeof sourceName === "string" && <p className="muted">Documento de origem: {sourceName}</p>}
+            {item.entity_type === "documento" ? <button className="btn-garakis secondary" onClick={() => setDocumentHit(item)}>Abrir documento no trecho</button>
+              : href ? <a className="btn-garakis secondary" href={href}>Abrir origem</a> : <p className="muted" role="note">Origem sem rota disponível.</p>}
+          </article>;
+        })}</>}
+    </section>
+    {documentHit && <DocumentTextDialog hit={documentHit} onClose={() => setDocumentHit(null)} />}
+  </div>;
+}
