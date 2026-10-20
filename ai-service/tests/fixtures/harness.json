@@ -1,0 +1,671 @@
+{
+  "schemas": {
+    "questionar": {
+      "epico": {
+        "type": "object",
+        "properties": {
+          "questions": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "dimension": {
+                  "type": "string",
+                  "enum": [
+                    "caminho_principal",
+                    "validacoes",
+                    "erros_indisponibilidade",
+                    "permissoes_seguranca",
+                    "estados_alternativos",
+                    "interface"
+                  ]
+                },
+                "question": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 12000
+                }
+              },
+              "required": [
+                "dimension",
+                "question"
+              ],
+              "additionalProperties": false
+            },
+            "maxItems": 30
+          },
+          "summary": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 12000
+          }
+        },
+        "required": [
+          "questions",
+          "summary"
+        ],
+        "additionalProperties": false
+      },
+      "feature": {
+        "type": "object",
+        "properties": {
+          "questions": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "dimension": {
+                  "type": "string",
+                  "enum": [
+                    "caminho_principal",
+                    "validacoes",
+                    "erros_indisponibilidade",
+                    "permissoes_seguranca",
+                    "estados_alternativos",
+                    "interface"
+                  ]
+                },
+                "question": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 12000
+                }
+              },
+              "required": [
+                "dimension",
+                "question"
+              ],
+              "additionalProperties": false
+            },
+            "maxItems": 30
+          },
+          "summary": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 12000
+          }
+        },
+        "required": [
+          "questions",
+          "summary"
+        ],
+        "additionalProperties": false
+      },
+      "pbi": {
+        "type": "object",
+        "properties": {
+          "questions": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "dimension": {
+                  "type": "string",
+                  "enum": [
+                    "caminho_principal",
+                    "validacoes",
+                    "erros_indisponibilidade",
+                    "permissoes_seguranca",
+                    "estados_alternativos",
+                    "interface"
+                  ]
+                },
+                "question": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 12000
+                }
+              },
+              "required": [
+                "dimension",
+                "question"
+              ],
+              "additionalProperties": false
+            },
+            "maxItems": 30
+          },
+          "summary": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 12000
+          }
+        },
+        "required": [
+          "questions",
+          "summary"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "padronizar": {
+      "epico": {
+        "type": "object",
+        "properties": {
+          "proposal": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "titulo": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 255
+                  },
+                  "descricao": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 5000
+                  },
+                  "objetivo": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 5000
+                  },
+                  "escopo_macro": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 5000
+                  },
+                  "resultado_esperado": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 5000
+                  }
+                },
+                "required": [
+                  "titulo",
+                  "descricao",
+                  "objetivo",
+                  "escopo_macro",
+                  "resultado_esperado"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "questions": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 12000
+            },
+            "maxItems": 30
+          }
+        },
+        "required": [
+          "proposal",
+          "questions"
+        ],
+        "additionalProperties": false
+      },
+      "feature": {
+        "type": "object",
+        "properties": {
+          "proposal": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "titulo": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 255
+                  },
+                  "descricao": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 5000
+                  },
+                  "objetivo": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 5000
+                  }
+                },
+                "required": [
+                  "titulo",
+                  "descricao",
+                  "objetivo"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "questions": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 12000
+            },
+            "maxItems": 30
+          }
+        },
+        "required": [
+          "proposal",
+          "questions"
+        ],
+        "additionalProperties": false
+      },
+      "pbi": {
+        "type": "object",
+        "properties": {
+          "proposal": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "titulo": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 255
+                  },
+                  "historia_como_um": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 5000
+                  },
+                  "historia_eu_quero": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 5000
+                  },
+                  "historia_para_que": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 5000
+                  },
+                  "regras_observacoes": {
+                    "type": "string",
+                    "minLength": 0,
+                    "maxLength": 5000
+                  }
+                },
+                "required": [
+                  "titulo",
+                  "historia_como_um",
+                  "historia_eu_quero",
+                  "historia_para_que",
+                  "regras_observacoes"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "questions": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 12000
+            },
+            "maxItems": 30
+          }
+        },
+        "required": [
+          "proposal",
+          "questions"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "cenarios": {
+      "epico": {
+        "type": "object",
+        "properties": {
+          "scenarios": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "dado": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 12000
+                },
+                "quando": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 12000
+                },
+                "entao": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 12000
+                }
+              },
+              "required": [
+                "dado",
+                "quando",
+                "entao"
+              ],
+              "additionalProperties": false
+            },
+            "maxItems": 30
+          },
+          "questions": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 12000
+            },
+            "maxItems": 30
+          }
+        },
+        "required": [
+          "scenarios",
+          "questions"
+        ],
+        "additionalProperties": false
+      },
+      "feature": {
+        "type": "object",
+        "properties": {
+          "scenarios": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "dado": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 12000
+                },
+                "quando": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 12000
+                },
+                "entao": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 12000
+                }
+              },
+              "required": [
+                "dado",
+                "quando",
+                "entao"
+              ],
+              "additionalProperties": false
+            },
+            "maxItems": 30
+          },
+          "questions": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 12000
+            },
+            "maxItems": 30
+          }
+        },
+        "required": [
+          "scenarios",
+          "questions"
+        ],
+        "additionalProperties": false
+      },
+      "pbi": {
+        "type": "object",
+        "properties": {
+          "scenarios": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "dado": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 12000
+                },
+                "quando": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 12000
+                },
+                "entao": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 12000
+                }
+              },
+              "required": [
+                "dado",
+                "quando",
+                "entao"
+              ],
+              "additionalProperties": false
+            },
+            "maxItems": 30
+          },
+          "questions": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 12000
+            },
+            "maxItems": 30
+          }
+        },
+        "required": [
+          "scenarios",
+          "questions"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "responder": {
+      "epico": {
+        "type": "object",
+        "properties": {
+          "answer": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 12000
+          },
+          "sources": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "maxItems": 30
+          }
+        },
+        "required": [
+          "answer",
+          "sources"
+        ],
+        "additionalProperties": false
+      },
+      "feature": {
+        "type": "object",
+        "properties": {
+          "answer": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 12000
+          },
+          "sources": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "maxItems": 30
+          }
+        },
+        "required": [
+          "answer",
+          "sources"
+        ],
+        "additionalProperties": false
+      },
+      "pbi": {
+        "type": "object",
+        "properties": {
+          "answer": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 12000
+          },
+          "sources": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "maxItems": 30
+          }
+        },
+        "required": [
+          "answer",
+          "sources"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "similares": {
+      "epico": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "source_id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "reason": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 12000
+                }
+              },
+              "required": [
+                "source_id",
+                "reason"
+              ],
+              "additionalProperties": false
+            },
+            "maxItems": 30
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "additionalProperties": false
+      },
+      "feature": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "source_id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "reason": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 12000
+                }
+              },
+              "required": [
+                "source_id",
+                "reason"
+              ],
+              "additionalProperties": false
+            },
+            "maxItems": 30
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "additionalProperties": false
+      },
+      "pbi": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "source_id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "reason": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 12000
+                }
+              },
+              "required": [
+                "source_id",
+                "reason"
+              ],
+              "additionalProperties": false
+            },
+            "maxItems": 30
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  "config": {
+    "instructions": "Questione lacunas antes de sugerir conteúdo. Se a informação não foi fornecida, pergunte. Não invente regras, atores ou condições. Reconheça quando não houver lacunas relevantes.",
+    "operation_instructions": {
+      "questionar": "Avalie exatamente as seis dimensões de cobertura. Questione ambiguidade e condições sem critério verificável, sem inventar lacunas.",
+      "padronizar": "Reorganize somente o conteúdo fornecido na estrutura do nível. Se faltar informação para uma proposta completa, retorne proposal null e perguntas objetivas.",
+      "cenarios": "Proponha cenários DADO / QUANDO / ENTÃO apenas com fundamento no item. Se faltar informação, faça perguntas."
+    },
+    "timeout_ms": 45000,
+    "rules": {
+      "vague_terms": [
+        "adequado",
+        "rápido",
+        "intuitivo",
+        "correto"
+      ],
+      "macro_detail_terms": [
+        "clique",
+        "botão",
+        "borda",
+        "placeholder"
+      ],
+      "implementation_terms": [
+        "sql",
+        "endpoint",
+        "react",
+        "docker",
+        "tabela no banco"
+      ]
+    }
+  }
+}

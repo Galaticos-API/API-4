@@ -1,3 +1,4 @@
+import { CopilotPanel } from "./CopilotPanel";
 import { useEffect, useState } from "react";
 import { ApiError } from "../../api/api_auth";
 import {
@@ -514,6 +515,8 @@ export function PbiDetail({
                 onChange={(tecnologias_ids) => setFormValues((current) => current && { ...current, tecnologias_ids })}
                 disabled={saving}
               />
+
+              <CopilotPanel projectId={projectId} level="pbi" values={{...formValues, regras_observacoes:pbi!.regras_observacoes}} criteria={scenarios} disabled={saving} />
 
               {justificationRequired && (
                 <div className="project-field" key="justificativa">

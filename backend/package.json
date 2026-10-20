@@ -20,7 +20,10 @@
     "test:integration:s105": "tsx scripts/validate-s105.mts",
     "test:integration:indexing": "tsx scripts/test-indexing-db.mts",
     "test:integration:search": "tsx --test src/modules/search/search.repository.db.test.ts",
-    "test:integration:knowledge": "tsx scripts/test-knowledge-db.mts"
+    "test:integration:knowledge": "tsx scripts/test-knowledge-db.mts",
+    "test:integration:harness": "tsx scripts/validate-harness.mts",
+    "test:integration:copilot": "tsx scripts/validate-harness.mts --browser",
+    "test:smoke:harness:local": "tsx scripts/smoke-harness-local.mts"
   },
   "dependencies": {
     "@types/multer": "^2.3.0",

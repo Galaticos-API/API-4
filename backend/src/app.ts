@@ -1,5 +1,6 @@
 import { indexingRouter } from "./modules/indexing/indexing.routes.js";
 import { documentTextRouter } from "./modules/documents/documents.text.js";
+import { createHarnessAdminRouter, createHarnessRunRouter } from "./modules/harness/harness.routes.js";
 import { createProjectAccessRouter } from "./middleware/projectAccess.js";
 import express, { Request, Response } from "express";
 import cors from "cors";
@@ -83,6 +84,9 @@ app.use("/api/v1/chat", chatRouter);
 // Desenvolvedores e competências
 app.use("/api/v1/developers", developersRouter);
 app.use("/api/v1/technologies", requireAuth, technologiesRouter);
+
+app.use("/api/v1/admin/ai-harness", createHarnessAdminRouter());
+app.use("/api/v1/projects/:projectId/ai/requests", createHarnessRunRouter());
 
 // Painel administrativo
 app.use("/api/v1/admin", adminRouter);

@@ -1,12 +1,14 @@
 name: E2E (navegador)
 
-# O serviço de IA não é necessário: os cenários cobrem seu estado indisponível.
+# A regressão principal cobre indisponibilidade; o teste isolado do copiloto
+# usa FastAPI real e respostas simuladas do Ollama.
 # Executa a regressão de navegador em mudanças de aplicação, dados e testes.
 on:
   pull_request:
     branches: [main]
     paths:
       - "backend/**"
+      - "ai-service/**"
       - "frontend/**"
       - "database/**"
       - "e2e/**"
@@ -16,6 +18,7 @@ on:
     branches: [main]
     paths:
       - "backend/**"
+      - "ai-service/**"
       - "frontend/**"
       - "database/**"
       - "e2e/**"
@@ -79,6 +82,11 @@ jobs:
       - name: Executar E2E
         run: npm test
         working-directory: e2e
+      - name: Validar modos do copiloto com serviços isolados
+        run: |
+          docker build -t sinapse-s209-ai-test ai-service
+          npm run build --prefix frontend
+          npm run test:integration:copilot --prefix backend
       - name: Logs dos serviços
         if: failure()
         run: cat "$RUNNER_TEMP/backend.log" "$RUNNER_TEMP/frontend.log"
