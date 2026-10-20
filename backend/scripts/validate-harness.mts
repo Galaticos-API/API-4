@@ -40,8 +40,35 @@ const model = createServer(async (req, res) => {
   }
   if (delayMs) await new Promise((resolve) => setTimeout(resolve, delayMs));
   const proposalSchema = payload.format.properties.proposal;
+  const scenario = (nome: string, tipo: string, entao: string) => ({
+    nome,
+    tipo,
+    dado: "que existe um pedido registrado",
+    quando: "o usuário solicita a aprovação",
+    entao,
+  });
   const result = invalid
     ? { questions: [], summary: "SEGREDO", extra: "proibido" }
+    : payload.format.properties.scenarios
+      ? {
+          scenarios: [
+            scenario(
+              "Aprovar pedido com permissão",
+              "caminho_principal",
+              "o pedido passa a constar como aprovado",
+            ),
+            ...(payload.system.includes("obrigatoriamente")
+              ? [
+                  scenario(
+                    "Recusar aprovação sem permissão",
+                    "acesso_nao_autorizado",
+                    "o sistema recusa a ação e o pedido permanece inalterado",
+                  ),
+                ]
+              : []),
+          ],
+          questions: [],
+        }
     : proposalSchema
       ? {
           proposal: Object.fromEntries(
@@ -282,6 +309,30 @@ try {
   assert.equal(bad.status, 503);
   assert.ok(!JSON.stringify(bad.body).includes("SEGREDO"));
   invalid = false;
+  // S2-11: história incompleta não chega ao modelo; com permissão, vem o cenário de acesso não autorizado.
+  const story = {
+    titulo: "Aprovar pedido",
+    historia_como_um: "gestor",
+    historia_eu_quero: "aprovar pedidos com o perfil de administrador",
+    historia_para_que: "liberar a entrega",
+  };
+  const scenarioRequest = { ...request, operation: "cenarios", fields: story };
+  const modelCalls = captures.length;
+  const incomplete = await call(run, 1, "POST", {
+    ...scenarioRequest,
+    fields: { ...story, historia_para_que: "" },
+  });
+  assert.equal(incomplete.status, 400);
+  assert.equal(incomplete.body.code, "HISTORIA_INCOMPLETA");
+  assert.deepEqual(incomplete.body.details.campos, ["historia_para_que"]);
+  assert.equal(captures.length, modelCalls);
+  const scenarios = await call(run, 1, "POST", scenarioRequest);
+  assert.equal(scenarios.status, 200, JSON.stringify(scenarios.body));
+  assert.deepEqual(
+    scenarios.body.result.scenarios.map((item: any) => item.tipo),
+    ["caminho_principal", "acesso_nao_autorizado"],
+  );
+  assert.ok(captures.at(-1).system.includes("acesso_nao_autorizado"));
   const answer = await call(run, 1, "POST", {
     mode: "consulta",
     operation: "responder",

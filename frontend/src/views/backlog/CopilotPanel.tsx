@@ -5,9 +5,12 @@ import {
   copilotInput,
   DIMENSION_LABELS,
   FIELD_LABELS,
+  missingStoryFields,
+  SCENARIO_TYPE_LABELS,
   type CopilotAnswer,
   type CopilotLevel,
   type CopilotMode,
+  type ScenarioSuggestion,
 } from "../../api/api_copilot";
 import type { Criterion } from "../../api/api_backlog";
 import { ApiError } from "../../api/api_auth";
@@ -23,7 +26,17 @@ const SLOW_NOTICE_MS =
     ? configuredSlowMs
     : 5000;
 const REQUEST_TIMEOUT_MS = 65000;
+const STORY_FIELDS = [
+  "historia_como_um",
+  "historia_eu_quero",
+  "historia_para_que",
+] as const;
+const storyBlocks = (fields: readonly string[]) =>
+  fields.map((field) => FIELD_LABELS[field].toUpperCase()).join(", ");
 function failure(error: unknown) {
+  const missing = missingStoryFields(error);
+  if (missing)
+    return `Complete a história do usuário antes de pedir cenários${missing.length ? ` (falta ${storyBlocks(missing)})` : ""}. Sua edição foi preservada.`;
   if (error instanceof ApiError) {
     if (error.status === 401)
       return "Sua sessão expirou. A análise não foi concluída.";
@@ -53,15 +66,24 @@ export function CopilotPanel({
   values,
   criteria = [],
   disabled = false,
+  onUseScenario,
 }: {
   projectId: string;
   level: CopilotLevel;
   values: object;
   criteria?: Criterion[] | null;
   disabled?: boolean;
+  // Sem este callback (PBI ainda não criado ou sem permissão) o modo de cenários não aparece.
+  onUseScenario?: (scenario: ScenarioSuggestion) => boolean;
 }) {
   const [selectedMode, setMode] = useState<CopilotMode>("questionar");
-  const mode = level === "pbi" ? selectedMode : "padronizar";
+  const canSuggestScenarios = level === "pbi" && !!onUseScenario;
+  const mode =
+    level !== "pbi"
+      ? "padronizar"
+      : selectedMode === "cenarios" && !canSuggestScenarios
+        ? "questionar"
+        : selectedMode;
   const radioName = useId();
   const [answer, setAnswer] = useState<CopilotAnswer | null>(null);
   const [busy, setBusy] = useState(false);
@@ -70,12 +92,23 @@ export function CopilotPanel({
   const [note, setNote] = useState("");
   const request = useRef<AbortController | null>(null);
   const fields = copilotInput(level, values, criteria);
-  const draftKey = JSON.stringify({ projectId, level, fields });
+  // Em cenários, salvar uma sugestão muda os critérios mas não deve apagar as demais.
+  const draftKey = JSON.stringify({
+    projectId,
+    level,
+    fields: mode === "cenarios" ? copilotFields(level, values) : fields,
+  });
   const hasText = Object.values(copilotFields(level, values)).some((value) =>
     value.trim(),
   );
   const waitingCriteria =
-    level === "pbi" && mode === "questionar" && criteria === null;
+    level === "pbi" && mode !== "padronizar" && criteria === null;
+  const missingStory =
+    mode === "cenarios"
+      ? STORY_FIELDS.filter(
+          (field) => !copilotFields(level, values)[field]?.trim(),
+        )
+      : [];
   useEffect(() => {
     request.current?.abort();
     request.current = null;
@@ -88,7 +121,14 @@ export function CopilotPanel({
   useEffect(() => () => request.current?.abort(), []);
 
   async function analyze() {
-    if (disabled || waitingCriteria || !hasText || request.current) return;
+    if (
+      disabled ||
+      waitingCriteria ||
+      !hasText ||
+      missingStory.length ||
+      request.current
+    )
+      return;
     const controller = new AbortController();
     request.current = controller;
     setBusy(true);
@@ -165,6 +205,17 @@ export function CopilotPanel({
             />
             Padronizar texto
           </label>
+          {canSuggestScenarios && (
+            <label>
+              <input
+                type="radio"
+                name={radioName}
+                checked={mode === "cenarios"}
+                onChange={() => setMode("cenarios")}
+              />
+              Sugerir cenários
+            </label>
+          )}
         </fieldset>
       ) : (
         <p>Padronização para {level === "epico" ? "épico" : "feature"}.</p>
@@ -181,6 +232,12 @@ export function CopilotPanel({
           na seção de critérios; a edição continua disponível.
         </p>
       )}
+      {hasText && missingStory.length > 0 && (
+        <p role="status">
+          Complete a história do usuário para receber sugestões de cenários.
+          Falta preencher: {storyBlocks(missingStory)}.
+        </p>
+      )}
       {!hasText && (
         <p className="muted">
           Preencha ao menos um campo para solicitar apoio.
@@ -190,14 +247,22 @@ export function CopilotPanel({
         <button
           type="button"
           className="btn-garakis secondary"
-          disabled={disabled || busy || !hasText || waitingCriteria}
+          disabled={
+            disabled ||
+            busy ||
+            !hasText ||
+            waitingCriteria ||
+            missingStory.length > 0
+          }
           onClick={() => void analyze()}
         >
           {busy
             ? "Analisando…"
             : mode === "questionar"
               ? "Analisar lacunas"
-              : "Propor padronização"}
+              : mode === "cenarios"
+                ? "Sugerir cenários"
+                : "Propor padronização"}
         </button>
         {busy && (
           <button
@@ -225,7 +290,9 @@ export function CopilotPanel({
           <button
             type="button"
             className="btn-garakis secondary"
-            disabled={disabled || !hasText || waitingCriteria}
+            disabled={
+              disabled || !hasText || waitingCriteria || missingStory.length > 0
+            }
             onClick={() => void analyze()}
           >
             Tentar análise novamente
@@ -238,15 +305,75 @@ export function CopilotPanel({
           aria-label={
             answer.operation === "questionar"
               ? "Perguntas sobre lacunas"
-              : "Proposta de padronização"
+              : answer.operation === "cenarios"
+                ? "Cenários sugeridos"
+                : "Proposta de padronização"
           }
         >
           <h4>
             {answer.operation === "questionar"
               ? "Perguntas para revisar o item"
-              : "Texto proposto — não aplicado"}
+              : answer.operation === "cenarios"
+                ? "Cenários sugeridos (ainda não salvos)"
+                : "Texto proposto — não aplicado"}
           </h4>
-          {answer.operation === "questionar" ? (
+          {answer.operation === "cenarios" ? (
+            <>
+              {answer.scenarios.length > 0 && (
+                <ol className="copilot-scenarios">
+                  {answer.scenarios.map((scenario, index) => (
+                    <li key={index}>
+                      <p>
+                        <strong>{scenario.nome}</strong>{" "}
+                        <span className="copilot-label">
+                          {SCENARIO_TYPE_LABELS[scenario.tipo]}
+                        </span>
+                      </p>
+                      <dl>
+                        <div>
+                          <dt>DADO</dt>
+                          <dd>{scenario.dado}</dd>
+                        </div>
+                        <div>
+                          <dt>QUANDO</dt>
+                          <dd>{scenario.quando}</dd>
+                        </div>
+                        <div>
+                          <dt>ENTÃO</dt>
+                          <dd>{scenario.entao}</dd>
+                        </div>
+                      </dl>
+                      <button
+                        type="button"
+                        className="btn-garakis secondary"
+                        disabled={disabled}
+                        aria-label={`Usar o cenário ${scenario.nome} no editor de cenários`}
+                        onClick={() =>
+                          setNote(
+                            onUseScenario?.(scenario)
+                              ? `Cenário "${scenario.nome}" copiado para o editor de cenários. Revise e salve para incluí-lo no PBI.`
+                              : "Há um cenário em edição no formulário. Salve ou cancele esse cenário antes de usar outra sugestão.",
+                          )
+                        }
+                      >
+                        Usar no editor
+                      </button>
+                    </li>
+                  ))}
+                </ol>
+              )}
+              {answer.questions.length > 0 && (
+                <>
+                  <p>Informações a esclarecer:</p>
+                  <ul>
+                    {answer.questions.map((question, index) => (
+                      <li key={index}>{question}</li>
+                    ))}
+                  </ul>
+                </>
+              )}
+            </>
+          ) : answer.operation === "questionar" ? (
             <>
               <p>{answer.summary}</p>
               {answer.questions.length > 0 ? (

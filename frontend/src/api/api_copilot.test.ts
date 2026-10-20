@@ -1,9 +1,11 @@
 import { afterEach, expect, it, vi } from "vitest";
 import {
   askCopilot,
+  missingStoryFields,
   parseCopilotAnswer,
   type CopilotLevel,
 } from "./api_copilot";
+import { ApiError } from "./api_auth";
 const answer = {
   mode: "levantamento",
   operation: "padronizar",
@@ -68,4 +70,52 @@ it("bloqueia conteúdo acima do limite antes de enviá-lo sem truncar silenciosa
     ),
   ).rejects.toThrow("6.000");
   expect(fetch).not.toHaveBeenCalled();
+});
+
+const scenario = {
+  nome: "Aprovar pedido",
+  tipo: "caminho_principal",
+  dado: "que há um pedido pendente",
+  quando: "o gestor aprova",
+  entao: "o pedido fica aprovado",
+};
+const scenarios = {
+  mode: "levantamento",
+  operation: "cenarios",
+  level: "pbi",
+  version: 0,
+  schema_version: 1,
+  result: { scenarios: [scenario], questions: [] },
+};
+it("PBI-03.1.3: aceita cenários nomeados e tipados", () => {
+  expect(parseCopilotAnswer(scenarios, "cenarios", "pbi")).toEqual({
+    operation: "cenarios",
+    version: 0,
+    scenarios: [scenario],
+    questions: [],
+  });
+});
+it.each([
+  { scenarios: [{ ...scenario, tipo: "outro" }], questions: [] },
+  { scenarios: [{ ...scenario, nome: "x".repeat(256) }], questions: [] },
+  { scenarios: [{ ...scenario, entao: " " }], questions: [] },
+  { scenarios: [{ ...scenario, extra: "x" }], questions: [] },
+  { scenarios: [], questions: [] },
+  { scenarios: [scenario] },
+])("PBI-03.1.3: rejeita resposta de cenários fora do contrato %#", (result) => {
+  expect(() =>
+    parseCopilotAnswer({ ...scenarios, result }, "cenarios", "pbi"),
+  ).toThrow("Sua edição foi preservada");
+});
+it("identifica a recusa por história incompleta e os blocos faltantes", () => {
+  expect(
+    missingStoryFields(
+      new ApiError(400, {
+        code: "HISTORIA_INCOMPLETA",
+        details: { campos: ["historia_como_um"] },
+      }),
+    ),
+  ).toEqual(["historia_como_um"]);
+  expect(missingStoryFields(new ApiError(400, { code: "VALIDATION_ERROR" }))).toBeNull();
+  expect(missingStoryFields(new ApiError(503, {}))).toBeNull();
 });

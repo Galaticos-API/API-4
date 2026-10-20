@@ -71,6 +71,14 @@ def measurable_time_question(fields: dict[str, str], editing_context: Any, rules
             return f"Qual é o tempo máximo verificável para ‘{excerpt}’?"
     return None
 
+def contains_term(value: str, term: str) -> bool:
+    return re.search(r"(?<![^\W_])" + re.escape(term) + r"(?![^\W_])", value, re.IGNORECASE) is not None
+
+def requires_permission_scenario(fields: dict[str, str], rules: dict[str, list[str]]) -> bool:
+    # Mesma regra do backend: só os campos da história e das regras, nunca o contexto de edição.
+    story = "\n".join(fields.get(key, "") for key in ("titulo", "historia_como_um", "historia_eu_quero", "historia_para_que", "regras_observacoes"))
+    return any(contains_term(story, term) for term in rules.get("permission_terms", []))
+
 @router.post("/harness/run")
 async def run_harness(req: HarnessRequest):
     if req.operation not in OPERATIONS[req.mode] or set(req.config.operation_instructions) != OPERATIONS[req.mode]:
@@ -116,6 +124,12 @@ async def run_harness(req: HarnessRequest):
         if proposal_schema and all(isinstance(fields.get(key), str) and fields[key].strip() for key in proposal_schema.get("required", []) if key != "regras_observacoes"):
             output_schema["properties"]["proposal"] = proposal_schema
             output_schema["properties"]["questions"]["maxItems"] = 0
+    if req.operation == "cenarios":
+        # O backend só chama esta operação com a história completa: há base para ao menos um cenário.
+        scenarios_schema = output_schema.get("properties", {}).get("scenarios")
+        if isinstance(scenarios_schema, dict):
+            scenarios_schema["minItems"] = 1
+            scenarios_schema["maxItems"] = 8
     if req.operation == "questionar":
         questions_schema = output_schema.get("properties", {}).get("questions", {})
         if isinstance(questions_schema, dict):
@@ -125,6 +139,10 @@ async def run_harness(req: HarnessRequest):
         system += "\nLeia primeiro TODOS os campos e criterios_salvos. Um cenário DADO/QUANDO/ENTÃO já informa o caminho principal. Não pergunte novamente o caminho principal quando ele estiver descrito. Uma regra que limita consulta ao proprietário já informa a permissão. Não peça ator, objetivo ou benefício se já constam da história. Se requer_interface for false, não faça perguntas de interface. Procure lacunas específicas como o tempo máximo quando há 'rápido' ou 'rapidamente'. Não pergunte como implementar nem como corrigir automaticamente falhas. Retorne somente perguntas ainda necessárias; a lista pode estar vazia."
     if req.operation == "padronizar":
         system += "\nSua tarefa é organizar o texto EXISTENTE nos campos do nível, não exigir uma especificação completa de cenários. Se título e os campos obrigatórios da história/nível já estiverem preenchidos, retorne proposal com esses campos reorganizados, preservando ator, intenção e benefício. Não peça novamente informações já presentes. Não adicione regras. regras_observacoes pode ficar vazio. Use proposal null apenas quando faltar informação para preencher os campos obrigatórios do nível; não por faltarem critérios de exceção, detalhes técnicos ou tempo de resposta. Não pergunte como implementar."
+    if req.operation == "cenarios":
+        system += "\nProponha de dois a seis cenários de aceitação para o PBI, cada um com nome curto, tipo, DADO, QUANDO e ENTÃO verificáveis. Use tipo caminho_principal para o fluxo esperado, acesso_nao_autorizado para quem não tem permissão e alternativo para validações, erros e estados alternativos. Inclua ao menos um caminho_principal. Não repita cenários de criterios_salvos. Descreva comportamento observável, nunca implementação. Use perguntas apenas para lacunas que impeçam um cenário verificável."
+        if requires_permission_scenario(fields, req.config.rules):
+            system += "\nA história envolve uma ação sujeita a permissão: inclua obrigatoriamente ao menos um cenário de tipo acesso_nao_autorizado, em que um usuário sem permissão tenta a ação e o sistema a recusa sem alterar dados."
     system += "\nSeja conciso: no máximo seis perguntas sobre lacunas relevantes, sem repetir o que já está escrito."
     prompt = json.dumps({"fields": fields, "editing_context": editing_context, "context": [chunk.model_dump() for chunk in req.context]}, ensure_ascii=False)
     try:
@@ -133,7 +151,7 @@ async def run_harness(req: HarnessRequest):
         elif req.mode == "recomendacao" and not req.context:
             result = {"items": []}
         else:
-            raw = await asyncio.wait_for(ollama_client.generate_response(prompt, system_prompt=system, temperature=0.1, output_schema=output_schema, max_tokens=1024), req.config.timeout_ms / 1000)
+            raw = await asyncio.wait_for(ollama_client.generate_response(prompt, system_prompt=system, temperature=0.1, output_schema=output_schema, max_tokens=2048 if req.operation == "cenarios" else 1024), req.config.timeout_ms / 1000)
             if len(raw) > 200000:
                 raise ValueError("Resposta excedeu o limite")
             result = json.loads(raw)

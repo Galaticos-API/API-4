@@ -328,6 +328,19 @@
             "items": {
               "type": "object",
               "properties": {
+                "nome": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 255
+                },
+                "tipo": {
+                  "type": "string",
+                  "enum": [
+                    "caminho_principal",
+                    "acesso_nao_autorizado",
+                    "alternativo"
+                  ]
+                },
                 "dado": {
                   "type": "string",
                   "minLength": 1,
@@ -345,6 +358,8 @@
                 }
               },
               "required": [
+                "nome",
+                "tipo",
                 "dado",
                 "quando",
                 "entao"
@@ -377,6 +392,19 @@
             "items": {
               "type": "object",
               "properties": {
+                "nome": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 255
+                },
+                "tipo": {
+                  "type": "string",
+                  "enum": [
+                    "caminho_principal",
+                    "acesso_nao_autorizado",
+                    "alternativo"
+                  ]
+                },
                 "dado": {
                   "type": "string",
                   "minLength": 1,
@@ -394,6 +422,8 @@
                 }
               },
               "required": [
+                "nome",
+                "tipo",
                 "dado",
                 "quando",
                 "entao"
@@ -426,6 +456,19 @@
             "items": {
               "type": "object",
               "properties": {
+                "nome": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 255
+                },
+                "tipo": {
+                  "type": "string",
+                  "enum": [
+                    "caminho_principal",
+                    "acesso_nao_autorizado",
+                    "alternativo"
+                  ]
+                },
                 "dado": {
                   "type": "string",
                   "minLength": 1,
@@ -443,6 +486,8 @@
                 }
               },
               "required": [
+                "nome",
+                "tipo",
                 "dado",
                 "quando",
                 "entao"
@@ -643,7 +688,7 @@
     "operation_instructions": {
       "questionar": "Avalie exatamente as seis dimensões de cobertura. Questione ambiguidade e condições sem critério verificável, sem inventar lacunas.",
       "padronizar": "Reorganize somente o conteúdo fornecido na estrutura do nível. Se faltar informação para uma proposta completa, retorne proposal null e perguntas objetivas.",
-      "cenarios": "Proponha cenários DADO / QUANDO / ENTÃO apenas com fundamento no item. Se faltar informação, faça perguntas."
+      "cenarios": "Proponha cenários DADO / QUANDO / ENTÃO apenas com fundamento na história e nas regras do PBI, cada um com nome curto e tipo. Inclua ao menos um cenário de caminho principal. Se a história envolver permissão, inclua também ao menos um cenário de acesso não autorizado. Não repita cenários já salvos. Se faltar informação, faça perguntas."
     },
     "timeout_ms": 45000,
     "rules": {
@@ -665,6 +710,20 @@
         "react",
         "docker",
         "tabela no banco"
+      ],
+      "permission_terms": [
+        "permissão",
+        "permissões",
+        "autorização",
+        "autorizado",
+        "autorizada",
+        "autorizados",
+        "perfil",
+        "perfis",
+        "administrador",
+        "administradores",
+        "proprietário",
+        "proprietária"
       ]
     }
   }

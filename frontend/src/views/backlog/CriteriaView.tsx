@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type MutableRefObject } from "react";
 import { ApiError } from "../../api/api_auth";
 import {
   createCriterion,
@@ -25,6 +25,10 @@ const emptyCenario = {
   entao: "",
 };
 
+export type ScenarioDraft = typeof emptyCenario;
+// Preenche o formulário de cenário a partir de uma sugestão; false quando há edição em andamento.
+export type ScenarioDraftHandler = (draft: ScenarioDraft) => boolean;
+
 export function CriteriaEditor({
   entidadeTipo,
   entidadeId,
@@ -33,6 +37,7 @@ export function CriteriaEditor({
   itemConcluido = false,
   justificativaObrigatoria = false,
   onCriteriaChange,
+  scenarioDraftRef,
 }: {
   entidadeTipo: CriterionEntityType;
   entidadeId: string;
@@ -41,6 +46,7 @@ export function CriteriaEditor({
   itemConcluido?: boolean;
   justificativaObrigatoria?: boolean;
   onCriteriaChange?: (items: Criterion[]) => void;
+  scenarioDraftRef?: MutableRefObject<ScenarioDraftHandler | null>;
 }) {
   const [result, setResult] = useState<Result>({
     state: "loading",
@@ -106,6 +112,26 @@ export function CriteriaEditor({
   }, [entidadeTipo, entidadeId, attempt]);
 
   const isCenario = entidadeTipo === "pbi";
+
+  const formDirty = formOpen && Object.values(cenarioForm).some((value) => value.trim());
+  useEffect(() => {
+    if (!scenarioDraftRef) return;
+    scenarioDraftRef.current = (draft) => {
+      if (!canEdit || !isCenario || formDirty || busy) return false;
+      setCenarioForm({ ...draft });
+      setMessage("");
+      setFormOpen(true);
+      window.setTimeout(() => {
+        const field = document.getElementById("cenario-nome");
+        field?.scrollIntoView?.({ block: "center" });
+        field?.focus();
+      });
+      return true;
+    };
+    return () => {
+      scenarioDraftRef.current = null;
+    };
+  }, [scenarioDraftRef, canEdit, isCenario, formDirty, busy]);
 
   function recarregar() {
     setAttempt((value) => value + 1);
