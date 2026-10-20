@@ -76,10 +76,10 @@ services:
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-sinapse_dev_password}
       - POSTGRES_DB=${POSTGRES_DB:-sinapse}
 
-      # AI Service dentro da rede Docker
-      - AI_SERVICE_URL=http://ai-service:8000
+      # AI Service (usa host.docker.internal para acessar IA rodando nativa no Windows)
+      - AI_SERVICE_URL=${AI_SERVICE_URL:-http://host.docker.internal:8000}
       - DOCUMENT_INGESTION_TOKEN=${DOCUMENT_INGESTION_TOKEN:-sinapse-dev-document-ingestion-token-2026}
-      - REPO_ANALYZER_URL=${REPO_ANALYZER_URL:-http://ai-service:8000}
+      - REPO_ANALYZER_URL=${REPO_ANALYZER_URL:-http://host.docker.internal:8000}
       - AI_SERVICE_TOKEN=${AI_SERVICE_TOKEN:?Configure AI_SERVICE_TOKEN in .env}
       - DOCUMENT_MAX_SIZE_MB=${DOCUMENT_MAX_SIZE_MB:-20}
 
