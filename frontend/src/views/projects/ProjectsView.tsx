@@ -180,6 +180,44 @@ export function ProjectsView({
         )}
       </div>
 
+      {!isDetail && (
+        <div
+          className="project-filters"
+
+        >
+          <SearchField
+            label="Buscar projetos"
+            value={search}
+            onChange={setSearch}
+            placeholder="Nome, cliente ou descrição"
+          />
+
+          <label className="project-filter">
+            Exibir projetos
+
+            <select
+              value={status}
+              onChange={(event) => {
+                setStatus(event.target.value);
+                setOffset(0);
+              }}
+            >
+              <option value="">
+                Não arquivados
+              </option>
+
+              <option value="arquivado">
+                Arquivados
+              </option>
+
+              <option value="todos">
+                Todos
+              </option>
+            </select>
+          </label>
+        </div>
+      )}
+
       {result.state === "loading" && (
         <div
           className="ds-card"
@@ -385,44 +423,6 @@ export function ProjectsView({
               ))}
           </div>
         ))}
-
-      {!isDetail && (
-        <div
-          className="project-filters"
-          style={{ marginTop: "24px" }}
-        >
-          <SearchField
-            label="Buscar projetos"
-            value={search}
-            onChange={setSearch}
-            placeholder="Nome, cliente ou descrição"
-          />
-
-          <label className="project-filter">
-            Exibir projetos
-
-            <select
-              value={status}
-              onChange={(event) => {
-                setStatus(event.target.value);
-                setOffset(0);
-              }}
-            >
-              <option value="">
-                Não arquivados
-              </option>
-
-              <option value="arquivado">
-                Arquivados
-              </option>
-
-              <option value="todos">
-                Todos
-              </option>
-            </select>
-          </label>
-        </div>
-      )}
 
       {!isDetail && !isNew && (
         <nav

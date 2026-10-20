@@ -46,3 +46,13 @@
   .chat-conversations { max-height: 200px; }
   .chat-message { max-width: 100%; }
 }
+
+.chat-sidebar-toggle { display: none; }
+
+@media (max-width: 900px) {
+  .chat-sidebar-toggle { display: inline-flex; margin: 16px 0 0; }
+  .chat-sidebar { display: none; }
+  .chat-sidebar.is-open { display: flex; }
+  .chat-thread { min-height: 400px; }
+  .chat-messages { min-height: 180px; max-height: 55dvh; }
+}

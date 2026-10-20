@@ -201,10 +201,18 @@
 }
 
 .ds-card--glass {
-  padding: 0;
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   box-shadow: var(--shadow-md);
   transition: border-color var(--transition-normal);
 }
 .ds-card--glass:hover { border-color: var(--border-active); }
+
+:where(button, a, input, select, textarea, summary):focus-visible {
+  outline: 2px solid var(--accent-secondary);
+  outline-offset: 3px;
+}
+
+@media (max-width: 640px) {
+  .ds-button { min-height: 44px; }
+}

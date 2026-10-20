@@ -42,7 +42,7 @@ export function FeatureList({ projectId, epicoId, canCreate: allowedToCreate }: 
         <div><p className="projects-eyebrow">Features do épico</p><h3>Features</h3></div>
         {canCreate && <Button variant="primary" onClick={() => navigate(`/projects/${projectId}/epics/${epicoId}/features/new`)}>Nova feature</Button>}
       </div>
-      <label>Exibir itens <select value={status} onChange={event => setStatus(event.target.value)}><option value="">Não arquivados</option><option value="arquivado">Arquivados</option><option value="todos">Todos</option></select></label>
+      <label className="project-filter">Exibir itens <select value={status} onChange={event => setStatus(event.target.value)}><option value="">Não arquivados</option><option value="arquivado">Arquivados</option><option value="todos">Todos</option></select></label>
       {result.state === "loading" && <div className="ds-card ds-card--glass projects-state" role="status">Carregando features…</div>}
       {result.state === "error" && <div className="ds-card ds-card--glass projects-state"><p role="alert">{result.message}</p>
         <Button variant="secondary" onClick={() => setAttempt((v) => v + 1)}>Tentar novamente</Button></div>}
@@ -95,7 +95,7 @@ export function FeatureForm({ projectId, epicoId }: { projectId: string; epicoId
           <div className="project-field" key={field}>
             <label htmlFor={field}>{label}{field === "titulo" && " (obrigatório)"}</label>
             {kind === "textarea"
-              ? <textarea id={field} name={field} rows={3} disabled={busy} value={values[field]} onChange={(e) => setValues((v) => ({ ...v, [field]: e.target.value }))} />
+              ? <textarea id={field} name={field} rows={2} disabled={busy} value={values[field]} onChange={(e) => setValues((v) => ({ ...v, [field]: e.target.value }))} />
               : <input id={field} name={field} type="text" disabled={busy} value={values[field]} onChange={(e) => setValues((v) => ({ ...v, [field]: e.target.value }))} />}
           </div>
         ))}
@@ -198,7 +198,7 @@ export function FeatureDetail({ projectId, epicoId, featureId, canEdit, children
               <div className="project-field" key={field}>
                 <label htmlFor={`edit-${field}`}>{label}</label>
                 {kind === "textarea"
-                  ? <textarea id={`edit-${field}`} rows={3} disabled={saving} value={formValues[field] ?? ""} onChange={(e) => setFormValues((v) => v && { ...v, [field]: e.target.value })} />
+                  ? <textarea id={`edit-${field}`} rows={2} disabled={saving} value={formValues[field] ?? ""} onChange={(e) => setFormValues((v) => v && { ...v, [field]: e.target.value })} />
                   : <input id={`edit-${field}`} type="text" disabled={saving} value={formValues[field] ?? ""} onChange={(e) => setFormValues((v) => v && { ...v, [field]: e.target.value })} />}
               </div>
             ))}

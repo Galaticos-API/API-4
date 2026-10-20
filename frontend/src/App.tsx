@@ -18,15 +18,17 @@ export const App: React.FC = () => {
   const { session, logout } = useAuth();
   const [pathname, setPathname] = useState(window.location.pathname);
 
+  const [menuOpen, setMenuOpen] = useState(false);
+
   const isAdmin = session.user?.role === "admin";
   const activeTab = isProjectPath(pathname)
     ? "projects"
     : (Object.keys(routes) as Array<keyof typeof routes>).find((key) => routes[key] === pathname) || "projects";
 
-  const setActiveTab = (tab: keyof typeof routes) => navigate(routes[tab]);
+  const setActiveTab = (tab: keyof typeof routes) => { setMenuOpen(false); navigate(routes[tab]); };
 
   useEffect(() => {
-    const update = () => setPathname(window.location.pathname);
+    const update = () => { setPathname(window.location.pathname); setMenuOpen(false); };
     window.addEventListener("popstate", update);
     return () => window.removeEventListener("popstate", update);
   }, []);
@@ -38,7 +40,8 @@ export const App: React.FC = () => {
           S<b>•</b>NAPSE
         </a>
 
-        <nav className="nav-links" aria-label="Navegação principal">
+        <Button className="mobile-menu-toggle" variant="secondary" aria-expanded={menuOpen} aria-controls="main-navigation" onClick={() => setMenuOpen(value => !value)}>Menu</Button>
+        <nav id="main-navigation" className={`nav-links ${menuOpen ? "is-open" : ""}`} aria-label="Navegação principal">
           <button
             onClick={() => setActiveTab("projects")}
             className={activeTab === "projects" ? "active" : ""}
