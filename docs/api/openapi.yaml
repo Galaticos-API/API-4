@@ -12,6 +12,50 @@ servers:
     description: Serviço de IA local
 
 paths:
+  /api/v1/projects/{projectId}/index-events:
+    parameters:
+      - {name: projectId, in: path, required: true, schema: {type: string, format: uuid}}
+    get:
+      summary: Lista os últimos 100 eventos de indexação do projeto
+      operationId: listIndexEvents
+      security: [{cookieAuth: []}]
+      responses:
+        '200':
+          description: Estados, versões, tentativas e códigos seguros de falha, sem conteúdo da origem.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/IndexEvent'
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '404': {description: Projeto inexistente ou sem acesso}
+  /api/v1/projects/{projectId}/index-events/{eventId}/reprocess:
+    parameters:
+      - {name: projectId, in: path, required: true, schema: {type: string, format: uuid}}
+      - {name: eventId, in: path, required: true, schema: {type: string, format: uuid}}
+    post:
+      summary: Reenfileira um evento de indexação (admin ou PO)
+      operationId: reprocessIndexEvent
+      description: Repetir enquanto pendente preserva a fila. Eventos substituídos retornam 404; reserva ativa ou projeto arquivado retorna 409.
+      security: [{cookieAuth: []}]
+      responses:
+        '202':
+          description: Evento pendente
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: {type: string, enum: [pendente]}
+        '400': {$ref: '#/components/responses/ValidationError'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {description: Sem permissão de escrita}
+        '404': {description: Projeto ou evento inexistente ou sem acesso}
+        '409': {description: Projeto arquivado ou evento em processamento}
   /api/v1/projects/{projectId}/epicos:
     $ref: './epics-compat.yaml#/collection'
   /api/projects/{projectId}/epicos:
@@ -2964,6 +3008,23 @@ components:
       name: sinapse_session
 
   schemas:
+    IndexEvent:
+      type: object
+      properties:
+        evento_id: {type: string, format: uuid}
+        projeto_id: {type: string, format: uuid}
+        entidade_tipo: {type: string, enum: [epico, feature, pbi, decisao]}
+        entidade_id: {type: string, format: uuid}
+        versao: {type: integer, minimum: 1}
+        operacao: {type: string, enum: [indexar, remover]}
+        status: {type: string, enum: [pendente, processando, processado, falha]}
+        tentativas: {type: integer, minimum: 0}
+        proxima_tentativa: {type: string, format: date-time}
+        erro_codigo:
+          type: string
+          nullable: true
+          enum: [ATTEMPTS_EXHAUSTED, INVALID_RESPONSE, INVALID_SCOPE, TIMEOUT, SERVICE_HTTP_ERROR, SERVICE_UNAVAILABLE, PROCESSING_ERROR, null]
+        updated_at: {type: string, format: date-time}
     TechnologyOption:
       type: object
       required: [id, nome]

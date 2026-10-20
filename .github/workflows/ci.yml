@@ -67,6 +67,11 @@ jobs:
         working-directory: backend
         run: npm test
 
+      - name: Run indexing integration tests (PostgreSQL)
+        working-directory: backend
+        timeout-minutes: 5
+        run: npm run test:integration:indexing
+
       - name: Audit production dependencies
         working-directory: backend
         run: npm run audit:security
