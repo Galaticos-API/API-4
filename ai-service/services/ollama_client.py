@@ -35,6 +35,8 @@ class OllamaClient:
         system_prompt: str | None = None,
         model: str = settings.OLLAMA_LLM_MODEL,
         temperature: float = 0.2,
+        output_schema: dict[str, Any] | None = None,
+        max_tokens: int | None = None,
     ) -> str:
         """Generate text response using Ollama LLM."""
         payload: dict[str, Any] = {
@@ -43,6 +45,10 @@ class OllamaClient:
             "stream": False,
             "options": {"temperature": temperature},
         }
+        if max_tokens is not None:
+            payload["options"]["num_predict"] = max_tokens
+        if output_schema is not None:
+            payload["format"] = output_schema
         if system_prompt:
             payload["system"] = system_prompt
 
