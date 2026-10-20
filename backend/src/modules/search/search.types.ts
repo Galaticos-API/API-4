@@ -1,4 +1,4 @@
-export const SEARCH_LEVELS = ["documento", "decisao", "epico", "feature", "pbi"] as const;
+export const SEARCH_LEVELS = ["documento", "decisao", "epico", "feature", "pbi", "analise_repositorio"] as const;
 export type SearchLevel = typeof SEARCH_LEVELS[number];
 
 export interface HybridSearchInput {
