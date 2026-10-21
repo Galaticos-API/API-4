@@ -204,19 +204,24 @@ export function outputSchema(
         questions,
       });
     }
-    case "cenarios":
+    case "cenarios": {
+      const scenarios = array(
+        obj({
+          nome: { type: "string", minLength: 1, maxLength: 255 },
+          tipo: { type: "string", enum: SCENARIO_TYPES },
+          dado: str,
+          quando: str,
+          entao: str,
+        }),
+      );
+      scenarios.maxItems = 8;
+      const scenarioQuestions = array(str);
+      scenarioQuestions.maxItems = 6;
       return obj({
-        scenarios: array(
-          obj({
-            nome: { type: "string", minLength: 1, maxLength: 255 },
-            tipo: { type: "string", enum: SCENARIO_TYPES },
-            dado: str,
-            quando: str,
-            entao: str,
-          }),
-        ),
-        questions,
+        scenarios,
+        questions: scenarioQuestions,
       });
+    }
     case "responder":
       return obj({
         answer: str,
@@ -277,8 +282,8 @@ export function parseOutput(input: HarnessInput, value: unknown) {
               })
               .strict(),
           )
-          .max(30),
-        questions,
+          .max(8),
+        questions: z.array(text).max(6),
       })
       .strict(),
     responder: z

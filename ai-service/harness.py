@@ -129,6 +129,9 @@ async def run_harness(req: HarnessRequest):
         if isinstance(scenarios_schema, dict):
             scenarios_schema["minItems"] = 0
             scenarios_schema["maxItems"] = 8
+        questions_schema = output_schema.get("properties", {}).get("questions")
+        if isinstance(questions_schema, dict):
+            questions_schema["maxItems"] = 6
     if req.operation == "questionar":
         questions_schema = output_schema.get("properties", {}).get("questions", {})
         if isinstance(questions_schema, dict):
@@ -139,7 +142,7 @@ async def run_harness(req: HarnessRequest):
     if req.operation == "padronizar":
         system += "\nSua tarefa é organizar o texto EXISTENTE nos campos do nível, não exigir uma especificação completa de cenários. Se título e os campos obrigatórios da história/nível já estiverem preenchidos, retorne proposal com esses campos reorganizados, preservando ator, intenção e benefício. Não peça novamente informações já presentes. Não adicione regras. regras_observacoes pode ficar vazio. Use proposal null apenas quando faltar informação para preencher os campos obrigatórios do nível; não por faltarem critérios de exceção, detalhes técnicos ou tempo de resposta. Não pergunte como implementar."
     if req.operation == "cenarios":
-        system += "\nProponha de dois a seis cenários de aceitação para o PBI, cada um com nome curto, tipo, DADO, QUANDO e ENTÃO verificáveis. Use tipo caminho_principal para o fluxo esperado, acesso_nao_autorizado para quem não tem permissão e alternativo para validações, erros e estados alternativos. Inclua ao menos um caminho_principal. Não repita cenários de criterios_salvos. Descreva comportamento observável, nunca implementação. Use perguntas apenas para lacunas que impeçam um cenário verificável."
+        system += "\nProponha de um a oito cenários de aceitação para o PBI, cada um com nome curto, tipo, DADO, QUANDO e ENTÃO verificáveis. Use tipo caminho_principal para o fluxo esperado, acesso_nao_autorizado para quem não tem permissão e alternativo para validações, erros e estados alternativos. Inclua ao menos um caminho_principal. Não repita cenários de criterios_salvos. Descreva comportamento observável, nunca implementação. Se faltarem informações essenciais para qualquer cenário verificável, retorne scenarios vazio e de uma a seis perguntas específicas. Nunca retorne scenarios vazio sem perguntas. Use perguntas apenas para lacunas que impeçam um cenário verificável."
         if requires_permission_scenario(fields, req.config.rules):
             system += "\nA história envolve uma ação sujeita a permissão: inclua obrigatoriamente ao menos um cenário de tipo acesso_nao_autorizado, em que um usuário sem permissão tenta a ação e o sistema a recusa sem alterar dados. O ENTÃO desse cenário deve dizer explicitamente que a ação é recusada ou negada."
     system += "\nSeja conciso: no máximo seis perguntas sobre lacunas relevantes, sem repetir o que já está escrito."
@@ -158,7 +161,7 @@ async def run_harness(req: HarnessRequest):
             result = json.loads(raw)
         validator.validate(result)
         if req.operation == "cenarios" and not result["scenarios"] and not result["questions"]:
-            raise ValueError("Cenários ausentes sem esclarecimento")
+            raise OutputValidationError("Cenários vazios exigem perguntas de esclarecimento")
         if req.operation == "questionar":
             question = measurable_time_question(fields, editing_context, req.config.rules)
             if question and not any(item["dimension"] == "validacoes" and re.search(r"tempo|prazo|latência|rápid|rapidez|duração", item["question"], re.IGNORECASE) for item in result["questions"]):

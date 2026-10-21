@@ -30,7 +30,7 @@ A operação continua sendo `POST /api/v1/projects/{projectId}/ai/requests` com 
 - `rules` ganhou `permission_terms`. A lista é versionada com o restante da configuração do modo. Revisões salvas antes desta entrega não têm a lista e passam a usar o padrão do código, sem migration.
 - A instrução padrão de `cenarios` foi detalhada. Revisões já salvas mantêm a instrução que tinham.
 
-O serviço de IA limita a resposta a entre 1 e 8 cenários, reforça no prompt o cenário de acesso não autorizado quando a história envolve permissão e usa um orçamento de 2.048 tokens para essa operação. A detecção de permissão considera apenas título, história e regras do PBI, nunca o contexto de edição. O [OpenAPI](api/openapi.yaml) foi atualizado.
+O contrato limita a resposta a até 8 cenários e até 6 perguntas, tanto no backend quanto no serviço de IA. Quando houver base suficiente, o serviço propõe de 1 a 8 cenários; quando faltar informação essencial, pode retornar a lista vazia acompanhada de perguntas de esclarecimento (nunca vazia sem perguntas). O serviço reforça no prompt o cenário de acesso não autorizado quando a história envolve permissão e usa um orçamento de 2.048 tokens para essa operação. A detecção de permissão considera apenas título, história e regras do PBI, nunca o contexto de edição. O [OpenAPI](api/openapi.yaml) foi atualizado.
 
 ### Limites das verificações
 

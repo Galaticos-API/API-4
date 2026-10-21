@@ -132,6 +132,50 @@ test("schemas independentes por operação e nível; saída inválida falha fech
     ),
   );
 });
+test("cenários preservam esclarecimentos e limites do contrato da IA", () => {
+  const scenarioInput = { ...input, operation: "cenarios" as const };
+  const schema = outputSchema("cenarios", "pbi") as any;
+  assert.equal(schema.properties.scenarios.maxItems, 8);
+  assert.equal(schema.properties.questions.maxItems, 6);
+  const scenario = {
+    nome: "Consultar pedido",
+    tipo: "caminho_principal",
+    dado: "Cliente autenticado",
+    quando: "Consultar pedido",
+    entao: "Pedido exibido",
+  };
+  const questions = ["Qual resultado deve ocorrer quando o pedido não existir?"];
+  const clarification = { scenarios: [], questions };
+  assert.deepEqual(parseOutput(scenarioInput, clarification), clarification);
+  assert.doesNotThrow(() =>
+    validateGuide(scenarioInput, clarification, defaultConfig("levantamento")),
+  );
+  assert.throws(() =>
+    validateGuide(
+      scenarioInput,
+      { scenarios: [], questions: [] },
+      defaultConfig("levantamento"),
+    ),
+  );
+  assert.throws(() =>
+    parseOutput(scenarioInput, {
+      scenarios: Array.from({ length: 9 }, () => ({
+        ...scenario,
+      })),
+      questions: [],
+    }),
+  );
+  assert.throws(() =>
+    parseOutput(scenarioInput, {
+      scenarios: [],
+      questions: Array.from({ length: 7 }, () => "Pergunta objetiva"),
+    }),
+  );
+  assert.equal(parseOutput(scenarioInput, {
+    scenarios: [scenario],
+    questions: [],
+  }).scenarios.length, 1);
+});
 test("guia exige infinitivo, história, granularidade e resultado de produto", () => {
   const config = defaultConfig("levantamento");
   assert.doesNotThrow(() => validateGuide(input, result, config));

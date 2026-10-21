@@ -366,7 +366,7 @@
               ],
               "additionalProperties": false
             },
-            "maxItems": 30
+            "maxItems": 8
           },
           "questions": {
             "type": "array",
@@ -375,7 +375,7 @@
               "minLength": 1,
               "maxLength": 12000
             },
-            "maxItems": 30
+            "maxItems": 6
           }
         },
         "required": [
@@ -430,7 +430,7 @@
               ],
               "additionalProperties": false
             },
-            "maxItems": 30
+            "maxItems": 8
           },
           "questions": {
             "type": "array",
@@ -439,7 +439,7 @@
               "minLength": 1,
               "maxLength": 12000
             },
-            "maxItems": 30
+            "maxItems": 6
           }
         },
         "required": [
@@ -494,7 +494,7 @@
               ],
               "additionalProperties": false
             },
-            "maxItems": 30
+            "maxItems": 8
           },
           "questions": {
             "type": "array",
@@ -503,7 +503,7 @@
               "minLength": 1,
               "maxLength": 12000
             },
-            "maxItems": 30
+            "maxItems": 6
           }
         },
         "required": [

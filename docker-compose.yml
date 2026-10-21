@@ -108,6 +108,10 @@ services:
       postgres:
         condition: service_healthy
 
+    # Docker Desktop fornece o hostname; host-gateway também o habilita no Linux.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
     networks:
       - sinapse-network
 

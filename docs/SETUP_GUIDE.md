@@ -30,12 +30,11 @@ docker compose ps
 
 No PowerShell, substitua `cp .env.example .env` por `Copy-Item .env.example .env`. Antes de iniciar os containers, gere um valor aleatório com o comando Python mostrado acima e preencha `DOCUMENT_INGESTION_TOKEN` no `.env`; backend e serviço de IA precisam compartilhar esse mesmo segredo. O Compose falha explicitamente se o valor estiver vazio.
 
-O Compose padrão inicia PostgreSQL, n8n, backend e frontend. O backend aplica migrations pendentes antes de aceitar tráfego. URLs padrão:
+O Compose padrão inicia PostgreSQL, backend e frontend. O backend aplica migrations pendentes antes de aceitar tráfego. As URLs de IA apontam para `ai-service` na rede Compose, mas o container de IA é opcional e não inicia sem o perfil `local-ai`; sem ele, a aplicação continua disponível e usa o fallback quando a IA está indisponível. Para subir a IA em container, siga a seção abaixo. No Windows, `./start-dev.ps1` inicia o backend e o frontend com o serviço Python nativo no host e configura as URLs de IA durante a execução. URLs padrão:
 
 - Frontend: <http://localhost:5173>
 - Saúde do backend: <http://localhost:3001/health>
 - Swagger UI: <http://localhost:3001/docs>
-- n8n: <http://localhost:5678>
 
 O primeiro acesso à aplicação começa pela tela de autenticação. Cadastre uma conta para usar o ambiente local. Os dados enviados permanecem nos volumes Docker até serem removidos explicitamente.
 
@@ -57,13 +56,13 @@ ollama pull bge-m3
 ollama pull qwen2.5:1.5b
 ```
 
-Com o Ollama em execução no host, inicie o serviço Python pelo perfil `local-ai`:
+Com o Ollama em execução no host, inicie o serviço Python pelo perfil `local-ai`, aplicando também o override que aponta o backend para o container na rede Compose:
 
 ```bash
-docker compose --profile local-ai up --build -d
+docker compose -f docker-compose.yml -f docker-compose.local-ai.yml --profile local-ai up --build -d
 ```
 
-O `ai-service` containerizado acessa o Ollama por `http://host.docker.internal:11434` (ou pelo valor de `OLLAMA_DOCKER_BASE_URL`). Para executar o serviço Python no próprio host, use `OLLAMA_BASE_URL=http://localhost:11434`. Os modelos são baixados separadamente e ocupam espaço significativo. Valide a integração no fluxo desejado; o app possui comportamento de fallback quando o assistente está indisponível.
+O `ai-service` containerizado acessa o Ollama por `http://host.docker.internal:11434` (ou pelo valor de `OLLAMA_DOCKER_BASE_URL`). No Windows, para executar o serviço Python no próprio host, instale Python 3.11 ou superior, confirme que o Ollama e os modelos estão disponíveis e execute `./start-dev.ps1`; o script usa `OLLAMA_BASE_URL=http://localhost:11434` e configura as URLs do backend. Os modelos são baixados separadamente e ocupam espaço significativo. Valide a integração no fluxo desejado; o app possui comportamento de fallback quando o assistente está indisponível.
 
 ## Opção B — Frontend/backend no host
 
@@ -76,7 +75,7 @@ cp .env.example .env
 docker compose up -d postgres
 ```
 
-Se também precisar das integrações locais, inicie `n8n` ou o perfil `local-ai` separadamente. Os containers acessam PostgreSQL pelo hostname `postgres` na porta `5432`; processos no host usam `localhost` e a porta publicada `POSTGRES_PORT` (padrão `55432`). O Ollama permanece no host e deve estar iniciado antes do `ai-service`.
+Se também precisar do `ai-service` containerizado, inicie o perfil com ambos os arquivos Compose indicados acima. Os containers acessam PostgreSQL pelo hostname `postgres` na porta `5432`; processos no host usam `localhost` e a porta publicada `POSTGRES_PORT` (padrão `55432`). O Ollama permanece no host e deve estar iniciado antes do `ai-service`.
 
 ### 2. Instale dependências e aplique as migrations
 

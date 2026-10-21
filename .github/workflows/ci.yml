@@ -17,7 +17,7 @@ jobs:
     name: Validate Windows development scripts
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Validate startup failures and isolated process shutdown
         shell: powershell
         run: ./scripts/test-dev-process.ps1
@@ -28,10 +28,10 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: "3.11"
 
@@ -48,6 +48,7 @@ jobs:
         run: |
           cp .env.example .env
           AI_SERVICE_TOKEN=ci-compose-validation-only DOCUMENT_INGESTION_TOKEN=ci-validation-placeholder-32-characters docker compose config --quiet
+          AI_SERVICE_TOKEN=ci-compose-validation-only DOCUMENT_INGESTION_TOKEN=ci-validation-placeholder-32-characters docker compose -f docker-compose.yml -f docker-compose.local-ai.yml --profile local-ai config --quiet
 
   validate-backend:
     name: Build & Typecheck Backend (Node.js)
@@ -55,10 +56,10 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: "20"
           cache: "npm"
@@ -76,10 +77,10 @@ jobs:
         working-directory: backend
         run: npm test
 
-      - name: Run indexing integration tests (PostgreSQL)
+      - name: Run backend PostgreSQL integration tests
         working-directory: backend
-        timeout-minutes: 5
-        run: npm run test:integration:indexing
+        timeout-minutes: 10
+        run: npm run test:integration:postgres
 
       - name: Validate versioned AI harness with isolated services
         run: |
@@ -97,10 +98,10 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: "20"
           cache: "npm"
@@ -124,10 +125,10 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: "3.11"
           cache: "pip"

@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock, patch
 import httpx
 from main import app, settings
 
-FIXTURE = json.loads((Path(__file__).parent / "fixtures/harness.json").read_text())
+FIXTURE = json.loads((Path(__file__).parent / "fixtures/harness.json").read_text(encoding="utf-8"))
 
 class HarnessTests(unittest.IsolatedAsyncioTestCase):
     def request(self, **overrides):
@@ -167,8 +167,13 @@ class HarnessTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(response.json()["result"], answer)
             schema=model.call_args.kwargs["output_schema"]["properties"]["scenarios"]
             self.assertEqual((schema["minItems"], schema["maxItems"]), (0, 8))
+            self.assertEqual(model.call_args.kwargs["output_schema"]["properties"]["questions"]["maxItems"], 6)
             self.assertIn("caminho_principal", model.call_args.kwargs["system_prompt"])
             self.assertNotIn("obrigatoriamente", model.call_args.kwargs["system_prompt"])
+        clarified = {"scenarios": [], "questions": ["Qual resultado deve ocorrer?"]}
+        with patch("harness.ollama_client.generate_response", new=AsyncMock(return_value=json.dumps(clarified))):
+            response = await self.post(self.scenarios_request())
+            self.assertEqual(response.status_code, 200)
         for invalid in [{"scenarios":[],"questions":[]}, {"scenarios":[{**answer["scenarios"][0],"tipo":"outro"}],"questions":[]}]:
             with self.subTest(invalid=invalid), patch("harness.ollama_client.generate_response", new=AsyncMock(return_value=json.dumps(invalid))):
                 self.assertEqual((await self.post(self.scenarios_request())).status_code, 503)

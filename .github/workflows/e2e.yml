@@ -55,8 +55,8 @@ jobs:
       E2E_APP_URL: http://localhost:5173
       E2E_CHROME_PATH: /usr/bin/google-chrome
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: "20"
       - name: Instalar dependências

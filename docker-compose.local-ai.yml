@@ -1,0 +1,6 @@
+services:
+  backend:
+    environment:
+      # Neste modo, o backend e o serviço de IA compartilham a rede Compose.
+      - AI_SERVICE_URL=http://ai-service:8000
+      - REPO_ANALYZER_URL=http://ai-service:8000

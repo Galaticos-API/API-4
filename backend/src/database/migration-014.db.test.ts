@@ -6,10 +6,10 @@ import { applyUntil, loadMigration, migrationFiles, withDatabase } from "./migra
 
 const SUGGESTIONS_MIGRATION = "014_suggestions_and_field_provenance.sql";
 
-test("migration 014 vem depois da 013 e é a única com esse número", { skip: !process.env.ARCHIVE_TEST_DATABASE_URL }, async () => {
+test("migration 014 de sugestões vem depois da 013 e tem nome de arquivo único", { skip: !process.env.ARCHIVE_TEST_DATABASE_URL }, async () => {
   const files = await migrationFiles();
   assert.ok(files.indexOf(SUGGESTIONS_MIGRATION) > files.indexOf("013_decision_records.sql"));
-  assert.equal(files.filter((file) => file.startsWith("014_")).length, 1);
+  assert.equal(files.filter((file) => file === SUGGESTIONS_MIGRATION).length, 1);
 });
 
 test("migration 014 cria provenance_json e sugestao_ia, preserva dados legados e é idempotente", { skip: !process.env.ARCHIVE_TEST_DATABASE_URL }, async () => {

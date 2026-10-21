@@ -4,7 +4,7 @@ Copie `.env.example` para `.env` e configure os valores locais antes de iniciar.
 
 ## IA no Docker
 
-Execute `docker compose --profile local-ai up -d --build`. O backend acessa a IA e o Analyzer por `http://ai-service:8000`, na rede interna. Remova overrides antigos de `AI_SERVICE_URL` ou `REPO_ANALYZER_URL` que apontem para o host se quiser usar esse modo.
+Execute `docker compose -f docker-compose.yml -f docker-compose.local-ai.yml --profile local-ai up -d --build`. O backend acessa a IA e o Analyzer por `http://ai-service:8000`, na rede interna. Remova overrides antigos de `AI_SERVICE_URL` ou `REPO_ANALYZER_URL` que apontem para o host se quiser usar esse modo.
 
 ## IA nativa no Windows
 
