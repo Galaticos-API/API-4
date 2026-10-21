@@ -23,6 +23,8 @@ const envSchema = z.object({
   REPO_ANALYZER_URL: z.string().default('http://localhost:8000'),
   SEARCH_MIN_VECTOR_SIMILARITY: z.coerce.number().min(0).max(1).default(0.55),
   SEARCH_MIN_TEXT_RANK: z.coerce.number().min(0).max(1).default(0.05),
+  // S2-12: limiar mais alto que o da busca para não forçar sugestões pouco relacionadas.
+  SIMILAR_MIN_VECTOR_SIMILARITY: z.coerce.number().min(0).max(1).default(0.72),
 
   // S1-01 — Autenticação e segurança
   AUTH_MAX_LOGIN_ATTEMPTS: z.coerce.number().int().min(1).default(5),

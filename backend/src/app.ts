@@ -18,6 +18,7 @@ import { epicsCompatRouter } from "./modules/epics/epics.compat.routes.js";
 import { repoAnalysesRouter } from './modules/repo-analyses/repo-analyses.routes';
 import { epicDecisionsRouter, featureDecisionsRouter, pbiDecisionsRouter, projectDecisionsRouter } from "./modules/decisions/decisions.routes.js";
 import { epicSuggestionsRouter, featureSuggestionsRouter, pbiSuggestionsRouter } from "./modules/suggestions/suggestions.routes.js";
+import { epicSimilarItemsRouter, featureSimilarItemsRouter, pbiSimilarItemsRouter, projectSimilarItemsRouter } from "./modules/similar-items/similar-items.routes.js";
 import { backlogSearchRouter } from "./modules/backlog-search/backlog-search.routes.js";
 import { documentsRouter } from "./modules/documents/documents.routes.js";
 import { chunksRouter } from "./modules/documents/chunks.routes.js";
@@ -39,7 +40,6 @@ app.use(express.json());
 
 app.use("/api/v1/auth", authRouter);
 
-// Health Check Endpoint
 app.get("/health", async (_req: Request, res: Response) => {
   const dbHealthy = await checkDatabaseConnection();
   const documents = dbHealthy ? await documentsService.health().catch(() => null) : null;
@@ -59,15 +59,10 @@ app.get("/health", async (_req: Request, res: Response) => {
 
 app.use("/api/v1", createProjectAccessRouter());
 app.use("/api", createProjectAccessRouter());
-
-// Projects API Endpoints (v1 e alias)
 app.use("/api/v1/projects", requireAuth, projectsRouter);
 app.use("/api/projects", requireAuth, projectsRouter);
-// Compatibilidade das rotas de épicos da implementação anterior
 app.use("/api/v1", requireAuth, epicsCompatRouter);
 app.use("/api", requireAuth, epicsCompatRouter);
-
-// Hierarquia do backlog: épicos, features, PBIs e critérios de aceitação (S1-05/06/07/10)
 app.use("/api/v1/epics", requireAuth, epicsRouter);
 app.use("/api/v1/features", requireAuth, featuresRouter);
 app.use("/api/v1/pbis", requireAuth, pbisRouter);
@@ -104,6 +99,11 @@ app.use("/api/v1/pbis/:entityId/decisions", pbiDecisionsRouter);
 app.use("/api/v1/epics/:entityId/suggestions", epicSuggestionsRouter);
 app.use("/api/v1/features/:entityId/suggestions", featureSuggestionsRouter);
 app.use("/api/v1/pbis/:entityId/suggestions", pbiSuggestionsRouter);
+
+app.use("/api/v1/projects/:projectId/similar-items", projectSimilarItemsRouter);
+app.use("/api/v1/epics/:entityId/similar-items", epicSimilarItemsRouter);
+app.use("/api/v1/features/:entityId/similar-items", featureSimilarItemsRouter);
+app.use("/api/v1/pbis/:entityId/similar-items", pbiSimilarItemsRouter);
 
 // Busca textual no backlog (S1-17)
 app.use("/api/v1/projects/:projectId/backlog-search", backlogSearchRouter);
