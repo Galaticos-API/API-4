@@ -286,13 +286,22 @@ const scenariosInput = requestSchema.parse({
   level: "pbi",
   fields: story,
 });
-const scenario = (tipo: string, nome = "Consultar pedido existente") => ({
-  nome,
-  tipo,
-  dado: "que o cliente possui um pedido registrado",
-  quando: "ele consulta seus pedidos",
-  entao: "o sistema exibe o pedido com o estado atual",
-});
+const scenario = (tipo: string, nome = "Consultar pedido existente") =>
+  tipo === "acesso_nao_autorizado"
+    ? {
+        nome,
+        tipo,
+        dado: "que o usuário não tem permissão para aprovar pedidos",
+        quando: "ele tenta aprovar um pedido",
+        entao: "o sistema recusa a ação e o pedido permanece inalterado",
+      }
+    : {
+        nome,
+        tipo,
+        dado: "que o cliente possui um pedido registrado",
+        quando: "ele consulta seus pedidos",
+        entao: "o sistema exibe o pedido com o estado atual",
+      };
 
 test("PBI-03.1.3: sugere cenários DADO/QUANDO/ENTÃO nomeados e tipados a partir da história completa", async () => {
   const sent: Record<string, unknown>[] = [];
@@ -338,6 +347,27 @@ test("PBI-03.1.3: história com permissão exige caminho principal e acesso não
   };
   assert.equal(requiresPermissionScenario(restricted.fields, config), true);
   assert.equal(requiresPermissionScenario(story, config), false);
+  // "perfil" e "administrador" como dado do domínio não indicam permissão.
+  for (const historia_eu_quero of [
+    "consultar o perfil público do desenvolvedor",
+    "editar meu perfil",
+    "cadastrar um administrador do condomínio",
+  ])
+    assert.equal(
+      requiresPermissionScenario({ ...story, historia_eu_quero }, config),
+      false,
+      historia_eu_quero,
+    );
+  for (const regras_observacoes of [
+    "Somente o proprietário pode excluir o pedido.",
+    "Usuário sem permissão não visualiza o valor.",
+    "Acesso restrito ao time financeiro.",
+  ])
+    assert.equal(
+      requiresPermissionScenario({ ...story, regras_observacoes }, config),
+      true,
+      regras_observacoes,
+    );
   assert.throws(
     () =>
       validateGuide(
@@ -377,6 +407,44 @@ test("PBI-03.1.3: história com permissão exige caminho principal e acesso não
     ),
     false,
   );
+});
+
+test("PBI-03.1.3: cenário de acesso não autorizado precisa descrever a recusa no ENTÃO", () => {
+  const config = defaultConfig("levantamento");
+  const contraditorio = {
+    ...scenario("acesso_nao_autorizado", "Recusar usuário sem permissão"),
+    entao: "o sistema exibe o pedido com o estado atual",
+  };
+  assert.throws(
+    () =>
+      validateGuide(
+        scenariosInput,
+        { scenarios: [scenario("caminho_principal"), contraditorio], questions: [] },
+        config,
+      ),
+    /sem recusa/,
+  );
+  for (const entao of [
+    "o sistema recusa a aprovação",
+    "o acesso é negado e uma mensagem de permissão é exibida",
+    "a exclusão não é permitida",
+    "o pedido permanece inalterado",
+  ])
+    assert.doesNotThrow(
+      () =>
+        validateGuide(
+          scenariosInput,
+          {
+            scenarios: [
+              scenario("caminho_principal"),
+              { ...contraditorio, entao },
+            ],
+            questions: [],
+          },
+          config,
+        ),
+      entao,
+    );
 });
 
 test("PBI-03.1.3: cenários descrevem comportamento, e lista vazia só com perguntas", () => {

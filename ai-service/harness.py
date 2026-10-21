@@ -142,7 +142,7 @@ async def run_harness(req: HarnessRequest):
     if req.operation == "cenarios":
         system += "\nProponha de dois a seis cenários de aceitação para o PBI, cada um com nome curto, tipo, DADO, QUANDO e ENTÃO verificáveis. Use tipo caminho_principal para o fluxo esperado, acesso_nao_autorizado para quem não tem permissão e alternativo para validações, erros e estados alternativos. Inclua ao menos um caminho_principal. Não repita cenários de criterios_salvos. Descreva comportamento observável, nunca implementação. Use perguntas apenas para lacunas que impeçam um cenário verificável."
         if requires_permission_scenario(fields, req.config.rules):
-            system += "\nA história envolve uma ação sujeita a permissão: inclua obrigatoriamente ao menos um cenário de tipo acesso_nao_autorizado, em que um usuário sem permissão tenta a ação e o sistema a recusa sem alterar dados."
+            system += "\nA história envolve uma ação sujeita a permissão: inclua obrigatoriamente ao menos um cenário de tipo acesso_nao_autorizado, em que um usuário sem permissão tenta a ação e o sistema a recusa sem alterar dados. O ENTÃO desse cenário deve dizer explicitamente que a ação é recusada ou negada."
     system += "\nSeja conciso: no máximo seis perguntas sobre lacunas relevantes, sem repetir o que já está escrito."
     prompt = json.dumps({"fields": fields, "editing_context": editing_context, "context": [chunk.model_dump() for chunk in req.context]}, ensure_ascii=False)
     try:

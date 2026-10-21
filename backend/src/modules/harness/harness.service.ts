@@ -11,6 +11,7 @@ import { searchPatterns } from "./search-patterns.js";
 import { HarnessRepository } from "./harness.repository.js";
 import {
   configSchema,
+  DENIAL_PATTERN,
   FIELDS,
   OPERATIONS,
   outputSchema,
@@ -129,6 +130,15 @@ function validateScenarios(
     !types.has("acesso_nao_autorizado")
   )
     throw Error("Sem cenário de acesso não autorizado");
+  // Um cenário marcado como acesso não autorizado que termina em sucesso contradiz o próprio tipo.
+  if (
+    result.scenarios.some(
+      (scenario) =>
+        scenario.tipo === "acesso_nao_autorizado" &&
+        !DENIAL_PATTERN.test(scenario.entao),
+    )
+  )
+    throw Error("Acesso não autorizado sem recusa");
   const content = result.scenarios
     .map((scenario) => [scenario.dado, scenario.quando, scenario.entao].join("\n"))
     .join("\n");

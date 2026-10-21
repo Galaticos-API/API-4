@@ -714,16 +714,22 @@
       "permission_terms": [
         "permissão",
         "permissões",
-        "autorização",
-        "autorizado",
-        "autorizada",
-        "autorizados",
-        "perfil",
-        "perfis",
-        "administrador",
-        "administradores",
-        "proprietário",
-        "proprietária"
+        "sem permissão",
+        "não autorizado",
+        "não autorizada",
+        "usuário autorizado",
+        "usuários autorizados",
+        "perfil de acesso",
+        "perfil de administrador",
+        "controle de acesso",
+        "nível de acesso",
+        "acesso restrito",
+        "somente o administrador",
+        "apenas o administrador",
+        "somente administradores",
+        "apenas administradores",
+        "somente o proprietário",
+        "apenas o proprietário"
       ]
     }
   }

@@ -40,21 +40,33 @@ export const SCENARIO_TYPES = [
   "acesso_nao_autorizado",
   "alternativo",
 ] as const;
-// Termos que indicam ação sujeita a permissão (PBI-03.1.3, cenário 2).
+// Expressões que indicam ação sujeita a permissão (PBI-03.1.3, cenário 2).
+// Palavras soltas como "perfil" ou "administrador" também aparecem como dado do
+// domínio ("perfil público", "cadastrar administrador") e não entram aqui.
 export const PERMISSION_TERMS = [
   "permissão",
   "permissões",
-  "autorização",
-  "autorizado",
-  "autorizada",
-  "autorizados",
-  "perfil",
-  "perfis",
-  "administrador",
-  "administradores",
-  "proprietário",
-  "proprietária",
+  "sem permissão",
+  "não autorizado",
+  "não autorizada",
+  "usuário autorizado",
+  "usuários autorizados",
+  "perfil de acesso",
+  "perfil de administrador",
+  "controle de acesso",
+  "nível de acesso",
+  "acesso restrito",
+  "somente o administrador",
+  "apenas o administrador",
+  "somente administradores",
+  "apenas administradores",
+  "somente o proprietário",
+  "apenas o proprietário",
 ] as const;
+// ENTÃO de um cenário de acesso não autorizado precisa descrever a recusa.
+// A verificação é lexical: garante que a recusa está escrita, não que a regra está correta.
+export const DENIAL_PATTERN =
+  /(?<![\p{L}\p{N}])(?:recus|rejeit|bloque|impede|impedid|proib|nega(?:d[oa]s?|r)?(?![\p{L}])|acesso negado|sem permissão|não (?:é |são |foi |será )?(?:permitid|autorizad|concluíd|realizad|alterad)|não (?:pode|consegue|tem permissão)|permanece(?:m)? inalterad|mensagem de (?:erro|permissão|acesso))/iu;
 const text = z.string().trim().min(1).max(12000);
 export const rulesSchema = z
   .object({
