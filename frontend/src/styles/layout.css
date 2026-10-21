@@ -544,3 +544,11 @@ h2 {
   .landing-hero { padding: 28px 20px; }
   .head-section { flex-wrap: wrap; gap: 16px; }
 }
+
+@media (max-width: 360px) {
+  .top-header { gap: 8px; padding-inline: 12px; }
+  .top-header .brand { font-size: 1rem; letter-spacing: .1em; }
+  .top-header .mobile-menu-toggle { padding-inline: 12px; }
+  .top-header .app-user-actions { gap: 4px; }
+  .top-header .app-sign-out { padding-inline: 10px; }
+}
