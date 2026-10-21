@@ -1,8 +1,8 @@
-import { apiRequest } from "./api_auth";
+import { ApiError, apiRequest } from "./api_auth";
 import type { Criterion } from "./api_backlog";
 
 export type CopilotLevel = "epico" | "feature" | "pbi";
-export type CopilotMode = "questionar" | "padronizar";
+export type CopilotMode = "questionar" | "padronizar" | "cenarios";
 export const COPILOT_FIELDS = {
   epico: [
     "titulo",
@@ -39,6 +39,18 @@ export const DIMENSION_LABELS = {
   estados_alternativos: "Estados alternativos",
   interface: "Interface e compatibilidade",
 } as const;
+export const SCENARIO_TYPE_LABELS = {
+  caminho_principal: "Caminho principal",
+  acesso_nao_autorizado: "Acesso não autorizado",
+  alternativo: "Alternativo",
+} as const;
+export interface ScenarioSuggestion {
+  nome: string;
+  tipo: keyof typeof SCENARIO_TYPE_LABELS;
+  dado: string;
+  quando: string;
+  entao: string;
+}
 export type CopilotAnswer =
   | {
       operation: "questionar";
@@ -53,6 +65,12 @@ export type CopilotAnswer =
       operation: "padronizar";
       version: number;
       proposal: Record<string, string> | null;
+      questions: string[];
+    }
+  | {
+      operation: "cenarios";
+      version: number;
+      scenarios: ScenarioSuggestion[];
       questions: string[];
     };
 
@@ -147,6 +165,38 @@ export function parseCopilotAnswer(
     });
     return { operation, version, summary: result.summary, questions };
   }
+  if (operation === "cenarios") {
+    if (
+      !keys(result, ["scenarios", "questions"]) ||
+      !Array.isArray(result.scenarios) ||
+      result.scenarios.length > 30 ||
+      !Array.isArray(result.questions) ||
+      result.questions.length > 30 ||
+      !result.questions.every((item) => text(item)) ||
+      (!result.scenarios.length && !result.questions.length)
+    )
+      throw invalid();
+    const scenarios = result.scenarios.map((item) => {
+      if (
+        !record(item) ||
+        !keys(item, ["nome", "tipo", "dado", "quando", "entao"]) ||
+        !text(item.nome, 255) ||
+        typeof item.tipo !== "string" ||
+        !Object.prototype.hasOwnProperty.call(SCENARIO_TYPE_LABELS, item.tipo) ||
+        !text(item.dado) ||
+        !text(item.quando) ||
+        !text(item.entao)
+      )
+        throw invalid();
+      return item as unknown as ScenarioSuggestion;
+    });
+    return {
+      operation,
+      version,
+      scenarios,
+      questions: result.questions as string[],
+    };
+  }
   if (
     !keys(result, ["proposal", "questions"]) ||
     !Array.isArray(result.questions) ||
@@ -175,6 +225,16 @@ export function parseCopilotAnswer(
     proposal: result.proposal as Record<string, string> | null,
     questions: result.questions as string[],
   };
+}
+// O backend recusa cenários sem história completa (PBI-03.1.3, cenário 3).
+export function missingStoryFields(error: unknown): string[] | null {
+  if (!(error instanceof ApiError) || error.status !== 400) return null;
+  const body = error.details;
+  if (!record(body) || body.code !== "HISTORIA_INCOMPLETA") return null;
+  const campos = record(body.details) ? body.details.campos : null;
+  return Array.isArray(campos)
+    ? campos.filter((field): field is string => typeof field === "string")
+    : [];
 }
 export async function askCopilot(
   projectId: string,

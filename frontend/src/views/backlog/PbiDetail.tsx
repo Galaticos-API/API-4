@@ -1,5 +1,5 @@
 import { CopilotPanel } from "./CopilotPanel";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ApiError } from "../../api/api_auth";
 import {
   camposFaltantesDe,
@@ -20,7 +20,7 @@ import { useUnsavedChangesGuard } from "../../viewmodels/useUnsavedChangesGuard"
 import { Button } from "../common/ui";
 import { BacklogBreadcrumb } from "./BacklogBreadcrumb";
 import { BacklogTechnologySelector } from "./BacklogTechnologySelector";
-import { CriteriaEditor } from "./CriteriaView";
+import { CriteriaEditor, type ScenarioDraftHandler } from "./CriteriaView";
 import { DecisionsPanel } from "./DecisionsPanel";
 import { SuggestionsPanel } from "./SuggestionsPanel";
 import { ProvenanceBadge } from "./ProvenanceBadge";
@@ -97,6 +97,7 @@ export function PbiDetail({
 
   const [scenarios, setScenarios] =
     useState<Criterion[] | null>(null);
+  const scenarioDraftRef = useRef<ScenarioDraftHandler | null>(null);
 
   const qualityConfiguration =
     usePbiQualityConfiguration();
@@ -516,7 +517,19 @@ export function PbiDetail({
                 disabled={saving}
               />
 
-              <CopilotPanel projectId={projectId} level="pbi" values={{...formValues, regras_observacoes:pbi!.regras_observacoes}} criteria={scenarios} disabled={saving} />
+              <CopilotPanel
+                projectId={projectId}
+                level="pbi"
+                values={{...formValues, regras_observacoes:pbi!.regras_observacoes}}
+                criteria={scenarios}
+                disabled={saving}
+                onUseScenario={
+                  canEdit && !readOnly
+                    ? ({ nome, dado, quando, entao }) =>
+                        scenarioDraftRef.current?.({ nome, dado, quando, entao }) ?? false
+                    : undefined
+                }
+              />
 
               {justificationRequired && (
                 <div className="project-field" key="justificativa">
@@ -764,6 +777,7 @@ export function PbiDetail({
           onCriteriaChange={
             setScenarios
           }
+          scenarioDraftRef={scenarioDraftRef}
         />
       </div>
 

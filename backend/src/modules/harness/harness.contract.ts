@@ -35,6 +35,38 @@ export const FIELDS = {
     "regras_observacoes",
   ],
 } as const;
+export const SCENARIO_TYPES = [
+  "caminho_principal",
+  "acesso_nao_autorizado",
+  "alternativo",
+] as const;
+// Expressões que indicam ação sujeita a permissão (PBI-03.1.3, cenário 2).
+// Palavras soltas como "perfil" ou "administrador" também aparecem como dado do
+// domínio ("perfil público", "cadastrar administrador") e não entram aqui.
+export const PERMISSION_TERMS = [
+  "permissão",
+  "permissões",
+  "sem permissão",
+  "não autorizado",
+  "não autorizada",
+  "usuário autorizado",
+  "usuários autorizados",
+  "perfil de acesso",
+  "perfil de administrador",
+  "controle de acesso",
+  "nível de acesso",
+  "acesso restrito",
+  "somente o administrador",
+  "apenas o administrador",
+  "somente administradores",
+  "apenas administradores",
+  "somente o proprietário",
+  "apenas o proprietário",
+] as const;
+// ENTÃO de um cenário de acesso não autorizado precisa descrever a recusa.
+// A verificação é lexical: garante que a recusa está escrita, não que a regra está correta.
+export const DENIAL_PATTERN =
+  /(?<![\p{L}\p{N}])(?:recus|rejeit|bloque|impede|impedid|proib|nega(?:d[oa]s?|r)?(?![\p{L}])|acesso negado|sem permissão|não (?:é |são |foi |será )?(?:permitid|autorizad|concluíd|realizad|alterad)|não (?:pode|consegue|tem permissão)|permanece(?:m)? inalterad|mensagem de (?:erro|permissão|acesso))/iu;
 const text = z.string().trim().min(1).max(12000);
 export const rulesSchema = z
   .object({
@@ -47,6 +79,12 @@ export const rulesSchema = z
       .array(z.string().trim().min(1).max(60))
       .min(1)
       .max(40),
+    // Revisões salvas antes da S2-11 não têm a lista e recebem o padrão.
+    permission_terms: z
+      .array(z.string().trim().min(1).max(60))
+      .min(1)
+      .max(40)
+      .default(() => [...PERMISSION_TERMS]),
   })
   .strict();
 export const configSchema = z
@@ -57,7 +95,7 @@ export const configSchema = z
     rules: rulesSchema,
   })
   .strict();
-export type HarnessConfig = z.infer<typeof configSchema>;
+export type HarnessConfig = z.output<typeof configSchema>;
 export interface HarnessRevision {
   mode: HarnessMode;
   version: number;
@@ -101,7 +139,7 @@ export function defaultConfig(mode: HarnessMode): HarnessConfig {
     padronizar:
       "Reorganize somente o conteúdo fornecido na estrutura do nível. Se faltar informação para uma proposta completa, retorne proposal null e perguntas objetivas.",
     cenarios:
-      "Proponha cenários DADO / QUANDO / ENTÃO apenas com fundamento no item. Se faltar informação, faça perguntas.",
+      "Proponha cenários DADO / QUANDO / ENTÃO apenas com fundamento na história e nas regras do PBI, cada um com nome curto e tipo. Inclua ao menos um cenário de caminho principal. Se a história envolver permissão, inclua também ao menos um cenário de acesso não autorizado. Não repita cenários já salvos. Se faltar informação, faça perguntas.",
     responder:
       "Responda à pergunta e liste os IDs dos trechos efetivamente utilizados.",
     similares:
@@ -123,6 +161,7 @@ export function defaultConfig(mode: HarnessMode): HarnessConfig {
         "docker",
         "tabela no banco",
       ],
+      permission_terms: [...PERMISSION_TERMS],
     },
   };
 }
@@ -167,7 +206,15 @@ export function outputSchema(
     }
     case "cenarios":
       return obj({
-        scenarios: array(obj({ dado: str, quando: str, entao: str })),
+        scenarios: array(
+          obj({
+            nome: { type: "string", minLength: 1, maxLength: 255 },
+            tipo: { type: "string", enum: SCENARIO_TYPES },
+            dado: str,
+            quando: str,
+            entao: str,
+          }),
+        ),
         questions,
       });
     case "responder":
@@ -219,7 +266,17 @@ export function parseOutput(input: HarnessInput, value: unknown) {
     cenarios: z
       .object({
         scenarios: z
-          .array(z.object({ dado: text, quando: text, entao: text }).strict())
+          .array(
+            z
+              .object({
+                nome: z.string().trim().min(1).max(255),
+                tipo: z.enum(SCENARIO_TYPES),
+                dado: text,
+                quando: text,
+                entao: text,
+              })
+              .strict(),
+          )
           .max(30),
         questions,
       })

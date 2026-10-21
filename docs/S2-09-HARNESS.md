@@ -8,7 +8,7 @@ O backend mantém configurações independentes para levantamento, consulta e re
 | --- | --- | --- |
 | levantamento | questionar | perguntas por dimensão e resumo; perguntas vazias quando não houver lacunas relevantes |
 | levantamento | padronizar | proposta nos campos do nível e perguntas; proposta nula quando faltam informações |
-| levantamento | cenarios | cenários DADO/QUANDO/ENTÃO e perguntas; somente PBI |
+| levantamento | cenarios | cenários com nome, tipo e DADO/QUANDO/ENTÃO, e perguntas; somente PBI com história completa; caminho principal sempre e acesso não autorizado quando a história cita `permission_terms` (ver [S2-11](S2-11-CENARIOS.md)) |
 | consulta | responder | resposta e IDs das fontes; recusa explícita quando não há evidência |
 | recomendacao | similares | IDs e justificativas dos candidatos pertinentes; lista vazia quando não há candidatos |
 

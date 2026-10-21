@@ -256,6 +256,7 @@ export function RepoAnalyzerView({ projectId, canStart = true }: { projectId: st
           <div className="ds-card analysis-details" aria-live="polite">
             {selected ? (
               <AnalysisDetails
+                key={selected.id}
                 analysis={selected}
                 now={now}
                 canRetry={canStart && !starting}
@@ -298,8 +299,6 @@ function AnalysisDetails({ analysis, now, canRetry, canControl, controlBusy, con
   const [mode, setMode] = useState<"preview" | "raw">("preview");
   const [copied, setCopied] = useState(false);
   const report = analysis.relatorio_markdown ?? "";
-
-  useEffect(() => { setMode("preview"); setCopied(false); }, [analysis.id]);
 
   const copy = async () => {
     try {

@@ -171,8 +171,14 @@ paths:
         pelo backend no projeto autorizado; não podem ser fornecidos pelo cliente. Levantamento
         aceita campos do nível e texto_livre. Consulta/recomendação aceitam pergunta. Combinações
         válidas são levantamento/questionar,padronizar,cenarios; consulta/responder; recomendacao/similares.
-        Cenários detalhados são exclusivos de PBI. Schemas JSON estritos por operação e nível estão
-        disponíveis em getHarnessConfiguration. Qualquer falha de geração ou validação retorna 503.
+        Cenários detalhados são exclusivos de PBI e exigem a história completa (COMO UM, EU QUERO
+        e PARA QUE); sem ela a resposta é 400 HISTORIA_INCOMPLETA e o modelo não é consultado.
+        Cada cenário sugerido tem nome, tipo (caminho_principal, acesso_nao_autorizado ou alternativo),
+        dado, quando e entao. Há sempre um caminho_principal e, quando a história ou as regras citam
+        um termo de rules.permission_terms, também um acesso_nao_autorizado cujo entao descreve a recusa
+        (verificação lexical; não valida a regra de permissão em si) (S2-11). Schemas JSON
+        estritos por operação e nível estão disponíveis em getHarnessConfiguration. Qualquer falha
+        de geração ou validação retorna 503.
       security: [{cookieAuth: []}]
       parameters:
         - in: path
@@ -210,7 +216,23 @@ paths:
                   operation: {type: string}
                   level: {type: string, enum: [epico, feature, pbi]}
                   result: {type: object, description: Saída conforme o schema da operação/nível da revisão}
-        '400': {description: Solicitação inválida}
+        '400':
+          description: >
+            Solicitação inválida. Em cenarios com história incompleta, code é HISTORIA_INCOMPLETA
+            e details.campos lista os blocos vazios da história.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error: {type: string}
+                  code: {type: string, enum: [VALIDATION_ERROR, HISTORIA_INCOMPLETA]}
+                  details:
+                    type: object
+                    properties:
+                      campos:
+                        type: array
+                        items: {type: string, enum: [historia_como_um, historia_eu_quero, historia_para_que]}
         '401': {description: Autenticação necessária}
         '403': {description: Perfil sem permissão}
         '404': {description: Projeto inexistente ou sem acesso}
@@ -3210,6 +3232,15 @@ components:
             vague_terms: {type: array, maxItems: 40, items: {type: string, minLength: 1, maxLength: 60}}
             macro_detail_terms: {type: array, minItems: 1, maxItems: 40, items: {type: string, minLength: 1, maxLength: 60}}
             implementation_terms: {type: array, minItems: 1, maxItems: 40, items: {type: string, minLength: 1, maxLength: 60}}
+            permission_terms:
+              type: array
+              minItems: 1
+              maxItems: 40
+              items: {type: string, minLength: 1, maxLength: 60}
+              description: >
+                Expressões que indicam ação sujeita a permissão na história ou nas regras do PBI. Quando
+                algum aparece, as sugestões de cenários precisam incluir um acesso_nao_autorizado.
+                Opcional ao salvar; revisões sem a lista usam o padrão do código.
     HarnessRevision:
       type: object
       required: [mode, version, schema_version, config, created_at, created_by]

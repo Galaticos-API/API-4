@@ -67,6 +67,26 @@ it("alterna o relatório entre leitura e Markdown bruto", async () => {
   expect(screen.getByRole("button", { name: "Markdown" })).toHaveAttribute("aria-pressed", "true");
 });
 
+it("mantém o formato ao atualizar e volta à leitura ao selecionar outra análise", async () => {
+  vi.stubGlobal("fetch", vi.fn(() => json([
+    analysis({ status: "concluido", relatorio_markdown: "# Primeiro" }),
+    analysis({ id: "a-2", repositorio_url: "https://github.com/acme/outro", status: "concluido", relatorio_markdown: "# Segundo" }),
+  ])));
+  render(<RepoAnalyzerView projectId="p-1" />);
+
+  await screen.findByRole("heading", { name: "Primeiro" });
+  fireEvent.click(screen.getByRole("button", { name: "Markdown" }));
+  expect(screen.getByRole("button", { name: "Markdown" })).toHaveAttribute("aria-pressed", "true");
+  fireEvent.click(screen.getByRole("button", { name: "Atualizar" }));
+  await waitFor(() => expect(screen.getByRole("button", { name: "Atualizar" })).toHaveAttribute("aria-busy", "false"));
+  expect(screen.getByRole("button", { name: "Markdown" })).toHaveAttribute("aria-pressed", "true");
+
+  const history = screen.getByRole("complementary", { name: "Histórico de análises" });
+  fireEvent.click(within(history).getByText("acme/outro"));
+  expect(await screen.findByRole("heading", { name: "Segundo" })).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Leitura" })).toHaveAttribute("aria-pressed", "true");
+});
+
 it("erro ao carregar oferece nova tentativa", async () => {
   const request = vi.fn()
     .mockImplementationOnce(() => json({ error: "x" }, 500))

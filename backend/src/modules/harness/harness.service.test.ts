@@ -11,6 +11,7 @@ import {
 import { HarnessRepository } from "./harness.repository.js";
 import {
   HarnessService,
+  requiresPermissionScenario,
   validateConfig,
   validateGuide,
 } from "./harness.service.js";
@@ -269,6 +270,250 @@ test("padronização respeita limites dos campos que receberão sugestões", () 
     parseOutput(input, {
       ...result,
       proposal: { ...proposal, historia_eu_quero: "x".repeat(5001) },
+    }),
+  );
+});
+
+const story = {
+  titulo: "Consultar pedido",
+  historia_como_um: "cliente",
+  historia_eu_quero: "consultar meus pedidos",
+  historia_para_que: "acompanhar a entrega",
+};
+const scenariosInput = requestSchema.parse({
+  mode: "levantamento",
+  operation: "cenarios",
+  level: "pbi",
+  fields: story,
+});
+const scenario = (tipo: string, nome = "Consultar pedido existente") =>
+  tipo === "acesso_nao_autorizado"
+    ? {
+        nome,
+        tipo,
+        dado: "que o usuário não tem permissão para aprovar pedidos",
+        quando: "ele tenta aprovar um pedido",
+        entao: "o sistema recusa a ação e o pedido permanece inalterado",
+      }
+    : {
+        nome,
+        tipo,
+        dado: "que o cliente possui um pedido registrado",
+        quando: "ele consulta seus pedidos",
+        entao: "o sistema exibe o pedido com o estado atual",
+      };
+
+test("PBI-03.1.3: sugere cenários DADO/QUANDO/ENTÃO nomeados e tipados a partir da história completa", async () => {
+  const sent: Record<string, unknown>[] = [];
+  const service = new HarnessService(new MemoryRepository(), {
+    async generate(payload) {
+      sent.push(payload);
+      return { scenarios: [scenario("caminho_principal")], questions: [] };
+    },
+  });
+  const answer = await service.run("p1", scenariosInput);
+  assert.equal(answer.operation, "cenarios");
+  assert.deepEqual(answer.result, {
+    scenarios: [scenario("caminho_principal")],
+    questions: [],
+  });
+  assert.deepEqual(sent[0].output_schema, outputSchema("cenarios", "pbi"));
+  assert.throws(() =>
+    parseOutput(scenariosInput, {
+      scenarios: [{ ...scenario("caminho_principal"), tipo: "outro" }],
+      questions: [],
+    }),
+  );
+  assert.throws(() =>
+    parseOutput(scenariosInput, {
+      scenarios: [{ ...scenario("caminho_principal"), nome: "x".repeat(256) }],
+      questions: [],
+    }),
+  );
+  const { nome: _nome, ...semNome } = scenario("caminho_principal");
+  assert.throws(() =>
+    parseOutput(scenariosInput, { scenarios: [semNome], questions: [] }),
+  );
+});
+
+test("PBI-03.1.3: história com permissão exige caminho principal e acesso não autorizado", () => {
+  const config = defaultConfig("levantamento");
+  const restricted = {
+    ...scenariosInput,
+    fields: {
+      ...story,
+      historia_eu_quero: "aprovar pedidos com o perfil de administrador",
+    },
+  };
+  assert.equal(requiresPermissionScenario(restricted.fields, config), true);
+  assert.equal(requiresPermissionScenario(story, config), false);
+  // "perfil" e "administrador" como dado do domínio não indicam permissão.
+  for (const historia_eu_quero of [
+    "consultar o perfil público do desenvolvedor",
+    "editar meu perfil",
+    "cadastrar um administrador do condomínio",
+  ])
+    assert.equal(
+      requiresPermissionScenario({ ...story, historia_eu_quero }, config),
+      false,
+      historia_eu_quero,
+    );
+  for (const regras_observacoes of [
+    "Somente o proprietário pode excluir o pedido.",
+    "Usuário sem permissão não visualiza o valor.",
+    "Acesso restrito ao time financeiro.",
+  ])
+    assert.equal(
+      requiresPermissionScenario({ ...story, regras_observacoes }, config),
+      true,
+      regras_observacoes,
+    );
+  assert.throws(
+    () =>
+      validateGuide(
+        restricted,
+        { scenarios: [scenario("caminho_principal")], questions: [] },
+        config,
+      ),
+    /acesso não autorizado/,
+  );
+  assert.throws(
+    () =>
+      validateGuide(
+        restricted,
+        { scenarios: [scenario("acesso_nao_autorizado")], questions: [] },
+        config,
+      ),
+    /caminho principal/,
+  );
+  assert.doesNotThrow(() =>
+    validateGuide(
+      restricted,
+      {
+        scenarios: [
+          scenario("caminho_principal"),
+          scenario("acesso_nao_autorizado", "Recusar usuário sem permissão"),
+        ],
+        questions: [],
+      },
+      config,
+    ),
+  );
+  // Termo de permissão no contexto de edição não conta: só história e regras.
+  assert.equal(
+    requiresPermissionScenario(
+      { ...story, texto_livre: "perfil administrador" },
+      config,
+    ),
+    false,
+  );
+});
+
+test("PBI-03.1.3: cenário de acesso não autorizado precisa descrever a recusa no ENTÃO", () => {
+  const config = defaultConfig("levantamento");
+  const contraditorio = {
+    ...scenario("acesso_nao_autorizado", "Recusar usuário sem permissão"),
+    entao: "o sistema exibe o pedido com o estado atual",
+  };
+  assert.throws(
+    () =>
+      validateGuide(
+        scenariosInput,
+        { scenarios: [scenario("caminho_principal"), contraditorio], questions: [] },
+        config,
+      ),
+    /sem recusa/,
+  );
+  for (const entao of [
+    "o sistema recusa a aprovação",
+    "o acesso é negado e uma mensagem de permissão é exibida",
+    "a exclusão não é permitida",
+    "o pedido permanece inalterado",
+  ])
+    assert.doesNotThrow(
+      () =>
+        validateGuide(
+          scenariosInput,
+          {
+            scenarios: [
+              scenario("caminho_principal"),
+              { ...contraditorio, entao },
+            ],
+            questions: [],
+          },
+          config,
+        ),
+      entao,
+    );
+});
+
+test("PBI-03.1.3: cenários descrevem comportamento, e lista vazia só com perguntas", () => {
+  const config = defaultConfig("levantamento");
+  assert.throws(() =>
+    validateGuide(
+      scenariosInput,
+      {
+        scenarios: [
+          { ...scenario("caminho_principal"), entao: "o endpoint grava no SQL" },
+        ],
+        questions: [],
+      },
+      config,
+    ),
+  );
+  assert.throws(() =>
+    validateGuide(scenariosInput, { scenarios: [], questions: [] }, config),
+  );
+  assert.doesNotThrow(() =>
+    validateGuide(
+      scenariosInput,
+      { scenarios: [], questions: ["Qual estado o pedido deve exibir?"] },
+      config,
+    ),
+  );
+});
+
+test("PBI-03.1.3: história incompleta pede preenchimento sem chamar o modelo", async () => {
+  let calls = 0;
+  const service = new HarnessService(new MemoryRepository(), {
+    async generate() {
+      calls++;
+      return { scenarios: [scenario("caminho_principal")], questions: [] };
+    },
+  });
+  for (const [field, value] of [
+    ["historia_como_um", ""],
+    ["historia_eu_quero", "   "],
+    ["historia_para_que", ""],
+  ] as const)
+    await assert.rejects(
+      service.run("p1", {
+        ...scenariosInput,
+        fields: { ...story, [field]: value },
+      }),
+      (error: any) =>
+        error.statusCode === 400 &&
+        error.code === "HISTORIA_INCOMPLETA" &&
+        error.details.campos.includes(field),
+    );
+  assert.equal(calls, 0);
+});
+
+test("revisão salva antes da S2-11 recebe os termos de permissão padrão", () => {
+  const { permission_terms: _terms, ...legacyRules } =
+    defaultConfig("levantamento").rules;
+  const config = validateConfig("levantamento", {
+    ...defaultConfig("levantamento"),
+    rules: legacyRules,
+  });
+  assert.deepEqual(
+    config.rules.permission_terms,
+    defaultConfig("levantamento").rules.permission_terms,
+  );
+  assert.throws(() =>
+    validateConfig("levantamento", {
+      ...defaultConfig("levantamento"),
+      rules: { ...legacyRules, permission_terms: [] },
     }),
   );
 });

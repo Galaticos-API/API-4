@@ -154,3 +154,33 @@ class HarnessTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(response.status_code,200)
             dimensions=model.call_args.kwargs["output_schema"]["properties"]["questions"]["items"]["properties"]["dimension"]["enum"]
             self.assertNotIn("caminho_principal",dimensions)
+
+    def scenarios_request(self, **fields):
+        story = {"titulo":"Consultar pedido", "historia_como_um":"cliente", "historia_eu_quero":"consultar meus pedidos", "historia_para_que":"acompanhar a entrega", **fields}
+        return self.request(operation="cenarios", output_schema=FIXTURE["schemas"]["cenarios"]["pbi"], fields=story)
+
+    async def test_scenarios_are_named_typed_and_at_least_one(self):
+        answer={"scenarios":[{"nome":"Consultar pedido existente","tipo":"caminho_principal","dado":"que há um pedido","quando":"o cliente consulta","entao":"o pedido é exibido"}],"questions":[]}
+        with patch("harness.ollama_client.generate_response", new=AsyncMock(return_value=json.dumps(answer))) as model:
+            response=await self.post(self.scenarios_request())
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.json()["result"], answer)
+            schema=model.call_args.kwargs["output_schema"]["properties"]["scenarios"]
+            self.assertEqual((schema["minItems"], schema["maxItems"]), (1, 8))
+            self.assertIn("caminho_principal", model.call_args.kwargs["system_prompt"])
+            self.assertNotIn("obrigatoriamente", model.call_args.kwargs["system_prompt"])
+        for invalid in [{"scenarios":[],"questions":["Qual?"]}, {"scenarios":[{**answer["scenarios"][0],"tipo":"outro"}],"questions":[]}]:
+            with self.subTest(invalid=invalid), patch("harness.ollama_client.generate_response", new=AsyncMock(return_value=json.dumps(invalid))):
+                self.assertEqual((await self.post(self.scenarios_request())).status_code, 503)
+
+    async def test_permission_story_requires_unauthorized_access_scenario_in_prompt(self):
+        answer='{"scenarios":[{"nome":"x","tipo":"caminho_principal","dado":"a","quando":"b","entao":"c"}],"questions":[]}'
+        for fields, expected in [({"historia_eu_quero":"aprovar pedidos com perfil de administrador"}, True), ({"regras_observacoes":"Somente o Proprietário altera o pedido."}, True), ({}, False)]:
+            with self.subTest(fields=fields), patch("harness.ollama_client.generate_response", new=AsyncMock(return_value=answer)) as model:
+                await self.post(self.scenarios_request(**fields))
+                self.assertEqual("acesso_nao_autorizado, em que um usuário sem permissão" in model.call_args.kwargs["system_prompt"], expected)
+
+    async def test_scenarios_have_larger_output_budget(self):
+        with patch("harness.ollama_client.generate_response", new=AsyncMock(return_value='{"scenarios":[{"nome":"x","tipo":"caminho_principal","dado":"a","quando":"b","entao":"c"}],"questions":[]}')) as model:
+            await self.post(self.scenarios_request())
+            self.assertEqual(model.call_args.kwargs["max_tokens"], 2048)

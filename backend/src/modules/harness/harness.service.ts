@@ -2,12 +2,16 @@ import axios from "axios";
 import { env } from "../../config/env.js";
 import { serviceHeaders } from "../../shared/service-auth.js";
 import { AppError, ValidationError } from "../../shared/errors.js";
-import { validarTituloInfinitivo } from "../quality/quality.rules.js";
+import {
+  validarHistoria,
+  validarTituloInfinitivo,
+} from "../quality/quality.rules.js";
 import { ChatRepository } from "../chat/chat.repository.js";
 import { searchPatterns } from "./search-patterns.js";
 import { HarnessRepository } from "./harness.repository.js";
 import {
   configSchema,
+  DENIAL_PATTERN,
   FIELDS,
   OPERATIONS,
   outputSchema,
@@ -79,6 +83,7 @@ export function validateGuide(
     result.items.some((item: { source_id: string }) => !ids.has(item.source_id))
   )
     throw Error("Origem inválida");
+  if (input.operation === "cenarios") return validateScenarios(input, result, config);
   if (input.operation !== "padronizar") return;
   if (!result.proposal) {
     if (!result.questions.length)
@@ -100,6 +105,73 @@ export function validateGuide(
     )
   )
     throw Error("Descrição de implementação");
+}
+export function requiresPermissionScenario(
+  fields: Record<string, string>,
+  config: HarnessConfig,
+) {
+  const story = FIELDS.pbi.map((field) => fields[field] ?? "").join("\n");
+  return config.rules.permission_terms.some((term) => containsTerm(story, term));
+}
+function validateScenarios(
+  input: HarnessInput,
+  result: { scenarios: Array<Record<string, string>>; questions: string[] },
+  config: HarnessConfig,
+) {
+  if (!result.scenarios.length) {
+    if (!result.questions.length)
+      throw Error("Cenários ausentes sem esclarecimento");
+    return;
+  }
+  const types = new Set(result.scenarios.map((scenario) => scenario.tipo));
+  if (!types.has("caminho_principal")) throw Error("Sem caminho principal");
+  if (
+    requiresPermissionScenario(input.fields, config) &&
+    !types.has("acesso_nao_autorizado")
+  )
+    throw Error("Sem cenário de acesso não autorizado");
+  // Um cenário marcado como acesso não autorizado que termina em sucesso contradiz o próprio tipo.
+  if (
+    result.scenarios.some(
+      (scenario) =>
+        scenario.tipo === "acesso_nao_autorizado" &&
+        !DENIAL_PATTERN.test(scenario.entao),
+    )
+  )
+    throw Error("Acesso não autorizado sem recusa");
+  const content = result.scenarios
+    .map((scenario) => [scenario.dado, scenario.quando, scenario.entao].join("\n"))
+    .join("\n");
+  if (
+    config.rules.implementation_terms.some((term) =>
+      containsTerm(content, term),
+    )
+  )
+    throw Error("Descrição de implementação");
+}
+// PBI-03.1.3, cenário 3: sem história completa não há o que sugerir.
+function assertStoryComplete(fields: Record<string, string>) {
+  const story = {
+    comoUm: fields.historia_como_um ?? "",
+    euQuero: fields.historia_eu_quero ?? "",
+    paraQue: fields.historia_para_que ?? "",
+  };
+  if (validarHistoria(story).aprovado) return;
+  const missing = (
+    [
+      ["historia_como_um", story.comoUm],
+      ["historia_eu_quero", story.euQuero],
+      ["historia_para_que", story.paraQue],
+    ] as const
+  )
+    .filter(([, value]) => !value.trim())
+    .map(([field]) => field);
+  throw new AppError(
+    "Complete a história do usuário (COMO UM, EU QUERO e PARA QUE) antes de pedir sugestões de cenários.",
+    400,
+    "HISTORIA_INCOMPLETA",
+    { campos: missing },
+  );
 }
 export class HarnessService {
   constructor(
@@ -143,6 +215,7 @@ export class HarnessService {
       throw new ValidationError(
         "Informe os campos do nível ou a pergunta do modo selecionado.",
       );
+    if (input.operation === "cenarios") assertStoryComplete(input.fields);
     const revision = await this.repository.current(input.mode);
     const config = validateConfig(input.mode, revision.config);
     // Cada requisição lê a revisão vigente; nada é mantido em cache de processo.
