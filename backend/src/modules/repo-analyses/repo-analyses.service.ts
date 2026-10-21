@@ -4,6 +4,7 @@ import axios from 'axios';
 import { AppError, ValidationError } from '../../shared/errors';
 import { env } from '../../config/env';
 import { RepoAnalysesRepository } from './repo-analyses.repository';
+import { ReportIndexingRepository } from './repo-analyses.indexing.repository';
 import { RepoAnalysisRecord, RepoAnalysisStatus, RepoAnalysisStep } from './repo-analyses.types';
 
 const ANALYZER_STATUS: Record<string, RepoAnalysisStatus> = {
@@ -44,6 +45,7 @@ export class RepoAnalysesService {
     constructor(
         private readonly repository: RepoAnalysesRepository = new RepoAnalysesRepository(),
         private readonly analyzerBaseUrl: string = env.REPO_ANALYZER_URL,
+        private readonly reportIndexing: ReportIndexingRepository = new ReportIndexingRepository(),
     ) {}
 
     private validateGithubUrl(url: string): boolean {
@@ -152,6 +154,9 @@ export class RepoAnalysesService {
                 }
             }
 
+            // Detecta se o relatório é novo para disparar indexação automática.
+            const hadReport = Boolean(analysis.relatorio_markdown);
+
             await this.repository.updateStatus(runId, {
                 status,
                 etapa,
@@ -162,6 +167,15 @@ export class RepoAnalysesService {
                 relatorioMarkdown,
                 metadados: stats,
             }, analysis.revision ?? 0);
+
+            // S2-23: Quando o relatório é salvo pela primeira vez, marca para indexação.
+            if (relatorioMarkdown && !hadReport) {
+                try {
+                    await this.reportIndexing.markPendingIndexing(analysis.id, analysis.projeto_id);
+                } catch (e) {
+                    console.warn('[RepoAnalyzer] Falha ao enfileirar indexação do relatório; será retentado.');
+                }
+            }
         } catch (error) {
             if (axios.isAxiosError(error) && error.response?.status === 404) {
                 await this.repository.updateStatus(runId, {
