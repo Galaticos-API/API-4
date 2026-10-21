@@ -97,11 +97,23 @@ test("Chat: mobile não transborda e o campo de pergunta é acessível por tecla
     await page.goto(`${APP}/chat`);
     await expect(page.getByLabel("Sua pergunta")).toBeVisible();
     await assertNoHorizontalOverflow(page, "chat mobile");
-    await page.getByRole("button", { name: "Nova conversa" }).focus();
-    await page.keyboard.press("Tab");
-    await page.keyboard.press("Tab");
-    const focused = await page.evaluate(() => document.activeElement?.id || document.activeElement?.tagName);
-    assert.ok(focused);
+    const sidebarToggle = page.getByRole("button", { name: "Conversas e projeto", exact: true });
+    await expect(sidebarToggle).toHaveAttribute("aria-expanded", "false");
+    assert.equal(await page.getByRole("button", { name: "Nova conversa", exact: true }).isVisible(), false);
+    await sidebarToggle.focus();
+    await page.keyboard.press("Enter");
+    await expect(page.getByRole("button", { name: "Ocultar conversas e projeto", exact: true })).toHaveAttribute("aria-expanded", "true");
+    await expect(page.getByRole("button", { name: "Nova conversa", exact: true })).toBeVisible();
+    await page.keyboard.press("Enter");
+    await expect(sidebarToggle).toHaveAttribute("aria-expanded", "false");
+    for (let step = 0; step < 12; step += 1) {
+      await page.keyboard.press("Tab");
+      if (await page.evaluate(() => document.activeElement?.id === "chat-question")) break;
+    }
+    assert.equal(await page.evaluate(() => document.activeElement?.id), "chat-question");
+    await page.keyboard.type("Pergunta digitada pelo teclado");
+    assert.equal(await page.getByLabel("Sua pergunta").inputValue(), "Pergunta digitada pelo teclado");
+    await assertNoHorizontalOverflow(page, "chat mobile com painel recolhido");
   } finally {
     await context.close();
   }
