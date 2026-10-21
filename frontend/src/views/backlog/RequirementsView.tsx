@@ -43,12 +43,6 @@ export const RequirementsView: React.FC<{ canCreate?: boolean }> = ({ canCreate 
             Visualize a estrutura completa de Épicos, Features e PBIs com critérios de aceitação BDD.
           </p>
         </div>
-
-        {selectedProjectId && canCreate && (
-          <Button variant="primary" onClick={() => navigate(`/projects/${selectedProjectId}/epics/new`)}>
-            + Novo Épico
-          </Button>
-        )}
       </div>
 
       {loading ? (

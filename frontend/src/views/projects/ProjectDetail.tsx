@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   type Project
 } from "../../api/api_projects";
@@ -44,6 +44,23 @@ export function ProjectDetail({
   initialTab?: ProjectTab;
 }) {
   const [activeTab, setActiveTab] = useState<ProjectTab>(() => initialTab ?? tabFromHash(window.location.hash));
+
+  const tabsRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const revealSelectedTab = () => {
+      const tabs = tabsRef.current;
+      const selected = tabs?.querySelector<HTMLElement>('[aria-selected="true"]');
+      if (!tabs || !selected) return;
+      const container = tabs.getBoundingClientRect();
+      const tab = selected.getBoundingClientRect();
+      if (tab.left < container.left) tabs.scrollLeft += tab.left - container.left;
+      else if (tab.right > container.right) tabs.scrollLeft += tab.right - container.right;
+    };
+    revealSelectedTab();
+    window.addEventListener("resize", revealSelectedTab);
+    return () => window.removeEventListener("resize", revealSelectedTab);
+  }, [activeTab]);
 
   const selectTab = (tab: ProjectTab) => {
     setActiveTab(tab);
@@ -149,7 +166,7 @@ export function ProjectDetail({
         </div>
       )}
 
-      <div className="project-tabs" role="tablist" aria-label="Contexto do projeto">
+      <div ref={tabsRef} className="project-tabs" role="tablist" aria-label="Contexto do projeto">
         {PROJECT_TABS.map((tab, index) => (
           <button
             key={tab.id}

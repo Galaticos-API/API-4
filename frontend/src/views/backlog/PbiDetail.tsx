@@ -645,32 +645,32 @@ export function PbiDetail({
           )
           : (
             <>
-              <dl>
-                <dt>COMO UM <ProvenanceBadge provenance={pbi!.provenance_json} field="historia_como_um" /></dt>
+              <dl className="pbi-story-grid">
+                <div className="pbi-story-field"><dt>COMO UM <ProvenanceBadge provenance={pbi!.provenance_json} field="historia_como_um" /></dt>
                 <dd
                   id="historia_como_um"
                   tabIndex={-1}
                 >
                   {pbi!.historia_como_um}
-                </dd>
+                </dd></div>
 
-                <dt>EU QUERO <ProvenanceBadge provenance={pbi!.provenance_json} field="historia_eu_quero" /></dt>
+                <div className="pbi-story-field"><dt>EU QUERO <ProvenanceBadge provenance={pbi!.provenance_json} field="historia_eu_quero" /></dt>
                 <dd
                   id="historia_eu_quero"
                   tabIndex={-1}
                 >
                   {pbi!.historia_eu_quero}
-                </dd>
+                </dd></div>
 
-                <dt>PARA QUE <ProvenanceBadge provenance={pbi!.provenance_json} field="historia_para_que" /></dt>
+                <div className="pbi-story-field"><dt>PARA QUE <ProvenanceBadge provenance={pbi!.provenance_json} field="historia_para_que" /></dt>
                 <dd
                   id="historia_para_que"
                   tabIndex={-1}
                 >
                   {pbi!.historia_para_que}
-                </dd>
+                </dd></div>
 
-                <dt>
+                <div className="pbi-story-field"><dt>
                   Exige interface/protótipo
                 </dt>
                 <dd
@@ -680,14 +680,14 @@ export function PbiDetail({
                   {pbi!.requer_interface
                     ? "Sim"
                     : "Não"}
-                </dd>
+                </dd></div>
 
-                <dt>
+                <div className="pbi-story-field"><dt>
                   Cenários de aceitação registrados
                 </dt>
                 <dd>
                   {pbi!.criterios_count}
-                </dd>
+                </dd></div>
               </dl>
 
               {!readOnly && canEdit && (

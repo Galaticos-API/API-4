@@ -28,6 +28,7 @@ interface ThreadMessage extends ChatMessage {
 type LoadState = "idle" | "loading" | "error";
 
 export function ChatView() {
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [conversations, setConversations] = useState<ChatConversation[]>([]);
   const [conversationsState, setConversationsState] = useState<LoadState>("loading");
   const [projects, setProjects] = useState<ProjectOption[]>([]);
@@ -208,8 +209,9 @@ export function ChatView() {
         </div>
       </header>
 
+      <Button className="chat-sidebar-toggle" variant="secondary" aria-expanded={sidebarOpen} aria-controls="chat-sidebar" onClick={() => setSidebarOpen(value => !value)}>{sidebarOpen ? "Ocultar conversas e projeto" : "Conversas e projeto"}</Button>
       <div className="chatx-layout">
-        <aside className="ds-card chat-sidebar" aria-label="Conversas">
+        <aside id="chat-sidebar" className={`ds-card chat-sidebar ${sidebarOpen ? "is-open" : ""}`} aria-label="Conversas">
           <Button onClick={startNewConversation}>Nova conversa</Button>
 
           <div className="ds-field">
@@ -246,7 +248,7 @@ export function ChatView() {
                     type="button"
                     className="chat-conversation"
                     aria-current={conversation.id === activeId}
-                    onClick={() => openConversation(conversation)}
+                    onClick={() => { openConversation(conversation); setSidebarOpen(false); }}
                   >
                     <span className="chat-conversation-title">{conversation.titulo}</span>
                     <span className="chat-conversation-meta">

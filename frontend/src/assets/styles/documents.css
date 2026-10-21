@@ -31,3 +31,9 @@
 
 .documents-head { display: flex; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
 .documents-head h2 { margin: 0 0 4px; font-size: 20px; }
+
+@media (max-width: 480px) {
+  .documents-upload { padding: 0; }
+  .documents-dropzone { padding: 24px 16px; }
+  .documents-dropzone p { overflow-wrap: anywhere; }
+}

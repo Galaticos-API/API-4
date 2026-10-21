@@ -148,12 +148,12 @@ export function QualityPanelView({
                         </strong>
 
                         {check.is_blocking ? (
-                          <span className="quality-badge-tag blocking">
-                            Bloqueia conclusão
+                          <span className={`quality-badge-tag ${check.passed ? "satisfied" : "blocking"}`}>
+                            {check.passed ? "Obrigatório · Atendido" : "Bloqueia conclusão"}
                           </span>
                         ) : (
-                          <span className="quality-badge-tag alert">
-                            Alerta informativo
+                          <span className={`quality-badge-tag ${check.passed ? "satisfied" : "alert"}`}>
+                            {check.passed ? "Informativo · Atendido" : "Alerta informativo"}
                           </span>
                         )}
                       </div>
