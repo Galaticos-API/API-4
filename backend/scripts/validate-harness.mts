@@ -32,6 +32,11 @@ const model = createServer(async (req, res) => {
   let raw = "";
   for await (const part of req) raw += part;
   const payload = JSON.parse(raw);
+  if (req.url === '/api/embeddings') {
+    res.statusCode = unavailable ? 503 : 200;
+    res.end(JSON.stringify(unavailable ? { error: 'Indisponivel' } : { embedding: Array(1024).fill(0.1) }));
+    return;
+  }
   captures.push(payload);
   const data = JSON.parse(payload.prompt);
   if (unavailable) {
@@ -151,6 +156,7 @@ try {
   Object.assign(process.env, {
     NODE_ENV: "test",
     AI_SERVICE_TOKEN: token,
+    DOCUMENT_INGESTION_TOKEN: token,
     DATABASE_URL:
       "postgresql://sinapse:" +
       password +
@@ -175,6 +181,8 @@ try {
     "host.docker.internal:host-gateway",
     "-e",
     "AI_SERVICE_TOKEN=" + token,
+    "-e",
+    "DOCUMENT_INGESTION_TOKEN=" + token,
     "-e",
     "WORKSPACE_DIR=/tmp/analyzer",
     "-e",
@@ -367,6 +375,33 @@ try {
       .rows[0].n,
     3,
   );
+  // Relatório concluído passa pelo mesmo endpoint de processamento dos documentos.
+  const analysisId = randomUUID();
+  await pool.query(`INSERT INTO analise_repositorio(id,projeto_id,usuario_id,repositorio_url,run_id,status,relatorio_markdown,metadados)
+    VALUES($1,$2,$3,'https://github.com/test/relatorio',$4,'concluido',$5,$6::jsonb)`,
+    [analysisId, a, po, 'report-' + analysisId, '# Arquitetura S223\n\nPostgreSQL em src/app.ts', JSON.stringify({ source_commit: 'a'.repeat(40), source_ref: 'main', analyzed_paths: ['src/app.ts'] })]);
+  const { ReportIndexingWorker } = await import('../src/modules/repo-analyses/repo-analyses.indexing.worker.js');
+  const reportWorker = new ReportIndexingWorker();
+  await reportWorker.tick();
+  const reportChunks = (await pool.query("SELECT * FROM chunk WHERE entidade_id=$1 AND entidade_tipo='analise_repositorio'", [analysisId])).rows;
+  assert.ok(reportChunks.length > 0, 'Relatório deve ser indexado sem upload');
+  assert.equal(reportChunks[0].metadados_json.source_commit, 'a'.repeat(40));
+  assert.equal((await call(`/projects/${a}/repo-analyses/${analysisId}/indexing/retry`, 2, 'POST', {})).status, 404); // Dev sem alocação não pode descobrir a origem.
+  assert.equal((await call(`/projects/${b}/repo-analyses/${analysisId}/indexing/retry`, 0, 'POST', {})).status, 404);
+  assert.equal((await call(`/projects/${a}/repo-analyses/${analysisId}/indexing/retry`, 1, 'POST', {})).status, 200);
+  await reportWorker.tick();
+  assert.equal(Number((await pool.query('SELECT count(*) AS n FROM chunk WHERE entidade_id=$1', [analysisId])).rows[0].n), reportChunks.length);
+  const reportSearch = await call(`/search?q=Arquitetura&projeto_id=${a}`);
+  assert.equal(reportSearch.status, 200);
+  assert.ok(reportSearch.body.items.some((item: any) => item.entity_id === analysisId));
+  const isolatedSearch = await call(`/search?q=Arquitetura&projeto_id=${b}`);
+  assert.equal(isolatedSearch.status, 200);
+  assert.ok(!isolatedSearch.body.items.some((item: any) => item.entity_id === analysisId));
+  const reportAnswer = await call('/chat/query', 0, 'POST', { pergunta: 'Arquitetura S223', projeto_id: a });
+  assert.equal(reportAnswer.status, 200);
+  assert.ok(reportAnswer.body.fontes.some((source: any) => source.titulo.includes('report-' + analysisId)));
+  console.log('S2-23 aprovada: relatório -> processamento de documento -> embeddings -> PostgreSQL -> busca e chat, sem duplicação e com isolamento.');
+
   if (process.argv.includes("--browser")) {
     const { verifyCopilotBrowser } =
       await import("./verify-copilot-browser.mjs");

@@ -212,7 +212,7 @@ class Analyzer:
                     stage=data.get("stage", ""),
                     message=data.get("message", ""),
                     error=data.get("error", ""),
-                    report_path=data.get("report_path", ""),
+                    report_path=data.get("report_path", ""), source_commit=data.get("source_commit", ""), source_ref=data.get("source_ref", ""),
                     started_at=data.get("started_at", 0),
                     files_total=data.get("files_total", 0),
                     files_processed=data.get("files_processed", 0),
@@ -250,7 +250,7 @@ class Analyzer:
                     run_id=data["run_id"], url=data["url"], profile=data.get("profile", "quick"),
                     status=data.get("status", "paused"), stage=data.get("stage", ""),
                     message=data.get("message", ""), error=data.get("error", ""),
-                    report_path=data.get("report_path", ""), started_at=data.get("started_at", 0),
+                    report_path=data.get("report_path", ""), source_commit=data.get("source_commit", ""), source_ref=data.get("source_ref", ""), started_at=data.get("started_at", 0),
                     files_total=data.get("files_total", 0), files_processed=data.get("files_processed", 0),
                     files_ignored=data.get("files_ignored", 0), files_candidates=data.get("files_candidates", 0),
                     files_skipped_by_scope=data.get("files_skipped_by_scope", 0),
@@ -408,6 +408,9 @@ class Analyzer:
 
         return {
             "files_total": state.files_total,
+            "source_commit": state.source_commit or None,
+            "source_ref": state.source_ref or None,
+            "analyzed_paths": list(state.selected_paths),
             "files_processed": state.files_processed,
             "files_ignored": state.files_ignored,
             "files_candidates": state.files_candidates,
@@ -447,6 +450,7 @@ class Analyzer:
                     "run_id": state.run_id, "url": state.url, "profile": state.profile,
                     "status": state.status, "stage": state.stage, "message": state.message,
                     "error": state.error, "report_path": state.report_path, "started_at": state.started_at,
+                    "source_commit": state.source_commit, "source_ref": state.source_ref,
                     "files_total": state.files_total, "files_processed": state.files_processed,
                     "files_ignored": state.files_ignored, "files_candidates": state.files_candidates,
                     "files_skipped_by_scope": state.files_skipped_by_scope,
@@ -523,6 +527,13 @@ class Analyzer:
                 self._push(run_id, stage="clone", message="Clonando repositório (raso, 1 commit)...")
                 self._clone(state.url, repo_dir)
                 clone_marker.write_text("complete", encoding="utf-8")
+
+            if (repo_dir / '.git').exists():
+                commit = subprocess.run(['git', '-C', str(repo_dir), 'rev-parse', 'HEAD'], capture_output=True, text=True, timeout=10)
+                if commit.returncode == 0 and re.fullmatch(r'[a-fA-F0-9]{40,64}', commit.stdout.strip()):
+                    state.source_commit = commit.stdout.strip()
+                ref = subprocess.run(['git', '-C', str(repo_dir), 'symbolic-ref', '--short', 'HEAD'], capture_output=True, text=True, timeout=10)
+                state.source_ref = ref.stdout.strip() if ref.returncode == 0 else state.source_commit
 
             size_mb = self._directory_size(repo_dir) / (1024 * 1024)
             if size_mb > self.settings.max_repo_size_mb:
@@ -641,6 +652,7 @@ class Analyzer:
             )
 
             report_path = report_dir / "report.md"
+            report += f"\n\n## Origem da análise\n\nExecução: `{state.run_id}`\n\nCommit: `{state.source_commit or 'não disponível'}`\n\nReferência: `{state.source_ref or 'não disponível'}`\n"
             report_path.write_text(report, encoding="utf-8")
 
             (report_dir / "inventory.json").write_text(

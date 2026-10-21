@@ -108,7 +108,7 @@ export class SearchRepository {
                     || '/features/' || source_decision_pbi.feature_id::text || '/pbis/' || dec.entidade_id::text
                   ELSE NULL
                 END
-                WHEN 'analise_repositorio' THEN '/projects/' || c.projeto_id::text || '/repo-analyses/' || c.entidade_id::text
+                WHEN 'analise_repositorio' THEN '/projects/' || c.projeto_id::text || '#repo-analyzer=' || c.entidade_id::text
                 ELSE NULL
               END AS source_url,
               fused.relevance_score

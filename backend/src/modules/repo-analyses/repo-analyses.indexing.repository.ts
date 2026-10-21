@@ -2,6 +2,8 @@ import { randomUUID } from 'node:crypto';
 import { Pool } from 'pg';
 import { pool } from '../../database/db.js';
 import { withTransaction } from '../../database/transaction.js';
+import { lockHierarchy, assertWritable } from '../projects/hierarchy-archive.js';
+import { ConflictError } from '../../shared/errors.js';
 
 /** A completed analysis that is pending embedding indexing. */
 export interface PendingReportIndexing {
@@ -50,7 +52,7 @@ export class ReportIndexingRepository {
                SET indexacao_status = 'processando',
                    indexacao_tentativas = indexacao_tentativas + 1,
                    indexacao_lease_id = $1,
-                   indexacao_bloqueado_ate = NOW() + INTERVAL '5 minutes',
+                   indexacao_bloqueado_ate = NOW() + INTERVAL '15 minutes',
                    updated_at = NOW()
              WHERE id = (
                SELECT id FROM analise_repositorio
@@ -58,6 +60,8 @@ export class ReportIndexingRepository {
                   AND (indexacao_bloqueado_ate IS NULL OR indexacao_bloqueado_ate <= NOW())
                   AND indexacao_tentativas < 5
                   AND relatorio_markdown IS NOT NULL
+                  AND status = 'concluido'
+                  AND EXISTS (SELECT 1 FROM projeto p WHERE p.id=analise_repositorio.projeto_id AND p.status<>'arquivado')
                 ORDER BY created_at
                 FOR UPDATE SKIP LOCKED
                 LIMIT 1
@@ -78,17 +82,22 @@ export class ReportIndexingRepository {
         chunks: ReportChunk[],
     ): Promise<void> {
         await withTransaction(this.db, async (client) => {
+            await lockHierarchy(client, 'projeto', analysis.projeto_id);
             // Verify lease is still valid.
             const guard = await client.query(
                 `SELECT 1 FROM analise_repositorio
                   WHERE id = $1 AND projeto_id = $2
                     AND indexacao_lease_id = $3
                     AND indexacao_status = 'processando'
+                    AND status = 'concluido'
+                    AND EXISTS (SELECT 1 FROM projeto p WHERE p.id=analise_repositorio.projeto_id AND p.status<>'arquivado')
                     AND indexacao_bloqueado_ate > clock_timestamp()
                   FOR UPDATE`,
                 [analysis.id, analysis.projeto_id, analysis.indexacao_lease_id],
             );
             if (!guard.rowCount) return;
+            const live = await client.query('SELECT 1 FROM analise_repositorio WHERE id=$1 AND indexacao_bloqueado_ate > clock_timestamp()', [analysis.id]);
+            if (!live.rowCount) return;
 
             // Idempotent: remove old chunks for this analysis.
             await client.query(
@@ -138,29 +147,35 @@ export class ReportIndexingRepository {
                SET indexacao_status = CASE WHEN indexacao_tentativas >= 5 THEN 'falha' ELSE 'pendente' END,
                    indexacao_erro = $3,
                    indexacao_lease_id = NULL,
-                   indexacao_bloqueado_ate = NULL,
+                   indexacao_bloqueado_ate = NOW() + make_interval(secs => LEAST(300, (20 * power(2, indexacao_tentativas-1))::int)),
                    updated_at = NOW()
-             WHERE id = $1 AND indexacao_lease_id = $2`,
+             WHERE id = $1 AND indexacao_lease_id = $2
+               AND indexacao_status='processando' AND indexacao_bloqueado_ate > clock_timestamp()`,
             [analysis.id, analysis.indexacao_lease_id, error],
         );
     }
 
-    /**
-     * Marks a completed analysis as pending indexing.
-     * Used when the report markdown is first saved by the sync process.
-     */
-    async markPendingIndexing(analysisId: string, projectId: string): Promise<void> {
-        await this.db.query(
-            `UPDATE analise_repositorio
-               SET indexacao_status = 'pendente',
-                   indexacao_tentativas = 0,
-                   indexacao_erro = NULL,
-                   indexacao_lease_id = NULL,
-                   indexacao_bloqueado_ate = NULL,
-                   updated_at = NOW()
-             WHERE id = $1 AND projeto_id = $2
-               AND relatorio_markdown IS NOT NULL`,
-            [analysisId, projectId],
-        );
+    // Repetir uma solicitação ativa preserva sua reserva.
+    async retryIndexing(analysisId: string, projectId: string): Promise<void> {
+        await withTransaction(this.db, async client => {
+            await lockHierarchy(client, 'projeto', projectId);
+            await assertWritable(client, 'projeto', projectId);
+            const current = (await client.query('SELECT * FROM analise_repositorio WHERE id=$1 AND projeto_id=$2 FOR UPDATE', [analysisId, projectId])).rows[0];
+            if (!current) return;
+            if (current.indexacao_status === 'pendente' || current.indexacao_status === 'processando') return;
+            if (current.status !== 'concluido' || !current.relatorio_markdown?.trim()) throw new ConflictError('A análise ainda não possui relatório concluído.');
+            await client.query(
+                `UPDATE analise_repositorio
+                   SET indexacao_status = 'pendente',
+                       indexacao_tentativas = 0,
+                       indexacao_erro = NULL,
+                       indexacao_lease_id = NULL,
+                       indexacao_bloqueado_ate = NULL,
+                       updated_at = NOW()
+                 WHERE id = $1 AND projeto_id = $2
+                   AND relatorio_markdown IS NOT NULL`,
+                [analysisId, projectId],
+            );
+        });
     }
 }

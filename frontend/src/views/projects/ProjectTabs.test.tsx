@@ -112,3 +112,11 @@ it("perfil de leitura vê Documentos sem ações de escrita", async () => {
   expect(await screen.findByText(/pode consultar documentos, mas não pode enviar ou remover/)).toBeInTheDocument();
   expect(screen.queryByLabelText("Selecionar documento")).toBeNull();
 });
+
+it('abre a aba do Analyzer quando a busca aponta para uma execucao', async () => {
+  window.history.replaceState(null, '', '/projects/p-1#repo-analyzer=analysis-42');
+  vi.stubGlobal('fetch', api());
+  renderDetail();
+  expect(await screen.findByRole('tab', { name: 'Análise de repositório' })).toHaveAttribute('aria-selected', 'true');
+  expect(await screen.findByRole('heading', { name: 'Entenda a arquitetura de um repositório' })).toBeInTheDocument();
+});

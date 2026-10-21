@@ -33,3 +33,10 @@ it.each([
 it.each(["/projects/p1/documents", "/projects/p1/epics/new"])("não envia uma decisão para uma tela sem decisões: %s", source_url => {
   expect(originLink({...hit,entity_type:"decisao",source_url},"jwt")).toBeNull();
 });
+
+it('abre a execucao do relatorio e rejeita identificador ou projeto diferente', () => {
+  const report = { ...hit, entity_type: 'analise_repositorio' as const, entity_id: 'a1', source_url: '/projects/p1#repo-analyzer=a1' };
+  expect(originLink(report, 'arquitetura')).toBe('/projects/p1#repo-analyzer=a1');
+  expect(originLink({ ...report, source_url: '/projects/p1#repo-analyzer=a2' }, 'arquitetura')).toBeNull();
+  expect(originLink({ ...report, source_url: '/projects/p2#repo-analyzer=a1' }, 'arquitetura')).toBeNull();
+});

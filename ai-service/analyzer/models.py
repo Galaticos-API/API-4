@@ -26,6 +26,8 @@ class RunState:
     message: str = ""
     error: str = ""
     report_path: str = ""
+    source_commit: str = ""
+    source_ref: str = ""
 
     started_at: float = 0.0
     llm_start_time: float = 0.0

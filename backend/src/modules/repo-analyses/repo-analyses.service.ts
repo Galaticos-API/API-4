@@ -112,6 +112,11 @@ export class RepoAnalysesService {
         return analysis;
     }
 
+    async retryIndexing(projectId: string, id: string): Promise<RepoAnalysisRecord | null> {
+        await this.reportIndexing.retryIndexing(id, projectId);
+        return this.repository.findById(id, projectId);
+    }
+
     async controlAnalysis(projetoId: string, id: string, action: 'pause' | 'resume' | 'cancel'): Promise<RepoAnalysisRecord | null> {
         const analysis = await this.repository.findById(id, projetoId);
         if (!analysis) return null;
@@ -154,9 +159,6 @@ export class RepoAnalysesService {
                 }
             }
 
-            // Detecta se o relatório é novo para disparar indexação automática.
-            const hadReport = Boolean(analysis.relatorio_markdown);
-
             await this.repository.updateStatus(runId, {
                 status,
                 etapa,
@@ -168,14 +170,6 @@ export class RepoAnalysesService {
                 metadados: stats,
             }, analysis.revision ?? 0);
 
-            // S2-23: Quando o relatório é salvo pela primeira vez, marca para indexação.
-            if (relatorioMarkdown && !hadReport) {
-                try {
-                    await this.reportIndexing.markPendingIndexing(analysis.id, analysis.projeto_id);
-                } catch (e) {
-                    console.warn('[RepoAnalyzer] Falha ao enfileirar indexação do relatório; será retentado.');
-                }
-            }
         } catch (error) {
             if (axios.isAxiosError(error) && error.response?.status === 404) {
                 await this.repository.updateStatus(runId, {

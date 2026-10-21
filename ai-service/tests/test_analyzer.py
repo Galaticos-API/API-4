@@ -17,6 +17,16 @@ class TestAnalyzer(unittest.TestCase):
         self.analyzer = Analyzer(self.settings)
         self.addCleanup(self.analyzer.client.close)
 
+    def test_report_origin_metadata_survives_checkpoint(self):
+        state = RunState(run_id='qa-origin', url='https://github.com/test/repo', source_commit='a' * 40, source_ref='main', selected_paths=['src/app.py'])
+        self.analyzer.runs[state.run_id] = state
+        self.analyzer._persist_checkpoint(state)
+        self.analyzer.runs.pop(state.run_id)
+        restored = self.analyzer._load_persisted_run(state.run_id)
+        self.assertEqual(restored.source_commit, 'a' * 40)
+        self.assertEqual(restored.source_ref, 'main')
+        self.assertEqual(self.analyzer._snapshot(restored)['analyzed_paths'], ['src/app.py'])
+
     def test_normalize_github_url(self):
         # Valid URLs
         self.assertEqual(

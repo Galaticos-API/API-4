@@ -51,11 +51,18 @@ export class HttpAssistantClient implements AssistantClient {
   }
 }
 
-export function citedSources(text: string, chunks: Array<{id: string; entidade_tipo: string}>): ChatSource[] {
+export function citedSources(text: string, chunks: Array<{id: string; entidade_tipo: string; metadados_json?: Record<string, unknown>}>): ChatSource[] {
   const ids = [...text.matchAll(/\[([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\]/gi)].map(match => match[1].toLowerCase());
   const byId = new Map(chunks.map(chunk => [chunk.id.toLowerCase(), chunk]));
   if (!ids.length || ids.some(id => !byId.has(id))) throw new Error("Resposta sem citações válidas");
-  return [...new Set(ids)].map(id => ({ id, titulo: "Trecho citado de " + byId.get(id)!.entidade_tipo, tipo: byId.get(id)!.entidade_tipo }));
+  return [...new Set(ids)].map(id => {
+    const chunk = byId.get(id)!;
+    const metadata = chunk.metadados_json;
+    const title = chunk.entidade_tipo === 'analise_repositorio' && typeof metadata?.run_id === 'string'
+      ? `Relatório ${String(metadata.repositorio_url ?? '')} · execução ${metadata.run_id}`
+      : 'Trecho citado de ' + chunk.entidade_tipo;
+    return { id, titulo: title, tipo: chunk.entidade_tipo };
+  });
 }
 
 

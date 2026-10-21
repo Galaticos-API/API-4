@@ -54,7 +54,7 @@ try {
   }
   const exitCode = await new Promise<number>((resolve, reject) => {
     const child = spawn(process.execPath,["--import","tsx","--test",
-    "src/modules/indexing/indexing.db.test.ts","src/modules/indexing/indexing.migration.db.test.ts","src/modules/indexing/indexing.transport.db.test.ts","src/modules/indexing/indexing.state.db.test.ts","src/modules/indexing/indexing.recovery.db.test.ts","src/modules/indexing/indexing.worker.test.ts","src/modules/indexing/indexing.integration.db.test.ts"],{
+    "src/modules/indexing/indexing.db.test.ts","src/modules/indexing/indexing.migration.db.test.ts","src/modules/indexing/indexing.transport.db.test.ts","src/modules/indexing/indexing.state.db.test.ts","src/modules/indexing/indexing.recovery.db.test.ts","src/modules/indexing/indexing.worker.test.ts","src/modules/indexing/indexing.integration.db.test.ts","src/modules/repo-analyses/repo-analyses.indexing.db.test.ts"],{
     env:{...process.env,NODE_ENV:"test",DATABASE_URL:url,INDEX_TEST_DATABASE_URL:url,INDEX_AI_ENDPOINT:realEndpoint},
     stdio:"inherit",
   });

@@ -21,6 +21,13 @@ class FakeService extends RepoAnalysesService {
     public lookups: Array<{ projectId: string; id: string }> = [];
     public controls: Array<{ projectId: string; id: string; action: string }> = [];
     public engineDown = false;
+    public reindexed: string[] = [];
+
+    async retryIndexing(projectId: string, id: string): Promise<RepoAnalysisRecord | null> {
+        if (projectId !== ACTIVE || id !== ANALYSIS) return null;
+        this.reindexed.push(id);
+        return { ...record, indexacao_status: 'pendente' };
+    }
 
     constructor() {
         super({} as never, 'http://localhost:0');
@@ -67,7 +74,7 @@ before(() => {
             res.status(401).json({ error: 'Autenticação necessária.', code: 'UNAUTHORIZED' });
             return;
         }
-        req.auth = { id: 'b0000000-0000-4000-8000-000000000001', nome: 'Ana', email: 'a@example.com', role: 'po' };
+        req.auth = { id: 'b0000000-0000-4000-8000-000000000001', nome: 'Ana', email: 'a@example.com', role: req.headers['x-test-role'] === 'dev' ? 'dev' : 'po' };
         next();
     }));
     app.use(errorHandler);
@@ -147,4 +154,16 @@ test('pausa, retoma e cancela uma análise autenticada e vinculada ao projeto', 
     ]);
     assert.equal((await call(`/${OTHER}/repo-analyses/${ANALYSIS}/cancel`, { method: 'POST', json: {} })).status, 404);
     assert.equal((await call(`/${ARCHIVED}/repo-analyses/${ANALYSIS}/resume`, { method: 'POST', json: {} })).status, 409);
+});
+
+test('S2-23: reprocessamento exige autenticacao, escrita, projeto ativo e origem correta', async () => {
+    const path = `/${ACTIVE}/repo-analyses/${ANALYSIS}/indexing/retry`;
+    assert.equal((await call(path, { method: 'POST', json: {}, auth: false })).status, 401);
+    assert.equal((await fetch(`${baseUrl}${path}`, { method: 'POST', headers: { 'x-test-user': 'ana', 'x-test-role': 'dev' } })).status, 403);
+    assert.equal((await call(`/${ARCHIVED}/repo-analyses/${ANALYSIS}/indexing/retry`, { method: 'POST', json: {} })).status, 409);
+    assert.equal((await call(`/${OTHER}/repo-analyses/${ANALYSIS}/indexing/retry`, { method: 'POST', json: {} })).status, 404);
+    const response = await call(path, { method: 'POST', json: {} });
+    assert.equal(response.status, 200);
+    assert.equal((await response.json() as RepoAnalysisRecord).indexacao_status, 'pendente');
+    assert.equal(service.reindexed.at(-1), ANALYSIS);
 });

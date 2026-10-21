@@ -16,6 +16,10 @@ export function originLink(hit: KnowledgeHit, query: string): string | null {
   const url = new URL(hit.source_url, "https://sinapse.invalid");
   if (url.origin !== "https://sinapse.invalid" || !isProjectPath(url.pathname)
     || !url.pathname.startsWith("/projects/" + hit.project_id + "/") && url.pathname !== "/projects/" + hit.project_id) return null;
+  if (hit.entity_type === 'analise_repositorio') {
+    return url.pathname === '/projects/' + hit.project_id && url.hash === '#repo-analyzer=' + hit.entity_id
+      ? url.pathname + url.hash : null;
+  }
   if (hit.entity_type !== "decisao" && hit.entity_type !== "documento" && !url.pathname.endsWith("/" + hit.entity_id)) return null;
   const route = parseBacklogRoute(url.pathname);
   const screens = { epico: "epic-detail", feature: "feature-detail", pbi: "pbi-detail" } as const;

@@ -12,7 +12,7 @@ const analysis = (overrides: Record<string, unknown> = {}) => ({
 });
 const json = (body: unknown, status = 200) => Promise.resolve(new Response(JSON.stringify(body), { status }));
 
-afterEach(() => { cleanup(); vi.unstubAllGlobals(); vi.useRealTimers(); });
+afterEach(() => { cleanup(); vi.unstubAllGlobals(); vi.useRealTimers(); window.history.replaceState(null, '', window.location.pathname); });
 
 it("mostra histórico, etapas e progresso sem inventar autor", async () => {
   vi.stubGlobal("fetch", vi.fn(() => json([analysis({ autor_nome: null, metadados: { files_total: 40, files_processed: 12, language_counts: { ts: 20, py: 5 } } })])));
@@ -242,4 +242,23 @@ it("pede confirmação antes de cancelar e registra o estado cancelado", async (
   expect(window.confirm).toHaveBeenCalled();
   expect((await screen.findAllByText("Cancelada")).length).toBeGreaterThan(0);
   expect(request.mock.calls[1][0]).toBe("/api/v1/projects/p-1/repo-analyses/a-1/cancel");
+});
+
+it('seleciona o relatorio indicado pela busca e permite reprocessar sem nova analise', async () => {
+  window.history.replaceState(null, '', '#repo-analyzer=a-2');
+  let retry = false;
+  const older = () => analysis({ id: 'a-2', run_id: 'run-42', status: 'concluido', indexacao_status: retry ? 'pendente' : 'falha', relatorio_markdown: '# Relatorio selecionado' });
+  const request = vi.fn((_url: string, init?: RequestInit) => {
+    if (init?.method === 'POST') { retry = true; return json(older()); }
+    return json([analysis({ status: 'concluido' }), older()]);
+  });
+  vi.stubGlobal('fetch', request);
+  try {
+    render(<RepoAnalyzerView projectId="p-1" />);
+    expect(await screen.findByRole('heading', { name: 'Relatorio selecionado' })).toBeInTheDocument();
+    expect(screen.getByText('Execução: run-42')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Reprocessar relatório' }));
+    await waitFor(() => expect(request.mock.calls.some(([url, init]) => url.endsWith('/a-2/indexing/retry') && init?.method === 'POST')).toBe(true));
+    expect(await screen.findByText('Indexação no acervo: pendente')).toBeInTheDocument();
+  } finally { window.history.replaceState(null, '', window.location.pathname); }
 });
