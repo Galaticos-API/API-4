@@ -5,11 +5,11 @@ import { navigate } from "../../models/navigation";
 
 export const LandingPageView: React.FC = () => {
     return (
-        <div style={{ maxWidth: "1200px", margin: "0 auto", padding: "20px 0", display: "flex", flexDirection: "column", gap: "48px" }}>
+        <div className="landing-page">
 
             {/* Hero Section */}
-            <div className="ds-card ds-card--glass" style={{ padding: "48px 36px", textAlign: "center", background: "linear-gradient(135deg, rgba(99, 102, 241, 0.12) 0%, rgba(15, 23, 42, 0.6) 100%)", border: "1px solid var(--border-subtle)" }}>
-                <div style={{ display: "inline-flex", alignItems: "center", gap: "8px", background: "rgba(99, 102, 241, 0.15)", padding: "6px 16px", borderRadius: "20px", color: "var(--accent-primary)", fontSize: "0.85rem", fontWeight: 600, marginBottom: "20px" }}>
+            <div className="ds-card ds-card--glass landing-hero">
+                <div style={{ display: "inline-flex", alignItems: "center", gap: "8px", background: "var(--brand-surface)", padding: "6px 16px", borderRadius: "20px", color: "var(--accent-primary)", fontSize: "0.85rem", fontWeight: 600, marginBottom: "20px" }}>
                     <Sparkles size={16} /> A Memória Inteligente da Fábrica de Software
                 </div>
                 <h1 style={{ fontSize: "2.5rem", fontWeight: 800, color: "#fff", marginBottom: "16px", lineHeight: 1.2 }}>
@@ -35,7 +35,7 @@ export const LandingPageView: React.FC = () => {
                     <p style={{ color: "var(--text-secondary)", fontSize: "0.95rem" }}>Tudo o que sua equipe precisa para padronizar entregas com inteligência contextual.</p>
                 </div>
 
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: "24px" }}>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 300px), 1fr))", gap: "24px" }}>
                     <div className="ds-card ds-card--glass" style={{ padding: "28px" }}>
                         <div style={{ color: "var(--accent-primary)", marginBottom: "16px" }}><BookOpen size={28} /></div>
                         <h3 style={{ fontSize: "1.15rem", fontWeight: 600, color: "#fff", marginBottom: "8px" }}>Hierarquia Estruturada</h3>

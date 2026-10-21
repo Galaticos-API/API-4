@@ -45,7 +45,7 @@ test("Épico → feature → PBI pela interface: validação, qualidade em tempo
     await expect(page.getByText("Login válido")).toBeVisible();
 
     await page.getByRole("button", { name: "Marcar como concluído" }).click();
-    await expect(page.getByText(/Concluído/i).first()).toBeVisible();
+    await expect(page.getByText("concluido", { exact: true }).first()).toBeVisible();
   } finally {
     await context.close();
   }

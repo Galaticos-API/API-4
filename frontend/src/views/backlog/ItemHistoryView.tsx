@@ -3,6 +3,14 @@ import { getItemHistory, type AuditHistoryItem } from "../../api/api_backlog";
 import { describeAuditChanges } from "../../models/auditChanges";
 import { Button } from "../common/ui";
 
+const actionLabels: Record<string, string> = {
+  CRIAR_EPICO: "Épico criado", ATUALIZAR_EPICO: "Épico atualizado", CONCLUIR_EPICO: "Épico concluído",
+  CRIAR_FEATURE: "Feature criada", ATUALIZAR_FEATURE: "Feature atualizada", CONCLUIR_FEATURE: "Feature concluída",
+  CRIAR_PBI: "PBI criado", ATUALIZAR_PBI: "PBI atualizado", CONCLUIR_PBI: "PBI concluído",
+  ADICIONAR_CRITERIO: "Critério adicionado", REMOVER_CRITERIO: "Critério removido",
+  MOVER_CRITERIO: "Critério reordenado", REGISTRAR_DECISAO: "Decisão registrada",
+};
+
 export interface ItemHistoryViewProps {
   entidadeTipo: "epico" | "feature" | "pbi";
   entidadeId: string;
@@ -130,13 +138,13 @@ export function ItemHistoryView({
       <div className="quality-panel-body">
         <p className="quality-help-text">
           Estes registros contêm o histórico de justificativas e alterações deste item.
-          <em>Nota: Decisões de negócio e deliberações técnicas são registradas no módulo de Decisões.</em>
+           <em>Nota: Decisões de negócio e deliberações técnicas são registradas no módulo de Decisões.</em>
         </p>
 
         {history.length === 0 ? (
           <p className="projects-state">Nenhum registro de alteração encontrado para este item.</p>
         ) : (
-          <ul className="history-list" role="list" style={{ listStyle: "none", padding: 0, marginTop: "1rem" }}>
+          <ul className="history-list" role="list">
             {history.map((item) => {
               const changes = describeAuditChanges({
                 ...item.dados_json,
@@ -146,22 +154,15 @@ export function ItemHistoryView({
                 <li
                   key={item.id}
                   className="history-item-card"
-                  style={{
-                    border: "1px solid rgba(255, 255, 255, 0.1)",
-                    borderRadius: "8px",
-                    padding: "1rem",
-                    marginBottom: "0.75rem",
-                    background: "rgba(10, 13, 20, 0.6)",
-                  }}
                 >
-                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "0.5rem" }}>
+                  <div className="history-entry-header">
                     <strong>{item.usuario_nome || "Usuário não identificado"}</strong>
-                    <span style={{ fontSize: "0.85rem", opacity: 0.7 }}>
+                    <time dateTime={item.created_at}>
                       {new Date(item.created_at).toLocaleString("pt-BR")}
-                    </span>
+                    </time>
                   </div>
-                  <div style={{ fontSize: "0.9rem", marginBottom: "0.5rem" }}>
-                    <span className="ds-badge ds-badge--brand" style={{ marginRight: "0.5rem" }}>{item.acao}</span>
+                  <div className="history-entry-action">
+                    <span className="history-action-label" title={item.acao}>{actionLabels[item.acao] ?? item.acao.replace(/_/g, " ").toLocaleLowerCase("pt-BR")}</span>
                     {item.pbi_versao !== null && item.pbi_versao !== undefined && (
                       <span className="ds-badge ds-badge--brand">Versão {item.pbi_versao}</span>
                     )}
@@ -181,11 +182,11 @@ export function ItemHistoryView({
                     </dl>
                   )}
                   {item.justificativa ? (
-                    <div className="history-justification" style={{ background: "rgba(249, 115, 22, 0.1)", borderLeft: "3px solid #F97316", padding: "0.5rem 0.75rem", borderRadius: "4px" }}>
+                    <div className="history-justification">
                       <strong>Justificativa da alteração:</strong> {item.justificativa}
                     </div>
                   ) : (
-                    <div style={{ fontSize: "0.85rem", fontStyle: "italic", opacity: 0.6 }}>
+                    <div className="history-no-justification">
                       Sem justificativa registrada (alteração em rascunho ou sem exigência).
                     </div>
                   )}
