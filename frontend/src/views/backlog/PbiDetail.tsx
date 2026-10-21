@@ -26,6 +26,7 @@ import { SuggestionsPanel } from "./SuggestionsPanel";
 import { ProvenanceBadge } from "./ProvenanceBadge";
 import { ItemHistoryView } from "./ItemHistoryView";
 import { QualityPanelView as QualityPanel } from "./QualityPanelView";
+import { PbiRelationsPanel } from "./PbiRelationsPanel";
 
 type PbiFields = Pick<
   PbiInput,
@@ -800,6 +801,13 @@ export function PbiDetail({
         id={pbi!.id}
         canWrite={canEdit && !readOnly}
         readOnlyNote={readOnly ? "Item ou ancestral arquivado: as decisões ficam disponíveis somente para consulta." : undefined}
+      />
+
+      <PbiRelationsPanel
+        pbiId={pbi!.id}
+        projectId={projectId}
+        canEdit={canEdit}
+        readOnly={readOnly}
       />
 
       <ItemHistoryView

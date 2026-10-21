@@ -996,3 +996,48 @@ export async function getItemHistory(
     next_cursor: data.next_cursor ?? null,
   };
 }
+
+export type PbiRelationType = "depende_de" | "similar_a" | "substitui";
+
+export interface PbiRelation {
+  id: string;
+  pbi_id: string;
+  relacionado_id: string;
+  codigo: string;
+  titulo: string;
+  status: string;
+  tipo: string;
+  prioridade: string;
+  tipo_relacao: PbiRelationType;
+  direcao: "saida" | "entrada";
+  rotulo: string;
+  created_at: string;
+}
+
+export async function getPbiRelations(pbiId: string, signal?: AbortSignal): Promise<PbiRelation[]> {
+  const response = await apiRequest(`/pbis/${encodeURIComponent(pbiId)}/relations`, { signal });
+  const data = await response.json();
+  return Array.isArray(data.items) ? data.items : [];
+}
+
+export async function createPbiRelation(
+  pbiId: string,
+  destinoId: string,
+  tipo: PbiRelationType,
+): Promise<PbiRelation> {
+  const response = await apiRequest(`/pbis/${encodeURIComponent(pbiId)}/relations`, {
+    method: "POST",
+    body: JSON.stringify({
+      pbi_destino_id: destinoId,
+      tipo_relacao: tipo,
+    }),
+  });
+  return await response.json();
+}
+
+export async function deletePbiRelation(pbiId: string, relationId: string): Promise<void> {
+  await apiRequest(`/pbis/${encodeURIComponent(pbiId)}/relations/${encodeURIComponent(relationId)}`, {
+    method: "DELETE",
+  });
+}
+

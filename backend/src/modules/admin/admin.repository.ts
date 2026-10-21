@@ -1,6 +1,7 @@
 import { Pool } from "pg";
 import { pool } from "../../database/db.js";
 import { withTransaction } from "../../database/transaction.js";
+import { NotFoundError, ValidationError } from "../../shared/errors.js";
 import { auditService } from "../audit/audit.service.js";
 import { assertWritable, lockHierarchy } from "../projects/hierarchy-archive.js";
 
@@ -11,6 +12,15 @@ export interface AdminCounts {
   pbis: number;
   documentos: number;
   chunksIndexados: number;
+}
+
+export interface PurgeProjectResult {
+  projeto_id: string;
+  projeto_nome: string;
+  chunks_removidos: number;
+  eventos_removidos: number;
+  status: "sucesso";
+  message: string;
 }
 
 export class AdminRepository {
@@ -56,4 +66,63 @@ export class AdminRepository {
 
     });
   }
+
+  async purgeProjectContext(
+    projectId: string,
+    confirmacaoNome: string,
+    userId: string,
+    justificativa?: string,
+  ): Promise<PurgeProjectResult> {
+    return withTransaction(this.db, async (client) => {
+      await lockHierarchy(client, "projeto", projectId);
+
+      const projectRes = await client.query<{ id: string; nome: string }>(
+        "SELECT id, nome FROM projeto WHERE id = $1 FOR UPDATE",
+        [projectId],
+      );
+      const project = projectRes.rows[0];
+      if (!project) throw new NotFoundError("Projeto não encontrado.");
+
+      if (confirmacaoNome.trim() !== project.nome.trim()) {
+        throw new ValidationError("O nome informado não confere com o nome do projeto.");
+      }
+
+      const countRes = await client.query<{ count: number }>(
+        "SELECT COUNT(*)::int AS count FROM chunk WHERE projeto_id = $1",
+        [projectId],
+      );
+      const chunksRemovidos = countRes.rows[0]?.count ?? 0;
+
+      await client.query("DELETE FROM chunk WHERE projeto_id = $1", [projectId]);
+
+      const eventsCountRes = await client.query(
+        "DELETE FROM indice_evento WHERE projeto_id = $1",
+        [projectId],
+      );
+      const eventosRemovidos = eventsCountRes.rowCount ?? 0;
+
+      await auditService.record({
+        usuario_id: userId,
+        entidade_tipo: "projeto",
+        entidade_id: projectId,
+        acao: "EXPURGAR_CONTEXTO",
+        justificativa: justificativa ?? null,
+        dados_json: {
+          projeto_nome: project.nome,
+          chunks_removidos: chunksRemovidos,
+          eventos_removidos: eventosRemovidos,
+        },
+      }, client);
+
+      return {
+        projeto_id: projectId,
+        projeto_nome: project.nome,
+        chunks_removidos: chunksRemovidos,
+        eventos_removidos: eventosRemovidos,
+        status: "sucesso",
+        message: "Contexto indexado do projeto expurgado com sucesso.",
+      };
+    });
+  }
 }
+

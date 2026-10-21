@@ -83,6 +83,50 @@ export const AdminView: React.FC = () => {
     }
   };
 
+  const [purgeProjectId, setPurgeProjectId] = useState("");
+  const [purgeConfirmName, setPurgeConfirmName] = useState("");
+  const [purgeJustification, setPurgeJustification] = useState("");
+  const [purging, setPurging] = useState(false);
+  const [purgeMessage, setPurgeMessage] = useState("");
+  const [purgeError, setPurgeError] = useState("");
+
+  const selectedPurgeProject = projects.find(p => p.id === purgeProjectId);
+
+  const handlePurgeProject = async () => {
+    if (!purgeProjectId || purging) return;
+    const selected = projects.find(p => p.id === purgeProjectId);
+    if (!selected) return;
+
+    if (purgeConfirmName.trim() !== selected.nome.trim()) {
+      setPurgeError("O nome informado não confere com o nome do projeto.");
+      return;
+    }
+
+    setPurging(true);
+    setPurgeMessage("");
+    setPurgeError("");
+
+    try {
+      const res = await apiRequest(`/admin/projects/${purgeProjectId}/purge`, {
+        method: "POST",
+        body: JSON.stringify({
+          confirmacao_nome: purgeConfirmName.trim(),
+          justificativa: purgeJustification.trim() || undefined,
+        }),
+      });
+      const data = await res.json();
+      setPurgeMessage(data.message || `Contexto indexado de "${selected.nome}" expurgado com sucesso.`);
+      setPurgeConfirmName("");
+      setPurgeJustification("");
+      void loadStats();
+    } catch (err: unknown) {
+      const details = err instanceof ApiError ? (err.details as { message?: string; error?: string } | undefined) : undefined;
+      setPurgeError(details?.message ?? details?.error ?? (err instanceof Error ? err.message : "Não foi possível expurgar o contexto do projeto."));
+    } finally {
+      setPurging(false);
+    }
+  };
+
   return (
     <div className="page-container" style={{ paddingBottom: "40px" }}>
       <div className="head-section">
@@ -161,6 +205,89 @@ export const AdminView: React.FC = () => {
           </Button>
         </div>
       </div>
+
+      {/* Painel de Expurgo de Contexto (S2-05) */}
+      <div className="ds-card" style={{ marginTop: "24px", padding: "24px", borderColor: "rgba(239, 68, 68, 0.4)" }}>
+        <h3 style={{ color: "#f87171" }}>Expurgo de Contexto do Projeto</h3>
+        <p className="muted" style={{ margin: "8px 0 16px" }}>
+          Operação destrutiva e irreversível: o expurgo remove todo o conteúdo indexado (trechos e vetores do acervo) e a fila de indexação do projeto selecionado. Os demais projetos permanecem intactos.
+        </p>
+
+        {purgeMessage && (
+          <div role="status" className="ds-card" style={{ background: "rgba(59, 130, 246, 0.1)", borderColor: "rgba(59, 130, 246, 0.3)", margin: "16px 0", color: "#93c5fd" }}>
+            {purgeMessage}
+          </div>
+        )}
+
+        {purgeError && (
+          <div role="alert" className="ds-card" style={{ background: "rgba(239, 68, 68, 0.1)", borderColor: "rgba(239, 68, 68, 0.3)", margin: "16px 0", color: "#fca5a5" }}>
+            {purgeError}
+          </div>
+        )}
+
+        <div className="ds-field ds-field--spaced">
+          <label htmlFor="purge-project">Projeto para expurgo</label>
+          <select
+            id="purge-project"
+            className="ds-input"
+            value={purgeProjectId}
+            onChange={event => {
+              setPurgeProjectId(event.target.value);
+              setPurgeConfirmName("");
+              setPurgeError("");
+              setPurgeMessage("");
+            }}
+            disabled={projectsLoading || purging}
+          >
+            <option value="">{projectsLoading ? "Carregando projetos…" : "Selecione o projeto a expurgar"}</option>
+            {projects.map(project => <option key={project.id} value={project.id}>{project.nome}</option>)}
+          </select>
+        </div>
+
+        {selectedPurgeProject && (
+          <>
+            <div className="ds-field ds-field--spaced" style={{ marginTop: "16px" }}>
+              <label htmlFor="purge-confirm-name">
+                Digite exatamente o nome do projeto (<strong>{selectedPurgeProject.nome}</strong>) para confirmar:
+              </label>
+              <input
+                id="purge-confirm-name"
+                type="text"
+                className="ds-input"
+                placeholder={selectedPurgeProject.nome}
+                value={purgeConfirmName}
+                onChange={event => setPurgeConfirmName(event.target.value)}
+                disabled={purging}
+              />
+            </div>
+
+            <div className="ds-field ds-field--spaced" style={{ marginTop: "16px" }}>
+              <label htmlFor="purge-justification">Justificativa (opcional):</label>
+              <input
+                id="purge-justification"
+                type="text"
+                className="ds-input"
+                placeholder="Ex: Refazer carga de dados ou exigência de exclusão"
+                value={purgeJustification}
+                onChange={event => setPurgeJustification(event.target.value)}
+                disabled={purging}
+              />
+            </div>
+          </>
+        )}
+
+        <div style={{ marginTop: "20px" }}>
+          <Button
+            variant="secondary"
+            onClick={handlePurgeProject}
+            disabled={purging || projectsLoading || !purgeProjectId || !selectedPurgeProject || purgeConfirmName.trim() !== selectedPurgeProject.nome.trim()}
+            style={{ borderColor: "#ef4444", color: "#f87171" }}
+          >
+            {purging ? "Expurgando contexto..." : "Expurgar contexto do projeto"}
+          </Button>
+        </div>
+      </div>
     </div>
   );
 };
+

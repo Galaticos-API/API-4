@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import { pbisService, PbisService } from "./pbis.service.js";
+import { pbiRelationsService, PbiRelationsService } from "./pbis.relations.service.js";
 
 function getParamId(param: string | string[] | undefined): string {
   if (Array.isArray(param)) return param[0] ?? "";
@@ -7,7 +8,11 @@ function getParamId(param: string | string[] | undefined): string {
 }
 
 export class PbisController {
-  constructor(private readonly service: PbisService = pbisService) {}
+  constructor(
+    private readonly service: PbisService = pbisService,
+    private readonly relationsService: PbiRelationsService = pbiRelationsService,
+  ) {}
+
 
   create = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
@@ -69,6 +74,40 @@ export class PbisController {
       next(error);
     }
   };
+
+  listRelations = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const id = getParamId(req.params.id);
+      const result = await this.relationsService.list(id);
+      res.status(200).json(result);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  createRelation = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const id = getParamId(req.params.id);
+      const usuarioId = req.auth!.id;
+      const result = await this.relationsService.create(id, req.body, usuarioId);
+      res.status(201).json(result);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  deleteRelation = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const id = getParamId(req.params.id);
+      const relationId = getParamId(req.params.relationId);
+      const usuarioId = req.auth!.id;
+      await this.relationsService.remove(id, relationId, usuarioId);
+      res.status(204).send();
+    } catch (error) {
+      next(error);
+    }
+  };
 }
 
 export const pbisController = new PbisController();
+

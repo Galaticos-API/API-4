@@ -379,6 +379,12 @@ pbisRouter.patch("/:id/complete", canWrite, pbisController.complete);
  */
 pbisRouter.get("/:id/quality", pbisController.quality);
 
+// S2-15: Relações bidirecionais entre PBIs (depende de, similar a, substitui) e detecção de ciclos
+pbisRouter.get("/:id/relations", pbisController.listRelations);
+pbisRouter.post("/:id/relations", canWrite, pbisController.createRelation);
+pbisRouter.delete("/:id/relations/:relationId", canWrite, pbisController.deleteRelation);
+
 const archive = archiveHandlers("pbi");
 pbisRouter.get("/:id/archive-impact", canWrite, archive.impact);
 pbisRouter.patch("/:id/archive", canWrite, archive.archive);
+

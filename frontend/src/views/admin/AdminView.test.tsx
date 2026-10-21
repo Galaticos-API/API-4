@@ -21,7 +21,7 @@ it("exige escolha explícita, envia o projeto e informa carga idempotente sem pr
   render(<AdminView />);
   const button = screen.getByRole("button", { name: "Carregar demonstração" });
   expect(button).toBeDisabled();
-  await screen.findByRole("option", { name: project.nome });
+  await screen.findAllByRole("option", { name: project.nome });
   expect(screen.queryByRole("option", { name: "Arquivado" })).toBeNull();
   expect(button).toBeDisabled();
   fireEvent.change(screen.getByLabelText("Projeto de destino"), { target: { value: project.id } });
@@ -41,8 +41,91 @@ it("exibe o erro do backend quando o projeto foi arquivado após a seleção", a
     return json({});
   }));
   render(<AdminView />);
-  await screen.findByRole("option", { name: project.nome });
+  await screen.findAllByRole("option", { name: project.nome });
   fireEvent.change(screen.getByLabelText("Projeto de destino"), { target: { value: project.id } });
   fireEvent.click(screen.getByRole("button", { name: "Carregar demonstração" }));
   expect(await screen.findByRole("alert")).toHaveTextContent("Projeto arquivado é somente leitura.");
 });
+
+it("exige confirmação exata do nome do projeto para habilitar botão de expurgo e envia requisição transacional", async () => {
+  let purged = false;
+  const request = vi.fn((url: string, init?: RequestInit) => {
+    if (url.includes("/projects?")) {
+      return json({ items: [project], total: 1, limit: 50, offset: 0 });
+    }
+    if (url.includes(`/admin/projects/${project.id}/purge`)) {
+      expect(init!.method).toBe("POST");
+      const body = JSON.parse(init!.body as string);
+      expect(body.confirmacao_nome).toBe(project.nome);
+      expect(body.justificativa).toBe("Limpeza solicitada");
+      purged = true;
+      return json({
+        chunks_removidos: 15,
+        eventos_removidos: 3,
+        documentos_afetados: 2,
+        projeto_id: project.id,
+        nome: project.nome,
+        expurgado_em: "2026-10-21T10:00:00.000Z",
+      });
+    }
+    return json({ projetos: 1, epicos: 0, features: 0, pbis: 0, documentos: 0, chunksIndexados: 15, statusSistema: "operacional" });
+  });
+  vi.stubGlobal("fetch", request);
+
+  render(<AdminView />);
+  await screen.findAllByRole("option", { name: project.nome });
+
+  const purgeBtn = screen.getByRole("button", { name: "Expurgar contexto do projeto" });
+  expect(purgeBtn).toBeDisabled();
+
+  // Seleciona o projeto a expurgar
+  fireEvent.change(screen.getByLabelText("Projeto para expurgo"), { target: { value: project.id } });
+  expect(purgeBtn).toBeDisabled();
+
+  // Digita nome incorreto
+  const confirmInput = screen.getByLabelText(/Digite exatamente o nome do projeto/);
+  fireEvent.change(confirmInput, { target: { value: "Nome Errado" } });
+  expect(purgeBtn).toBeDisabled();
+
+  // Digita nome correto
+  fireEvent.change(confirmInput, { target: { value: project.nome } });
+  expect(purgeBtn).toBeEnabled();
+
+  // Preenche justificativa
+  fireEvent.change(screen.getByLabelText("Justificativa (opcional):"), { target: { value: "Limpeza solicitada" } });
+
+  // Executa o expurgo
+  fireEvent.click(purgeBtn);
+
+  expect(
+    await screen.findByText(/Contexto indexado de "Projeto escolhido" expurgado com sucesso/i)
+  ).toBeInTheDocument();
+  expect(purged).toBe(true);
+});
+
+it("exibe mensagem de erro quando o expurgo do projeto falha", async () => {
+  const request = vi.fn((url: string) => {
+    if (url.includes("/projects?")) {
+      return json({ items: [project], total: 1, limit: 50, offset: 0 });
+    }
+    if (url.includes(`/admin/projects/${project.id}/purge`)) {
+      return json({ error: "Nome de confirmação não confere com o projeto." }, 400);
+    }
+    return json({ projetos: 1, epicos: 0, features: 0, pbis: 0, documentos: 0, chunksIndexados: 0, statusSistema: "operacional" });
+  });
+  vi.stubGlobal("fetch", request);
+
+  render(<AdminView />);
+  await screen.findAllByRole("option", { name: project.nome });
+
+  fireEvent.change(screen.getByLabelText("Projeto para expurgo"), { target: { value: project.id } });
+  const confirmInput = screen.getByLabelText(/Digite exatamente o nome do projeto/);
+  fireEvent.change(confirmInput, { target: { value: project.nome } });
+
+  const purgeBtn = screen.getByRole("button", { name: "Expurgar contexto do projeto" });
+  fireEvent.click(purgeBtn);
+
+  expect(await screen.findByRole("alert")).toHaveTextContent("Nome de confirmação não confere com o projeto.");
+});
+
+
