@@ -67,6 +67,17 @@ jobs:
         working-directory: backend
         run: npm test
 
+      - name: Run indexing integration tests (PostgreSQL)
+        working-directory: backend
+        timeout-minutes: 5
+        run: npm run test:integration:indexing
+
+      - name: Validate versioned AI harness with isolated services
+        run: |
+          docker build -t sinapse-s209-ai-test ai-service
+          cd backend
+          npm run test:integration:harness
+
       - name: Audit production dependencies
         working-directory: backend
         run: npm run audit:security

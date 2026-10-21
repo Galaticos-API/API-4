@@ -1,3 +1,4 @@
+from harness import router as harness_router
 import hmac
 import math
 from fastapi import Request
@@ -122,6 +123,9 @@ class RagQueryRequest(BaseModel):
     query: str = Field(..., description="Pergunta ou busca em linguagem natural")
     project_id: str | None = Field(None, description="Filtro obrigatório de projeto (PRD 10.3)")
     context_chunks: list[str] = Field(default_factory=list, description="Top-K trechos recuperados")
+
+
+app.include_router(harness_router)
 
 
 @app.get("/health")

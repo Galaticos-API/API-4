@@ -12,6 +12,50 @@ servers:
     description: Serviço de IA local
 
 paths:
+  /api/v1/projects/{projectId}/index-events:
+    parameters:
+      - {name: projectId, in: path, required: true, schema: {type: string, format: uuid}}
+    get:
+      summary: Lista os últimos 100 eventos de indexação do projeto
+      operationId: listIndexEvents
+      security: [{cookieAuth: []}]
+      responses:
+        '200':
+          description: Estados, versões, tentativas e códigos seguros de falha, sem conteúdo da origem.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/IndexEvent'
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '404': {description: Projeto inexistente ou sem acesso}
+  /api/v1/projects/{projectId}/index-events/{eventId}/reprocess:
+    parameters:
+      - {name: projectId, in: path, required: true, schema: {type: string, format: uuid}}
+      - {name: eventId, in: path, required: true, schema: {type: string, format: uuid}}
+    post:
+      summary: Reenfileira um evento de indexação (admin ou PO)
+      operationId: reprocessIndexEvent
+      description: Repetir enquanto pendente preserva a fila. Eventos substituídos retornam 404; reserva ativa ou projeto arquivado retorna 409.
+      security: [{cookieAuth: []}]
+      responses:
+        '202':
+          description: Evento pendente
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: {type: string, enum: [pendente]}
+        '400': {$ref: '#/components/responses/ValidationError'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {description: Sem permissão de escrita}
+        '404': {description: Projeto ou evento inexistente ou sem acesso}
+        '409': {description: Projeto arquivado ou evento em processamento}
   /api/v1/projects/{projectId}/documents/{documentId}/excerpts:
     parameters:
       - {name: projectId, in: path, required: true, schema: {type: string, format: uuid}}
@@ -52,6 +96,126 @@ paths:
         '400': {$ref: '#/components/responses/ValidationError'}
         '401': {$ref: '#/components/responses/Unauthorized'}
         '404': {description: Documento ou trecho indisponível ou sem acesso ao projeto}
+  /api/v1/admin/ai-harness/{mode}:
+    parameters:
+      - $ref: '#/components/parameters/HarnessMode'
+    get:
+      operationId: getHarnessConfiguration
+      summary: Consulta a revisão vigente e os schemas do modo (somente admin)
+      security: [{cookieAuth: []}]
+      responses:
+        '200':
+          description: Revisão vigente; versão zero corresponde à configuração distribuída
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/HarnessRevision'}
+        '400': {description: Modo inválido}
+        '401': {description: Autenticação necessária}
+        '403': {description: Somente administrador}
+    put:
+      operationId: updateHarnessConfiguration
+      summary: Publica uma nova revisão independente; próxima solicitação usa a mudança sem reinício
+      security: [{cookieAuth: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [expected_version, config]
+              properties:
+                expected_version: {type: integer, minimum: 0, maximum: 2147483646}
+                config: {$ref: '#/components/schemas/HarnessConfig'}
+      responses:
+        '201':
+          description: Revisão publicada e imediatamente vigente
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/HarnessRevision'}
+        '400': {description: Configuração ou modo inválido}
+        '401': {description: Autenticação necessária}
+        '403': {description: Somente administrador}
+        '409': {description: Outra revisão foi publicada; recarregue antes de salvar}
+  /api/v1/admin/ai-harness/{mode}/history:
+    get:
+      operationId: listHarnessHistory
+      summary: Histórico imutável do modo, até 50 revisões por página
+      security: [{cookieAuth: []}]
+      parameters:
+        - $ref: '#/components/parameters/HarnessMode'
+        - in: query
+          name: before
+          schema: {type: integer, minimum: 1, maximum: 999999999}
+      responses:
+        '200':
+          description: Histórico do mais recente para o mais antigo; next_before permite continuar
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items: {$ref: '#/components/schemas/HarnessRevision'}
+                  next_before: {type: integer, nullable: true}
+        '400': {description: Modo ou cursor inválido}
+        '401': {description: Autenticação necessária}
+        '403': {description: Somente administrador}
+  /api/v1/projects/{projectId}/ai/requests:
+    post:
+      operationId: runHarness
+      summary: Executa o harness local vigente sem gravar conteúdo do item
+      description: >
+        Exige admin ou PO e acesso ao projeto. Trechos de consulta/recomendação são recuperados
+        pelo backend no projeto autorizado; não podem ser fornecidos pelo cliente. Levantamento
+        aceita campos do nível e texto_livre. Consulta/recomendação aceitam pergunta. Combinações
+        válidas são levantamento/questionar,padronizar,cenarios; consulta/responder; recomendacao/similares.
+        Cenários detalhados são exclusivos de PBI. Schemas JSON estritos por operação e nível estão
+        disponíveis em getHarnessConfiguration. Qualquer falha de geração ou validação retorna 503.
+      security: [{cookieAuth: []}]
+      parameters:
+        - in: path
+          name: projectId
+          required: true
+          schema: {type: string, format: uuid}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [mode, operation]
+              properties:
+                mode: {type: string, enum: [levantamento, consulta, recomendacao]}
+                operation: {type: string, enum: [questionar, padronizar, cenarios, responder, similares]}
+                level: {type: string, enum: [epico, feature, pbi], default: pbi}
+                fields:
+                  type: object
+                  maxProperties: 10
+                  additionalProperties: {type: string, maxLength: 6000}
+      responses:
+        '200':
+          description: Saída validada; nenhuma gravação no item e nenhum registro do prompt
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [mode, version, schema_version, operation, level, result]
+                properties:
+                  mode: {type: string, enum: [levantamento, consulta, recomendacao]}
+                  version: {type: integer, minimum: 0}
+                  schema_version: {type: integer, enum: [1]}
+                  operation: {type: string}
+                  level: {type: string, enum: [epico, feature, pbi]}
+                  result: {type: object, description: Saída conforme o schema da operação/nível da revisão}
+        '400': {description: Solicitação inválida}
+        '401': {description: Autenticação necessária}
+        '403': {description: Perfil sem permissão}
+        '404': {description: Projeto inexistente ou sem acesso}
+        '503': {description: IA indisponível ou saída rejeitada; edição preservada}
+
   /api/v1/projects/{projectId}/epicos:
     $ref: './epics-compat.yaml#/collection'
   /api/projects/{projectId}/epicos:
@@ -2997,6 +3161,12 @@ paths:
         '409': {description: Impacto alterado ou ancestral somente leitura}
 
 components:
+  parameters:
+    HarnessMode:
+      in: path
+      name: mode
+      required: true
+      schema: {type: string, enum: [levantamento, consulta, recomendacao]}
   securitySchemes:
     cookieAuth:
       type: apiKey
@@ -3004,6 +3174,54 @@ components:
       name: sinapse_session
 
   schemas:
+    IndexEvent:
+      type: object
+      properties:
+        evento_id: {type: string, format: uuid}
+        projeto_id: {type: string, format: uuid}
+        entidade_tipo: {type: string, enum: [epico, feature, pbi, decisao]}
+        entidade_id: {type: string, format: uuid}
+        versao: {type: integer, minimum: 1}
+        operacao: {type: string, enum: [indexar, remover]}
+        status: {type: string, enum: [pendente, processando, processado, falha]}
+        tentativas: {type: integer, minimum: 0}
+        proxima_tentativa: {type: string, format: date-time}
+        erro_codigo:
+          type: string
+          nullable: true
+          enum: [ATTEMPTS_EXHAUSTED, INVALID_RESPONSE, INVALID_SCOPE, TIMEOUT, SERVICE_HTTP_ERROR, SERVICE_UNAVAILABLE, PROCESSING_ERROR, null]
+        updated_at: {type: string, format: date-time}
+    HarnessConfig:
+      type: object
+      additionalProperties: false
+      required: [instructions, operation_instructions, timeout_ms, rules]
+      properties:
+        instructions: {type: string, minLength: 1, maxLength: 12000}
+        operation_instructions:
+          type: object
+          description: Chaves exatas das operações do modo
+          additionalProperties: {type: string, minLength: 1, maxLength: 12000}
+        timeout_ms: {type: integer, minimum: 1000, maximum: 60000}
+        rules:
+          type: object
+          additionalProperties: false
+          required: [vague_terms, macro_detail_terms, implementation_terms]
+          properties:
+            vague_terms: {type: array, maxItems: 40, items: {type: string, minLength: 1, maxLength: 60}}
+            macro_detail_terms: {type: array, minItems: 1, maxItems: 40, items: {type: string, minLength: 1, maxLength: 60}}
+            implementation_terms: {type: array, minItems: 1, maxItems: 40, items: {type: string, minLength: 1, maxLength: 60}}
+    HarnessRevision:
+      type: object
+      required: [mode, version, schema_version, config, created_at, created_by]
+      properties:
+        mode: {type: string, enum: [levantamento, consulta, recomendacao]}
+        version: {type: integer, minimum: 0}
+        schema_version: {type: integer, enum: [1]}
+        config: {$ref: "#/components/schemas/HarnessConfig"}
+        created_at: {type: string, format: date-time, nullable: true}
+        created_by: {type: string, format: uuid, nullable: true}
+        output_schemas: {type: object, description: Schemas JSON por operação e nível; schema_version 1, additionalProperties false}
+
     TechnologyOption:
       type: object
       required: [id, nome]

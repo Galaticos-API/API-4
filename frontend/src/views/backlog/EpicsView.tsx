@@ -1,3 +1,4 @@
+import { CopilotPanel } from "./CopilotPanel";
 import { useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { ApiError } from "../../api/api_auth";
 import { camposFaltantesDe, completeEpic, createEpic, getEpic, listEpics, updateEpic, type Epic, type EpicInput } from "../../api/api_backlog";
@@ -106,6 +107,7 @@ export function EpicForm({ projetoId }: { projetoId: string }) {
           onChange={(tecnologias_ids) => setValues((current) => ({ ...current, tecnologias_ids }))}
           disabled={busy}
         />
+        <CopilotPanel projectId={projetoId} level="epico" values={values} disabled={busy} />
         {message && <p role="alert">{message}</p>}
         <div className="project-actions">
           <Button type="submit" variant="primary" disabled={busy}>{busy ? "Criando…" : "Criar épico"}</Button>
@@ -232,6 +234,7 @@ export function EpicDetail({ projectId, epicId, canEdit, children }: { projectId
                 />
               </div>
             )}
+            <CopilotPanel projectId={projectId} level="epico" values={formValues} disabled={saving} />
             {editMessage && <p role="alert">{editMessage}</p>}
             <div className="project-actions">
               <Button variant="primary" disabled={saving} onClick={async () => {

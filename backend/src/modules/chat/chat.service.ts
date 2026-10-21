@@ -1,5 +1,6 @@
-import { serviceHeaders } from "../../shared/service-auth.js";
-import axios from "axios";
+import { HarnessService, HttpHarnessEngine } from "../harness/harness.service.js";
+import { searchPatterns } from "../harness/search-patterns.js";
+export { searchPatterns } from "../harness/search-patterns.js";
 import { env } from "../../config/env.js";
 import { AppError, NotFoundError, ValidationError, validateUuid } from "../../shared/errors.js";
 import { ChatRepository } from "./chat.repository.js";
@@ -39,10 +40,14 @@ export class HttpAssistantClient implements AssistantClient {
     if (!projetoId) throw new ValidationError("Escolha um projeto.");
     const chunks = await this.repository.searchChunks(projetoId, searchPatterns(pergunta), 5);
     if (!chunks.length) return { resposta: NOT_FOUND_ANSWER, fontes: [] };
-    const response = await axios.post(this.baseUrl + "/rag/query", { query: pergunta, project_id: projetoId, context_chunks: chunks.map(c => "[" + c.id + "] " + c.texto) }, { headers: serviceHeaders(), timeout: 45000 });
-    const text = response.data?.response;
-    if (typeof text !== "string" || !text.trim()) throw new Error("Resposta vazia do assistente");
-    return { resposta: text, fontes: citedSources(text, chunks) };
+    const response = await new HarnessService(undefined, new HttpHarnessEngine(this.baseUrl), this.repository).run(
+      projetoId,
+      { mode: "consulta", operation: "responder", level: "pbi", fields: { pergunta }, context: [] },
+      chunks.map(row => ({ id: row.id, text: row.texto.slice(0, 8000) })),
+    );
+    const result = response.result as { answer: string; sources: string[] };
+    const text = result.answer + (result.sources.length ? "\n" + result.sources.map(id => "[" + id + "]").join(" ") : "");
+    return { resposta: text, fontes: result.sources.length ? citedSources(text, chunks) : [] };
   }
 }
 
@@ -53,13 +58,6 @@ export function citedSources(text: string, chunks: Array<{id: string; entidade_t
   return [...new Set(ids)].map(id => ({ id, titulo: "Trecho citado de " + byId.get(id)!.entidade_tipo, tipo: byId.get(id)!.entidade_tipo }));
 }
 
-export function searchPatterns(question: string): string[] {
-  const terms = question
-    .toLocaleLowerCase("pt-BR")
-    .split(/[^\p{L}\p{N}]+/u)
-    .filter((term) => term.length >= 4);
-  return [...new Set(terms)].slice(0, 6).map((term) => `%${term.replace(/[\\%_]/g, "\\$&")}%`);
-}
 
 function makeTitle(question: string): string {
   const clean = question.replace(/\s+/g, " ").trim();

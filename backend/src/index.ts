@@ -1,3 +1,4 @@
+import { startIndexingWorker } from "./modules/indexing/indexing.worker.js";
 import app from "./app.js";
 import { startRepoAnalysesWorker } from "./modules/repo-analyses/repo-analyses.service.js";
 import { env } from "./config/env.js";
@@ -10,6 +11,7 @@ if (env.NODE_ENV !== "test") {
   // Worker unico pos-merge S2-01: processa documentos pendentes via claim/lease
   // (processPendingDocuments) + flush de eventos + reconciliacao de arquivos.
   startDocumentsBackgroundWorker();
+  startIndexingWorker();
   startRepoAnalysesWorker();
   if (!env.DOCUMENT_EVENTS_WEBHOOK_URL?.trim()) {
     console.warn("[Documents] DOCUMENT_EVENTS_WEBHOOK_URL is not configured; removal events will retry until a consumer is configured.");
