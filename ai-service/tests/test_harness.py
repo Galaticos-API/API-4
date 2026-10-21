@@ -159,19 +159,28 @@ class HarnessTests(unittest.IsolatedAsyncioTestCase):
         story = {"titulo":"Consultar pedido", "historia_como_um":"cliente", "historia_eu_quero":"consultar meus pedidos", "historia_para_que":"acompanhar a entrega", **fields}
         return self.request(operation="cenarios", output_schema=FIXTURE["schemas"]["cenarios"]["pbi"], fields=story)
 
-    async def test_scenarios_are_named_typed_and_at_least_one(self):
+    async def test_scenarios_are_named_and_typed(self):
         answer={"scenarios":[{"nome":"Consultar pedido existente","tipo":"caminho_principal","dado":"que há um pedido","quando":"o cliente consulta","entao":"o pedido é exibido"}],"questions":[]}
         with patch("harness.ollama_client.generate_response", new=AsyncMock(return_value=json.dumps(answer))) as model:
             response=await self.post(self.scenarios_request())
             self.assertEqual(response.status_code, 200)
             self.assertEqual(response.json()["result"], answer)
             schema=model.call_args.kwargs["output_schema"]["properties"]["scenarios"]
-            self.assertEqual((schema["minItems"], schema["maxItems"]), (1, 8))
+            self.assertEqual((schema["minItems"], schema["maxItems"]), (0, 8))
             self.assertIn("caminho_principal", model.call_args.kwargs["system_prompt"])
             self.assertNotIn("obrigatoriamente", model.call_args.kwargs["system_prompt"])
-        for invalid in [{"scenarios":[],"questions":["Qual?"]}, {"scenarios":[{**answer["scenarios"][0],"tipo":"outro"}],"questions":[]}]:
+        for invalid in [{"scenarios":[],"questions":[]}, {"scenarios":[{**answer["scenarios"][0],"tipo":"outro"}],"questions":[]}]:
             with self.subTest(invalid=invalid), patch("harness.ollama_client.generate_response", new=AsyncMock(return_value=json.dumps(invalid))):
                 self.assertEqual((await self.post(self.scenarios_request())).status_code, 503)
+
+    async def test_scenarios_allow_questions_without_inventing_scenarios(self):
+        answer = {"scenarios": [], "questions": ["Qual deve ser o resultado quando o pedido não existir?"]}
+        with patch("harness.ollama_client.generate_response", new=AsyncMock(return_value=json.dumps(answer))) as model:
+            response = await self.post(self.scenarios_request())
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.json()["result"], answer)
+            from jsonschema import Draft202012Validator
+            Draft202012Validator(model.call_args.kwargs["output_schema"]).validate(answer)
 
     async def test_permission_story_requires_unauthorized_access_scenario_in_prompt(self):
         answer='{"scenarios":[{"nome":"x","tipo":"caminho_principal","dado":"a","quando":"b","entao":"c"}],"questions":[]}'

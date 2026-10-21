@@ -125,10 +125,9 @@ async def run_harness(req: HarnessRequest):
             output_schema["properties"]["proposal"] = proposal_schema
             output_schema["properties"]["questions"]["maxItems"] = 0
     if req.operation == "cenarios":
-        # O backend só chama esta operação com a história completa: há base para ao menos um cenário.
         scenarios_schema = output_schema.get("properties", {}).get("scenarios")
         if isinstance(scenarios_schema, dict):
-            scenarios_schema["minItems"] = 1
+            scenarios_schema["minItems"] = 0
             scenarios_schema["maxItems"] = 8
     if req.operation == "questionar":
         questions_schema = output_schema.get("properties", {}).get("questions", {})
@@ -145,6 +144,8 @@ async def run_harness(req: HarnessRequest):
             system += "\nA história envolve uma ação sujeita a permissão: inclua obrigatoriamente ao menos um cenário de tipo acesso_nao_autorizado, em que um usuário sem permissão tenta a ação e o sistema a recusa sem alterar dados. O ENTÃO desse cenário deve dizer explicitamente que a ação é recusada ou negada."
     system += "\nSeja conciso: no máximo seis perguntas sobre lacunas relevantes, sem repetir o que já está escrito."
     prompt = json.dumps({"fields": fields, "editing_context": editing_context, "context": [chunk.model_dump() for chunk in req.context]}, ensure_ascii=False)
+    if req.operation == "cenarios":
+        system += "\nQuando uma lacuna impedir cenários verificáveis, retorne scenarios vazio e perguntas para esclarecê-la. Nesse caso não é obrigatório incluir cenários; não invente regras."
     try:
         if req.mode == "consulta" and not req.context:
             result = {"answer": "Informação não encontrada no acervo do projeto.", "sources": []}
@@ -156,6 +157,8 @@ async def run_harness(req: HarnessRequest):
                 raise ValueError("Resposta excedeu o limite")
             result = json.loads(raw)
         validator.validate(result)
+        if req.operation == "cenarios" and not result["scenarios"] and not result["questions"]:
+            raise ValueError("Cenários ausentes sem esclarecimento")
         if req.operation == "questionar":
             question = measurable_time_question(fields, editing_context, req.config.rules)
             if question and not any(item["dimension"] == "validacoes" and re.search(r"tempo|prazo|latência|rápid|rapidez|duração", item["question"], re.IGNORECASE) for item in result["questions"]):

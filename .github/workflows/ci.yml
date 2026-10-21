@@ -13,6 +13,15 @@ on:
       - develop
 
 jobs:
+  validate-windows-dev-scripts:
+    name: Validate Windows development scripts
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate startup failures and isolated process shutdown
+        shell: powershell
+        run: ./scripts/test-dev-process.ps1
+
   validate-environment:
     name: Validate Workflows and Docker Setup
     runs-on: ubuntu-latest

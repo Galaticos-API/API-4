@@ -1,50 +1,74 @@
-# Script para iniciar ambiente de desenvolvimento Sinapse
-# 1. Inicia o Ollama (se não estiver rodando)
-# 2. Sobe os containers essenciais (Postgres, Backend, Frontend)
-# 3. Inicia o AI-Service (FastAPI) nativo no Windows usando aceleração local de hardware
+$ErrorActionPreference = 'Stop'
+. "$PSScriptRoot/scripts/dev-process.ps1"
 
-$ErrorActionPreference = "Stop"
-$rootDir = $PSScriptRoot
-
-Write-Host "======================================================" -ForegroundColor Cyan
-Write-Host "         SINAPSE - INICIALIZANDO AMBIENTE DEV         " -ForegroundColor Cyan
-Write-Host "======================================================" -ForegroundColor Cyan
-
-# 1. Ollama
-Write-Host "`n[1/3] Verificando Ollama..." -ForegroundColor Yellow
-$ollamaProc = Get-Process -Name "ollama app", "ollama" -ErrorAction SilentlyContinue
-if (-not $ollamaProc) {
-    Write-Host "Iniciando Ollama em segundo plano..." -ForegroundColor Gray
-    Start-Process "ollama" "serve" -WindowStyle Minimized
-    Start-Sleep -Seconds 2
-} else {
-    Write-Host "Ollama ja esta em execucao." -ForegroundColor Green
+function Invoke-Checked {
+    param([string]$Command, [string[]]$Arguments)
+    & $Command @Arguments
+    if ($LASTEXITCODE -ne 0) { throw "$Command falhou (codigo $LASTEXITCODE)." }
 }
 
-# 2. Containers Docker
-Write-Host "`n[2/3] Subindo containers Docker (Postgres, Backend, Frontend)..." -ForegroundColor Yellow
-Set-Location $rootDir
-docker compose up -d postgres backend frontend
-
-# 3. AI Service (Python nativo)
-Write-Host "`n[3/3] Configurando e iniciando AI-Service local..." -ForegroundColor Yellow
-$aiPath = Join-Path $rootDir "ai-service"
-
-if (-not (Test-Path "$aiPath\.venv")) {
-    Write-Host "Ambiente virtual (.venv) nao encontrado em $aiPath. Criando..." -ForegroundColor Cyan
-    python -m venv "$aiPath\.venv"
-    Write-Host "Instalando dependencias do ai-service..." -ForegroundColor Cyan
-    & "$aiPath\.venv\Scripts\pip" install -r "$aiPath\requirements.txt"
+function Wait-Service {
+    param([string]$Url, [System.Diagnostics.Process]$Process)
+    for ($attempt = 0; $attempt -lt 60; $attempt++) {
+        if ($Process) {
+            $Process.Refresh()
+            if ($Process.HasExited) { throw 'A IA encerrou antes de iniciar. Consulte .sinapse-dev/ai-error.log.' }
+        }
+        try {
+            $response = Invoke-WebRequest -Uri $Url -UseBasicParsing -TimeoutSec 2
+            if ($response.StatusCode -eq 200) { return }
+        } catch { }
+        Start-Sleep -Seconds 1
+    }
+    throw "O servico nao ficou disponivel: $Url"
 }
 
-Write-Host "Iniciando FastAPI em nova janela..." -ForegroundColor Green
-$cmdArgs = "-NoExit -Command `"cd '$aiPath'; .\.venv\Scripts\activate; uvicorn main:app --host 0.0.0.0 --port 8000 --reload`""
-Start-Process powershell -ArgumentList $cmdArgs
+$previousAI = $env:AI_SERVICE_URL
+$previousAnalyzer = $env:REPO_ANALYZER_URL
+$startedAI = $false
+Push-Location $PSScriptRoot
+try {
+    if (-not (Test-Path -LiteralPath '.env')) { throw 'Crie .env a partir de .env.example antes de iniciar.' }
+    if (Get-DevAIProcess) { throw 'A IA deste projeto ja esta iniciada. Execute stop-dev.ps1 antes de reiniciar.' }
+    if (Get-NetTCPConnection -LocalPort 8000 -State Listen -ErrorAction SilentlyContinue) {
+        throw 'A porta 8000 esta ocupada. Encerre o servico existente antes de iniciar a IA nativa.'
+    }
+    Invoke-Checked docker @('info', '--format', '{{.ServerVersion}}')
+    try { Invoke-RestMethod 'http://localhost:11434/api/tags' -TimeoutSec 2 | Out-Null }
+    catch {
+        Start-Process 'ollama' -ArgumentList 'serve' -WindowStyle Hidden | Out-Null
+        Wait-Service 'http://localhost:11434/api/tags'
+    }
 
-Write-Host "`n======================================================" -ForegroundColor Green
-Write-Host "  Tudo pronto!" -ForegroundColor Green
-Write-Host "  - Frontend:   http://localhost:5173" -ForegroundColor White
-Write-Host "  - Backend:    http://localhost:3001" -ForegroundColor White
-Write-Host "  - AI Service: http://localhost:8000" -ForegroundColor White
-Write-Host "  - Ollama:     http://localhost:11434" -ForegroundColor White
-Write-Host "======================================================`n" -ForegroundColor Green
+    $aiPath = Join-Path $PSScriptRoot 'ai-service'
+    $python = Join-Path $aiPath '.venv/Scripts/python.exe'
+    if (-not (Test-Path -LiteralPath $python)) {
+        Invoke-Checked python @('-m', 'venv', (Join-Path $aiPath '.venv'))
+    }
+    Invoke-Checked $python @('-m', 'pip', 'install', '-r', (Join-Path $aiPath 'requirements.txt'))
+
+    # O override vale so para esta execucao; o Compose usa a rede interna por padrao.
+    $env:AI_SERVICE_URL = 'http://host.docker.internal:8000'
+    $env:REPO_ANALYZER_URL = 'http://host.docker.internal:8000'
+    Invoke-Checked docker @('compose', 'up', '-d', '--build', 'postgres', 'backend', 'frontend')
+
+    New-Item -ItemType Directory -Path $devStateDirectory -Force | Out-Null
+    $aiProcess = Start-Process -FilePath $python -ArgumentList @('-m', 'uvicorn', 'main:app', '--host', '0.0.0.0', '--port', '8000') -WorkingDirectory $aiPath -WindowStyle Hidden -PassThru -RedirectStandardOutput (Join-Path $devStateDirectory 'ai.log') -RedirectStandardError (Join-Path $devStateDirectory 'ai-error.log')
+    $startedAI = $true
+    Save-DevAIProcess $aiProcess
+    Wait-Service 'http://localhost:8000/health' $aiProcess
+    $compose = docker compose config --format json | ConvertFrom-Json
+    if ($LASTEXITCODE -ne 0) { throw 'Nao foi possivel conferir as portas dos servicos.' }
+    $backendPort = $compose.services.backend.ports[0].published
+    $frontendPort = $compose.services.frontend.ports[0].published
+    Wait-Service "http://localhost:$backendPort/health"
+    Wait-Service "http://localhost:$frontendPort"
+    Write-Host "Servicos disponiveis. Frontend: http://localhost:$frontendPort | Backend: http://localhost:$backendPort | IA: http://localhost:8000"
+} catch {
+    if ($startedAI) { Stop-DevAIProcess }
+    throw
+} finally {
+    $env:AI_SERVICE_URL = $previousAI
+    $env:REPO_ANALYZER_URL = $previousAnalyzer
+    Pop-Location
+}

@@ -19,6 +19,7 @@ function port(name: string, p: string) {
     .HostPort;
 }
 let invalid = false;
+let clarificationOnly = false;
 let unavailable = false;
 let delayMs = 0;
 const captures: any[] = [];
@@ -49,6 +50,8 @@ const model = createServer(async (req, res) => {
   });
   const result = invalid
     ? { questions: [], summary: "SEGREDO", extra: "proibido" }
+    : clarificationOnly && payload.format.properties.scenarios
+      ? { scenarios: [], questions: ["Qual o resultado esperado quando o pedido nao existir?"] }
     : payload.format.properties.scenarios
       ? {
           scenarios: [
@@ -333,6 +336,15 @@ try {
     ["caminho_principal", "acesso_nao_autorizado"],
   );
   assert.ok(captures.at(-1).system.includes("acesso_nao_autorizado"));
+  clarificationOnly = true;
+  try {
+    const clarification = await call(run, 1, "POST", scenarioRequest);
+    assert.equal(clarification.status, 200, JSON.stringify(clarification.body));
+    assert.deepEqual(clarification.body.result.scenarios, []);
+    assert.deepEqual(clarification.body.result.questions, ["Qual o resultado esperado quando o pedido nao existir?"]);
+  } finally {
+    clarificationOnly = false;
+  }
   const answer = await call(run, 1, "POST", {
     mode: "consulta",
     operation: "responder",

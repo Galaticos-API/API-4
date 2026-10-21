@@ -74,3 +74,4 @@ ai-service/test_workspace/
 # armazenamento local de documentos enviados
 backend/storage/
 storage/
+.sinapse-dev/
