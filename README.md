@@ -303,13 +303,35 @@ Copy-Item .env.example .env
 
 ## 3️⃣ Inicie o projeto
 
+### Opção A: Script Automatizado (Windows PowerShell - Recomendado)
+
+O script `start-dev.ps1` orquestra a checagem do Docker, inicializa o Ollama local, verifica/baixa os modelos necessários de IA, sobe os containers do Postgres, Backend e Frontend, e inicia o serviço de IA em segundo plano:
+
+```powershell
+.\start-dev.ps1
+```
+
+> **Controle de recursos e parâmetros:**
+> * `.\start-dev.ps1 -NoLlm`: Economiza memória RAM (~1 GB) desativando o download e execução do modelo LLM (`qwen2.5:1.5b`), mantendo apenas a busca vetorial e embeddings (`bge-m3`).
+> * `.\start-dev.ps1 -NoEmbeddings`: Desativa o modelo de embeddings (`bge-m3`), mantendo apenas o Copiloto/LLM.
+> * `.\start-dev.ps1 -SkipPull`: Pula a verificação e download de modelos no Ollama caso já estejam instalados, agilizando a inicialização.
+
+#### 🛑 Como parar o ambiente:
+Para encerrar os containers Docker e todos os processos de IA de forma limpa:
+
+```powershell
+.\stop-dev.ps1
+```
+
+---
+
+### Opção B: Docker Compose Puro
+
 ```bash
 docker compose up --build -d
 ```
 
-O Compose exige esse segredo compartilhado pelo backend e pelo serviço local de IA; não há mais token padrão no código.
-
-Verifique os containers:
+O Compose exige o segredo compartilhado configurado em `.env`; verifique os containers com:
 
 ```bash
 docker compose ps
