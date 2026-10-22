@@ -5,6 +5,7 @@ import { createServer } from "node:http";
 import { resolve } from "node:path";
 import { Client } from "pg";
 import { applyUntil } from "../src/database/migration-test-utils.js";
+const { withHarnessDeadline } = await import(new URL("./harness-deadline.mjs", import.meta.url).href);
 const id = "sinapse-s209-" + randomUUID().slice(0, 8),
   password = randomUUID(),
   token = randomUUID(),
@@ -22,9 +23,11 @@ let captures: any[] = [];
 const network=id+'-private';
 let modelUrl='';
 async function control(update?: Record<string, unknown>) {
- const response=await fetch(modelUrl+'/control', {signal:AbortSignal.timeout(5000), ...(update ? {method:'POST',body:JSON.stringify(update)} : {})});
- assert.equal(response.status,200);
- const snapshot=await response.json() as {captures:any[]}; captures=snapshot.captures;
+ await withHarnessDeadline(async (signal: AbortSignal) => {
+   const response=await fetch(modelUrl+'/control', {signal, ...(update ? {method:'POST',body:JSON.stringify(update)} : {})});
+   assert.equal(response.status,200);
+   const snapshot=await response.json() as {captures:any[]}; captures=snapshot.captures;
+ });
 }
 let api: ReturnType<typeof createServer> | undefined,
   db: { end: () => Promise<void> } | undefined;
@@ -116,9 +119,9 @@ try {
     try {
       if (
         (
-          await fetch(process.env.AI_SERVICE_URL + "/openapi.json", {
-            headers: { "X-Service-Token": token },
-          })
+          await withHarnessDeadline((signal: AbortSignal) => fetch(process.env.AI_SERVICE_URL + "/openapi.json", {
+            signal, headers: { "X-Service-Token": token },
+          }))
         ).ok
       ) {
         ready = true;
