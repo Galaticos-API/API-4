@@ -1,5 +1,7 @@
 # Estado da implementação e revisão QA — 02/10/2026
 
+> **Atualização de continuidade (22/10/2026):** o checkout foi fast-forward para `origin/main` em `0e9646f`. Este relatório contém snapshots históricos e não valida o HEAD atual. A integração recente inclui S2-11, S2-15, S2-23 e mudanças no setup local; o commit `81e8198` também removeu testes automatizados e scripts de validação em várias áreas. Ver [handoff da revisão da main](HANDOFF_REVISAO_MAIN_2026-10-22.md) para as observações e pendências atuais.
+
 > **Atualização de escopo e evidência:** a branch foi sincronizada com `origin/main` em `4dc3033`. Este documento contém snapshots anteriores; para o estado operacional atual e decisões de inclusão no PR, seguir [plano canônico de fechamento](PLANO_FECHAMENTO_PR_UNICO_S2.md). A rodada integrada mais recente teve 347 testes aprovados e 1 falha fora do escopo S2-01/02/06/17, em `knowledge-indexer.db.test.ts` (S2-03/04). Portanto, não declarar a suíte integrada completa como verde nem S2-03/04 como aprovadas com base nas linhas históricas abaixo.
 
 > **Adendo posterior da S2-01/02/06:** integrações PostgreSQL executadas isoladamente nesta continuação passaram: documentos 16/16 e busca 1/1. O smoke autenticado de ciclo completo foi implementado e passou no teste de API simulada para PDF/DOCX/MD/TXT; ainda não foi executado contra o backend/IA/Ollama reais. Python 59/59, backend sem DB 290 aprovados/19 ignorados, frontend 206/206 + build, backend typecheck/build e auditoria 0 vulnerabilidades passaram. A qualidade de relevância continua pendente.

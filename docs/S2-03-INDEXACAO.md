@@ -32,6 +32,8 @@ O serviço IA mantém o endpoint estruturado já usado pelo projeto. Não foi cr
 
 ## Validação
 
+> **Nota de manutenção (22/10/2026):** este documento registra validações anteriores, realizadas em 14/10. A `main` atual avançou para `0e9646f`; nela, o commit `81e8198` removeu os testes automatizados de indexação e scripts de validação citados abaixo. Não considere os números históricos como validação do HEAD atual. Consulte o [handoff da revisão da main](HANDOFF_REVISAO_MAIN_2026-10-22.md) para o estado e próximos passos.
+
 No backend:
 
 ```text
