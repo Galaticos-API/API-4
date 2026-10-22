@@ -39,6 +39,7 @@ test('S2-05: expurgo autenticado exige confirmação, cancela relatórios e pres
     await button.click();
     assert.equal((await response).status(), 200);
     await expect(page.getByText(/Contexto indexado do projeto expurgado com sucesso/)).toBeVisible();
+    assert.equal((await api(`/projects/${project.id}/repo-analyses/${analysis}/report/approve`, { method: 'POST', token: admin.token, body: { relatorio_revisao: 1 } })).status, 409);
     await testDatabase(async db => {
       assert.equal((await db.query('SELECT count(*)::int AS n FROM chunk WHERE projeto_id=$1', [project.id])).rows[0].n, 0);
       assert.equal((await db.query('SELECT count(*)::int AS n FROM chunk WHERE projeto_id=$1', [other.id])).rows[0].n, 1);

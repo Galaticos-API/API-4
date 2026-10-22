@@ -118,6 +118,7 @@ export class AdminRepository {
 
       const reports = await client.query(
         `UPDATE analise_repositorio SET aprovacao_hash=NULL, aprovado_por=NULL, aprovado_em=NULL,
+          relatorio_revisao=relatorio_revisao+1,
           indexacao_status=CASE WHEN status='concluido' AND NULLIF(btrim(relatorio_markdown),'') IS NOT NULL
             THEN 'aguardando_aprovacao' ELSE 'nao_aplicavel' END,
           indexacao_lease_id=NULL, indexacao_bloqueado_ate=NULL, indexacao_tentativas=0, indexacao_erro=NULL

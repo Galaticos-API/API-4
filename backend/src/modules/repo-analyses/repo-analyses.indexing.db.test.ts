@@ -98,9 +98,11 @@ test('S2-23 PostgreSQL: fila atomica, idempotencia, revisao, recuperacao, fencin
         await repository.retryIndexing(analysis, project); claim = (await repository.claimPendingIndexing())!;
         await repository.completeIndexing(claim, [chunk]); assert.equal(await count(), 1);
         await repository.retryIndexing(analysis, project); claim = (await repository.claimPendingIndexing())!;
+        const revisionBeforePurge = (await record()).relatorio_revisao;
         await new AdminRepository(db).purgeProjectContext(project,'QA S223',user,'QA isolado');
         assert.equal((await record()).aprovacao_hash,null);
         assert.equal((await record()).indexacao_status,'aguardando_aprovacao');
+        await assert.rejects(repository.approveReport(analysis,project,user,revisionBeforePurge),/relatório mudou/);
         await repository.completeIndexing(claim,[chunk]); assert.equal(await count(),0);
         assert.equal(await repository.claimPendingIndexing(),null);
         await approve(); claim=(await repository.claimPendingIndexing())!;
