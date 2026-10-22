@@ -25,9 +25,9 @@ export const createRelationSchema = z
 export class PbiRelationsService {
   constructor(private readonly repository: PbiRelationsRepository = pbiRelationsRepository) {}
 
-  async list(pbiId: string): Promise<{ items: PbiRelationView[]; total: number }> {
+  async list(pbiId: string, userId: string): Promise<{ items: PbiRelationView[]; total: number }> {
     validateUuid(pbiId, "ID do PBI");
-    const items = await this.repository.listRelations(pbiId);
+    const items = await this.repository.listRelations(pbiId, userId);
     return { items, total: items.length };
   }
 

@@ -1,6 +1,6 @@
 import type { PoolClient } from "pg";
 import { pool } from "../../database/db.js";
-import { AppError, NotFoundError, ValidationError, validateUuid } from "../../shared/errors.js";
+import { AppError, ConflictError, NotFoundError, ValidationError, validateUuid } from "../../shared/errors.js";
 import { ArchiveConflict } from "../projects/archive.types.js";
 import { lockHierarchy } from "../projects/hierarchy-archive.js";
 import { auditService } from "../audit/audit.service.js";
@@ -15,6 +15,7 @@ export interface IncomingChunk {
 export interface PersistChunksInput {
   projetoId: string;
   documentoId: string;
+  leaseId: string;
   chunks: IncomingChunk[];
 }
 
@@ -57,6 +58,7 @@ export class ChunksService {
   async persist(input: PersistChunksInput): Promise<PersistChunksResult> {
     validateUuid(input.projetoId, "ID do projeto");
     validateUuid(input.documentoId, "ID do documento");
+    validateUuid(input.leaseId, "Reserva de processamento");
     if (!Array.isArray(input.chunks) || input.chunks.length === 0) {
       throw new ValidationError("Envie ao menos um chunk.");
     }
@@ -83,12 +85,31 @@ export class ChunksService {
         throw new ArchiveConflict("Projeto arquivado é somente leitura e não recebe novos chunks.");
       }
 
-      const document = await client.query<{ id: string; projeto_id: string; status_processamento: string }>(
-        "SELECT id, projeto_id, status_processamento FROM documento WHERE id = $1 AND projeto_id = $2 FOR UPDATE",
+      const document = await client.query<{ status_processamento: string; processamento_lease_id: string | null; lease_active: boolean }>(
+        "SELECT status_processamento, processamento_lease_id, processamento_bloqueado_ate > clock_timestamp() AS lease_active FROM documento WHERE id = $1 AND projeto_id = $2 FOR UPDATE",
         [input.documentoId, input.projetoId],
       );
       if (document.rowCount === 0) {
         throw new NotFoundError("Documento não encontrado no projeto informado.");
+      }
+      const current = document.rows[0]!;
+      if (current.status_processamento === "processado") {
+        const receipt = await client.query<{ total: number; matching: number }>(
+          `SELECT count(*)::int AS total,
+            count(*) FILTER (WHERE metadados_json->>'ingestion_lease_id'=$3)::int AS matching
+           FROM chunk WHERE projeto_id=$1 AND entidade_tipo='documento' AND entidade_id=$2`,
+          [input.projetoId, input.documentoId, input.leaseId],
+        );
+        const row = receipt.rows[0]!;
+        if (row.total > 0 && row.total === row.matching) {
+          await client.query("COMMIT");
+          return { documento_id: input.documentoId, projeto_id: input.projetoId,
+            total_chunks: row.total, status_processamento: "processado" };
+        }
+      }
+      if (current.status_processamento !== "processando"
+        || current.processamento_lease_id !== input.leaseId || !current.lease_active) {
+        throw new ConflictError("A reserva de ingestão expirou, foi cancelada ou pertence a outra execução.");
       }
 
       // Reindexação idempotente: substitui chunks anteriores do mesmo documento.
@@ -105,14 +126,16 @@ export class ChunksService {
             input.projetoId,
             input.documentoId,
             chunk.content,
-            JSON.stringify({ ...(chunk.metadata ?? {}), chunk_index: chunk.chunk_index }),
+            JSON.stringify({ ...(chunk.metadata ?? {}), chunk_index: chunk.chunk_index, ingestion_lease_id: input.leaseId }),
             toVectorLiteral(chunk.embedding),
           ],
         );
       }
 
       await client.query(
-        "UPDATE documento SET status_processamento = 'processado', updated_at = CURRENT_TIMESTAMP WHERE id = $1",
+        `UPDATE documento SET status_processamento='processado', processamento_erro=NULL,
+          processamento_lease_id=NULL, processamento_bloqueado_ate=NULL,
+          processamento_tentativas=processamento_tentativas+1, updated_at=CURRENT_TIMESTAMP WHERE id=$1`,
         [input.documentoId],
       );
 
@@ -139,7 +162,7 @@ export class ChunksService {
       };
     } catch (error) {
       await client.query("ROLLBACK");
-      if (error instanceof AppError) throw error;
+      if (error instanceof AppError || error instanceof ArchiveConflict) throw error;
       throw new AppError("Não foi possível persistir os chunks agora.", 503, "CHUNK_PERSIST_FAILED");
     } finally {
       client.release();

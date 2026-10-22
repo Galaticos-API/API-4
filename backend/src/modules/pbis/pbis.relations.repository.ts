@@ -4,6 +4,7 @@ import { withTransaction } from "../../database/transaction.js";
 import { ConflictError, NotFoundError, ValidationError } from "../../shared/errors.js";
 import { auditService } from "../audit/audit.service.js";
 import { assertWritable, lockHierarchy } from "../projects/hierarchy-archive.js";
+import { projectAccessSql } from "../projects/project-access.js";
 
 export type PbiRelationType = "depende_de" | "similar_a" | "substitui";
 
@@ -58,7 +59,7 @@ export class PbiRelationsRepository {
     return res.rows[0] ?? null;
   }
 
-  async listRelations(pbiId: string): Promise<PbiRelationView[]> {
+  async listRelations(pbiId: string, userId: string): Promise<PbiRelationView[]> {
     const pbi = await this.getPbiSummary(pbiId);
     if (!pbi) throw new NotFoundError("PBI não encontrado.");
 
@@ -89,9 +90,12 @@ export class PbiRelationsRepository {
         p.prioridade
       FROM pbi_relacao r
       JOIN pbi p ON p.id = (CASE WHEN r.pbi_origem_id = $1 THEN r.pbi_destino_id ELSE r.pbi_origem_id END)
-      WHERE r.pbi_origem_id = $1 OR r.pbi_destino_id = $1
+      JOIN feature related_feature ON related_feature.id = p.feature_id
+      JOIN epico related_epic ON related_epic.id = related_feature.epico_id
+      WHERE (r.pbi_origem_id = $1 OR r.pbi_destino_id = $1)
+        AND ${projectAccessSql("related_epic.projeto_id", "$2")}
       ORDER BY r.created_at DESC`,
-      [pbiId],
+      [pbiId, userId],
     );
 
     return res.rows.map((row) => {
@@ -135,8 +139,7 @@ export class PbiRelationsRepository {
           SELECT
             pbi_origem_id,
             pbi_destino_id,
-            ARRAY[pbi_origem_id::text, pbi_destino_id::text] AS path,
-            1 AS depth
+            ARRAY[pbi_origem_id::text, pbi_destino_id::text] AS path
           FROM pbi_relacao
           WHERE pbi_origem_id = $1 AND tipo_relacao = 'depende_de'
 
@@ -145,13 +148,11 @@ export class PbiRelationsRepository {
           SELECT
             r.pbi_origem_id,
             r.pbi_destino_id,
-            dp.path || r.pbi_destino_id::text,
-            dp.depth + 1
+            dp.path || r.pbi_destino_id::text
           FROM pbi_relacao r
           JOIN dep_path dp ON r.pbi_origem_id = dp.pbi_destino_id::uuid
           WHERE r.tipo_relacao = 'depende_de'
             AND NOT (r.pbi_destino_id::text = ANY(dp.path))
-            AND dp.depth < 50
         )
         SELECT path FROM dep_path WHERE pbi_destino_id = $2 LIMIT 1`,
         [destinoId, origemId],
@@ -206,6 +207,10 @@ export class PbiRelationsRepository {
     }
 
     return withTransaction(this.db, async (client) => {
+      if (tipo === "depende_de") {
+        // Uma cadeia pode atravessar projetos sem compartilhar as pontas da nova relação.
+        await client.query("SELECT pg_advisory_xact_lock(hashtextextended('pbi_relacao:depende_de', 0))");
+      }
       // Valida existência e busca detalhes dos dois PBIs
       const [origem, destino] = await Promise.all([
         this.getPbiSummary(origemId, client),
@@ -215,17 +220,16 @@ export class PbiRelationsRepository {
       if (!origem) throw new NotFoundError("PBI de origem não encontrado.");
       if (!destino) throw new NotFoundError("PBI de destino não encontrado.");
 
-      // Trava e valida gravabilidade nos projetos envolvidos
-      await lockHierarchy(client, "projeto", origem.projeto_id);
-      await assertWritable(client, "projeto", origem.projeto_id);
-      if (destino.projeto_id !== origem.projeto_id) {
-        await lockHierarchy(client, "projeto", destino.projeto_id);
-        await assertWritable(client, "projeto", destino.projeto_id);
+      // A ordem dos projetos é a mesma para relações em ambas as direções.
+      for (const projectId of [...new Set([origem.projeto_id, destino.projeto_id])].sort()) {
+        await lockHierarchy(client, "projeto", projectId);
       }
+      await assertWritable(client, "pbi", origemId);
+      await assertWritable(client, "pbi", destinoId);
 
       // 1. Verificação de duplicidade existente
       const existingSame = await client.query(
-        `SELECT id, tipo_relacao FROM pbi_relacao
+        `SELECT id, tipo_relacao, pbi_origem_id, pbi_destino_id FROM pbi_relacao
          WHERE (pbi_origem_id = $1 AND pbi_destino_id = $2)
             OR (pbi_origem_id = $2 AND pbi_destino_id = $1)`,
         [origemId, destinoId],
@@ -342,11 +346,15 @@ export class PbiRelationsRepository {
         throw new NotFoundError("Relação não pertence ao PBI informado.");
       }
 
-      const pbi = await this.getPbiSummary(pbiId, client);
-      if (pbi) {
-        await lockHierarchy(client, "projeto", pbi.projeto_id);
-        await assertWritable(client, "projeto", pbi.projeto_id);
+      const endpoints = await Promise.all([
+        this.getPbiSummary(relation.pbi_origem_id, client),
+        this.getPbiSummary(relation.pbi_destino_id, client),
+      ]);
+      for (const projectId of [...new Set(endpoints.filter(p => p !== null).map(p => p.projeto_id))].sort()) {
+        await lockHierarchy(client, "projeto", projectId);
       }
+      await assertWritable(client, "pbi", relation.pbi_origem_id);
+      await assertWritable(client, "pbi", relation.pbi_destino_id);
 
       await client.query("DELETE FROM pbi_relacao WHERE id = $1", [relationId]);
 
