@@ -62,6 +62,13 @@ try {
     child.once("exit", code => resolve(code ?? 1));
   });
   process.exitCode=exitCode;
+  if (exitCode === 0) {
+    const suggestions = spawnSync(process.execPath, ["--import", "tsx", "--test", "src/modules/suggestions/suggestions.db.test.ts"], {
+      env: { ...process.env, NODE_ENV: "test", DATABASE_URL: url, ARCHIVE_TEST_DATABASE_URL: url },
+      stdio: "inherit",
+    });
+    process.exitCode = suggestions.status ?? 1;
+  }
 } finally {
   if (bridge) { bridge.closeAllConnections(); await new Promise<void>(r => bridge!.close(() => r())); }
   if (started) { docker(["rm","-f","-v",name]); console.log("Banco temporário removido."); }

@@ -20,6 +20,9 @@ function reportMetadata(analysis: PendingReportIndexing, text: string, index: nu
         cited_paths: cited,
         source_locator: `${analysis.run_id}#${index}`,
         report_version: createHash('sha256').update(analysis.relatorio_markdown).digest('hex'),
+        provenance: 'ai-accepted',
+        reviewed_by: analysis.aprovado_por,
+        reviewed_at: analysis.aprovado_em,
         chunk_index: index,
     };
 }

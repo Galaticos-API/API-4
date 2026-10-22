@@ -23,7 +23,8 @@
     "test:integration:knowledge": "tsx scripts/test-knowledge-db.mts",
     "test:integration:harness": "tsx scripts/validate-harness.mts",
     "test:integration:copilot": "tsx scripts/validate-harness.mts --browser",
-    "test:smoke:harness:local": "tsx scripts/smoke-harness-local.mts"
+    "test:smoke:harness:local": "tsx scripts/smoke-harness-local.mts",
+    "test:integration:review": "tsx scripts/test-browser-qa.mts"
   },
   "dependencies": {
     "@types/multer": "^2.3.0",

@@ -19,8 +19,8 @@ export async function verifyCopilotBrowser({
   pool: Pool;
   token: string;
   projectId: string;
-  setUnavailable: (value: boolean) => void;
-  setDelay: (value: number) => void;
+  setUnavailable: (value: boolean) => Promise<void>;
+  setDelay: (value: number) => Promise<void>;
   harnessEvidence?: unknown;
 }) {
   const { preview } =
@@ -124,7 +124,7 @@ export async function verifyCopilotBrowser({
 
     await capture("S2-10-questionador.png");
     await page.getByRole("button", { name: "Descartar resposta" }).click();
-    setDelay(6000);
+    await setDelay(6000);
     await page
       .getByRole("button", { name: "Analisar lacunas", exact: true })
       .click();
@@ -135,7 +135,7 @@ export async function verifyCopilotBrowser({
     await page
       .getByText("Análise cancelada. Sua edição foi preservada.")
       .waitFor();
-    setDelay(0);
+    await setDelay(0);
     await page.getByRole("radio", { name: "Padronizar texto" }).check();
     await page.getByRole("button", { name: "Propor padronização" }).click();
     await page
@@ -169,7 +169,7 @@ export async function verifyCopilotBrowser({
     );
     await capture("S2-10-mobile.png");
     await page.getByRole("button", { name: "Descartar resposta" }).click();
-    setUnavailable(true);
+    await setUnavailable(true);
     await page.getByRole("button", { name: "Propor padronização" }).click();
     await page
       .getByRole("alert")
@@ -188,7 +188,7 @@ export async function verifyCopilotBrowser({
       "Consultar pagamento em edição",
     );
     assert.deepEqual(errors, []);
-    setUnavailable(false);
+    await setUnavailable(false);
     await page.setViewportSize({ width: 1440, height: 1100 });
     for (const [level, path] of [
       ["epico", "/projects/" + projectId + "/epics/" + epic],
@@ -269,8 +269,8 @@ export async function verifyCopilotBrowser({
       "S2-10 navegador aprovado: questionador, proposta separada, demora, cancelamento, IA indisponível com edição salva, mobile, acessibilidade e padronização de épico/feature.",
     );
   } finally {
-    setUnavailable(false);
-    setDelay(0);
+    await setUnavailable(false);
+    await setDelay(0);
     await browser?.close();
     await new Promise<void>((r) => web.httpServer.close(() => r()));
   }

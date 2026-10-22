@@ -277,7 +277,7 @@ export function ProjectDetail({
           <RepoAnalyzerView
             key={project.id}
             projectId={project.id}
-            canStart={!archived}
+            canStart={canCreate && !archived}
           />
         )}
       </div>

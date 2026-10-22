@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { ProjectDetail } from "./ProjectDetail";
 import { RepoAnalyzerView } from "./RepoAnalyzerView";
 
 const analysis = (overrides: Record<string, unknown> = {}) => ({
@@ -261,4 +262,37 @@ it('seleciona o relatorio indicado pela busca e permite reprocessar sem nova ana
     await waitFor(() => expect(request.mock.calls.some(([url, init]) => url.endsWith('/a-2/indexing/retry') && init?.method === 'POST')).toBe(true));
     expect(await screen.findByText('Indexação no acervo: pendente')).toBeInTheDocument();
   } finally { window.history.replaceState(null, '', window.location.pathname); }
+});
+
+for (const role of ['po', 'admin', 'dev']) {
+ it(`S2-23: ações do relatório respeitam o papel ${role} no detalhe do projeto`, async()=>{
+  vi.stubGlobal('fetch',vi.fn(()=>json([analysis({status:'concluido',relatorio_markdown:'# Revisado',indexacao_status:'falha'})])));
+  render(<ProjectDetail project={{id:'p-1',nome:'QA',cliente:'QA',descricao:'',status:'ativo'}} canCreate={role!=='dev'} initialTab="repo-analyzer"/>);
+  await screen.findByRole('heading',{name:'Revisado'});
+  expect(Boolean(screen.queryByRole('button',{name:'Reprocessar relatório'}))).toBe(role!=='dev');
+ });
+}
+it('S2-23: aprovação envia a versão exibida, bloqueia cliques durante loading e apresenta falha sem perder relatório',async()=>{
+ let finish!: (response:Response)=>void;
+ const report=analysis({status:'concluido',relatorio_markdown:'# Rascunho revisável',relatorio_revisao:7,indexacao_status:'aguardando_aprovacao'});
+ const request=vi.fn((_:unknown,init?:RequestInit)=>init?.method==='POST'?new Promise<Response>(resolve=>{finish=resolve;}):json([report]));
+ vi.stubGlobal('fetch',request);
+ render(<RepoAnalyzerView projectId="p-1" canStart/>);
+ const approve=await screen.findByRole('button',{name:'Aprovar relatório e publicar no acervo'});
+ fireEvent.click(approve);
+ await waitFor(()=>expect(approve).toBeDisabled());
+ expect(screen.getByRole('button',{name:'Publicando…'})).toBeDisabled();
+ const post=request.mock.calls.find(([,init])=>init?.method==='POST')!;
+ expect(JSON.parse(post[1]!.body as string)).toEqual({relatorio_revisao:7});
+ finish(new Response(JSON.stringify({error:'O relatório mudou. Atualize a página.'}),{status:409,headers:{'Content-Type':'application/json'}}));
+ expect(await screen.findByRole('alert')).toHaveTextContent('O relatório mudou');
+ expect(screen.getByRole('heading',{name:'Rascunho revisável'})).toBeInTheDocument();
+ expect(screen.getByRole('button',{name:'Aprovar relatório e publicar no acervo'})).toBeEnabled();
+});
+it('S2-23: desenvolvedor pode ler rascunho e não pode aprová-lo',async()=>{
+ vi.stubGlobal('fetch',vi.fn(()=>json([analysis({status:'concluido',relatorio_markdown:'# Rascunho',indexacao_status:'aguardando_aprovacao'})])));
+ render(<RepoAnalyzerView projectId="p-1" canStart={false}/>);
+ await screen.findByRole('heading',{name:'Rascunho'});
+ expect(screen.getByText(/Gerado por IA e ainda não revisado/)).toBeInTheDocument();
+ expect(screen.queryByRole('button',{name:'Aprovar relatório e publicar no acervo'})).toBeNull();
 });

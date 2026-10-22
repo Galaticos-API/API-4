@@ -15,6 +15,9 @@ export interface PendingReportIndexing {
     relatorio_markdown: string;
     indexacao_lease_id: string;
     indexacao_tentativas: number;
+    aprovacao_hash?: string;
+    aprovado_por?: string;
+    aprovado_em?: string;
     metadados?: Record<string, unknown>;
 }
 
@@ -61,13 +64,15 @@ export class ReportIndexingRepository {
                   AND indexacao_tentativas < 5
                   AND relatorio_markdown IS NOT NULL
                   AND status = 'concluido'
+                  AND aprovacao_hash=encode(sha256(convert_to(relatorio_markdown,'UTF8')),'hex')
+                  AND aprovado_por IS NOT NULL AND aprovado_em IS NOT NULL
                   AND EXISTS (SELECT 1 FROM projeto p WHERE p.id=analise_repositorio.projeto_id AND p.status<>'arquivado')
                 ORDER BY created_at
                 FOR UPDATE SKIP LOCKED
                 LIMIT 1
              )
              RETURNING id, projeto_id, run_id, repositorio_url, perfil,
-                       relatorio_markdown, indexacao_lease_id, indexacao_tentativas, metadados`,
+                       relatorio_markdown, indexacao_lease_id, indexacao_tentativas, metadados, aprovacao_hash, aprovado_por, aprovado_em`,
             [randomUUID()],
         );
         return result.rows[0] ?? null;
@@ -90,6 +95,7 @@ export class ReportIndexingRepository {
                     AND indexacao_lease_id = $3
                     AND indexacao_status = 'processando'
                     AND status = 'concluido'
+                    AND aprovacao_hash=encode(sha256(convert_to(relatorio_markdown,'UTF8')),'hex')
                     AND EXISTS (SELECT 1 FROM projeto p WHERE p.id=analise_repositorio.projeto_id AND p.status<>'arquivado')
                     AND indexacao_bloqueado_ate > clock_timestamp()
                   FOR UPDATE`,
@@ -155,6 +161,19 @@ export class ReportIndexingRepository {
         );
     }
 
+    async approveReport(analysisId: string, projectId: string, userId: string, expectedRevision: number): Promise<void> {
+        await withTransaction(this.db, async client => {
+            await lockHierarchy(client, 'projeto', projectId);
+            await assertWritable(client, 'projeto', projectId);
+            const current = (await client.query('SELECT * FROM analise_repositorio WHERE id=$1 AND projeto_id=$2 FOR UPDATE', [analysisId, projectId])).rows[0];
+            if (!current) return;
+            if (current.status !== 'concluido' || !current.relatorio_markdown?.trim()) throw new ConflictError('O relatório ainda não está disponível para revisão.');
+            if (current.relatorio_revisao !== expectedRevision) throw new ConflictError('O relatório mudou. Atualize a página e revise a nova versão.');
+            if (current.aprovacao_hash) return;
+            await client.query("UPDATE analise_repositorio SET aprovacao_hash=encode(sha256(convert_to(relatorio_markdown,'UTF8')),'hex'),aprovado_por=$3,aprovado_em=NOW() WHERE id=$1 AND projeto_id=$2", [analysisId, projectId, userId]);
+        });
+    }
+
     // Repetir uma solicitação ativa preserva sua reserva.
     async retryIndexing(analysisId: string, projectId: string): Promise<void> {
         await withTransaction(this.db, async client => {
@@ -162,6 +181,7 @@ export class ReportIndexingRepository {
             await assertWritable(client, 'projeto', projectId);
             const current = (await client.query('SELECT * FROM analise_repositorio WHERE id=$1 AND projeto_id=$2 FOR UPDATE', [analysisId, projectId])).rows[0];
             if (!current) return;
+            if (!current.aprovacao_hash) throw new ConflictError('Revise e aprove o relatório antes de publicá-lo no acervo.');
             if (current.indexacao_status === 'pendente' || current.indexacao_status === 'processando') return;
             if (current.status !== 'concluido' || !current.relatorio_markdown?.trim()) throw new ConflictError('A análise ainda não possui relatório concluído.');
             await client.query(

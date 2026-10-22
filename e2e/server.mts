@@ -1,4 +1,7 @@
 import { createRequire } from 'node:module';
+import { startEmbeddingService } from './embedding-service.mjs';
+const embeddings = await startEmbeddingService();
+process.env.AI_SERVICE_URL = embeddings.url;
 const require = createRequire(import.meta.url);
 const { default: app } = require('../backend/src/app.ts');
 const port = Number(process.env.PORT ?? 3001);

@@ -23,6 +23,10 @@ export class SearchRepository {
          FROM chunk c
          JOIN projeto p ON p.id = c.projeto_id
          WHERE c.projeto_id = $1
+           AND (c.entidade_tipo <> 'analise_repositorio' OR EXISTS (SELECT 1 FROM analise_repositorio reviewed
+             WHERE reviewed.id=c.entidade_id AND reviewed.projeto_id=c.projeto_id
+             AND reviewed.aprovacao_hash=encode(sha256(convert_to(reviewed.relatorio_markdown,'UTF8')),'hex')
+             AND reviewed.status='concluido' AND reviewed.aprovado_por IS NOT NULL AND reviewed.aprovado_em IS NOT NULL))
            AND ($4::uuid IS NULL OR EXISTS (
              SELECT 1
              FROM entidade_tecnologia et

@@ -18,112 +18,26 @@ function port(name: string, p: string) {
   return JSON.parse(docker(["inspect", name]))[0].NetworkSettings.Ports[p][0]
     .HostPort;
 }
-let invalid = false;
-let clarificationOnly = false;
-let unavailable = false;
-let delayMs = 0;
-const captures: any[] = [];
-const model = createServer(async (req, res) => {
-  res.setHeader("Content-Type", "application/json");
-  if (req.method === "GET") {
-    res.end('{"models":[]}');
-    return;
-  }
-  let raw = "";
-  for await (const part of req) raw += part;
-  const payload = JSON.parse(raw);
-  if (req.url === '/api/embeddings') {
-    res.statusCode = unavailable ? 503 : 200;
-    res.end(JSON.stringify(unavailable ? { error: 'Indisponivel' } : { embedding: Array(1024).fill(0.1) }));
-    return;
-  }
-  captures.push(payload);
-  const data = JSON.parse(payload.prompt);
-  if (unavailable) {
-    res.statusCode = 503;
-    res.end(JSON.stringify({ error: "Indisponível" }));
-    return;
-  }
-  if (delayMs) await new Promise((resolve) => setTimeout(resolve, delayMs));
-  const proposalSchema = payload.format.properties.proposal;
-  const scenario = (nome: string, tipo: string, entao: string) => ({
-    nome,
-    tipo,
-    dado: "que existe um pedido registrado",
-    quando: "o usuário solicita a aprovação",
-    entao,
-  });
-  const result = invalid
-    ? { questions: [], summary: "SEGREDO", extra: "proibido" }
-    : clarificationOnly && payload.format.properties.scenarios
-      ? { scenarios: [], questions: ["Qual o resultado esperado quando o pedido nao existir?"] }
-    : payload.format.properties.scenarios
-      ? {
-          scenarios: [
-            scenario(
-              "Aprovar pedido com permissão",
-              "caminho_principal",
-              "o pedido passa a constar como aprovado",
-            ),
-            ...(payload.system.includes("obrigatoriamente")
-              ? [
-                  scenario(
-                    "Recusar aprovação sem permissão",
-                    "acesso_nao_autorizado",
-                    "o sistema recusa a ação e o pedido permanece inalterado",
-                  ),
-                ]
-              : []),
-          ],
-          questions: [],
-        }
-    : proposalSchema
-      ? {
-          proposal: Object.fromEntries(
-            Object.keys(
-              (proposalSchema.anyOf
-                ? proposalSchema.anyOf.find(
-                    (item: any) => item.type === "object",
-                  )
-                : proposalSchema
-              ).properties,
-            ).map((field) => [
-              field,
-              field === "titulo"
-                ? "Consultar pagamento padronizado"
-                : field === "regras_observacoes"
-                  ? ""
-                  : data.fields[field] || "Resultado funcional do produto",
-            ]),
-          ),
-          questions: [],
-        }
-      : payload.format.properties.questions
-        ? {
-            questions: data.fields.titulo?.includes("pagamento")
-              ? [
-                  {
-                    dimension: "validacoes",
-                    question:
-                      "Qual o tempo máximo para considerar a consulta rápida?",
-                  },
-                  {
-                    dimension: "permissoes_seguranca",
-                    question: "Quem pode consultar o pagamento?",
-                  },
-                ]
-              : [],
-            summary: payload.system.includes("orientacao-v2")
-              ? "Nova revisão"
-              : "Revisão inicial",
-          }
-        : { answer: "Evidência do projeto", sources: [data.context[0].id] };
-  res.end(JSON.stringify({ response: JSON.stringify(result) }));
-});
-await new Promise<void>((r) => model.listen(0, "0.0.0.0", r));
+let captures: any[] = [];
+const network=id+'-private';
+let modelUrl='';
+async function control(update?: Record<string, unknown>) {
+ const response=await fetch(modelUrl+'/control', update ? {method:'POST',body:JSON.stringify(update)} : undefined);
+ assert.equal(response.status,200);
+ const snapshot=await response.json() as {captures:any[]}; captures=snapshot.captures;
+}
 let api: ReturnType<typeof createServer> | undefined,
   db: { end: () => Promise<void> } | undefined;
 try {
+  docker(['network','create',network]);
+  const modelName=id+'-model';
+  docker(['run','-d','--name',modelName,'--network',network,'--network-alias','harness-model','-e','HARNESS_TOKEN='+token,'--mount','type=bind,source='+resolve('scripts/harness-model.mjs')+',target=/mock.mjs,readonly','-p','127.0.0.1::11434','node:20-slim','node','/mock.mjs']);
+  started.push(modelName);
+  modelUrl='http://127.0.0.1:'+port(modelName,'11434/tcp')+'/'+token;
+  for(let attempt=0;attempt<40;attempt++){try{await control();break;}catch(error){if(attempt===39)throw error;await new Promise(r=>setTimeout(r,250));}}
+  assert.equal((await fetch(modelUrl+'/api/generate',{method:'POST',body:'x'.repeat(256*1024+1)})).status,413);
+  assert.equal((await fetch(modelUrl+'/api/generate',{method:'POST',body:'{'})).status,400);
+  assert.equal((await fetch(modelUrl.replace(token,'invalid')+'/control')).status,401);
   const pgName = id + "-db",
     aiName = id + "-ai";
   docker([
@@ -177,8 +91,8 @@ try {
     "-d",
     "--name",
     aiName,
-    "--add-host",
-    "host.docker.internal:host-gateway",
+    "--network",
+    network,
     "-e",
     "AI_SERVICE_TOKEN=" + token,
     "-e",
@@ -188,8 +102,7 @@ try {
     "-e",
     "PYTHONDONTWRITEBYTECODE=1",
     "-e",
-    "OLLAMA_BASE_URL=http://host.docker.internal:" +
-      (model.address() as { port: number }).port,
+    "OLLAMA_BASE_URL=http://harness-model:11434/" + token,
     "--mount",
     "type=bind,source=" + resolve("../ai-service") + ",target=/app,readonly",
     "-p",
@@ -262,6 +175,7 @@ try {
       },
       ...(body ? { body: JSON.stringify(body) } : {}),
     });
+    await control();
     return { status: r.status, body: await r.json() };
   }
   const configPath = "/admin/ai-harness/levantamento",
@@ -315,11 +229,11 @@ try {
     (await call(run, 1, "POST", request)).body.result.summary,
     "Revisão inicial",
   );
-  invalid = true;
+  await control({invalid:true});
   const bad = await call(run, 1, "POST", request);
   assert.equal(bad.status, 503);
   assert.ok(!JSON.stringify(bad.body).includes("SEGREDO"));
-  invalid = false;
+  await control({invalid:false});
   // S2-11: história incompleta não chega ao modelo; com permissão, vem o cenário de acesso não autorizado.
   const story = {
     titulo: "Aprovar pedido",
@@ -344,14 +258,14 @@ try {
     ["caminho_principal", "acesso_nao_autorizado"],
   );
   assert.ok(captures.at(-1).system.includes("acesso_nao_autorizado"));
-  clarificationOnly = true;
+  await control({clarificationOnly:true});
   try {
     const clarification = await call(run, 1, "POST", scenarioRequest);
     assert.equal(clarification.status, 200, JSON.stringify(clarification.body));
     assert.deepEqual(clarification.body.result.scenarios, []);
     assert.deepEqual(clarification.body.result.questions, ["Qual o resultado esperado quando o pedido nao existir?"]);
   } finally {
-    clarificationOnly = false;
+    await control({clarificationOnly:false});
   }
   const answer = await call(run, 1, "POST", {
     mode: "consulta",
@@ -382,6 +296,10 @@ try {
     [analysisId, a, po, 'report-' + analysisId, '# Arquitetura S223\n\nPostgreSQL em src/app.ts', JSON.stringify({ source_commit: 'a'.repeat(40), source_ref: 'main', analyzed_paths: ['src/app.ts'] })]);
   const { ReportIndexingWorker } = await import('../src/modules/repo-analyses/repo-analyses.indexing.worker.js');
   const reportWorker = new ReportIndexingWorker();
+  await reportWorker.tick();
+  assert.equal((await pool.query('SELECT count(*)::int AS n FROM chunk WHERE entidade_id=$1',[analysisId])).rows[0].n,0);
+  const revision=(await pool.query('SELECT relatorio_revisao FROM analise_repositorio WHERE id=$1',[analysisId])).rows[0].relatorio_revisao;
+  assert.equal((await call(`/projects/${a}/repo-analyses/${analysisId}/report/approve`,1,'POST',{relatorio_revisao:revision})).status,200);
   await reportWorker.tick();
   const reportChunks = (await pool.query("SELECT * FROM chunk WHERE entidade_id=$1 AND entidade_tipo='analise_repositorio'", [analysisId])).rows;
   assert.ok(reportChunks.length > 0, 'Relatório deve ser indexado sem upload');
@@ -426,12 +344,8 @@ try {
       pool,
       token: sessions[1].token,
       projectId: a,
-      setUnavailable: (value: boolean) => {
-        unavailable = value;
-      },
-      setDelay: (value: number) => {
-        delayMs = value;
-      },
+      setUnavailable: (value: boolean) => control({unavailable:value}),
+      setDelay: (value: number) => control({delayMs:value}),
     });
   }
   console.log(
@@ -443,8 +357,7 @@ try {
     await new Promise<void>((r) => api!.close(() => r()));
   }
   if (db) await db.end();
-  model.closeAllConnections();
-  await new Promise<void>((r) => model.close(() => r()));
   for (const name of started.reverse()) docker(["rm", "-f", "-v", name]);
+  docker(["network", "rm", network]);
   console.log("Containers temporários removidos.");
 }

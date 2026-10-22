@@ -59,7 +59,7 @@ export function citedSources(text: string, chunks: Array<{id: string; entidade_t
     const chunk = byId.get(id)!;
     const metadata = chunk.metadados_json;
     const title = chunk.entidade_tipo === 'analise_repositorio' && typeof metadata?.run_id === 'string'
-      ? `Relatório ${String(metadata.repositorio_url ?? '')} · execução ${metadata.run_id}`
+      ? `Relatório de IA revisado ${String(metadata.repositorio_url ?? '')} · execução ${metadata.run_id}`
       : 'Trecho citado de ' + chunk.entidade_tipo;
     return { id, titulo: title, tipo: chunk.entidade_tipo };
   });

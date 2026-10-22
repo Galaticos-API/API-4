@@ -29,6 +29,10 @@ class FakeService extends RepoAnalysesService {
         return { ...record, indexacao_status: 'pendente' };
     }
 
+    async approveReport(projectId: string, id: string, userId: string, expectedRevision: number): Promise<RepoAnalysisRecord | null> {
+        assert.ok(userId); assert.equal(expectedRevision,1);
+        return projectId === ACTIVE && id === ANALYSIS ? {...record,indexacao_status:'pendente'} : null;
+    }
     constructor() {
         super({} as never, 'http://localhost:0');
     }
@@ -74,7 +78,7 @@ before(() => {
             res.status(401).json({ error: 'Autenticação necessária.', code: 'UNAUTHORIZED' });
             return;
         }
-        req.auth = { id: 'b0000000-0000-4000-8000-000000000001', nome: 'Ana', email: 'a@example.com', role: req.headers['x-test-role'] === 'dev' ? 'dev' : 'po' };
+        req.auth = { id: 'b0000000-0000-4000-8000-000000000001', nome: 'Ana', email: 'a@example.com', role: req.headers['x-test-role'] === 'dev' ? 'dev' : req.headers['x-test-role'] === 'admin' ? 'admin' : 'po' };
         next();
     }));
     app.use(errorHandler);
@@ -166,4 +170,16 @@ test('S2-23: reprocessamento exige autenticacao, escrita, projeto ativo e origem
     assert.equal(response.status, 200);
     assert.equal((await response.json() as RepoAnalysisRecord).indexacao_status, 'pendente');
     assert.equal(service.reindexed.at(-1), ANALYSIS);
+});
+
+test('S2-23: aprovacao explicita exige PO/admin, revisao e projeto ativo', async()=>{
+ const path=`/${ACTIVE}/repo-analyses/${ANALYSIS}/report/approve`;
+ assert.equal((await call(path,{method:'POST',auth:false})).status,401);
+ for(const role of ['po','admin','dev']){
+  const response=await fetch(baseUrl+path,{method:'POST',headers:{'Content-Type':'application/json','x-test-user':'ana','x-test-role':role},body:JSON.stringify({relatorio_revisao:1})});
+  assert.equal(response.status,role==='dev'?403:200);
+ }
+ assert.equal((await call(path,{method:'POST',json:{}})).status,400);
+ assert.equal((await call(`/${ARCHIVED}/repo-analyses/${ANALYSIS}/report/approve`,{method:'POST',json:{relatorio_revisao:1}})).status,409);
+ assert.equal((await call(`/${OTHER}/repo-analyses/${ANALYSIS}/report/approve`,{method:'POST',json:{relatorio_revisao:1}})).status,404);
 });

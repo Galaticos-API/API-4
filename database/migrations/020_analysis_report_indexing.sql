@@ -9,11 +9,7 @@ ALTER TABLE analise_repositorio
   ADD COLUMN IF NOT EXISTS indexacao_lease_id UUID,
   ADD COLUMN IF NOT EXISTS indexacao_bloqueado_ate TIMESTAMPTZ;
 
--- Análises já concluídas com relatório ficam pendentes de indexação.
-UPDATE analise_repositorio
-  SET indexacao_status = 'pendente'
-  WHERE status = 'concluido' AND relatorio_markdown IS NOT NULL
-    AND indexacao_status = 'nao_aplicavel';
+-- O backfill exige revisão humana, definida na migration 021.
 
 -- Índice para o worker buscar análises pendentes de indexação eficientemente.
 CREATE INDEX IF NOT EXISTS idx_analysis_indexing_pending

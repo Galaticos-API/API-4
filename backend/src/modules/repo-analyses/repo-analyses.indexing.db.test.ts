@@ -2,9 +2,11 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { Pool } from 'pg';
+import { applyUntil, withDatabase } from '../../database/migration-test-utils.js';
 import { validateTarget } from '../../database/seed-lib.js';
 import { ReportIndexingRepository } from './repo-analyses.indexing.repository.js';
 import { SearchRepository } from '../search/search.repository.js';
+import { ChatRepository } from '../chat/chat.repository.js';
 
 test('S2-23 PostgreSQL: fila atomica, idempotencia, revisao, recuperacao, fencing, arquivo e isolamento', { skip: !process.env.INDEX_TEST_DATABASE_URL }, async () => {
     const db = new Pool({ connectionString: validateTarget(process.env.INDEX_TEST_DATABASE_URL, 'test') });
@@ -13,28 +15,46 @@ test('S2-23 PostgreSQL: fila atomica, idempotencia, revisao, recuperacao, fencin
     const vector = Array(1024).fill(0.1);
     const chunk = { chunk_index: 0, text: 'Arquitetura PostgreSQL do relatorio', embedding: vector, metadata: { run_id: analysis } };
     const count = async () => Number((await db.query('SELECT count(*) AS n FROM chunk WHERE entidade_id=$1', [analysis])).rows[0].n);
+    const approve = async () => repository.approveReport(analysis, project, user, (await record()).relatorio_revisao);
     const record = async () => (await db.query('SELECT * FROM analise_repositorio WHERE id=$1', [analysis])).rows[0];
     try {
         await db.query("INSERT INTO projeto(id,nome,cliente,status) VALUES ($1,'QA S223','QA','ativo'),($2,'QA Outro','QA','ativo')", [project, other]);
         await db.query("INSERT INTO usuario(id,nome,email,senha_hash,role) VALUES ($1,'QA',$2,'test','po')", [user, user + '@test.local']);
         await db.query("INSERT INTO analise_repositorio(id,projeto_id,usuario_id,repositorio_url,run_id,status) VALUES ($1,$2,$3,'https://github.com/test/repo',$4,'em_execucao')", [analysis, project, user, 'run-' + analysis]);
         await db.query("UPDATE analise_repositorio SET status='concluido',relatorio_markdown='Versao 1' WHERE id=$1", [analysis]);
-        assert.equal((await record()).indexacao_status, 'pendente');
+        assert.equal((await record()).indexacao_status, 'aguardando_aprovacao');
+        assert.equal(await repository.claimPendingIndexing(), null);
+        await assert.rejects(repository.retryIndexing(analysis, project));
+        await assert.rejects(repository.approveReport(analysis, project, user, 999));
+        await db.query("INSERT INTO chunk(projeto_id,entidade_tipo,entidade_id,texto,embedding) VALUES($1,'analise_repositorio',$2,'Arquitetura sem revisao',$3::vector)", [project,analysis,JSON.stringify(vector)]);
+        assert.deepEqual(await new SearchRepository(db).hybridSearch({projectId:project,query:'Arquitetura',limit:10},vector,0,0),[]);
+        assert.deepEqual(await new ChatRepository(db).searchChunks(project,['%Arquitetura%'],5),[]);
+        await approve();
         let claim = (await repository.claimPendingIndexing())!; assert.equal(claim.id, analysis);
         await repository.completeIndexing(claim, [chunk]); assert.equal(await count(), 1);
+        const approvedVersion = await record();
         const transaction = await db.connect();
         try {
             await transaction.query('BEGIN');
             await transaction.query("UPDATE analise_repositorio SET relatorio_markdown='Nao deve persistir' WHERE id=$1", [analysis]);
+            const changed = (await transaction.query('SELECT * FROM analise_repositorio WHERE id=$1',[analysis])).rows[0];
+            assert.equal(changed.indexacao_status,'aguardando_aprovacao');
+            assert.equal(changed.aprovacao_hash,null);
+            assert.equal((await transaction.query('SELECT count(*)::int AS n FROM chunk WHERE entidade_id=$1',[analysis])).rows[0].n,0);
+            await transaction.query("UPDATE analise_repositorio SET aprovacao_hash=encode(sha256(convert_to(relatorio_markdown,'UTF8')),'hex'),aprovado_por=$2,aprovado_em=NOW() WHERE id=$1",[analysis,user]);
+            assert.equal((await transaction.query('SELECT indexacao_status FROM analise_repositorio WHERE id=$1',[analysis])).rows[0].indexacao_status,'pendente');
             await transaction.query('ROLLBACK');
         } finally { transaction.release(); }
         assert.equal((await record()).relatorio_markdown, 'Versao 1');
         assert.equal((await record()).indexacao_status, 'indexado');
+        assert.equal((await record()).aprovacao_hash, approvedVersion.aprovacao_hash);
+        assert.equal((await record()).aprovado_por, user);
         assert.equal(await count(), 1);
         await db.query('UPDATE analise_repositorio SET relatorio_markdown=NULL WHERE id=$1', [analysis]);
         assert.equal(await count(), 0);
         assert.equal((await record()).indexacao_status, 'nao_aplicavel');
         await db.query("UPDATE analise_repositorio SET relatorio_markdown='Versao 1' WHERE id=$1", [analysis]);
+        await approve();
         claim = (await repository.claimPendingIndexing())!;
         await repository.completeIndexing(claim, [chunk]);
         assert.equal(await count(), 1);
@@ -43,6 +63,17 @@ test('S2-23 PostgreSQL: fila atomica, idempotencia, revisao, recuperacao, fencin
         await repository.retryIndexing(analysis, project);
         assert.equal((await record()).indexacao_lease_id, claim.indexacao_lease_id);
         await repository.completeIndexing(claim, [chunk]); assert.equal(await count(), 1);
+        const second = randomUUID();
+        await db.query("INSERT INTO analise_repositorio(id,projeto_id,usuario_id,repositorio_url,run_id,status,relatorio_markdown) VALUES($1,$2,$3,'https://github.com/test/second',$4,'concluido','Concorrencia')",[second,project,user,'second-'+second]);
+        await repository.approveReport(second,project,user,1);
+        await repository.retryIndexing(analysis,project);
+        const anotherWorker=new ReportIndexingRepository(db);
+        const claims=await Promise.all([repository.claimPendingIndexing(),anotherWorker.claimPendingIndexing()]);
+        assert.ok(claims.every(Boolean));
+        assert.deepEqual(new Set(claims.map(item=>item!.id)),new Set([analysis,second]));
+        assert.equal(await anotherWorker.claimPendingIndexing(),null);
+        await Promise.all(claims.map(item=>repository.completeIndexing(item!,[chunk])));
+        await db.query('DELETE FROM analise_repositorio WHERE id=$1',[second]);
         const search = new SearchRepository(db);
         const query = { projectId: project, query: 'Arquitetura', limit: 10 };
         const hits = await search.hybridSearch(query, vector, 0, 0);
@@ -51,8 +82,9 @@ test('S2-23 PostgreSQL: fila atomica, idempotencia, revisao, recuperacao, fencin
         await repository.retryIndexing(analysis, other); assert.equal((await record()).indexacao_status, 'indexado');
         await repository.retryIndexing(analysis, project); claim = (await repository.claimPendingIndexing())!;
         await db.query("UPDATE analise_repositorio SET relatorio_markdown='Versao 2' WHERE id=$1", [analysis]);
-        assert.equal(await count(), 0); assert.equal((await record()).indexacao_status, 'pendente');
+        assert.equal(await count(), 0); assert.equal((await record()).indexacao_status, 'aguardando_aprovacao');
         await repository.completeIndexing(claim, [chunk]); assert.equal(await count(), 0);
+        await approve();
         claim = (await repository.claimPendingIndexing())!;
         await db.query("UPDATE analise_repositorio SET indexacao_bloqueado_ate=NOW()-INTERVAL '1 second' WHERE id=$1", [analysis]);
         await repository.completeIndexing(claim, [chunk]); assert.equal(await count(), 0);
@@ -75,4 +107,22 @@ test('S2-23 PostgreSQL: fila atomica, idempotencia, revisao, recuperacao, fencin
         await db.query('DELETE FROM usuario WHERE id=$1', [user]);
         await db.end();
     }
+});
+
+test('S2-23: backfill remove apenas relatórios legados e exige revisão humana', {skip:!process.env.INDEX_TEST_DATABASE_URL},async()=>{
+ await withDatabase(process.env.INDEX_TEST_DATABASE_URL!,async(client,vectorAvailable)=>{
+  await applyUntil(client,vectorAvailable,file=>file.startsWith('022_'));
+  const [project,user,analysis]=Array.from({length:3},()=>randomUUID());
+  await client.query("INSERT INTO projeto(id,nome,cliente,status) VALUES($1,'Legado QA','QA','ativo')",[project]);
+  await client.query("INSERT INTO usuario(id,nome,email,senha_hash,role) VALUES($1,'QA',$2,'test','po')",[user,user+'@test.local']);
+  await client.query("INSERT INTO analise_repositorio(id,projeto_id,usuario_id,repositorio_url,run_id,status,relatorio_markdown) VALUES($1,$2,$3,'https://github.com/test/legacy',$4,'concluido','Legado')",[analysis,project,user,'legacy-'+analysis]);
+  await client.query("INSERT INTO chunk(id,projeto_id,entidade_tipo,entidade_id,texto) VALUES($1,$2,'analise_repositorio',$3,'Legado'),($4,$2,'pbi',$5,'Preservar')",[randomUUID(),project,analysis,randomUUID(),randomUUID()]);
+  await client.query("UPDATE analise_repositorio SET indexacao_status='indexado' WHERE id=$1",[analysis]);
+  await applyUntil(client,vectorAvailable,()=>false);
+  const report=(await client.query('SELECT * FROM analise_repositorio WHERE id=$1',[analysis])).rows[0];
+  assert.equal(report.indexacao_status,'aguardando_aprovacao');
+  assert.equal(report.aprovacao_hash,null);assert.equal(report.aprovado_por,null);
+  const chunks=(await client.query('SELECT entidade_tipo FROM chunk WHERE projeto_id=$1',[project])).rows;
+  assert.deepEqual(chunks,[{entidade_tipo:'pbi'}]);
+ });
 });

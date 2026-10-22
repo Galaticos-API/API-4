@@ -5,7 +5,7 @@ import { HttpDocumentIngestionClient } from '../documents/document-ingestion.js'
 import { ReportIndexingWorker } from './repo-analyses.indexing.worker.js';
 import { ReportIndexingRepository } from './repo-analyses.indexing.repository.js';
 
-const source = { id: '10000000-0000-4000-8000-000000000001', projeto_id: '20000000-0000-4000-8000-000000000001', run_id: 'run-42', repositorio_url: 'https://github.com/test/repo', perfil: 'quick', relatorio_markdown: '# Relatorio\nArquivo src/app.ts', indexacao_lease_id: 'lease', indexacao_tentativas: 1, metadados: { source_commit: 'a'.repeat(40), source_ref: 'main', analyzed_paths: ['src/app.ts', 'outro.ts'] } };
+const source = { id: '10000000-0000-4000-8000-000000000001', projeto_id: '20000000-0000-4000-8000-000000000001', run_id: 'run-42', repositorio_url: 'https://github.com/test/repo', perfil: 'quick', relatorio_markdown: '# Relatorio\nArquivo src/app.ts', indexacao_lease_id: 'lease', indexacao_tentativas: 1, aprovado_por: 'reviewer-po', aprovado_em: '2026-10-21T12:00:00Z', metadados: { source_commit: 'a'.repeat(40), source_ref: 'main', analyzed_paths: ['src/app.ts', 'outro.ts'] } };
 const filename = `relatorio-${source.id}.md`;
 function response() {
     return { document_id: source.id, project_id: source.projeto_id, chunks: [{ chunk_index: 0, text: 'Arquivo src/app.ts', embedding: Array(1024).fill(0.1), metadata: { project_id: source.projeto_id, document_id: source.id, source_name: filename } }] };
@@ -28,6 +28,7 @@ test('S2-23: reutiliza o pipeline de documentos e preserva origem, versao e cami
     await worker.tick();
     assert.equal(saved.length, 1); assert.deepEqual(failed, []);
     const meta = saved[0][0].metadata;
+    assert.equal(meta.provenance, 'ai-accepted'); assert.equal(meta.reviewed_by, source.aprovado_por); assert.equal(meta.reviewed_at, source.aprovado_em);
     assert.equal(meta.project_id, source.projeto_id); assert.equal(meta.run_id, source.run_id);
     assert.equal(meta.source_commit, 'a'.repeat(40)); assert.equal(meta.source_ref, 'main');
     assert.equal(meta.repositorio_url, source.repositorio_url);
