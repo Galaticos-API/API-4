@@ -149,17 +149,18 @@ export function RepoAnalyzerView({ projectId, canStart = true }: { projectId: st
     setControlBusy(true);
     setControlError("");
     try {
-      const updated = await controlRepoAnalysis(projectId, analysisId, action);
+      const updated = await controlRepoAnalysis(projectId, analysisId, action, undefined, analyses.find(item => item.id === analysisId)?.relatorio_revisao);
       if (mounted.current) {
         setAnalyses((previous) => previous.map((item) => item.id === updated.id ? updated : item));
         void refresh(true);
       }
     } catch (error) {
-      if (mounted.current) setControlError(error instanceof Error ? error.message : "Não foi possível controlar a análise. Tente novamente.");
+      const message = serverMessage(error) ?? "Não foi possível controlar a análise. Tente novamente.";
+      if (mounted.current) setControlError(message);
     } finally {
       if (mounted.current) setControlBusy(false);
     }
-  }, [controlBusy, projectId, refresh]);
+  }, [controlBusy, projectId, refresh, analyses]);
 
   const submit = (event: React.FormEvent) => {
     event.preventDefault();
@@ -408,10 +409,12 @@ function AnalysisDetails({ analysis, now, canRetry, canControl, controlBusy, con
       {analysis.status === "concluido" && report && (
         <section className="analysis-report" aria-label="Relatório técnico">
           <p>Execução: {analysis.run_id ?? 'Não informada'}</p>
+          {analysis.indexacao_status === 'aguardando_aprovacao' && <Alert tone="warning">Gerado por IA e ainda não revisado. Este relatório não está disponível na busca nem no chat.</Alert>}
+          {canControl && analysis.indexacao_status === 'aguardando_aprovacao' && <Button disabled={controlBusy} onClick={() => onControl('report/approve')}>{controlBusy ? 'Publicando…' : 'Aprovar relatório e publicar no acervo'}</Button>}
           {analysis.indexacao_status && <p role="status">Indexação no acervo: {analysis.indexacao_status}</p>}
           {analysis.indexacao_status === 'falha' && <Alert tone="warning">Não foi possível indexar o relatório. {analysis.indexacao_erro}</Alert>}
-          {canControl && ['falha', 'indexado', 'nao_aplicavel'].includes(analysis.indexacao_status ?? '') && (
-            <Button variant="secondary" disabled={controlBusy} onClick={() => onControl('indexing/retry')}>Reprocessar relatório</Button>
+          {canControl && ['falha', 'indexado'].includes(analysis.indexacao_status ?? '') && (
+            <Button variant="secondary" disabled={controlBusy} onClick={() => onControl('indexing/retry')}>{controlBusy ? 'Solicitando…' : 'Reprocessar relatório'}</Button>
           )}
           <div className="analysis-report-toolbar">
             <h4>Relatório técnico</h4>

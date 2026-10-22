@@ -2,7 +2,7 @@ import { apiRequest } from "./api_auth";
 
 export type RepoAnalysisStatus = "iniciado" | "em_execucao" | "pausando" | "pausada" | "cancelando" | "cancelada" | "concluido" | "falha";
 export type RepoAnalysisProfile = "quick" | "balanced" | "complete";
-export type RepoAnalysisAction = "pause" | "resume" | "cancel" | "indexing/retry";
+export type RepoAnalysisAction = "pause" | "resume" | "cancel" | "indexing/retry" | "report/approve";
 
 export interface RepoAnalysis {
     id: string;
@@ -15,6 +15,7 @@ export interface RepoAnalysis {
     progresso: number | null;
     mensagem?: string | null;
     erro?: string | null;
+    relatorio_revisao?: number;
     relatorio_markdown?: string | null;
     metadados?: Record<string, unknown> | null;
     created_at: string;
@@ -22,7 +23,7 @@ export interface RepoAnalysis {
     concluido_em?: string | null;
     autor_nome?: string | null;
     autor_email?: string | null;
-    indexacao_status?: 'nao_aplicavel' | 'pendente' | 'processando' | 'indexado' | 'falha';
+    indexacao_status?: 'nao_aplicavel' | 'aguardando_aprovacao' | 'pendente' | 'processando' | 'indexado' | 'falha';
     indexacao_erro?: string | null;
 }
 
@@ -36,10 +37,10 @@ export async function startRepoAnalysis(projectId: string, repositoryUrl: string
     return await response.json();
 }
 
-export async function controlRepoAnalysis(projectId: string, analysisId: string, action: RepoAnalysisAction, signal?: AbortSignal): Promise<RepoAnalysis> {
+export async function controlRepoAnalysis(projectId: string, analysisId: string, action: RepoAnalysisAction, signal?: AbortSignal, reportRevision?: number): Promise<RepoAnalysis> {
     const response = await apiRequest(`/projects/${encodeURIComponent(projectId)}/repo-analyses/${encodeURIComponent(analysisId)}/${action}`, {
         method: "POST",
-        body: JSON.stringify({}),
+        body: JSON.stringify(action === "report/approve" ? { relatorio_revisao: reportRevision } : {}),
         signal,
     });
     return await response.json();

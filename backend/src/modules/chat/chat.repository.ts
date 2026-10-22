@@ -93,6 +93,10 @@ export class ChatRepository {
     const result = await this.pool.query<ChunkMatch>(
       `SELECT id, entidade_tipo, entidade_id, texto, metadados_json FROM chunk
        WHERE projeto_id = $1 AND texto ILIKE ANY($2::text[])
+       AND (entidade_tipo <> 'analise_repositorio' OR EXISTS (SELECT 1 FROM analise_repositorio reviewed
+         WHERE reviewed.id=chunk.entidade_id AND reviewed.projeto_id=chunk.projeto_id
+         AND reviewed.aprovacao_hash=encode(sha256(convert_to(reviewed.relatorio_markdown,'UTF8')),'hex')
+         AND reviewed.status='concluido' AND reviewed.aprovado_por IS NOT NULL AND reviewed.aprovado_em IS NOT NULL))
        ORDER BY created_at DESC, id LIMIT $3`,
       [projetoId, patterns, limit],
     );

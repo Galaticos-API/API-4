@@ -12,7 +12,13 @@
     "start": "node dist/index.js",
     "typecheck": "tsc --noEmit",
     "migrate": "tsx src/database/migrate.ts",
-    "bootstrap:admin": "tsx scripts/bootstrap-admin.mts"
+    "bootstrap:admin": "tsx scripts/bootstrap-admin.mts",
+    "test": "node scripts/test.mjs",
+    "test:integration:indexing": "tsx scripts/test-indexing-db.mts",
+    "test:integration:harness": "tsx scripts/validate-harness.mts",
+    "test:integration:copilot": "tsx scripts/validate-harness.mts --browser",
+    "test:integration:review": "tsx scripts/test-browser-qa.mts",
+    "audit:security": "npm audit --omit=dev"
   },
   "dependencies": {
     "@types/multer": "^2.3.0",

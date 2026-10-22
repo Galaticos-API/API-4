@@ -1,0 +1,185 @@
+import test, { after, before } from 'node:test';
+import assert from 'node:assert/strict';
+import express from 'express';
+import { AddressInfo } from 'node:net';
+import { Server } from 'node:http';
+import { errorHandler } from '../../middleware/errorHandler';
+import { AppError, ValidationError } from '../../shared/errors';
+import { createRepoAnalysesRouter } from './repo-analyses.routes';
+import { RepoAnalysesService } from './repo-analyses.service';
+import type { RepoAnalysisRecord } from './repo-analyses.types';
+
+const ACTIVE = 'a0000000-0000-4000-8000-000000000001';
+const ARCHIVED = 'a0000000-0000-4000-8000-000000000002';
+const OTHER = 'a0000000-0000-4000-8000-000000000003';
+const ANALYSIS = 'e0000000-0000-4000-8000-000000000001';
+
+const record = { id: ANALYSIS, projeto_id: ACTIVE, status: 'iniciado', run_id: 'r1' } as RepoAnalysisRecord;
+
+class FakeService extends RepoAnalysesService {
+    public started: Array<{ projectId: string; userId: string; url: string; profile: string }> = [];
+    public lookups: Array<{ projectId: string; id: string }> = [];
+    public controls: Array<{ projectId: string; id: string; action: string }> = [];
+    public engineDown = false;
+    public reindexed: string[] = [];
+
+    async retryIndexing(projectId: string, id: string): Promise<RepoAnalysisRecord | null> {
+        if (projectId !== ACTIVE || id !== ANALYSIS) return null;
+        this.reindexed.push(id);
+        return { ...record, indexacao_status: 'pendente' };
+    }
+
+    async approveReport(projectId: string, id: string, userId: string, expectedRevision: number): Promise<RepoAnalysisRecord | null> {
+        assert.ok(userId); assert.equal(expectedRevision,1);
+        return projectId === ACTIVE && id === ANALYSIS ? {...record,indexacao_status:'pendente'} : null;
+    }
+    constructor() {
+        super({} as never, 'http://localhost:0');
+    }
+
+    async startAnalysis(projectId: string, userId: string, url: string, profile = 'quick'): Promise<RepoAnalysisRecord> {
+        if (!/^https:\/\/github\.com\/[\w.-]+\/[\w.-]+$/.test(url)) throw new ValidationError('URL do repositório GitHub inválida.');
+        if (this.engineDown) throw new AppError('Falha ao iniciar análise no motor de IA: serviço indisponível', 503, 'ANALYZER_UNAVAILABLE');
+        this.started.push({ projectId, userId, url, profile });
+        return { ...record, projeto_id: projectId };
+    }
+
+    async controlAnalysis(projectId: string, id: string, action: 'pause' | 'resume' | 'cancel'): Promise<RepoAnalysisRecord | null> {
+        this.controls.push({ projectId, id, action });
+        return projectId === ACTIVE && id === ANALYSIS ? record : null;
+    }
+
+    async listByProject(projectId: string): Promise<RepoAnalysisRecord[]> {
+        return projectId === ACTIVE ? [record] : [];
+    }
+
+    async getById(projectId: string, id: string): Promise<RepoAnalysisRecord | null> {
+        this.lookups.push({ projectId, id });
+        return projectId === ACTIVE && id === ANALYSIS ? record : null;
+    }
+}
+
+const service = new FakeService();
+let server: Server;
+let baseUrl: string;
+
+before(() => {
+    const app = express();
+    app.use(express.json());
+    const projects = {
+        async findById(id: string) {
+            if (id === ACTIVE || id === OTHER) return { id, status: 'ativo' };
+            if (id === ARCHIVED) return { id, status: 'arquivado' };
+            return null;
+        },
+    };
+    app.use('/api/v1/projects/:projectId/repo-analyses', createRepoAnalysesRouter(service, projects, (req, res, next) => {
+        if (req.headers['x-test-user'] !== 'ana') {
+            res.status(401).json({ error: 'Autenticação necessária.', code: 'UNAUTHORIZED' });
+            return;
+        }
+        req.auth = { id: 'b0000000-0000-4000-8000-000000000001', nome: 'Ana', email: 'a@example.com', role: req.headers['x-test-role'] === 'dev' ? 'dev' : req.headers['x-test-role'] === 'admin' ? 'admin' : 'po' };
+        next();
+    }));
+    app.use(errorHandler);
+    server = app.listen(0);
+    baseUrl = `http://127.0.0.1:${(server.address() as AddressInfo).port}/api/v1/projects`;
+});
+
+after(() => {
+    server.close();
+});
+
+const call = (path: string, init: { method?: string; json?: unknown; auth?: boolean } = {}) =>
+    fetch(`${baseUrl}${path}`, {
+        method: init.method ?? 'GET',
+        headers: { 'Content-Type': 'application/json', ...(init.auth === false ? {} : { 'x-test-user': 'ana' }) },
+        body: init.json === undefined ? undefined : JSON.stringify(init.json),
+    });
+
+test('exige autenticação', async () => {
+    assert.equal((await call(`/${ACTIVE}/repo-analyses`, { auth: false })).status, 401);
+});
+
+test('id de projeto malformado retorna 400 e projeto inexistente retorna 404 antes de qualquer trabalho', async () => {
+    assert.equal((await call('/nao-uuid/repo-analyses')).status, 400);
+    assert.equal((await call('/a0000000-0000-4000-8000-0000000000ff/repo-analyses')).status, 404);
+    assert.equal((await call('/nao-uuid/repo-analyses', { method: 'POST', json: { repositorio_url: 'https://github.com/a/b' } })).status, 400);
+    assert.equal(service.started.length, 0);
+});
+
+test('inicia análise no projeto ativo com o usuário autenticado', async () => {
+    const response = await call(`/${ACTIVE}/repo-analyses`, { method: 'POST', json: { repositorio_url: 'https://github.com/acme/api' } });
+    assert.equal(response.status, 201);
+    assert.deepEqual(service.started.at(-1), { projectId: ACTIVE, userId: 'b0000000-0000-4000-8000-000000000001', url: 'https://github.com/acme/api', profile: 'quick' });
+});
+
+test('aceita perfil configurável e rejeita perfil desconhecido', async () => {
+    const response = await call(`/${ACTIVE}/repo-analyses`, { method: 'POST', json: { repositorio_url: 'https://github.com/acme/api', perfil: 'quick' } });
+    assert.equal(response.status, 201);
+    assert.equal(service.started.at(-1)?.profile, 'quick');
+    assert.equal((await call(`/${ACTIVE}/repo-analyses`, { method: 'POST', json: { repositorio_url: 'https://github.com/acme/api', perfil: 'turbo' } })).status, 400);
+});
+
+test('URL inválida retorna 400 e falha do motor retorna 503 com mensagem legível', async () => {
+    assert.equal((await call(`/${ACTIVE}/repo-analyses`, { method: 'POST', json: { repositorio_url: 'https://gitlab.com/a/b' } })).status, 400);
+    assert.equal((await call(`/${ACTIVE}/repo-analyses`, { method: 'POST', json: {} })).status, 400);
+    service.engineDown = true;
+    const response = await call(`/${ACTIVE}/repo-analyses`, { method: 'POST', json: { repositorio_url: 'https://github.com/acme/api' } });
+    service.engineDown = false;
+    assert.equal(response.status, 503);
+    assert.match(((await response.json()) as { error: string }).error, /motor de IA/);
+});
+
+test('projeto arquivado é somente leitura: consulta funciona e nova análise retorna 409', async () => {
+    const before = service.started.length;
+    const post = await call(`/${ARCHIVED}/repo-analyses`, { method: 'POST', json: { repositorio_url: 'https://github.com/acme/api' } });
+    assert.equal(post.status, 409);
+    assert.equal(service.started.length, before);
+    assert.equal((await call(`/${ARCHIVED}/repo-analyses`)).status, 200);
+});
+
+test('consulta por id respeita o projeto da rota e valida o formato', async () => {
+    assert.equal((await call(`/${ACTIVE}/repo-analyses/${ANALYSIS}`)).status, 200);
+    assert.equal((await call(`/${OTHER}/repo-analyses/${ANALYSIS}`)).status, 404);
+    assert.deepEqual(service.lookups.at(-1), { projectId: OTHER, id: ANALYSIS });
+    assert.equal((await call(`/${ACTIVE}/repo-analyses/abc`)).status, 400);
+    assert.deepEqual(await (await call(`/${OTHER}/repo-analyses`)).json(), []);
+});
+
+test('pausa, retoma e cancela uma análise autenticada e vinculada ao projeto', async () => {
+    for (const action of ['pause', 'resume', 'cancel'] as const) {
+        assert.equal((await call(`/${ACTIVE}/repo-analyses/${ANALYSIS}/${action}`, { method: 'POST', json: {} })).status, 200);
+    }
+    assert.deepEqual(service.controls.slice(-3), [
+        { projectId: ACTIVE, id: ANALYSIS, action: 'pause' },
+        { projectId: ACTIVE, id: ANALYSIS, action: 'resume' },
+        { projectId: ACTIVE, id: ANALYSIS, action: 'cancel' },
+    ]);
+    assert.equal((await call(`/${OTHER}/repo-analyses/${ANALYSIS}/cancel`, { method: 'POST', json: {} })).status, 404);
+    assert.equal((await call(`/${ARCHIVED}/repo-analyses/${ANALYSIS}/resume`, { method: 'POST', json: {} })).status, 409);
+});
+
+test('S2-23: reprocessamento exige autenticacao, escrita, projeto ativo e origem correta', async () => {
+    const path = `/${ACTIVE}/repo-analyses/${ANALYSIS}/indexing/retry`;
+    assert.equal((await call(path, { method: 'POST', json: {}, auth: false })).status, 401);
+    assert.equal((await fetch(`${baseUrl}${path}`, { method: 'POST', headers: { 'x-test-user': 'ana', 'x-test-role': 'dev' } })).status, 403);
+    assert.equal((await call(`/${ARCHIVED}/repo-analyses/${ANALYSIS}/indexing/retry`, { method: 'POST', json: {} })).status, 409);
+    assert.equal((await call(`/${OTHER}/repo-analyses/${ANALYSIS}/indexing/retry`, { method: 'POST', json: {} })).status, 404);
+    const response = await call(path, { method: 'POST', json: {} });
+    assert.equal(response.status, 200);
+    assert.equal((await response.json() as RepoAnalysisRecord).indexacao_status, 'pendente');
+    assert.equal(service.reindexed.at(-1), ANALYSIS);
+});
+
+test('S2-23: aprovacao explicita exige PO/admin, revisao e projeto ativo', async()=>{
+ const path=`/${ACTIVE}/repo-analyses/${ANALYSIS}/report/approve`;
+ assert.equal((await call(path,{method:'POST',auth:false})).status,401);
+ for(const role of ['po','admin','dev']){
+  const response=await fetch(baseUrl+path,{method:'POST',headers:{'Content-Type':'application/json','x-test-user':'ana','x-test-role':role},body:JSON.stringify({relatorio_revisao:1})});
+  assert.equal(response.status,role==='dev'?403:200);
+ }
+ assert.equal((await call(path,{method:'POST',json:{}})).status,400);
+ assert.equal((await call(`/${ARCHIVED}/repo-analyses/${ANALYSIS}/report/approve`,{method:'POST',json:{relatorio_revisao:1}})).status,409);
+ assert.equal((await call(`/${OTHER}/repo-analyses/${ANALYSIS}/report/approve`,{method:'POST',json:{relatorio_revisao:1}})).status,404);
+});

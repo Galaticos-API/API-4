@@ -218,6 +218,9 @@ paths:
                   documentos_cancelados:
                     type: integer
                     description: Documentos tirados da fila e leases invalidados pelo expurgo
+                  relatorios_cancelados:
+                    type: integer
+                    description: Relatórios com aprovação revogada e leases invalidados; exigem nova revisão humana
                   eventos_removidos:
                     type: integer
         '400':
@@ -2710,6 +2713,31 @@ paths:
         '404': {description: Projeto ou análise não encontrados}
         '409': {description: Estado da análise não permite cancelamento}
 
+  /api/v1/projects/{projectId}/repo-analyses/{id}/report/approve:
+    post:
+      summary: Aprovar a versão revisada do relatório de IA e publicar no acervo (PO/admin)
+      operationId: approveRepoReport
+      security: [{cookieAuth: []}]
+      parameters:
+        - {name: projectId, in: path, required: true, schema: {type: string, format: uuid}}
+        - {name: id, in: path, required: true, schema: {type: string, format: uuid}}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [relatorio_revisao]
+              properties:
+                relatorio_revisao: {type: integer, minimum: 0}
+      responses:
+        '200': {description: Versão aprovada com autor/data e indexação enfileirada}
+        '400': {description: Versão ausente ou inválida}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {description: Somente PO e administrador podem aprovar}
+        '404': {description: Projeto ou análise não encontrados}
+        '409': {description: Projeto arquivado, relatório indisponível ou versão alterada}
+
   /api/v1/projects/{projectId}/repo-analyses/{id}/indexing/retry:
     post:
       summary: Reprocessar o relatório concluído no acervo (PO ou administrador)
@@ -2723,7 +2751,7 @@ paths:
         '401': {$ref: '#/components/responses/Unauthorized'}
         '403': {description: Sem permissão de escrita}
         '404': {description: Projeto ou análise não encontrados}
-        '409': {description: Projeto arquivado ou relatório ainda não concluído}
+        '409': {description: Projeto arquivado, relatório ainda não concluído ou sem aprovação humana}
 
   /api/v1/search:
     get:

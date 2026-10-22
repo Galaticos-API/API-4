@@ -117,6 +117,11 @@ export class RepoAnalysesService {
         return this.repository.findById(id, projectId);
     }
 
+    async approveReport(projectId: string, id: string, userId: string, expectedRevision: number): Promise<RepoAnalysisRecord | null> {
+        await this.reportIndexing.approveReport(id, projectId, userId, expectedRevision);
+        return this.repository.findById(id, projectId);
+    }
+
     async controlAnalysis(projetoId: string, id: string, action: 'pause' | 'resume' | 'cancel'): Promise<RepoAnalysisRecord | null> {
         const analysis = await this.repository.findById(id, projetoId);
         if (!analysis) return null;

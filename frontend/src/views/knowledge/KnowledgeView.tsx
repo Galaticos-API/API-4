@@ -101,7 +101,7 @@ export function KnowledgeView() {
             <header><span className="badge-garakis">{SEARCH_LEVELS[item.entity_type]}</span><span className="muted">Projeto: {item.project_name}</span></header>
             <h2>{item.title?.trim() || SEARCH_LEVELS[item.entity_type] + " de origem"}</h2>
               <p className="knowledge-excerpt">{searchExcerpt(item.text, query)}</p>
-              {item.entity_type === 'analise_repositorio' && typeof item.metadata.run_id === 'string' && <p className="muted">Execução: {item.metadata.run_id}</p>}
+              {item.entity_type === 'analise_repositorio' && typeof item.metadata.run_id === 'string' && <p className="muted">Relatório de IA revisado · Execução: {item.metadata.run_id}</p>}
             {typeof sourceName === "string" && <p className="muted">Documento de origem: {sourceName}</p>}
             {item.entity_type === "documento" ? <button className="btn-garakis secondary" onClick={() => setDocumentHit(item)}>Abrir documento no trecho</button>
               : href ? <a className="btn-garakis secondary" href={href}>Abrir origem</a> : <p className="muted" role="note">Origem sem rota disponível.</p>}

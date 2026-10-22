@@ -28,7 +28,7 @@ export interface RepoAnalysisRecord {
     resume_requested?: boolean;
     perfil?: 'quick' | 'balanced' | 'complete';
     /** S2-23: Estado de indexação do relatório no acervo vetorial. */
-    indexacao_status?: 'nao_aplicavel' | 'pendente' | 'processando' | 'indexado' | 'falha';
+    indexacao_status?: 'nao_aplicavel' | 'aguardando_aprovacao' | 'pendente' | 'processando' | 'indexado' | 'falha';
     indexacao_tentativas?: number;
     indexacao_erro?: string;
 }

@@ -19,6 +19,7 @@ export interface PurgeProjectResult {
   projeto_nome: string;
   chunks_removidos: number;
   documentos_cancelados: number;
+  relatorios_cancelados: number;
   eventos_removidos: number;
   status: "sucesso";
   message: string;
@@ -115,6 +116,15 @@ export class AdminRepository {
       );
       const eventosRemovidos = eventsCountRes.rowCount ?? 0;
 
+      const reports = await client.query(
+        `UPDATE analise_repositorio SET aprovacao_hash=NULL, aprovado_por=NULL, aprovado_em=NULL,
+          relatorio_revisao=relatorio_revisao+1,
+          indexacao_status=CASE WHEN status='concluido' AND NULLIF(btrim(relatorio_markdown),'') IS NOT NULL
+            THEN 'aguardando_aprovacao' ELSE 'nao_aplicavel' END,
+          indexacao_lease_id=NULL, indexacao_bloqueado_ate=NULL, indexacao_tentativas=0, indexacao_erro=NULL
+         WHERE projeto_id=$1`, [projectId],
+      );
+
       await auditService.record({
         usuario_id: userId,
         entidade_tipo: "projeto",
@@ -125,6 +135,7 @@ export class AdminRepository {
           projeto_nome: project.nome,
           chunks_removidos: chunksRemovidos,
           documentos_cancelados: documentosCanceladosRes.rowCount ?? 0,
+          relatorios_cancelados: reports.rowCount ?? 0,
           eventos_removidos: eventosRemovidos,
         },
       }, client);
@@ -134,9 +145,10 @@ export class AdminRepository {
         projeto_nome: project.nome,
         chunks_removidos: chunksRemovidos,
         documentos_cancelados: documentosCanceladosRes.rowCount ?? 0,
+        relatorios_cancelados: reports.rowCount ?? 0,
         eventos_removidos: eventosRemovidos,
         status: "sucesso",
-        message: `Contexto indexado do projeto expurgado com sucesso. ${documentosCanceladosRes.rowCount ?? 0} documento(s) foram retirados da fila de reindexação.`,
+        message: `Contexto indexado do projeto expurgado com sucesso. ${documentosCanceladosRes.rowCount ?? 0} documento(s) foram retirados da fila de reindexação. Relatórios exigem nova aprovação antes de voltar ao acervo.`,
       };
     });
   }

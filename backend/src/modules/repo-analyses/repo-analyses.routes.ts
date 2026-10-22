@@ -89,6 +89,19 @@ export function createRepoAnalysesRouter(
     router.post('/:id/pause', control('pause'));
     router.post('/:id/resume', control('resume'));
     router.post('/:id/cancel', control('cancel'));
+    router.post('/:id/report/approve', async (req: Request, res: Response, next: NextFunction) => {
+        try {
+            const id = String(req.params.id);
+            validateUuid(id, 'ID da análise');
+            if (!['admin', 'po'].includes(req.auth?.role ?? '')) throw new AppError('Sem permissão para aprovar relatórios.', 403, 'FORBIDDEN');
+            if (res.locals.projectStatus === 'arquivado') throw new ArchiveConflict('Projeto arquivado não publica relatórios.');
+            const revision = req.body?.relatorio_revisao;
+            if (!Number.isSafeInteger(revision) || revision < 0) throw new ValidationError('Informe a versão revisada do relatório.');
+            const analysis = await service.approveReport(String(req.params.projectId), id, req.auth!.id, revision);
+            if (!analysis) throw new NotFoundError('Análise não encontrada.');
+            res.json(analysis);
+        } catch (error) { next(error); }
+    });
     router.post('/:id/indexing/retry', async (req: Request, res: Response, next: NextFunction) => {
         try {
             const id = String(req.params.id);
