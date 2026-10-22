@@ -15,7 +15,7 @@ class Settings(BaseSettings):
     DOCUMENT_INGESTION_TOKEN: str = ""
     
     # Ollama integration
-    OLLAMA_BASE_URL: str = "http://localhost:11434"
+    OLLAMA_BASE_URL: str = "http://127.0.0.1:11434"
     OLLAMA_LLM_MODEL: str = "qwen2.5:1.5b"
     OLLAMA_EMBEDDING_MODEL: str = "bge-m3"
 

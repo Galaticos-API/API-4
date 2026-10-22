@@ -70,10 +70,10 @@ try {
     Invoke-Checked docker @('compose', 'up', '-d', '--build', 'postgres', 'backend', 'frontend')
 
     New-Item -ItemType Directory -Path $devStateDirectory -Force | Out-Null
-    $aiProcess = Start-Process -FilePath $python -ArgumentList @('-m', 'uvicorn', 'main:app', '--host', '0.0.0.0', '--port', '8000') -WorkingDirectory $aiPath -WindowStyle Hidden -PassThru -RedirectStandardOutput (Join-Path $devStateDirectory 'ai.log') -RedirectStandardError (Join-Path $devStateDirectory 'ai-error.log')
+    $aiProcess = Start-Process -FilePath $python -ArgumentList @('-m', 'uvicorn', 'main:app', '--host', '127.0.0.1', '--port', '8000') -WorkingDirectory $aiPath -WindowStyle Hidden -PassThru -RedirectStandardOutput (Join-Path $devStateDirectory 'ai.log') -RedirectStandardError (Join-Path $devStateDirectory 'ai-error.log')
     $startedAI = $true
     Save-DevAIProcess $aiProcess
-    Wait-Service 'http://localhost:8000/health' $aiProcess
+    Wait-Service 'http://127.0.0.1:8000/health' $aiProcess
     $compose = docker compose config --format json | ConvertFrom-Json
     if ($LASTEXITCODE -ne 0) { throw 'Nao foi possivel conferir as portas dos servicos.' }
     $backendPort = $compose.services.backend.ports[0].published
