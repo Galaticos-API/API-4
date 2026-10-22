@@ -18,6 +18,7 @@ export interface PurgeProjectResult {
   projeto_id: string;
   projeto_nome: string;
   chunks_removidos: number;
+  documentos_cancelados: number;
   eventos_removidos: number;
   status: "sucesso";
   message: string;
@@ -95,6 +96,19 @@ export class AdminRepository {
 
       await client.query("DELETE FROM chunk WHERE projeto_id = $1", [projectId]);
 
+      // Fence workers that claimed documents before the purge and keep them out of the pending queue.
+      const documentosCanceladosRes = await client.query(
+        `UPDATE documento
+            SET status_processamento = 'falha',
+                processamento_erro = 'Indexação cancelada pelo expurgo do contexto do projeto.',
+                processamento_bloqueado_ate = NULL,
+                processamento_lease_id = NULL,
+                updated_at = CURRENT_TIMESTAMP
+          WHERE projeto_id = $1
+            AND status_processamento IN ('pendente', 'processando', 'processado')`,
+        [projectId],
+      );
+
       const eventsCountRes = await client.query(
         "DELETE FROM indice_evento WHERE projeto_id = $1",
         [projectId],
@@ -110,6 +124,7 @@ export class AdminRepository {
         dados_json: {
           projeto_nome: project.nome,
           chunks_removidos: chunksRemovidos,
+          documentos_cancelados: documentosCanceladosRes.rowCount ?? 0,
           eventos_removidos: eventosRemovidos,
         },
       }, client);
@@ -118,9 +133,10 @@ export class AdminRepository {
         projeto_id: projectId,
         projeto_nome: project.nome,
         chunks_removidos: chunksRemovidos,
+        documentos_cancelados: documentosCanceladosRes.rowCount ?? 0,
         eventos_removidos: eventosRemovidos,
         status: "sucesso",
-        message: "Contexto indexado do projeto expurgado com sucesso.",
+        message: `Contexto indexado do projeto expurgado com sucesso. ${documentosCanceladosRes.rowCount ?? 0} documento(s) foram retirados da fila de reindexação.`,
       };
     });
   }

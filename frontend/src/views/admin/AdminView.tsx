@@ -115,7 +115,7 @@ export const AdminView: React.FC = () => {
         }),
       });
       const data = await res.json();
-      setPurgeMessage(data.message || `Contexto indexado de "${selected.nome}" expurgado com sucesso.`);
+      setPurgeMessage(data.message || `Contexto indexado de "${selected.nome}" expurgado; documentos pendentes de reindexação foram cancelados.`);
       setPurgeConfirmName("");
       setPurgeJustification("");
       void loadStats();

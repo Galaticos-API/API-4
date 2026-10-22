@@ -27,6 +27,8 @@ export interface PbiContextSummary {
   codigo: string;
   titulo: string;
   status: string;
+  tipo: string;
+  prioridade: string;
   projeto_id: string;
   projeto_status: string;
 }
@@ -42,6 +44,8 @@ export class PbiRelationsRepository {
         b.codigo,
         b.titulo,
         b.status,
+        b.tipo,
+        b.prioridade,
         e.projeto_id,
         p.status AS projeto_status
       FROM pbi b
@@ -310,8 +314,8 @@ export class PbiRelationsRepository {
         codigo: destino.codigo,
         titulo: destino.titulo,
         status: destino.status,
-        tipo: destino.status,
-        prioridade: "Must",
+        tipo: destino.tipo,
+        prioridade: destino.prioridade,
         tipo_relacao: tipo,
         direcao: "saida",
         rotulo,

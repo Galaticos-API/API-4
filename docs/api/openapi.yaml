@@ -215,6 +215,9 @@ paths:
                     type: string
                   chunks_removidos:
                     type: integer
+                  documentos_cancelados:
+                    type: integer
+                    description: Documentos tirados da fila e leases invalidados pelo expurgo
                   eventos_removidos:
                     type: integer
         '400':
