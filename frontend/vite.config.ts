@@ -1,5 +1,4 @@
-/// <reference types="vitest/config" />
-import { defineConfig } from "vitest/config";
+import { defineConfig } from "vite";
 import { loadEnv } from "vite";
 import react from "@vitejs/plugin-react";
 
@@ -7,13 +6,8 @@ import react from "@vitejs/plugin-react";
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, ".", "VITE_");
   return {
-  plugins: [react()],
-  test: {
-    environment: "jsdom",
-    environmentOptions: { jsdom: { url: "http://localhost:5173/" } },
-    setupFiles: "./src/test-setup.ts",
-  },
-  server: {
+    plugins: [react()],
+    server: {
     port: 5173,
     proxy: {
       "/api": {
