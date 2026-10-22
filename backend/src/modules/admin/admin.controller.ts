@@ -33,4 +33,14 @@ export class AdminController {
       next(error);
     }
   };
+
+  purgeProject = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const projectId = typeof req.params.id === "string" ? req.params.id : "";
+      res.json(await this.service.purgeProject(projectId, req.body, req.auth!.id));
+    } catch (error) {
+      next(error);
+    }
+  };
 }
+

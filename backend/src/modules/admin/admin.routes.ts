@@ -14,7 +14,10 @@ export function createAdminRouter(controller = new AdminController(), authentica
   // Observabilidade do pipeline de ingestao (substitui o editor do n8n para
   // o admin acompanhar o worker). Query opcional: limit=1..100 (default 25).
   router.get("/ingestion", controller.ingestionSnapshot);
+  // S2-05: Expurgo transacional do contexto indexado por projeto
+  router.post("/projects/:id/purge", controller.purgeProject);
   return router;
 }
 
 export const adminRouter = createAdminRouter();
+
