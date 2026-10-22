@@ -57,6 +57,9 @@ app.get("/health", async (_req: Request, res: Response) => {
   });
 });
 
+// O callback de ingestão usa token de serviço e valida documento/projeto no próprio serviço.
+app.use("/api/v1/projects/:projectId/documents/:documentId/chunks", chunksRouter);
+
 app.use("/api/v1", createProjectAccessRouter());
 app.use("/api", createProjectAccessRouter());
 
@@ -110,8 +113,6 @@ app.use("/api/v1/projects/:projectId/backlog-search", backlogSearchRouter);
 
 // Documentos do projeto (S1-19/S1-20/S1-22)
 app.use("/api/v1/projects/:projectId/documents", requireAuth, documentsRouter);
-// Server-to-server: pipeline de ingestão persistindo chunks indexados do documento.
-app.use("/api/v1/projects/:projectId/documents/:documentId/chunks", chunksRouter);
 
 app.use("/api/v1/projects/:projectId/index-events", indexingRouter);
 app.use("/api/v1/projects/:projectId/documents", documentTextRouter);

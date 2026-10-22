@@ -78,7 +78,7 @@ export class PbisController {
   listRelations = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const id = getParamId(req.params.id);
-      const result = await this.relationsService.list(id);
+      const result = await this.relationsService.list(id, req.auth!.id);
       res.status(200).json(result);
     } catch (error) {
       next(error);

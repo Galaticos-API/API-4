@@ -1297,7 +1297,7 @@ paths:
     get:
       operationId: listPbiRelations
       summary: Listar relações bidirecionais do PBI (PBI-01.5.3 / S2-15)
-      description: Lista todas as dependências, similaridades e substituições conectadas ao PBI (como origem ou destino).
+      description: Lista dependências, similaridades e substituições conectadas ao PBI (como origem ou destino), retornando apenas itens de projetos acessíveis ao usuário autenticado.
       security:
         - cookieAuth: []
       parameters:
@@ -1328,7 +1328,7 @@ paths:
     post:
       operationId: createPbiRelation
       summary: Criar relação entre PBIs com detecção de ciclo (PBI-01.5.3 / S2-15)
-      description: Registra uma relação (depende_de, similar_a ou substitui) com outro PBI e impede ciclos de dependência.
+      description: Registra uma relação (depende_de, similar_a ou substitui) com outro PBI. Impede ciclos de dependência inclusive em solicitações simultâneas entre projetos. Itens ou ancestrais arquivados são somente leitura; relações repetidas retornam conflito.
       security:
         - cookieAuth: []
       parameters:
@@ -3149,7 +3149,12 @@ paths:
         O fluxo canônico (worker) chama o ai-service direto e persiste pelos
         métodos internos do repository. Esta rota aceita `Authorization: Bearer <DOCUMENT_INGESTION_TOKEN>`
         separado da sessão de usuário. Cada embedding deve ter 1024 dimensões
-        (bge-m3). Substitui qualquer chunk anterior do mesmo documento.
+        (bge-m3). Exige processamento_lease_id da reserva emitida pelo backend
+        ao reivindicar o documento. Só grava com reserva vigente e estado processando.
+        Reservas expiradas, canceladas pelo expurgo ou substituídas retornam 409.
+        Repetir uma entrega concluída da mesma reserva retorna o resultado já salvo,
+        sem substituir os chunks. Chamadores antigos precisam enviar a reserva;
+        não há fallback para envio apenas com token de serviço.
       operationId: persistDocumentChunks
       security:
         - bearerAuth: []
@@ -3168,8 +3173,12 @@ paths:
           application/json:
             schema:
               type: object
-              required: [chunks]
+              required: [chunks, processamento_lease_id]
               properties:
+                processamento_lease_id:
+                  type: string
+                  format: uuid
+                  description: Reserva recebida do backend ao reivindicar o processamento do documento.
                 chunks:
                   type: array
                   items:
@@ -3189,7 +3198,7 @@ paths:
         '400': {$ref: '#/components/responses/ValidationError'}
         '401': {description: Token de ingestão ausente ou inválido}
         '404': {description: Projeto ou documento não encontrados}
-        '409': {description: Projeto arquivado é somente leitura (ARCHIVE_CONFLICT)}
+        '409': {description: Projeto arquivado (ARCHIVE_CONFLICT) ou reserva expirada, cancelada ou substituída (CONFLICT)}
 
   /webhook/sinapse-document-removed:
     servers:

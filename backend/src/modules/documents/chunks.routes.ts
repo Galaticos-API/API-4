@@ -34,8 +34,9 @@ export function createChunksRouter(service: ChunksService = chunksService): Rout
    *     summary: Persiste chunks com embeddings (pipeline de ingestão -> backend)
    *     description: >
    *       Chamado pelo pipeline após extrair texto, chunking e embeddings.
-   *       Substitui qualquer chunk anterior do mesmo documento (reindexação
-   *       idempotente) e marca o documento como 'processado'. Autenticação por
+   *       Exige processamento_lease_id da reserva vigente emitida pelo backend.
+   *       Entregas antigas ou canceladas retornam 409. Repetições concluídas
+   *       retornam o resultado salvo, sem regravar. Autenticação por
    *       token compartilhado em Authorization: Bearer <DOCUMENT_INGESTION_TOKEN>.
    *     tags: [Documents]
    *     security:
@@ -50,7 +51,7 @@ export function createChunksRouter(service: ChunksService = chunksService): Rout
    *       404:
    *         description: Projeto ou documento não encontrados
    *       409:
-   *         description: Projeto arquivado
+   *         description: Projeto arquivado ou reserva expirada, cancelada ou substituída
    */
   router.post("/", requireIngestToken, async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -60,6 +61,7 @@ export function createChunksRouter(service: ChunksService = chunksService): Rout
       const result = await service.persist({
         projetoId: paramOf(req.params.projectId),
         documentoId: paramOf(req.params.documentId),
+        leaseId: (req.body as { processamento_lease_id?: string }).processamento_lease_id as string,
         chunks: (req.body as { chunks?: unknown }).chunks as never,
       });
       res.status(200).json(result);
