@@ -2,7 +2,7 @@ import { SearchOriginFocus } from "./views/knowledge/SearchOriginFocus";
 import "./assets/styles/knowledge.css";
 import { Button } from "./views/common/ui";
 import React, { useState, useEffect } from "react";
-import { ArrowRight, BookOpenText, FolderKanban, Layers3, LogOut, MessageCircle } from "lucide-react";
+import { ArrowRight, BookOpenText, FolderKanban, Layers3, LogOut, MessageCircle, ShieldCheck } from "lucide-react";
 import { isProjectPath, navigate, routes } from "./models/navigation";
 import { useAuth } from "./viewmodels/useAuthViewModel";
 import { ProjectsView } from "./views/projects/ProjectsView";
@@ -212,6 +212,11 @@ export const App: React.FC = () => {
               <button onClick={() => setActiveTab("chat")} aria-current={activeTab === "chat" || activeTab === "rag" ? "page" : undefined}>
                 <MessageCircle aria-hidden="true" /><span>Conversa</span><small>04</small><ArrowRight aria-hidden="true" />
               </button>
+              {isAdmin && (
+                <button onClick={() => setActiveTab("admin")} aria-label="Abrir administração" aria-current={activeTab === "admin" ? "page" : undefined}>
+                  <ShieldCheck aria-hidden="true" /><span>Administração</span><small>05</small><ArrowRight aria-hidden="true" />
+                </button>
+              )}
             </nav>
             <div className="mobile-menu-overlay__footer">
               <div className="mobile-menu-overlay__identity">
