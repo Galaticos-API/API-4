@@ -162,7 +162,77 @@ paths:
         '400': {description: Modo ou cursor inválido}
         '401': {description: Autenticação necessária}
         '403': {description: Somente administrador}
+  /api/v1/admin/projects/{id}/purge:
+    post:
+      operationId: purgeProjectContext
+      summary: Expurgo transacional do contexto indexado do projeto (PBI-02.2.4 / S2-05)
+      description: >
+        Remove todo o conteúdo indexado (tabela chunk e fila de eventos) do projeto informado,
+        exigindo a confirmação explícita do nome do projeto. Preserva intactos os demais projetos
+        e registra auditoria da operação administrativa.
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: ID do projeto a ser expurgado
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - confirmacao_nome
+              properties:
+                confirmacao_nome:
+                  type: string
+                  description: Digitação do nome exato do projeto para confirmar o expurgo
+                justificativa:
+                  type: string
+                  description: Justificativa opcional da operação de expurgo
+      responses:
+        '200':
+          description: Contexto do projeto expurgado com sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: sucesso
+                  message:
+                    type: string
+                  projeto_id:
+                    type: string
+                    format: uuid
+                  projeto_nome:
+                    type: string
+                  chunks_removidos:
+                    type: integer
+                  documentos_cancelados:
+                    type: integer
+                    description: Documentos tirados da fila e leases invalidados pelo expurgo
+                  relatorios_cancelados:
+                    type: integer
+                    description: Relatórios com aprovação revogada e leases invalidados; exigem nova revisão humana
+                  eventos_removidos:
+                    type: integer
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Somente administrador
+        '404':
+          description: Projeto não encontrado
   /api/v1/projects/{projectId}/ai/requests:
+
     post:
       operationId: runHarness
       summary: Executa o harness local vigente sem gravar conteúdo do item
@@ -1223,7 +1293,118 @@ paths:
         '404':
           description: PBI não encontrado
 
+  /api/v1/pbis/{id}/relations:
+    get:
+      operationId: listPbiRelations
+      summary: Listar relações bidirecionais do PBI (PBI-01.5.3 / S2-15)
+      description: Lista todas as dependências, similaridades e substituições conectadas ao PBI (como origem ou destino).
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Lista de relações do PBI
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/PbiRelationView'
+                  total:
+                    type: integer
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: PBI não encontrado
+    post:
+      operationId: createPbiRelation
+      summary: Criar relação entre PBIs com detecção de ciclo (PBI-01.5.3 / S2-15)
+      description: Registra uma relação (depende_de, similar_a ou substitui) com outro PBI e impede ciclos de dependência.
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - pbi_destino_id
+                - tipo_relacao
+              properties:
+                pbi_destino_id:
+                  type: string
+                  format: uuid
+                  description: ID do PBI de destino da relação
+                tipo_relacao:
+                  type: string
+                  enum: [depende_de, similar_a, substitui]
+                  description: Tipo de relação entre os PBIs
+      responses:
+        '201':
+          description: Relação criada com sucesso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PbiRelationView'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Perfil sem permissão de escrita
+        '404':
+          description: PBI de origem ou destino não encontrado
+        '409':
+          description: Conflito de relação existente ou projeto arquivado
+
+  /api/v1/pbis/{id}/relations/{relationId}:
+    delete:
+      operationId: deletePbiRelation
+      summary: Remover relação de um PBI (PBI-01.5.3 / S2-15)
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: relationId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Relação removida com sucesso
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Perfil sem permissão de escrita
+        '404':
+          description: Relação ou PBI não encontrado
+
   /api/v1/quality/pbis/{id}/quality:
+
     get:
       summary: Calcula o indicador de completude sobre o checklist vigente do PBI (PBI-01.3.6 / S1-15)
       operationId: getPbiCompleteness
@@ -3292,6 +3473,55 @@ components:
         created_at: {type: string, format: date-time, nullable: true}
         created_by: {type: string, format: uuid, nullable: true}
         output_schemas: {type: object, description: Schemas JSON por operação e nível; schema_version 1, additionalProperties false}
+
+
+    PbiRelationView:
+      type: object
+      required:
+        - id
+        - pbi_id
+        - relacionado_id
+        - codigo
+        - titulo
+        - status
+        - tipo
+        - prioridade
+        - tipo_relacao
+        - direcao
+        - rotulo
+        - created_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        pbi_id:
+          type: string
+          format: uuid
+        relacionado_id:
+          type: string
+          format: uuid
+        codigo:
+          type: string
+        titulo:
+          type: string
+        status:
+          type: string
+        tipo:
+          type: string
+        prioridade:
+          type: string
+        tipo_relacao:
+          type: string
+          enum: [depende_de, similar_a, substitui]
+        direcao:
+          type: string
+          enum: [saida, entrada]
+        rotulo:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+
 
     TechnologyOption:
       type: object

@@ -220,6 +220,16 @@ CREATE TABLE IF NOT EXISTS analise_repositorio (
     concluido_em TIMESTAMPTZ
 );
 
+-- 20. Tabela: PBI_RELACAO (Relações entre PBIs / S2-15)
+CREATE TABLE IF NOT EXISTS pbi_relacao (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    pbi_origem_id UUID NOT NULL REFERENCES pbi(id) ON DELETE CASCADE,
+    pbi_destino_id UUID NOT NULL REFERENCES pbi(id) ON DELETE CASCADE,
+    tipo_relacao VARCHAR(50) NOT NULL CHECK (tipo_relacao IN ('depende_de', 'similar_a', 'substitui')),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT pbi_relacao_sem_auto_relacao CHECK (pbi_origem_id <> pbi_destino_id)
+);
+
 -- Índices de Otimização e Busca Vetorial
 CREATE INDEX IF NOT EXISTS idx_chunk_projeto_id ON chunk(projeto_id);
 CREATE INDEX IF NOT EXISTS idx_chunk_entidade ON chunk(entidade_tipo, entidade_id);
@@ -229,6 +239,9 @@ CREATE INDEX IF NOT EXISTS idx_criterio_entidade ON criterio_aceitacao(entidade_
 CREATE INDEX IF NOT EXISTS idx_analise_repositorio_projeto ON analise_repositorio(projeto_id);
 CREATE INDEX IF NOT EXISTS idx_analise_repositorio_usuario ON analise_repositorio(usuario_id);
 CREATE INDEX IF NOT EXISTS idx_analise_repositorio_created_at ON analise_repositorio(created_at DESC);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_pbi_relacao_unica ON pbi_relacao(pbi_origem_id, pbi_destino_id, tipo_relacao);
+CREATE INDEX IF NOT EXISTS idx_pbi_relacao_origem ON pbi_relacao(pbi_origem_id);
+CREATE INDEX IF NOT EXISTS idx_pbi_relacao_destino ON pbi_relacao(pbi_destino_id);
 
 -- Índice HNSW no pgvector para busca por similaridade de cosseno ultrarrápida
 CREATE INDEX IF NOT EXISTS idx_chunk_embedding ON chunk USING hnsw (embedding vector_cosine_ops);
@@ -237,4 +250,5 @@ CREATE INDEX IF NOT EXISTS idx_chunk_text_search_portuguese
 CREATE INDEX IF NOT EXISTS idx_documento_ingestao_pendente
     ON documento(processamento_proxima_tentativa, created_at)
     WHERE status_processamento IN ('pendente', 'processando');
+
 

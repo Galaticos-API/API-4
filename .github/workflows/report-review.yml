@@ -1,0 +1,41 @@
+name: QA de relatorios e acervo
+on:
+  pull_request:
+    branches: [main]
+    paths: ['backend/**', 'frontend/**', 'ai-service/**', 'database/**', 'e2e/**', '.github/workflows/report-review.yml']
+  workflow_dispatch:
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      E2E_CHROME_PATH: /usr/bin/google-chrome
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: |
+            backend/package-lock.json
+            frontend/package-lock.json
+            e2e/package-lock.json
+      - name: Instalar dependencias de QA
+        run: |
+          npm ci --prefix backend
+          npm ci --prefix frontend
+          npm ci --prefix e2e
+      - name: Compilar e testar contratos e interface
+        run: |
+          npm run build --prefix backend
+          npm test --prefix backend
+          npm run build --prefix frontend
+          npm test --prefix frontend
+      - name: Atomicidade, concorrencia, idempotencia e proveniencia no PostgreSQL
+        run: npm run test:integration:indexing --prefix backend
+      - name: Busca, aprovacao e expurgo no navegador autenticado
+        run: npm run test:integration:review --prefix backend
+      - name: Harness real e regressao do copiloto
+        run: |
+          docker build -t sinapse-s209-ai-test ai-service
+          npm run test:integration:copilot --prefix backend

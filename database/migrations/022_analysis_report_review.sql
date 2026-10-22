@@ -22,7 +22,13 @@ BEGIN
     NEW.indexacao_lease_id := NULL; NEW.indexacao_bloqueado_ate := NULL;
     DELETE FROM chunk WHERE entidade_tipo='analise_repositorio' AND entidade_id=NEW.id;
   ELSIF NEW.aprovacao_hash IS DISTINCT FROM OLD.aprovacao_hash THEN
-    IF NEW.aprovacao_hash IS NOT NULL AND NEW.aprovado_por IS NOT NULL AND NEW.aprovado_em IS NOT NULL
+    IF NEW.aprovacao_hash IS NULL AND NEW.aprovado_por IS NULL AND NEW.aprovado_em IS NULL THEN
+      NEW.indexacao_status := CASE WHEN NEW.status='concluido' AND NULLIF(btrim(NEW.relatorio_markdown),'') IS NOT NULL
+        THEN 'aguardando_aprovacao' ELSE 'nao_aplicavel' END;
+      NEW.indexacao_tentativas := 0; NEW.indexacao_erro := NULL;
+      NEW.indexacao_lease_id := NULL; NEW.indexacao_bloqueado_ate := NULL;
+      DELETE FROM chunk WHERE entidade_tipo='analise_repositorio' AND entidade_id=NEW.id;
+    ELSIF NEW.aprovacao_hash IS NOT NULL AND NEW.aprovado_por IS NOT NULL AND NEW.aprovado_em IS NOT NULL
       AND NEW.status='concluido'
       AND NEW.aprovacao_hash=encode(sha256(convert_to(NEW.relatorio_markdown,'UTF8')),'hex') THEN
       NEW.indexacao_status := 'pendente';

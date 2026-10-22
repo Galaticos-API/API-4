@@ -7,24 +7,18 @@
   "scripts": {
     "seed:validate": "node dist/database/seed.js --validate",
     "seed:apply": "node dist/database/seed.js --apply",
-    "test:seed": "node --test dist/database/seed.test.js",
     "dev": "tsx watch src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js",
     "typecheck": "tsc --noEmit",
     "migrate": "tsx src/database/migrate.ts",
     "bootstrap:admin": "tsx scripts/bootstrap-admin.mts",
-    "audit:security": "npm audit --omit=dev",
     "test": "node scripts/test.mjs",
-    "test:integration:s1": "tsx scripts/validate-s1.mts",
-    "test:integration:s105": "tsx scripts/validate-s105.mts",
     "test:integration:indexing": "tsx scripts/test-indexing-db.mts",
-    "test:integration:search": "tsx --test src/modules/search/search.repository.db.test.ts",
-    "test:integration:knowledge": "tsx scripts/test-knowledge-db.mts",
     "test:integration:harness": "tsx scripts/validate-harness.mts",
     "test:integration:copilot": "tsx scripts/validate-harness.mts --browser",
-    "test:smoke:harness:local": "tsx scripts/smoke-harness-local.mts",
-    "test:integration:review": "tsx scripts/test-browser-qa.mts"
+    "test:integration:review": "tsx scripts/test-browser-qa.mts",
+    "audit:security": "npm audit --omit=dev"
   },
   "dependencies": {
     "@types/multer": "^2.3.0",

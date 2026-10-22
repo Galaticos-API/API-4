@@ -7,6 +7,7 @@ import { validateTarget } from '../../database/seed-lib.js';
 import { ReportIndexingRepository } from './repo-analyses.indexing.repository.js';
 import { SearchRepository } from '../search/search.repository.js';
 import { ChatRepository } from '../chat/chat.repository.js';
+import { AdminRepository } from '../admin/admin.repository.js';
 
 test('S2-23 PostgreSQL: fila atomica, idempotencia, revisao, recuperacao, fencing, arquivo e isolamento', { skip: !process.env.INDEX_TEST_DATABASE_URL }, async () => {
     const db = new Pool({ connectionString: validateTarget(process.env.INDEX_TEST_DATABASE_URL, 'test') });
@@ -96,6 +97,14 @@ test('S2-23 PostgreSQL: fila atomica, idempotencia, revisao, recuperacao, fencin
         assert.equal((await record()).indexacao_status, 'falha');
         await repository.retryIndexing(analysis, project); claim = (await repository.claimPendingIndexing())!;
         await repository.completeIndexing(claim, [chunk]); assert.equal(await count(), 1);
+        await repository.retryIndexing(analysis, project); claim = (await repository.claimPendingIndexing())!;
+        await new AdminRepository(db).purgeProjectContext(project,'QA S223',user,'QA isolado');
+        assert.equal((await record()).aprovacao_hash,null);
+        assert.equal((await record()).indexacao_status,'aguardando_aprovacao');
+        await repository.completeIndexing(claim,[chunk]); assert.equal(await count(),0);
+        assert.equal(await repository.claimPendingIndexing(),null);
+        await approve(); claim=(await repository.claimPendingIndexing())!;
+        await repository.completeIndexing(claim,[chunk]); assert.equal(await count(),1);
         await repository.retryIndexing(analysis, project); claim = (await repository.claimPendingIndexing())!;
         await db.query("UPDATE projeto SET status='arquivado' WHERE id=$1", [project]);
         assert.equal(await count(), 0);

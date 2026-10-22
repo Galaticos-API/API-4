@@ -22,7 +22,7 @@ let captures: any[] = [];
 const network=id+'-private';
 let modelUrl='';
 async function control(update?: Record<string, unknown>) {
- const response=await fetch(modelUrl+'/control', update ? {method:'POST',body:JSON.stringify(update)} : undefined);
+ const response=await fetch(modelUrl+'/control', {signal:AbortSignal.timeout(5000), ...(update ? {method:'POST',body:JSON.stringify(update)} : {})});
  assert.equal(response.status,200);
  const snapshot=await response.json() as {captures:any[]}; captures=snapshot.captures;
 }

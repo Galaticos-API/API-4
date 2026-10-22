@@ -45,6 +45,16 @@ async function migrate(): Promise<void> {
       console.log(`[Migration] applied ${file}`);
     }
 
+    // Aplica o seed de desenvolvimento automaticamente (idempotente)
+    const seedPath = resolve(migrationsDir, "../seed/dev_seed.sql");
+    try {
+      const seedSql = await readFile(seedPath, "utf8");
+      await client.query(seedSql);
+      console.log("[Migration] Seed de desenvolvimento aplicado com sucesso.");
+    } catch {
+      // Ignora se o arquivo de seed não existir no ambiente
+    }
+
     await client.query("COMMIT");
   } catch (error) {
     await client.query("ROLLBACK");

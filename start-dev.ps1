@@ -1,3 +1,9 @@
+param(
+    [switch]$NoEmbeddings,
+    [switch]$NoLlm,
+    [switch]$SkipPull
+)
+
 $ErrorActionPreference = 'Stop'
 . "$PSScriptRoot/scripts/dev-process.ps1"
 
@@ -33,11 +39,22 @@ try {
     if (Get-NetTCPConnection -LocalPort 8000 -State Listen -ErrorAction SilentlyContinue) {
         throw 'A porta 8000 esta ocupada. Encerre o servico existente antes de iniciar a IA nativa.'
     }
-    Invoke-Checked docker @('info', '--format', '{{.ServerVersion}}')
-    try { Invoke-RestMethod 'http://localhost:11434/api/tags' -TimeoutSec 2 | Out-Null }
+    try { Invoke-RestMethod 'http://127.0.0.1:11434/api/tags' -TimeoutSec 2 | Out-Null }
     catch {
         Start-Process 'ollama' -ArgumentList 'serve' -WindowStyle Hidden | Out-Null
-        Wait-Service 'http://localhost:11434/api/tags'
+        Wait-Service 'http://127.0.0.1:11434/api/tags'
+    }
+
+    if (-not $SkipPull) {
+        $installedModels = @((Invoke-RestMethod 'http://127.0.0.1:11434/api/tags').models | ForEach-Object { $_.name })
+        if (-not $NoEmbeddings -and ($installedModels -notcontains 'bge-m3:latest' -and $installedModels -notcontains 'bge-m3')) {
+            Write-Host 'Baixando modelo de embeddings (bge-m3)...'
+            Invoke-Checked ollama @('pull', 'bge-m3')
+        }
+        if (-not $NoLlm -and ($installedModels -notcontains 'qwen2.5:1.5b:latest' -and $installedModels -notcontains 'qwen2.5:1.5b')) {
+            Write-Host 'Baixando modelo LLM do Copiloto (qwen2.5:1.5b)...'
+            Invoke-Checked ollama @('pull', 'qwen2.5:1.5b')
+        }
     }
 
     $aiPath = Join-Path $PSScriptRoot 'ai-service'
@@ -53,10 +70,10 @@ try {
     Invoke-Checked docker @('compose', 'up', '-d', '--build', 'postgres', 'backend', 'frontend')
 
     New-Item -ItemType Directory -Path $devStateDirectory -Force | Out-Null
-    $aiProcess = Start-Process -FilePath $python -ArgumentList @('-m', 'uvicorn', 'main:app', '--host', '0.0.0.0', '--port', '8000') -WorkingDirectory $aiPath -WindowStyle Hidden -PassThru -RedirectStandardOutput (Join-Path $devStateDirectory 'ai.log') -RedirectStandardError (Join-Path $devStateDirectory 'ai-error.log')
+    $aiProcess = Start-Process -FilePath $python -ArgumentList @('-m', 'uvicorn', 'main:app', '--host', '127.0.0.1', '--port', '8000') -WorkingDirectory $aiPath -WindowStyle Hidden -PassThru -RedirectStandardOutput (Join-Path $devStateDirectory 'ai.log') -RedirectStandardError (Join-Path $devStateDirectory 'ai-error.log')
     $startedAI = $true
     Save-DevAIProcess $aiProcess
-    Wait-Service 'http://localhost:8000/health' $aiProcess
+    Wait-Service 'http://127.0.0.1:8000/health' $aiProcess
     $compose = docker compose config --format json | ConvertFrom-Json
     if ($LASTEXITCODE -ne 0) { throw 'Nao foi possivel conferir as portas dos servicos.' }
     $backendPort = $compose.services.backend.ports[0].published
