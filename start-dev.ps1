@@ -33,11 +33,10 @@ try {
     if (Get-NetTCPConnection -LocalPort 8000 -State Listen -ErrorAction SilentlyContinue) {
         throw 'A porta 8000 esta ocupada. Encerre o servico existente antes de iniciar a IA nativa.'
     }
-    Invoke-Checked docker @('info', '--format', '{{.ServerVersion}}')
-    try { Invoke-RestMethod 'http://localhost:11434/api/tags' -TimeoutSec 2 | Out-Null }
+    try { Invoke-RestMethod 'http://127.0.0.1:11434/api/tags' -TimeoutSec 2 | Out-Null }
     catch {
         Start-Process 'ollama' -ArgumentList 'serve' -WindowStyle Hidden | Out-Null
-        Wait-Service 'http://localhost:11434/api/tags'
+        Wait-Service 'http://127.0.0.1:11434/api/tags'
     }
 
     $aiPath = Join-Path $PSScriptRoot 'ai-service'
