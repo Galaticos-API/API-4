@@ -58,6 +58,12 @@ test("Callback de chunks autentica o serviço e preserva as guardas de documento
       assert.equal((await db.query("SELECT count(*)::int AS n FROM chunk WHERE entidade_id=$1", [document])).rows[0].n, 1);
       assert.equal((await db.query("SELECT status_processamento FROM documento WHERE id=$1", [document])).rows[0].status_processamento, "processado");
     });
+    await t.test("callback rejeita embedding nulo sem alterar o conteúdo salvo", async () => {
+      const before = (await db.query("SELECT id,texto FROM chunk WHERE entidade_id=$1", [document])).rows;
+      const response = await send(endpoint(), token, { ...payload, chunks: [{ ...payload.chunks[0], embedding: Array(1024).fill(0) }] });
+      assert.equal(response.status, 400);
+      assert.deepEqual((await db.query("SELECT id,texto FROM chunk WHERE entidade_id=$1", [document])).rows, before);
+    });
     await t.test("não permite associar documento ao projeto errado", async () => {
       const response = await send(endpoint(otherProject));
       assert.equal(response.status, 404);

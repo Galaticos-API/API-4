@@ -40,9 +40,10 @@ export class HttpDocumentIngestionClient implements DocumentIngestionClient {
         if (typeof chunk !== "object" || chunk === null) throw new Error("malformed chunk");
         const candidate = chunk as Record<string, unknown>;
         const metadata = candidate.metadata as Record<string, unknown> | null;
-        if (candidate.chunk_index !== index || typeof candidate.text !== "string" || !candidate.text.trim() || candidate.text.length > 1000
+        if (candidate.chunk_index !== index || typeof candidate.text !== "string" || !candidate.text.trim() || [...candidate.text].length > 1000
           || !Array.isArray(candidate.embedding) || candidate.embedding.length !== 1024
           || candidate.embedding.some((value) => typeof value !== "number" || !Number.isFinite(value))
+          || candidate.embedding.every(value => value === 0)
           || typeof metadata !== "object" || metadata === null
           || metadata.document_id !== document.id || metadata.project_id !== document.projeto_id
           || metadata.source_name !== document.nome) throw new Error("invalid chunk data");

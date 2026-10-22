@@ -40,9 +40,9 @@ export class AuthController {
         return;
       }
 
+      const token = extractSessionToken(req);
+      const session = token ? await this.sessions.validateSession(token) : null;
       if (parsed.data.role !== "dev") {
-        const token = extractSessionToken(req);
-        const session = token ? await this.sessions.validateSession(token) : null;
         if (!session?.valid || session.user.role !== "admin") {
           res.status(403).json({
             error: "Somente administradores podem criar contas de PO ou administrador.",
@@ -52,7 +52,7 @@ export class AuthController {
         }
       }
 
-      const result = await this.service.register(parsed.data);
+      const result = await this.service.register(parsed.data, !session?.valid);
 
       if (!result.success) {
         if (result.reason === "email_exists") {
@@ -63,7 +63,7 @@ export class AuthController {
           return;
         }
       } else {
-        res.cookie(SESSION_COOKIE_NAME, result.token, {
+        if (result.token) res.cookie(SESSION_COOKIE_NAME, result.token, {
           httpOnly: true,
           secure: env.NODE_ENV === "production" && !env.COOKIE_INSECURE_DEV,
           sameSite: "lax",

@@ -1,4 +1,5 @@
-import { Pool } from "pg";
+import { Pool, type PoolClient } from "pg";
+import { withTransaction } from "../../database/transaction.js";
 
 import { pool } from "../../database/db.js";
 import {
@@ -20,8 +21,8 @@ export class AuthRepository {
     email: string;
     senha_hash: string;
     role?: UserRole;
-  }): Promise<UserRecord> {
-    const result = await this.pool.query<UserRecord>(
+  }, executor: Pool | PoolClient = this.pool): Promise<UserRecord> {
+    const result = await executor.query<UserRecord>(
       `
         INSERT INTO usuario (
           nome,
@@ -46,6 +47,19 @@ export class AuthRepository {
     );
 
     return result.rows[0];
+  }
+
+  async createRegistration(data: {
+    nome: string;
+    email: string;
+    senha_hash: string;
+    role?: UserRole;
+  }, tokenHash?: string): Promise<UserRecord> {
+    return withTransaction(this.pool, async client => {
+      const user = await this.createUser(data, client);
+      if (tokenHash) await this.createSession(user.id, tokenHash, client);
+      return user;
+    });
   }
 
   async findUserByEmail(email: string): Promise<UserRecord | null> {
@@ -124,8 +138,9 @@ export class AuthRepository {
   async createSession(
     userId: string,
     tokenHash: string,
+    executor: Pool | PoolClient = this.pool,
   ): Promise<SessionRecord> {
-    const result = await this.pool.query<SessionRecord>(
+    const result = await executor.query<SessionRecord>(
       `
         INSERT INTO sessao (
           usuario_id,

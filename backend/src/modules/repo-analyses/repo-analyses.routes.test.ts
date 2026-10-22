@@ -160,6 +160,28 @@ test('pausa, retoma e cancela uma análise autenticada e vinculada ao projeto', 
     assert.equal((await call(`/${ARCHIVED}/repo-analyses/${ANALYSIS}/resume`, { method: 'POST', json: {} })).status, 409);
 });
 
+test('início e controles exigem PO/admin; desenvolvedor mantém leitura', async () => {
+    for (const role of ['admin', 'po', 'dev']) {
+        const headers = { 'Content-Type': 'application/json', 'x-test-user': 'ana', 'x-test-role': role };
+        const started = service.started.length;
+        const controlled = service.controls.length;
+        const response = await fetch(baseUrl + `/${ACTIVE}/repo-analyses`, {
+            method: 'POST', headers, body: JSON.stringify({ repositorio_url: 'https://github.com/acme/api' }),
+        });
+        assert.equal(response.status, role === 'dev' ? 403 : 201);
+        for (const action of ['pause', 'resume', 'cancel']) {
+            const result = await fetch(baseUrl + `/${ACTIVE}/repo-analyses/${ANALYSIS}/${action}`, { method: 'POST', headers });
+            assert.equal(result.status, role === 'dev' ? 403 : 200);
+        }
+        if (role === 'dev') {
+            assert.equal(service.started.length, started);
+            assert.equal(service.controls.length, controlled);
+        }
+        assert.equal((await fetch(baseUrl + `/${ACTIVE}/repo-analyses`, { headers })).status, 200);
+        assert.equal((await fetch(baseUrl + `/${ACTIVE}/repo-analyses/${ANALYSIS}`, { headers })).status, 200);
+    }
+});
+
 test('S2-23: reprocessamento exige autenticacao, escrita, projeto ativo e origem correta', async () => {
     const path = `/${ACTIVE}/repo-analyses/${ANALYSIS}/indexing/retry`;
     assert.equal((await call(path, { method: 'POST', json: {}, auth: false })).status, 401);
