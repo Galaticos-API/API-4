@@ -2,7 +2,7 @@ import { apiRequest } from "./api_auth";
 
 export type RepoAnalysisStatus = "iniciado" | "em_execucao" | "pausando" | "pausada" | "cancelando" | "cancelada" | "concluido" | "falha";
 export type RepoAnalysisProfile = "quick" | "balanced" | "complete";
-export type RepoAnalysisAction = "pause" | "resume" | "cancel";
+export type RepoAnalysisAction = "pause" | "resume" | "cancel" | "indexing/retry";
 
 export interface RepoAnalysis {
     id: string;
@@ -22,6 +22,8 @@ export interface RepoAnalysis {
     concluido_em?: string | null;
     autor_nome?: string | null;
     autor_email?: string | null;
+    indexacao_status?: 'nao_aplicavel' | 'pendente' | 'processando' | 'indexado' | 'falha';
+    indexacao_erro?: string | null;
 }
 
 export async function startRepoAnalysis(projectId: string, repositoryUrl: string, profile: RepoAnalysisProfile = "quick", signal?: AbortSignal, requestKey?: string): Promise<RepoAnalysis> {

@@ -89,7 +89,11 @@ export function RepoAnalyzerView({ projectId, canStart = true }: { projectId: st
       const data = await listRepoAnalyses(projectId);
       if (!mounted.current || current !== requestId.current) return;
       setAnalyses(data);
-      setSelectedId((previous) => (previous && data.some((item) => item.id === previous) ? previous : data[0]?.id ?? null));
+      setSelectedId((previous) => {
+        const requested = window.location.hash.startsWith('#repo-analyzer=') ? window.location.hash.slice('#repo-analyzer='.length) : null;
+        if (requested) return data.some(item => item.id === requested) ? requested : null;
+        return previous && data.some((item) => item.id === previous) ? previous : data[0]?.id ?? null;
+      });
       setPollFailed(false);
       setLoad({ state: "ready" });
     } catch (error) {
@@ -105,7 +109,7 @@ export function RepoAnalyzerView({ projectId, canStart = true }: { projectId: st
     void refresh(false);
   }, [refresh]);
 
-  const hasActive = analyses.some(item => isActive(item) || (item.status === "concluido" && !item.relatorio_markdown));
+  const hasActive = analyses.some(item => isActive(item) || (item.status === "concluido" && (!item.relatorio_markdown || ['pendente', 'processando'].includes(item.indexacao_status ?? ''))));
   const now = useNow(hasActive);
 
   useEffect(() => {
@@ -128,6 +132,7 @@ export function RepoAnalyzerView({ projectId, canStart = true }: { projectId: st
       setRepoUrl("");
       setAnalyses((previous) => [created, ...previous.filter((item) => item.id !== created.id)]);
       setSelectedId(created.id);
+      window.history.replaceState(null, '', window.location.pathname + '#repo-analyzer=' + created.id);
       setLoad({ state: "ready" });
       void refresh(true);
     } catch (error) {
@@ -238,7 +243,10 @@ export function RepoAnalyzerView({ projectId, canStart = true }: { projectId: st
                         type="button"
                         className="analysis-item"
                         aria-current={item.id === selectedId}
-                        onClick={() => setSelectedId(item.id)}
+                        onClick={() => {
+                          setSelectedId(item.id);
+                          window.history.replaceState(null, '', window.location.pathname + '#repo-analyzer=' + item.id);
+                        }}
                       >
                         <span className="analysis-item-url">{repositoryLabel(item.repositorio_url)}</span>
                         <span className="analysis-item-meta">
@@ -399,6 +407,12 @@ function AnalysisDetails({ analysis, now, canRetry, canControl, controlBusy, con
 
       {analysis.status === "concluido" && report && (
         <section className="analysis-report" aria-label="Relatório técnico">
+          <p>Execução: {analysis.run_id ?? 'Não informada'}</p>
+          {analysis.indexacao_status && <p role="status">Indexação no acervo: {analysis.indexacao_status}</p>}
+          {analysis.indexacao_status === 'falha' && <Alert tone="warning">Não foi possível indexar o relatório. {analysis.indexacao_erro}</Alert>}
+          {canControl && ['falha', 'indexado', 'nao_aplicavel'].includes(analysis.indexacao_status ?? '') && (
+            <Button variant="secondary" disabled={controlBusy} onClick={() => onControl('indexing/retry')}>Reprocessar relatório</Button>
+          )}
           <div className="analysis-report-toolbar">
             <h4>Relatório técnico</h4>
             <div className="analysis-report-actions">

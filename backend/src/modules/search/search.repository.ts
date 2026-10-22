@@ -91,7 +91,7 @@ export class SearchRepository {
        )
        SELECT c.id, c.projeto_id AS project_id, c.projeto_nome AS project_name,
               c.entidade_tipo AS entity_type, c.entidade_id AS entity_id,
-              COALESCE(doc.nome, dec.titulo, e.titulo, f.titulo, b.titulo) AS title,
+              COALESCE(doc.nome, dec.titulo, e.titulo, f.titulo, b.titulo, ar.repositorio_url) AS title,
               c.texto AS text, c.metadados_json AS metadata,
               CASE c.entidade_tipo
                 WHEN 'documento' THEN '/projects/' || c.projeto_id::text || '/documents'
@@ -108,6 +108,7 @@ export class SearchRepository {
                     || '/features/' || source_decision_pbi.feature_id::text || '/pbis/' || dec.entidade_id::text
                   ELSE NULL
                 END
+                WHEN 'analise_repositorio' THEN '/projects/' || c.projeto_id::text || '#repo-analyzer=' || c.entidade_id::text
                 ELSE NULL
               END AS source_url,
               fused.relevance_score
@@ -118,6 +119,7 @@ export class SearchRepository {
        LEFT JOIN epico e ON c.entidade_tipo = 'epico' AND e.id = c.entidade_id
        LEFT JOIN feature f ON c.entidade_tipo = 'feature' AND f.id = c.entidade_id
        LEFT JOIN pbi b ON c.entidade_tipo = 'pbi' AND b.id = c.entidade_id
+       LEFT JOIN analise_repositorio ar ON c.entidade_tipo = 'analise_repositorio' AND ar.id = c.entidade_id
        LEFT JOIN feature source_pbi_feature ON c.entidade_tipo = 'pbi' AND source_pbi_feature.id = b.feature_id
        LEFT JOIN feature source_decision_feature ON c.entidade_tipo = 'decisao' AND dec.entidade_tipo = 'feature' AND source_decision_feature.id = dec.entidade_id
        LEFT JOIN pbi source_decision_pbi ON c.entidade_tipo = 'decisao' AND dec.entidade_tipo = 'pbi' AND source_decision_pbi.id = dec.entidade_id

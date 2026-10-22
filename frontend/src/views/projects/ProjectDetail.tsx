@@ -29,6 +29,7 @@ const TAB_HASH: Record<ProjectTab, string> = {
 };
 
 function tabFromHash(hash: string): ProjectTab {
+  if (hash.startsWith('#repo-analyzer=')) return 'repo-analyzer';
   if (hash.startsWith("#decision-")) return "decisions";
   const found = (Object.keys(TAB_HASH) as ProjectTab[]).find((tab) => TAB_HASH[tab] && TAB_HASH[tab] === hash);
   return found ?? "overview";

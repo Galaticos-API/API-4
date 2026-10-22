@@ -1,6 +1,7 @@
 import { startIndexingWorker } from "./modules/indexing/indexing.worker.js";
 import app from "./app.js";
 import { startRepoAnalysesWorker } from "./modules/repo-analyses/repo-analyses.service.js";
+import { startReportIndexingWorker } from "./modules/repo-analyses/repo-analyses.indexing.worker.js";
 import { env } from "./config/env.js";
 import { startDocumentsBackgroundWorker } from "./modules/documents/documents.service.js";
 
@@ -13,6 +14,7 @@ if (env.NODE_ENV !== "test") {
   startDocumentsBackgroundWorker();
   startIndexingWorker();
   startRepoAnalysesWorker();
+  startReportIndexingWorker();
   if (!env.DOCUMENT_EVENTS_WEBHOOK_URL?.trim()) {
     console.warn("[Documents] DOCUMENT_EVENTS_WEBHOOK_URL is not configured; removal events will retry until a consumer is configured.");
   }

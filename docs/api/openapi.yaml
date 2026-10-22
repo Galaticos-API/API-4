@@ -2532,6 +2532,21 @@ paths:
         '404': {description: Projeto ou análise não encontrados}
         '409': {description: Estado da análise não permite cancelamento}
 
+  /api/v1/projects/{projectId}/repo-analyses/{id}/indexing/retry:
+    post:
+      summary: Reprocessar o relatório concluído no acervo (PO ou administrador)
+      operationId: retryRepoReportIndexing
+      security: [{cookieAuth: []}]
+      parameters:
+        - {name: projectId, in: path, required: true, schema: {type: string, format: uuid}}
+        - {name: id, in: path, required: true, schema: {type: string, format: uuid}}
+      responses:
+        '200': {description: Reprocessamento registrado ou já em andamento}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {description: Sem permissão de escrita}
+        '404': {description: Projeto ou análise não encontrados}
+        '409': {description: Projeto arquivado ou relatório ainda não concluído}
+
   /api/v1/search:
     get:
       summary: Busca híbrida por texto e significado no acervo, sempre isolada por projeto
@@ -2546,7 +2561,7 @@ paths:
           required: false
           schema:
             type: string
-            enum: [documento, decisao, epico, feature, pbi]
+            enum: [documento, decisao, epico, feature, pbi, analise_repositorio]
         - {name: limit, in: query, required: false, schema: {type: integer, minimum: 1, maximum: 50, default: 10}}
       responses:
         '200':
@@ -4461,7 +4476,7 @@ components:
               id: {type: string, format: uuid, description: ID estável do chunk para avaliação de busca}
               project_id: {type: string, format: uuid}
               project_name: {type: string}
-              entity_type: {type: string, enum: [documento, decisao, epico, feature, pbi]}
+              entity_type: {type: string, enum: [documento, decisao, epico, feature, pbi, analise_repositorio]}
               entity_id: {type: string, format: uuid}
               title: {type: string, nullable: true}
               text: {type: string}
@@ -4476,7 +4491,7 @@ components:
           required: [technology_id, level]
           properties:
             technology_id: {type: string, format: uuid, nullable: true}
-            level: {type: string, enum: [documento, decisao, epico, feature, pbi], nullable: true}
+            level: {type: string, enum: [documento, decisao, epico, feature, pbi, analise_repositorio], nullable: true}
         metrics:
           type: object
           required: [latency_ms]

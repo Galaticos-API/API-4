@@ -4,8 +4,9 @@ import { AppError } from "../../shared/errors.js";
 import { serviceHeaders } from "../../shared/service-auth.js";
 import type { ExtractedDocumentChunk, PendingIngestionDocument } from "./documents.types.js";
 
+export type IngestionSource = Pick<PendingIngestionDocument, 'id' | 'projeto_id' | 'nome'>;
 export interface DocumentIngestionClient {
-  process(document: PendingIngestionDocument, content: Buffer): Promise<ExtractedDocumentChunk[]>;
+  process(document: IngestionSource, content: Buffer): Promise<ExtractedDocumentChunk[]>;
 }
 
 export class HttpDocumentIngestionClient implements DocumentIngestionClient {
@@ -14,7 +15,7 @@ export class HttpDocumentIngestionClient implements DocumentIngestionClient {
     private readonly token = env.DOCUMENT_INGESTION_TOKEN,
   ) {}
 
-  async process(document: PendingIngestionDocument, content: Buffer): Promise<ExtractedDocumentChunk[]> {
+  async process(document: IngestionSource, content: Buffer): Promise<ExtractedDocumentChunk[]> {
     if (this.token.length < 32) {
       throw new AppError("A autenticação interna da ingestão não está configurada no backend.", 503, "DOCUMENT_INGESTION_UNCONFIGURED");
     }

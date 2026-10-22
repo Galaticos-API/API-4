@@ -1,6 +1,6 @@
 import { Router, type NextFunction, type Request, type RequestHandler, type Response } from 'express';
 import { requireAuth } from '../../middleware/requireAuth';
-import { NotFoundError, ValidationError, validateUuid } from '../../shared/errors';
+import { AppError, NotFoundError, ValidationError, validateUuid } from '../../shared/errors';
 import { ArchiveConflict } from '../projects/archive.types';
 import { ProjectsRepository } from '../projects/projects.repository';
 import { RepoAnalysesService } from './repo-analyses.service';
@@ -89,6 +89,17 @@ export function createRepoAnalysesRouter(
     router.post('/:id/pause', control('pause'));
     router.post('/:id/resume', control('resume'));
     router.post('/:id/cancel', control('cancel'));
+    router.post('/:id/indexing/retry', async (req: Request, res: Response, next: NextFunction) => {
+        try {
+            const id = String(req.params.id);
+            validateUuid(id, 'ID da análise');
+            if (!['admin', 'po'].includes(req.auth?.role ?? '')) throw new AppError('Sem permissão para reprocessar relatórios.', 403, 'FORBIDDEN');
+            if (res.locals.projectStatus === 'arquivado') throw new ArchiveConflict('Projeto arquivado não reprocessa relatórios.');
+            const analysis = await service.retryIndexing(String(req.params.projectId), id);
+            if (!analysis) throw new NotFoundError('Análise não encontrada.');
+            res.json(analysis);
+        } catch (error) { next(error); }
+    });
 
     /**
      * @swagger

@@ -91,7 +91,7 @@ export class ChatRepository {
   async searchChunks(projetoId: string, patterns: string[], limit: number): Promise<ChunkMatch[]> {
     if (patterns.length === 0) return [];
     const result = await this.pool.query<ChunkMatch>(
-      `SELECT id, entidade_tipo, entidade_id, texto FROM chunk
+      `SELECT id, entidade_tipo, entidade_id, texto, metadados_json FROM chunk
        WHERE projeto_id = $1 AND texto ILIKE ANY($2::text[])
        ORDER BY created_at DESC, id LIMIT $3`,
       [projetoId, patterns, limit],

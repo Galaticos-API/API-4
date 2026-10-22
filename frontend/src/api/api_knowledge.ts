@@ -1,6 +1,6 @@
 import { apiRequest } from "./api_auth";
 
-export const SEARCH_LEVELS = { documento: "Documento", decisao: "Decisão", epico: "Épico", feature: "Feature", pbi: "PBI" } as const;
+export const SEARCH_LEVELS = { documento: "Documento", decisao: "Decisão", epico: "Épico", feature: "Feature", pbi: "PBI", analise_repositorio: "Relatório de repositório" } as const;
 export type SearchLevel = keyof typeof SEARCH_LEVELS;
 export interface KnowledgeHit {
   id: string; project_id: string; project_name: string; entity_type: SearchLevel; entity_id: string;

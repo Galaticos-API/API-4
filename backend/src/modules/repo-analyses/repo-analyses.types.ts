@@ -27,6 +27,10 @@ export interface RepoAnalysisRecord {
     cancel_requested?: boolean;
     resume_requested?: boolean;
     perfil?: 'quick' | 'balanced' | 'complete';
+    /** S2-23: Estado de indexação do relatório no acervo vetorial. */
+    indexacao_status?: 'nao_aplicavel' | 'pendente' | 'processando' | 'indexado' | 'falha';
+    indexacao_tentativas?: number;
+    indexacao_erro?: string;
 }
 
 export interface StartAnalysisDTO {

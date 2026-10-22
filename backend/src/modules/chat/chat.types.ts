@@ -31,6 +31,7 @@ export interface ChunkMatch {
   entidade_tipo: string;
   entidade_id: string;
   texto: string;
+  metadados_json?: Record<string, unknown>;
 }
 
 export interface QueryInput {
