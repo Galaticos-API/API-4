@@ -1,5 +1,6 @@
 import { Router, type NextFunction, type Request, type RequestHandler, type Response } from 'express';
 import { requireAuth } from '../../middleware/requireAuth';
+import { requireRole } from '../../middleware/requireRole';
 import { AppError, NotFoundError, ValidationError, validateUuid } from '../../shared/errors';
 import { ArchiveConflict } from '../projects/archive.types';
 import { ProjectsRepository } from '../projects/projects.repository';
@@ -15,6 +16,7 @@ export function createRepoAnalysesRouter(
     authentication: RequestHandler = requireAuth,
 ): Router {
     const router = Router({ mergeParams: true });
+    const canWrite = requireRole('admin', 'po');
 
     const loadProject = async (req: Request, res: Response, next: NextFunction) => {
         try {
@@ -51,7 +53,7 @@ export function createRepoAnalysesRouter(
      *       503:
      *         description: Motor de análise indisponível
      */
-    router.post('/', async (req: Request, res: Response, next: NextFunction) => {
+    router.post('/', canWrite, async (req: Request, res: Response, next: NextFunction) => {
         try {
             if (res.locals.projectStatus === 'arquivado') {
                 throw new ArchiveConflict('Projeto arquivado é somente leitura e não recebe novas análises.');
@@ -86,9 +88,9 @@ export function createRepoAnalysesRouter(
         }
     };
 
-    router.post('/:id/pause', control('pause'));
-    router.post('/:id/resume', control('resume'));
-    router.post('/:id/cancel', control('cancel'));
+    router.post('/:id/pause', canWrite, control('pause'));
+    router.post('/:id/resume', canWrite, control('resume'));
+    router.post('/:id/cancel', canWrite, control('cancel'));
     router.post('/:id/report/approve', async (req: Request, res: Response, next: NextFunction) => {
         try {
             const id = String(req.params.id);

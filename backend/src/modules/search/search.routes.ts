@@ -2,6 +2,7 @@ import { Router, Request, Response, NextFunction, type RequestHandler } from "ex
 import { requireAuth } from "../../middleware/requireAuth.js";
 import { ValidationError, validateUuid } from "../../shared/errors.js";
 import { parseSearchLevel, SearchService } from "./search.service.js";
+import { ProjectAccess } from "../projects/project-access.js";
 
 const textQuery = (value: unknown, field: string): string | undefined => {
   if (value === undefined) return undefined;
@@ -9,7 +10,7 @@ const textQuery = (value: unknown, field: string): string | undefined => {
   return value;
 };
 
-export function createSearchRouter(service: SearchService = new SearchService(), auth: RequestHandler = requireAuth) {
+export function createSearchRouter(service: SearchService = new SearchService(), auth: RequestHandler = requireAuth, access = new ProjectAccess()) {
   const router = Router();
   router.use(auth);
 
@@ -29,6 +30,7 @@ export function createSearchRouter(service: SearchService = new SearchService(),
       const parsedLimit = limitValue === undefined ? 10 : (/^(?:[1-9]|[1-4]\d|50)$/.test(limitValue) ? Number(limitValue) : Number.NaN);
       if (!Number.isInteger(parsedLimit)) throw new ValidationError("O limite deve ser um inteiro entre 1 e 50.");
 
+      await access.assertEntity(req.auth!.id, "projeto", projectId);
       const result = await service.search({
         query,
         projectId,

@@ -2450,7 +2450,8 @@ paths:
 
   /api/v1/auth/register:
     post:
-      summary: Cria uma conta (PO ou dev); administrador exige sessão de administrador
+      summary: Cria uma conta; PO e administrador exigem sessão de administrador
+      description: Cadastro público cria dev e sua sessão na mesma transação; falha ao gravar a sessão desfaz a conta e permite nova tentativa. Com sessão válida existente, cria a conta sem emitir novo token ou substituir o cookie atual. Cadastros concorrentes do mesmo e-mail retornam EMAIL_EXISTS para a tentativa duplicada.
       operationId: registerUser
       security: []
       requestBody:
@@ -2467,11 +2468,11 @@ paths:
                 role: {type: string, enum: [po, dev, admin], default: dev, description: "po e admin só são aceitos com sessão de administrador"}
       responses:
         '201':
-          description: Conta criada e sessão iniciada
+          description: Conta criada. Sessão iniciada apenas no cadastro sem sessão válida anterior.
         '400':
           $ref: '#/components/responses/ValidationError'
         '403':
-          description: Tentativa de criar administrador sem sessão de administrador
+          description: Tentativa de criar PO ou administrador sem sessão de administrador
         '409':
           description: E-mail já cadastrado
 
@@ -2617,6 +2618,7 @@ paths:
           description: Projeto não encontrado
     post:
       summary: Inicia uma análise de repositório público do GitHub
+      description: Apenas PO e administrador podem iniciar análises. Desenvolvedores com acesso ao projeto podem consultar as análises e os relatórios.
       operationId: startRepoAnalysis
       security: [{cookieAuth: []}]
       parameters:
@@ -2642,6 +2644,8 @@ paths:
       responses:
         '201':
           description: Solicitação persistida na fila; despacho assíncrono e idempotente
+        '403':
+          description: Apenas PO e administrador podem iniciar análises
         '400':
           $ref: '#/components/responses/ValidationError'
         '401':
@@ -2674,6 +2678,7 @@ paths:
   /api/v1/projects/{projectId}/repo-analyses/{id}/pause:
     post:
       summary: Pausar após concluir o arquivo atual e salvar checkpoint
+      description: Requer papel PO ou administrador e acesso ao projeto.
       operationId: pauseRepoAnalysis
       security: [{cookieAuth: []}]
       parameters:
@@ -2681,6 +2686,7 @@ paths:
         - {name: id, in: path, required: true, schema: {type: string, format: uuid}}
       responses:
         '200': {description: Análise pausada ou aguardando o ponto seguro de pausa}
+        '403': {description: Apenas PO e administrador podem controlar análises}
         '401': {$ref: '#/components/responses/Unauthorized'}
         '404': {description: Projeto ou análise não encontrados}
         '409': {description: Estado da análise não permite pausa}
@@ -2688,6 +2694,7 @@ paths:
   /api/v1/projects/{projectId}/repo-analyses/{id}/resume:
     post:
       summary: Retomar análise a partir do checkpoint salvo
+      description: Requer papel PO ou administrador e acesso ao projeto.
       operationId: resumeRepoAnalysis
       security: [{cookieAuth: []}]
       parameters:
@@ -2695,6 +2702,7 @@ paths:
         - {name: id, in: path, required: true, schema: {type: string, format: uuid}}
       responses:
         '200': {description: Retomada registrada na fila}
+        '403': {description: Apenas PO e administrador podem controlar análises}
         '401': {$ref: '#/components/responses/Unauthorized'}
         '404': {description: Projeto ou análise não encontrados}
         '409': {description: Estado da análise não permite retomada}
@@ -2702,6 +2710,7 @@ paths:
   /api/v1/projects/{projectId}/repo-analyses/{id}/cancel:
     post:
       summary: Cancelar definitivamente a análise
+      description: Requer papel PO ou administrador e acesso ao projeto.
       operationId: cancelRepoAnalysis
       security: [{cookieAuth: []}]
       parameters:
@@ -2709,6 +2718,7 @@ paths:
         - {name: id, in: path, required: true, schema: {type: string, format: uuid}}
       responses:
         '200': {description: Análise cancelada ou aguardando o ponto seguro de cancelamento}
+        '403': {description: Apenas PO e administrador podem controlar análises}
         '401': {$ref: '#/components/responses/Unauthorized'}
         '404': {description: Projeto ou análise não encontrados}
         '409': {description: Estado da análise não permite cancelamento}
@@ -2756,6 +2766,7 @@ paths:
   /api/v1/search:
     get:
       summary: Busca híbrida por texto e significado no acervo, sempre isolada por projeto
+      description: Valida o acesso do usuário autenticado ao projeto antes de gerar embeddings ou consultar o acervo. PO e administrador seguem a política global; desenvolvedores precisam de alocação vigente. Projeto inexistente ou sem acesso retorna 404.
       operationId: searchKnowledge
       security: [{cookieAuth: []}]
       parameters:

@@ -48,6 +48,9 @@ function assertChunk(chunk: unknown, position: number): asserts chunk is Incomin
       throw new ValidationError(`Chunk ${position} tem valor não numérico no embedding.`);
     }
   }
+  if (candidate.embedding.every(value => value === 0)) {
+    throw new ValidationError(`Chunk ${position} com embedding nulo.`);
+  }
 }
 
 function toVectorLiteral(embedding: number[]): string {

@@ -1,4 +1,5 @@
 import { env } from "../../config/env.js";
+import { createHash, randomBytes } from "node:crypto";
 import { authRepository } from "./auth.repository.js";
 import {
   hashPassword,
@@ -14,12 +15,12 @@ import {
 } from "./auth.types.js";
 
 interface AuthRepositoryPort {
-  createUser(data: {
+  createRegistration(data: {
     nome: string;
     email: string;
     senha_hash: string;
     role?: UserRole;
-  }): Promise<UserRecord>;
+  }, tokenHash?: string): Promise<UserRecord>;
 
   findUserByEmail(email: string): Promise<UserRecord | null>;
 
@@ -64,7 +65,7 @@ export type LoginResult =
 export type RegisterResult =
   | {
     success: true;
-    token: string;
+    token?: string;
     user: {
       id: string;
       nome: string;
@@ -192,7 +193,7 @@ export class AuthService {
     };
   }
 
-  async register(data: RegisterDTO): Promise<RegisterResult> {
+  async register(data: RegisterDTO, autoLogin = true): Promise<RegisterResult> {
     const email = data.email.trim().toLowerCase();
 
     const existingUser = await this.repository.findUserByEmail(email);
@@ -206,14 +207,19 @@ export class AuthService {
 
     const senha_hash = await hashPassword(data.password);
 
-    const user = await this.repository.createUser({
+    const token = autoLogin ? randomBytes(32).toString("hex") : undefined;
+    const tokenHash = token ? createHash("sha256").update(token).digest("hex") : undefined;
+    const user = await this.repository.createRegistration({
       nome: data.nome,
       email,
       senha_hash,
       role: data.role,
+    }, tokenHash).catch((error: unknown) => {
+      const duplicate = error as { code?: string; constraint?: string };
+      if (duplicate?.code === "23505" && duplicate.constraint === "usuario_email_key") return null;
+      throw error;
     });
-
-    const { token } = await this.sessions.createSession(user.id);
+    if (!user) return { success: false, reason: "email_exists" };
 
     return {
       success: true,

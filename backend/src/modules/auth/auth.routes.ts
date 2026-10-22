@@ -9,7 +9,8 @@ export const authRouter = Router();
  * @swagger
  * /api/v1/auth/register:
  *   post:
- *     summary: Registrar novo usuário
+ *     summary: Registrar novo usuário preservando a sessão existente
+ *     description: Cadastro público de dev inicia sessão; cadastro com sessão válida não substitui cookie nem retorna token da nova conta. PO e admin exigem administrador.
  *     tags: [Auth]
  *     requestBody:
  *       required: true
