@@ -1,67 +1,108 @@
-import { Button } from "../common/ui";
-import React from "react";
-import { Sparkles, BookOpen, ShieldCheck, Search, ArrowRight } from "lucide-react";
+import React, { useEffect, useRef } from "react";
+import { ArrowDown, ArrowRight, BookOpen, Layers3, Search, ShieldCheck } from "lucide-react";
 import { navigate } from "../../models/navigation";
+import { Button } from "../common/ui";
+import heroImage from "../../assets/images/sinapse-team-collaboration.webp";
+import workflowVideo from "../../assets/videos/sinapse-workflow.mp4";
+import workflowPoster from "../../assets/images/sinapse-workflow-poster.webp";
+import "../../assets/styles/landing.css";
+
+const benefits = [
+  { icon: Layers3, number: "01", title: "Requisitos com clareza.", description: "Do épico ao critério de aceitação, cada detalhe encontra seu lugar.", detail: "ESTRUTURE" },
+  { icon: Search, number: "02", title: "Contexto ao seu alcance.", description: "Encontre documentos e decisões no acervo de cada projeto.", detail: "CONECTE" },
+  { icon: ShieldCheck, number: "03", title: "Sua equipe no controle.", description: "A IA identifica lacunas e sugere caminhos. Você revisa e decide.", detail: "EVOLUA" },
+];
 
 export const LandingPageView: React.FC = () => {
-    return (
-        <div className="landing-page">
+  const pageRef = useRef<HTMLDivElement>(null);
 
-            {/* Hero Section */}
-            <div className="ds-card ds-card--glass landing-hero">
-                <div style={{ display: "inline-flex", alignItems: "center", gap: "8px", background: "var(--brand-surface)", padding: "6px 16px", borderRadius: "20px", color: "var(--accent-primary)", fontSize: "0.85rem", fontWeight: 600, marginBottom: "20px" }}>
-                    <Sparkles size={16} /> A Memória Inteligente da Fábrica de Software
-                </div>
-                <h1 style={{ fontSize: "2.5rem", fontWeight: 800, color: "#fff", marginBottom: "16px", lineHeight: 1.2 }}>
-                    Transforme requisitos em uma base de conhecimento reutilizável
-                </h1>
-                <p style={{ fontSize: "1.1rem", color: "var(--text-secondary)", maxWidth: "800px", margin: "0 auto 32px auto", lineHeight: 1.6 }}>
-                    O <strong>Sinapse</strong> conecta projetos, pessoas e tecnologias. Ajuda Product Owners a especificarem funcionalidades com menos retrabalho, evitando a perda de conhecimento tácito.
-                </p>
-                <div style={{ display: "flex", justifyContent: "center", gap: "16px", flexWrap: "wrap" }}>
-                    <Button variant="primary" onClick={() => navigate("/projects")} style={{ display: "flex", alignItems: "center", gap: "8px", padding: "12px 24px", fontSize: "1rem" }}>
-                        Explorar Projetos <ArrowRight size={18} />
-                    </Button>
-                    <Button variant="secondary" onClick={() => navigate("/knowledge")} style={{ padding: "12px 24px", fontSize: "1rem" }}>
-                        Consultar Acervo
-                    </Button>
-                </div>
-            </div>
+  useEffect(() => {
+    if (!pageRef.current || !("IntersectionObserver" in window)) return;
+    const motionPreference = window.matchMedia("(prefers-reduced-motion: reduce)");
+    if (motionPreference.matches) return;
 
-            {/* Core Value Pillars */}
-            <div>
-                <div style={{ textAlign: "center", marginBottom: "32px" }}>
-                    <h2 style={{ fontSize: "1.75rem", fontWeight: 700, color: "#fff", marginBottom: "8px" }}>Pilares do Ecossistema</h2>
-                    <p style={{ color: "var(--text-secondary)", fontSize: "0.95rem" }}>Tudo o que sua equipe precisa para padronizar entregas com inteligência contextual.</p>
-                </div>
+    // Content stays visible by default, even when the observer is unavailable.
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (!entry.isIntersecting) return;
+        entry.target.classList.add("is-entering");
+        observer.unobserve(entry.target);
+      });
+    }, { threshold: 0.12 });
+    pageRef.current.querySelectorAll("[data-landing-reveal]").forEach((section) => observer.observe(section));
+    const handlePreferenceChange = () => {
+      if (motionPreference.matches) observer.disconnect();
+    };
+    motionPreference.addEventListener("change", handlePreferenceChange);
+    return () => {
+      observer.disconnect();
+      motionPreference.removeEventListener("change", handlePreferenceChange);
+    };
+  }, []);
 
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 300px), 1fr))", gap: "24px" }}>
-                    <div className="ds-card ds-card--glass" style={{ padding: "28px" }}>
-                        <div style={{ color: "var(--accent-primary)", marginBottom: "16px" }}><BookOpen size={28} /></div>
-                        <h3 style={{ fontSize: "1.15rem", fontWeight: 600, color: "#fff", marginBottom: "8px" }}>Hierarquia Estruturada</h3>
-                        <p style={{ color: "var(--text-secondary)", fontSize: "0.9rem", lineHeight: 1.5 }}>
-                            Organize entregas de ponta a ponta: <strong>Projeto &rarr; Épico &rarr; Feature &rarr; PBI</strong> com critérios de aceitação em BDD.
-                        </p>
-                    </div>
-
-                    <div className="ds-card ds-card--glass" style={{ padding: "28px" }}>
-                        <div style={{ color: "var(--accent-secondary)", marginBottom: "16px" }}><ShieldCheck size={28} /></div>
-                        <h3 style={{ fontSize: "1.15rem", fontWeight: 600, color: "#fff", marginBottom: "8px" }}>IA Assistiva com Governança</h3>
-                        <p style={{ color: "var(--text-secondary)", fontSize: "0.9rem", lineHeight: 1.5 }}>
-                            A IA atua como um copiloto para questionar lacunas, mas <strong>nunca grava dados automaticamente sem a aprovação</strong> do Product Owner.
-                        </p>
-                    </div>
-
-                    <div className="ds-card ds-card--glass" style={{ padding: "28px" }}>
-                        <div style={{ color: "#34d399", marginBottom: "16px" }}><Search size={28} /></div>
-                        <h3 style={{ fontSize: "1.15rem", fontWeight: 600, color: "#fff", marginBottom: "8px" }}>Busca Híbrida & Memória</h3>
-                        <p style={{ color: "var(--text-secondary)", fontSize: "0.9rem", lineHeight: 1.5 }}>
-                            Encontre rapidamente decisões passadas e consulte o acervo documental por projeto para reaproveitar aprendizados anteriores.
-                        </p>
-                    </div>
-                </div>
-            </div>
-
+  return (
+    <div className="sinapse-home" ref={pageRef}>
+      <section className="sinapse-home__hero" aria-labelledby="sinapse-home-title">
+        <div className="sinapse-home__hero-copy" data-landing-reveal>
+          <span className="sinapse-home__eyebrow"><span aria-hidden="true" /> DESENVOLVIDO PARA A PRO4TECH</span>
+          <h1 id="sinapse-home-title">Requisitos claros.<br /><span>Conhecimento que permanece.</span></h1>
+          <p className="sinapse-home__lead">Dê contexto às próximas decisões. Organize requisitos e encontre o que sua equipe já construiu.</p>
+          <div className="sinapse-home__actions">
+            <Button className="sinapse-home__primary" onClick={() => navigate("/projects")}>Explorar projetos <ArrowRight size={18} aria-hidden="true" /></Button>
+            <Button className="sinapse-home__secondary" variant="secondary" onClick={() => navigate("/knowledge")}><BookOpen size={17} aria-hidden="true" /> Consultar acervo</Button>
+          </div>
+          <p className="sinapse-home__assurance"><ShieldCheck size={15} aria-hidden="true" /> IA sugere. Sua equipe decide.</p>
         </div>
-    );
+        <figure className="sinapse-home__visual" data-landing-reveal>
+          <img className="sinapse-home__hero-image" src={heroImage} alt="Equipe colaborando diante de um computador em um escritório." width="1600" height="900" fetchPriority="high" decoding="async" />
+          <figcaption className="sinapse-home__visual-caption">
+            <span><strong>Conhecimento construído em equipe.</strong><span><a href="https://unsplash.com/photos/team-collaborating-around-a-computer-in-an-office-UikYLDQj9_I">Foto: Vitaly Gariev / Unsplash</a></span></span>
+          </figcaption>
+          <span className="sinapse-home__visual-label" aria-hidden="true">PESSOAS · TECNOLOGIA</span>
+        </figure>
+      </section>
+      <div className="sinapse-home__section-divider" aria-hidden="true"><span>MENOS DISPERSÃO. MAIS CONTEXTO.</span><ArrowDown size={17} /></div>
+      <section className="sinapse-home__benefits" aria-label="O que você pode fazer no Sinapse" data-landing-reveal>
+        {benefits.map(({ icon: Icon, number, title, description, detail }) => (
+          <article className="sinapse-home__benefit" key={number}>
+            <div className="sinapse-home__benefit-top"><Icon size={25} strokeWidth={1.5} aria-hidden="true" /><span aria-hidden="true">{number}</span></div>
+            <span className="sinapse-home__card-label">{detail}</span>
+            <h2>{title}</h2><p>{description}</p>
+          </article>
+        ))}
+      </section>
+      <section className="sinapse-home__flow" aria-labelledby="sinapse-flow-title" data-landing-reveal>
+        <div className="sinapse-home__flow-copy">
+          <span className="sinapse-home__eyebrow">DO REQUISITO À MEMÓRIA</span>
+          <h2 id="sinapse-flow-title">Cada entrega deixa <span>conhecimento.</span></h2>
+          <p>Preserve o que foi definido, entenda o porquê e leve o aprendizado adiante.</p>
+          <Button variant="ghost" className="sinapse-home__text-link" onClick={() => navigate("/knowledge")}>Encontrar no acervo <ArrowRight size={17} aria-hidden="true" /></Button>
+        </div>
+        <ol className="sinapse-home__steps">
+          <li><span className="sinapse-home__step-number" aria-hidden="true">01</span><div><h3>Defina com contexto</h3><p>Organize requisitos e critérios de aceitação.</p></div></li>
+          <li><span className="sinapse-home__step-number" aria-hidden="true">02</span><div><h3>Preserve as decisões</h3><p>Reúna documentos e conhecimento do projeto.</p></div></li>
+          <li><span className="sinapse-home__step-number" aria-hidden="true">03</span><div><h3>Encontre para reutilizar</h3><p>Consulte o acervo antes de começar de novo.</p></div></li>
+        </ol>
+      </section>
+      <section className="sinapse-home__demo" aria-labelledby="sinapse-demo-title" data-landing-reveal>
+        <div className="sinapse-home__demo-copy">
+          <span className="sinapse-home__eyebrow">CONHEÇA O SINAPSE</span>
+          <h2 id="sinapse-demo-title">Conhecimento em <span>movimento.</span></h2>
+          <p>Uma visão rápida da organização de projetos, requisitos e critérios de aceitação.</p>
+          <p className="sinapse-home__demo-summary">O vídeo percorre os detalhes de um projeto, seu backlog hierárquico e a visualização de um PBI.</p>
+        </div>
+        <figure className="sinapse-home__demo-media">
+          <video controls preload="none" playsInline poster={workflowPoster} aria-label="Demonstração do fluxo de projetos e requisitos no Sinapse">
+            <source src={workflowVideo} type="video/mp4" />
+            Seu navegador não oferece suporte à reprodução deste vídeo.
+          </video>
+          <figcaption>Demonstração silenciosa do produto · 4 segundos</figcaption>
+        </figure>
+      </section>
+      <section className="sinapse-home__closing" aria-labelledby="sinapse-closing-title" data-landing-reveal>
+        <div><span className="sinapse-home__eyebrow">CONECTE O QUE SUA EQUIPE SABE</span><h2 id="sinapse-closing-title">Seu próximo ponto de partida.</h2></div>
+        <Button className="sinapse-home__primary" onClick={() => navigate("/projects")}>Abrir projetos <ArrowRight size={18} aria-hidden="true" /></Button>
+      </section>
+    </div>
+  );
 };
