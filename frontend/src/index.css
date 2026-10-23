@@ -3,10 +3,6 @@
 @import "./styles/layout.css";
 
 .auth-shell {
-  --graph-mouse-x: 0px;
-  --graph-mouse-y: 0px;
-  --graph-tilt-x: 0deg;
-  --graph-tilt-y: 0deg;
   position: relative;
   isolation: isolate;
   min-height: 100vh;
@@ -20,6 +16,10 @@
 }
 
 .auth-graph {
+  --graph-mouse-x: 0px;
+  --graph-mouse-y: 0px;
+  --graph-tilt-x: 0deg;
+  --graph-tilt-y: 0deg;
   position: absolute;
   z-index: -1;
   inset: 0;
@@ -85,15 +85,15 @@
 }
 
 .auth-graph__cluster--1 {
-  animation: auth-graph-cluster-one 24s ease-in-out infinite alternate;
+  animation: auth-graph-cluster-one 42s linear infinite;
 }
 
 .auth-graph__cluster--2 {
-  animation: auth-graph-cluster-two 29s ease-in-out infinite alternate-reverse;
+  animation: auth-graph-cluster-two 58s linear infinite reverse;
 }
 
 .auth-graph__cluster--3 {
-  animation: auth-graph-cluster-three 21s ease-in-out infinite alternate;
+  animation: auth-graph-cluster-three 50s linear infinite;
 }
 
 .auth-graph__edges line {
@@ -126,18 +126,18 @@
 }
 
 @keyframes auth-graph-cluster-one {
-  0% { transform: rotateX(-5deg) rotateY(-8deg) rotateZ(-2deg) translate3d(-8px, -5px, 0); }
-  100% { transform: rotateX(7deg) rotateY(10deg) rotateZ(3deg) translate3d(8px, 7px, 18px); }
+  from { transform: rotateZ(0deg) rotateX(-4deg) rotateY(-7deg); }
+  to { transform: rotateZ(360deg) rotateX(-4deg) rotateY(-7deg); }
 }
 
 @keyframes auth-graph-cluster-two {
-  0% { transform: rotateX(8deg) rotateY(7deg) rotateZ(2deg) translate3d(7px, 4px, 12px); }
-  100% { transform: rotateX(-7deg) rotateY(-11deg) rotateZ(-3deg) translate3d(-9px, -6px, -8px); }
+  from { transform: rotateZ(0deg) rotateX(7deg) rotateY(8deg); }
+  to { transform: rotateZ(360deg) rotateX(7deg) rotateY(8deg); }
 }
 
 @keyframes auth-graph-cluster-three {
-  0% { transform: rotateX(-6deg) rotateY(10deg) rotateZ(1deg) translate3d(-6px, 8px, -6px); }
-  100% { transform: rotateX(8deg) rotateY(-8deg) rotateZ(-2deg) translate3d(9px, -7px, 16px); }
+  from { transform: rotateZ(0deg) rotateX(-6deg) rotateY(10deg); }
+  to { transform: rotateZ(360deg) rotateX(-6deg) rotateY(10deg); }
 }
 
 .auth-card {
