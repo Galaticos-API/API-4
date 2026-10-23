@@ -32,9 +32,11 @@ function LoginGraphBackground() {
       canvas.height = Math.floor(height * pixelRatio);
       context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
       const count = Math.max(34, Math.min(78, Math.floor((width * height) / 15500)));
+      const columns = Math.max(5, Math.ceil(Math.sqrt(count * width / Math.max(height, 1))));
+      const rows = Math.ceil(count / columns);
       particles = Array.from({ length: count }, (_, index) => ({
-        x: (index * 137.5) % width,
-        y: (index * 83.7) % height,
+        x: ((index % columns) + .5 + ((index * 17) % 7 - 3) * .045) * width / columns,
+        y: (Math.floor(index / columns) + .5 + ((index * 11) % 7 - 3) * .045) * height / rows,
         vx: (index % 2 ? 1 : -1) * (0.08 + (index % 4) * 0.025),
         vy: (index % 3 ? 1 : -1) * (0.06 + (index % 5) * 0.018),
         radius: index % 7 === 0 ? 2.6 : 1.5,
@@ -43,7 +45,7 @@ function LoginGraphBackground() {
 
     const draw = () => {
       context.clearRect(0, 0, width, height);
-      const linkDistance = Math.min(150, Math.max(95, width * 0.12));
+      const linkDistance = Math.min(180, Math.max(135, width * 0.22));
       const pointerRadius = 190;
 
       if (pointer.x > -500) {
