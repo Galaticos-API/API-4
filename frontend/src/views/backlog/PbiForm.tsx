@@ -13,6 +13,8 @@ import { useUnsavedChangesGuard } from "../../viewmodels/useUnsavedChangesGuard"
 import { Button } from "../common/ui";
 import { BacklogTechnologySelector } from "./BacklogTechnologySelector";
 import { QualityPanelView as QualityPanel } from "./QualityPanelView";
+import { reuseAfterCreate, SimilarItemsPanel, SimilarSelection } from "./SimilarItemsPanel";
+import type { SimilarItem } from "../../api/api_similar_items";
 
 const emptyInput: PbiInput = {
   feature_id: "",
@@ -39,6 +41,7 @@ export function PbiForm({
       feature_id: featureId,
     });
 
+  const [origin, setOrigin] = useState<SimilarItem | null>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const submitting = useRef(false);
@@ -179,6 +182,8 @@ export function PbiForm({
               feature_id: featureId,
             });
 
+            await reuseAfterCreate("pbi", pbi.id, origin);
+
             if (mounted.current) {
               navigate(
                 `${featurePath}/pbis/${pbi.id}`,
@@ -313,6 +318,17 @@ export function PbiForm({
           onChange={(tecnologias_ids) => setValues((current) => ({ ...current, tecnologias_ids }))}
           disabled={busy}
         />
+
+        <SimilarItemsPanel
+          kind="pbi"
+          projectId={projectId}
+          titulo={values.titulo}
+          descricao={[values.historia_como_um, values.historia_eu_quero, values.historia_para_que].filter((part) => part.trim()).join(" ")}
+          disabled={busy}
+          selectedId={origin?.id ?? null}
+          onSelect={setOrigin}
+        />
+        <SimilarSelection item={origin} disabled={busy} onClear={() => setOrigin(null)} />
 
         <CopilotPanel projectId={projectId} level="pbi" values={values} disabled={busy} />
 

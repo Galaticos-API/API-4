@@ -13,6 +13,8 @@ import { BacklogBreadcrumb } from "./BacklogBreadcrumb";
 import { BacklogTechnologySelector } from "./BacklogTechnologySelector";
 import { CriteriaEditor } from "./CriteriaView";
 import { ItemArchiveView } from "./ItemArchiveView";
+import { reuseAfterCreate, SimilarItemsPanel, SimilarSelection } from "./SimilarItemsPanel";
+import type { SimilarItem } from "../../api/api_similar_items";
 
 type ListResult = { state: "loading" } | { state: "error"; message: string } | { state: "ready"; features: Feature[] };
 const emptyInput: FeatureInput = { epico_id: "", titulo: "", descricao: "", objetivo: "", tecnologias_ids: [] };
@@ -63,6 +65,7 @@ export function FeatureList({ projectId, epicoId, canCreate: allowedToCreate }: 
 
 export function FeatureForm({ projectId, epicoId }: { projectId: string; epicoId: string }) {
   const [values, setValues] = useState<FeatureInput>({ ...emptyInput, epico_id: epicoId });
+  const [origin, setOrigin] = useState<SimilarItem | null>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const submitting = useRef(false);
@@ -82,6 +85,7 @@ export function FeatureForm({ projectId, epicoId }: { projectId: string; epicoId
         submitting.current = true; setBusy(true); setMessage("");
         try {
           const feature = await createFeature({ ...values, epico_id: epicoId });
+          await reuseAfterCreate("feature", feature.id, origin);
           if (mounted.current) navigate(`/projects/${projectId}/epics/${epicoId}/features/${feature.id}`);
         } catch (error) {
           if (!mounted.current) return;
@@ -104,6 +108,10 @@ export function FeatureForm({ projectId, epicoId }: { projectId: string; epicoId
           onChange={(tecnologias_ids) => setValues((current) => ({ ...current, tecnologias_ids }))}
           disabled={busy}
         />
+        <SimilarItemsPanel kind="feature" projectId={projectId} titulo={values.titulo}
+          descricao={[values.objetivo, values.descricao].filter((part) => part.trim()).join("\n")}
+          disabled={busy} selectedId={origin?.id ?? null} onSelect={setOrigin} />
+        <SimilarSelection item={origin} disabled={busy} onClear={() => setOrigin(null)} />
         <CopilotPanel projectId={projectId} level="feature" values={values} disabled={busy} />
         {message && <p role="alert">{message}</p>}
         <div className="project-actions">
@@ -135,6 +143,7 @@ export function FeatureDetail({ projectId, epicoId, featureId, canEdit, children
   const [formValues, setFormValues] = useState<FeatureFields | null>(null);
   const [saving, setSaving] = useState(false);
   const [editMessage, setEditMessage] = useState("");
+  const [reuseTick, setReuseTick] = useState(0);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -286,7 +295,12 @@ export function FeatureDetail({ projectId, epicoId, featureId, canEdit, children
       <ItemArchiveView project={feature!} kind="features" canWrite={canEdit && !readOnly && !editing && !saving && !completing} onArchived={() => setAttempt(v => v + 1)} />
       <CriteriaEditor entidadeTipo="feature" entidadeId={feature!.id} canEdit={canEdit && !readOnly} titulo="Critérios da feature"
         itemConcluido={feature!.status === "concluido"} justificativaObrigatoria={justificationRequired} />
-      <SuggestionsPanel kind="feature" id={feature!.id} canWrite={canEdit && !readOnly} readOnlyNote={readOnly ? "Item ou ancestral arquivado: as sugestões ficam disponíveis somente para consulta." : undefined} />
+      {canEdit && !readOnly && !editing && (
+        <SimilarItemsPanel kind="feature" projectId={projectId} excludeId={feature!.id} titulo={feature!.titulo}
+          descricao={[feature!.objetivo, feature!.descricao].filter(Boolean).join("\n")} reuseTargetId={feature!.id}
+          onReused={() => setReuseTick((value) => value + 1)} />
+      )}
+      <SuggestionsPanel kind="feature" id={feature!.id} refreshKey={reuseTick} canWrite={canEdit && !readOnly} readOnlyNote={readOnly ? "Item ou ancestral arquivado: as sugestões ficam disponíveis somente para consulta." : undefined} />
       <DecisionsPanel kind="feature" id={feature!.id} canWrite={canEdit && !readOnly} readOnlyNote={readOnly ? "Item ou ancestral arquivado: as decisões ficam disponíveis somente para consulta." : undefined} />
       <ItemHistoryView entidadeTipo="feature" entidadeId={feature!.id} refreshTrigger={attempt} />
       <ReadOnlyContext.Provider value={readOnly}>{children}</ReadOnlyContext.Provider>
