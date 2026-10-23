@@ -1,3 +1,8 @@
+-- S2-12: relação de origem registrada ao aproveitar um item similar de outro
+-- (ou do mesmo) projeto. A sugestão em si continua isolada em sugestao_ia
+-- (S2-13); esta tabela apenas guarda de onde o conteúdo veio e quais campos
+-- foram copiados, para que a origem seja sempre rastreável.
+
 CREATE TABLE IF NOT EXISTS reaproveitamento_item (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     tipo_relacao VARCHAR(30) NOT NULL DEFAULT 'reaproveitado_de',
@@ -19,6 +24,7 @@ CREATE TABLE IF NOT EXISTS reaproveitamento_item (
     CONSTRAINT ck_reaproveitamento_campos CHECK (cardinality(campos) > 0)
 );
 
+-- Repetir o aproveitamento do mesmo item atualiza a relação existente.
 CREATE UNIQUE INDEX IF NOT EXISTS uq_reaproveitamento_item
     ON reaproveitamento_item (destino_tipo, destino_id, origem_tipo, origem_id, tipo_relacao);
 

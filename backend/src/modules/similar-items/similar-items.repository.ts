@@ -18,7 +18,6 @@ import {
   type SimilarItemRow,
 } from "./similar-items.types.js";
 
-const CANDIDATE_POOL = 100;
 const SNIPPET_LENGTH = 240;
 const ORIGIN_SQL: Record<SimilarEntityType, string> = {
   epico: `SELECT to_jsonb(o) AS dados, o.projeto_id,
@@ -50,20 +49,15 @@ export class SimilarItemsRepository {
   async findSimilar(input: FindSimilarInput): Promise<SimilarItemRow[]> {
     const vector = `[${input.vector.join(",")}]`;
     const result = await this.pool.query<SimilarItemRow>(
-      `WITH candidatos AS (
-         SELECT c.entidade_id, c.projeto_id, c.texto, 1 - (c.embedding <=> $1::vector) AS similaridade
+      `WITH melhores AS (
+         SELECT DISTINCT ON (c.entidade_id)
+                c.entidade_id, c.projeto_id, c.texto, 1 - (c.embedding <=> $1::vector) AS similaridade
          FROM chunk c
          WHERE c.entidade_tipo = $2::text
            AND c.embedding IS NOT NULL
            AND ($3::uuid IS NULL OR c.entidade_id <> $3::uuid)
            AND ${projectAccessSql("c.projeto_id", "$4")}
-         ORDER BY c.embedding <=> $1::vector, c.id
-         LIMIT ${CANDIDATE_POOL}
-       ), melhores AS (
-         SELECT DISTINCT ON (entidade_id) entidade_id, projeto_id, texto, similaridade
-         FROM candidatos
-         WHERE similaridade >= $5
-         ORDER BY entidade_id, similaridade DESC
+         ORDER BY c.entidade_id, c.embedding <=> $1::vector, c.id
        )
        SELECT $2::text AS tipo, m.entidade_id AS id, b.codigo,
               COALESCE(e.titulo, f.titulo, b.titulo) AS titulo,
@@ -86,7 +80,8 @@ export class SimilarItemsRepository {
        LEFT JOIN feature bf ON bf.id = b.feature_id
        LEFT JOIN feature ft ON ft.id = COALESCE(f.id, bf.id)
        LEFT JOIN epico ep ON ep.id = COALESCE(e.id, f.epico_id, bf.epico_id)
-       WHERE p.status <> 'arquivado'
+       WHERE m.similaridade >= $5
+         AND p.status <> 'arquivado'
          AND COALESCE(e.status, f.status, b.status) IS NOT NULL
          AND COALESCE(e.status, f.status, b.status) <> 'arquivado'
          AND (ep.id IS NULL OR ep.status <> 'arquivado')
@@ -98,6 +93,14 @@ export class SimilarItemsRepository {
     return result.rows;
   }
 
+  /**
+   * "Aproveitar": copies the origin's text fields into pending, editable
+   * suggestions on the item being edited (S2-13 staging — nothing is written
+   * to the business table until the PO accepts/edits) and records the origin
+   * relation. One transaction, locked like every other hierarchy writer;
+   * repeating it for the same origin refreshes the pending proposals and
+   * merges the copied fields into the existing relation.
+   */
   async reuse(input: ReuseInput): Promise<ReuseResult> {
     const client = await this.pool.connect();
     let relation: ReuseRelation;

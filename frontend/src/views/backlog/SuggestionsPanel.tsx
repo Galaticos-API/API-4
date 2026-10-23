@@ -33,6 +33,10 @@ function fieldLabel(campo: string): string {
   return FIELD_LABEL[campo] ?? campo;
 }
 
+function isSimilarOrigin(origem: string): boolean {
+  return origem.startsWith("similar:");
+}
+
 function formatDate(value: string | null): string {
   if (!value) return "";
   const date = new Date(value);
@@ -44,6 +48,7 @@ function ResolvedSuggestionCard({ suggestion }: { suggestion: Suggestion }) {
   return (
     <li className="project-field" data-status={suggestion.status}>
       <Badge tone={tone}>{STATUS_LABEL[suggestion.status]}</Badge>
+      {isSimilarOrigin(suggestion.origem) && <Badge tone="info">Item semelhante</Badge>}
       <p><strong>{fieldLabel(suggestion.campo)}</strong></p>
       {suggestion.valor_resolvido && <p>{suggestion.valor_resolvido}</p>}
       <p className="muted">
@@ -96,6 +101,9 @@ function PendingSuggestionCard({
         Campo: <strong>{fieldLabel(suggestion.campo)}</strong>
         {suggestion.criado_por_nome ? ` · Proposto por ${suggestion.criado_por_nome}` : ""}
       </p>
+      {isSimilarOrigin(suggestion.origem) && (
+        <p className="muted"><Badge tone="info">Aproveitado de item semelhante</Badge> A origem ficou registrada no histórico deste item.</p>
+      )}
       {editing ? (
         <div className="project-field">
           <label htmlFor={`suggestion-edit-${suggestion.id}`}>Valor editado</label>
@@ -142,11 +150,14 @@ export function SuggestionsPanel({
   id,
   canWrite,
   readOnlyNote,
+  refreshKey = 0,
 }: {
   kind: SuggestionKind;
   id: string;
   canWrite: boolean;
   readOnlyNote?: string;
+  /** Incrementar para recarregar a lista (ex.: depois de aproveitar um item semelhante). */
+  refreshKey?: number;
 }) {
   const [state, setState] = useState<{ state: "loading" } | { state: "error" } | { state: "ready"; items: Suggestion[] }>({ state: "loading" });
   const [attempt, setAttempt] = useState(0);
@@ -164,7 +175,7 @@ export function SuggestionsPanel({
       .then((items) => { if (!controller.signal.aborted) setState({ state: "ready", items }); })
       .catch(() => { if (!controller.signal.aborted) setState({ state: "error" }); });
     return () => controller.abort();
-  }, [kind, id, attempt]);
+  }, [kind, id, attempt, refreshKey]);
 
   const replace = (updated: Suggestion) => {
     if (!mounted.current) return;

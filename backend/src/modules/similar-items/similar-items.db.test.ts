@@ -14,6 +14,7 @@ import { FakeEmbeddings, VALID_VECTOR } from "./similar-items.fakes.js";
 
 const literal = (vector: number[]) => `[${vector.join(",")}]`;
 const DIFFERENT_VECTOR = VALID_VECTOR.map((_, index) => (index % 7 === 3 ? 0.9 : 0.01));
+const MIDDLE_VECTOR = VALID_VECTOR.map((value, index) => value * 0.7 + DIFFERENT_VECTOR[index] * 0.3); // ~0,86 de similaridade com VALID_VECTOR
 const DRAFT = { tipo: "pbi", titulo: "Validar login do usuário", descricao: "Entrar com e-mail e senha" };
 
 test("S2-12: itens semelhantes entre projetos, aproveitamento com origem e visibilidade no PostgreSQL", { skip: !process.env.ARCHIVE_TEST_DATABASE_URL }, async (t) => {
@@ -40,6 +41,9 @@ test("S2-12: itens semelhantes entre projetos, aproveitamento com origem e visib
       [id, feature, codigo, titulo, status],
     );
   };
+  const settleIndex = async (...projects: string[]) => {
+    await pool.query("UPDATE indice_evento SET status='processado' WHERE projeto_id = ANY($1::uuid[])", [projects]);
+  };
   const insertChunk = async (project: string, id: string, vector: number[], texto = "Validar login com e-mail e senha") => {
     await pool.query(
       "INSERT INTO chunk (projeto_id, entidade_tipo, entidade_id, texto, embedding) VALUES ($1,'pbi',$2,$3,$4::vector)",
@@ -63,6 +67,7 @@ test("S2-12: itens semelhantes entre projetos, aproveitamento com origem e visib
     await insertPbi(ids.b.unrelated, ids.b.feature, `PBI-${randomUUID().slice(0, 8)}`, "Exportar relatório mensal", "concluido");
     await insertPbi(ids.b.archivedItem, ids.b.feature, `PBI-${randomUUID().slice(0, 8)}`, "Login arquivado", "arquivado");
     await insertPbi(ids.z.similar, ids.z.feature, `PBI-${randomUUID().slice(0, 8)}`, "Login em projeto arquivado", "concluido");
+    await settleIndex(projectA, projectB, projectArchived);
     await insertChunk(projectB, ids.b.similar, VALID_VECTOR);
     await insertChunk(projectB, ids.b.similar, VALID_VECTOR, "Segundo trecho do mesmo item");
     await insertChunk(projectB, ids.b.unrelated, DIFFERENT_VECTOR, "Relatório mensal");
@@ -96,6 +101,37 @@ test("S2-12: itens semelhantes entre projetos, aproveitamento com origem e visib
       const allocatedToBoth = await service.search(projectA, devA, DRAFT);
       assert.ok(allocatedToBoth.items.some((item) => item.id === ids.b.similar));
       await pool.query("DELETE FROM alocacao WHERE desenvolvedor_id=$1 AND projeto_id=$2", [developerA, projectB]);
+    });
+
+    await t.test("muitos chunks de uma mesma entidade não escondem as demais candidatas (dedup antes do limite)", async () => {
+      const crowded = randomUUID();
+      const others = [randomUUID(), randomUUID()];
+      try {
+        await insertPbi(crowded, ids.b.feature, `PBI-${randomUUID().slice(0, 8)}`, "Item com muitos trechos", "concluido");
+        for (const [index, other] of others.entries()) {
+          await insertPbi(other, ids.b.feature, `PBI-${randomUUID().slice(0, 8)}`, `Candidata ${index}`, "concluido");
+        }
+        await settleIndex(projectB);
+        await pool.query(
+          "INSERT INTO chunk (projeto_id, entidade_tipo, entidade_id, texto, embedding) SELECT $1,'pbi',$2,'trecho '||g,$3::vector FROM generate_series(1,150) g",
+          [projectB, crowded, literal(VALID_VECTOR)],
+        );
+        for (const [index, other] of others.entries()) {
+          await insertChunk(projectB, other, MIDDLE_VECTOR, `Trecho da candidata ${index}`);
+        }
+
+        const result = await service.search(projectA, po, { ...DRAFT, excluir_id: ids.a.target });
+        const found = result.items.map((item) => item.id);
+        assert.equal(new Set(found).size, found.length, "cada item aparece uma única vez");
+        assert.equal(found.filter((id) => id === crowded).length, 1);
+        assert.deepEqual(
+          [...found].sort(),
+          [crowded, ids.b.similar, ids.a.sibling, ...others].sort(),
+          "as candidatas com um único chunk também aparecem",
+        );
+      } finally {
+        await pool.query("DELETE FROM chunk WHERE entidade_id = ANY($1::uuid[])", [[crowded, ...others]]);
+      }
     });
 
     await t.test("aproveitar cria propostas pendentes com origem, não altera o item e registra a relação", async () => {
