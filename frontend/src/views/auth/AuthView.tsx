@@ -124,18 +124,14 @@ export function AuthScreen({ initialMode }: { initialMode: "login" | "register" 
       const y = Math.max(-1, Math.min(1, ((event.clientY - graphBounds.top) / graphBounds.height) * 2 - 1));
       if (animationFrame.current !== null) window.cancelAnimationFrame(animationFrame.current);
       animationFrame.current = window.requestAnimationFrame(() => {
-        graphRef.current?.style.setProperty("--graph-mouse-x", `${x * 16}px`);
-        graphRef.current?.style.setProperty("--graph-mouse-y", `${y * 12}px`);
-        graphRef.current?.style.setProperty("--graph-tilt-x", `${y * -4}deg`);
-        graphRef.current?.style.setProperty("--graph-tilt-y", `${x * 6}deg`);
+        graphRef.current?.style.setProperty("--graph-tilt-x", `${y * -5}deg`);
+        graphRef.current?.style.setProperty("--graph-tilt-z", `${x * 4}deg`);
       });
     };
 
     const resetGraphInteraction = () => {
-      graphRef.current?.style.setProperty("--graph-mouse-x", "0px");
-      graphRef.current?.style.setProperty("--graph-mouse-y", "0px");
       graphRef.current?.style.setProperty("--graph-tilt-x", "0deg");
-      graphRef.current?.style.setProperty("--graph-tilt-y", "0deg");
+      graphRef.current?.style.setProperty("--graph-tilt-z", "0deg");
     };
 
     window.addEventListener("mousemove", updateGraphInteraction);

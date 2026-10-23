@@ -16,10 +16,8 @@
 }
 
 .auth-graph {
-  --graph-mouse-x: 0px;
-  --graph-mouse-y: 0px;
   --graph-tilt-x: 0deg;
-  --graph-tilt-y: 0deg;
+  --graph-tilt-z: 0deg;
   position: absolute;
   z-index: -1;
   inset: 0;
@@ -72,28 +70,21 @@
 .auth-graph__cluster-content {
   transform-box: fill-box;
   transform-origin: center;
-  transform: translate3d(
-      var(--graph-mouse-x),
-      var(--graph-mouse-y),
-      0
-    )
-    perspective(700px)
-    rotateX(var(--graph-tilt-x))
-    rotateY(var(--graph-tilt-y));
+  transform: perspective(700px) rotateX(var(--graph-tilt-x)) rotateZ(var(--graph-tilt-z));
   transition: transform 1s cubic-bezier(.2, .75, .2, 1);
   will-change: transform;
 }
 
 .auth-graph__cluster--1 {
-  animation: auth-graph-cluster-one 42s linear infinite;
+  animation: auth-graph-cluster-one 34s linear infinite;
 }
 
 .auth-graph__cluster--2 {
-  animation: auth-graph-cluster-two 58s linear infinite reverse;
+  animation: auth-graph-cluster-two 46s linear infinite reverse;
 }
 
 .auth-graph__cluster--3 {
-  animation: auth-graph-cluster-three 50s linear infinite;
+  animation: auth-graph-cluster-three 40s linear infinite;
 }
 
 .auth-graph__edges line {
@@ -126,18 +117,18 @@
 }
 
 @keyframes auth-graph-cluster-one {
-  from { transform: rotateZ(0deg) rotateX(-4deg) rotateY(-7deg); }
-  to { transform: rotateZ(360deg) rotateX(-4deg) rotateY(-7deg); }
+  from { transform: rotateY(0deg) rotateX(-4deg); }
+  to { transform: rotateY(360deg) rotateX(-4deg); }
 }
 
 @keyframes auth-graph-cluster-two {
-  from { transform: rotateZ(0deg) rotateX(7deg) rotateY(8deg); }
-  to { transform: rotateZ(360deg) rotateX(7deg) rotateY(8deg); }
+  from { transform: rotateY(0deg) rotateX(7deg); }
+  to { transform: rotateY(360deg) rotateX(7deg); }
 }
 
 @keyframes auth-graph-cluster-three {
-  from { transform: rotateZ(0deg) rotateX(-6deg) rotateY(10deg); }
-  to { transform: rotateZ(360deg) rotateX(-6deg) rotateY(10deg); }
+  from { transform: rotateY(0deg) rotateX(-6deg); }
+  to { transform: rotateY(360deg) rotateX(-6deg); }
 }
 
 .auth-card {
