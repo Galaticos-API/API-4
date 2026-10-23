@@ -1,8 +1,143 @@
 import { Button } from "../common/ui";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { ApiError } from "../../api/api_auth";
 import { useAuth } from "../../viewmodels/useAuthViewModel";
 import { loginDestination, navigate, safeDestination } from "../../models/navigation";
+
+type Particle = { x: number; y: number; vx: number; vy: number; radius: number };
+
+function LoginGraphBackground() {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const context = canvas.getContext("2d");
+    if (!context) return;
+
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const pointer = { x: -1000, y: -1000 };
+    let particles: Particle[] = [];
+    let animationFrame: number | null = null;
+    let width = 0;
+    let height = 0;
+    let pixelRatio = 1;
+
+    const resize = () => {
+      const bounds = canvas.getBoundingClientRect();
+      width = bounds.width;
+      height = bounds.height;
+      pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
+      canvas.width = Math.floor(width * pixelRatio);
+      canvas.height = Math.floor(height * pixelRatio);
+      context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
+      const count = Math.max(34, Math.min(78, Math.floor((width * height) / 15500)));
+      const columns = Math.max(5, Math.ceil(Math.sqrt(count * width / Math.max(height, 1))));
+      const rows = Math.ceil(count / columns);
+      particles = Array.from({ length: count }, (_, index) => ({
+        x: ((index % columns) + .5 + ((index * 17) % 7 - 3) * .045) * width / columns,
+        y: (Math.floor(index / columns) + .5 + ((index * 11) % 7 - 3) * .045) * height / rows,
+        vx: (index % 2 ? 1 : -1) * (0.08 + (index % 4) * 0.025),
+        vy: (index % 3 ? 1 : -1) * (0.06 + (index % 5) * 0.018),
+        radius: index % 7 === 0 ? 2.6 : 1.5,
+      }));
+    };
+
+    const draw = () => {
+      context.clearRect(0, 0, width, height);
+      const linkDistance = Math.min(180, Math.max(135, width * 0.22));
+      const pointerRadius = 190;
+
+      if (pointer.x > -500) {
+        const pointerGlow = context.createRadialGradient(
+          pointer.x,
+          pointer.y,
+          0,
+          pointer.x,
+          pointer.y,
+          pointerRadius,
+        );
+        pointerGlow.addColorStop(0, "rgba(237, 106, 50, .18)");
+        pointerGlow.addColorStop(.45, "rgba(237, 106, 50, .06)");
+        pointerGlow.addColorStop(1, "rgba(237, 106, 50, 0)");
+        context.fillStyle = pointerGlow;
+        context.beginPath();
+        context.arc(pointer.x, pointer.y, pointerRadius, 0, Math.PI * 2);
+        context.fill();
+      }
+
+      particles.forEach((particle, index) => {
+        if (!reducedMotion.matches) {
+          const dx = pointer.x - particle.x;
+          const dy = pointer.y - particle.y;
+          const distance = Math.hypot(dx, dy);
+          if (distance < pointerRadius && distance > 0) {
+            const influence = (1 - distance / pointerRadius) ** 2;
+            particle.vx += dx / distance * 0.0024 * influence;
+            particle.vy += dy / distance * 0.0024 * influence;
+          }
+          particle.x += particle.vx;
+          particle.y += particle.vy;
+          if (particle.x < -20 || particle.x > width + 20) particle.vx *= -1;
+          if (particle.y < -20 || particle.y > height + 20) particle.vy *= -1;
+          particle.vx = Math.max(-0.24, Math.min(0.24, particle.vx));
+          particle.vy = Math.max(-0.24, Math.min(0.24, particle.vy));
+        }
+
+        for (let nextIndex = index + 1; nextIndex < particles.length; nextIndex += 1) {
+          const other = particles[nextIndex];
+          const distance = Math.hypot(particle.x - other.x, particle.y - other.y);
+          if (distance > linkDistance) continue;
+          const pointerBoost = pointer.x > -500 && Math.hypot(pointer.x - particle.x, pointer.y - particle.y) < pointerRadius
+            ? .14
+            : 0;
+          context.strokeStyle = `rgba(237, 106, 50, ${Math.min(.65, (1 - distance / linkDistance) * .32 + pointerBoost)})`;
+          context.lineWidth = 0.7;
+          context.beginPath();
+          context.moveTo(particle.x, particle.y);
+          context.lineTo(other.x, other.y);
+          context.stroke();
+        }
+
+        context.fillStyle = index % 7 === 0 ? "#ffad7d" : "#ed6a32";
+        context.shadowColor = "#ed6a32";
+        context.shadowBlur = pointer.x > -500 && Math.hypot(pointer.x - particle.x, pointer.y - particle.y) < pointerRadius ? 14 : 8;
+        context.beginPath();
+        context.arc(particle.x, particle.y, particle.radius, 0, Math.PI * 2);
+        context.fill();
+        context.shadowBlur = 0;
+      });
+
+      animationFrame = window.requestAnimationFrame(draw);
+    };
+
+    const movePointer = (event: MouseEvent) => {
+      const bounds = canvas.getBoundingClientRect();
+      pointer.x = event.clientX - bounds.left;
+      pointer.y = event.clientY - bounds.top;
+    };
+    const resetPointer = () => {
+      pointer.x = -1000;
+      pointer.y = -1000;
+    };
+
+    resize();
+    draw();
+    window.addEventListener("resize", resize);
+    window.addEventListener("mousemove", movePointer);
+    window.addEventListener("mouseleave", resetPointer);
+    return () => {
+      window.removeEventListener("resize", resize);
+      window.removeEventListener("mousemove", movePointer);
+      window.removeEventListener("mouseleave", resetPointer);
+      if (animationFrame !== null) window.cancelAnimationFrame(animationFrame);
+    };
+  }, []);
+
+  return (
+    <canvas ref={canvasRef} className="auth-graph" aria-hidden="true" />
+  );
+}
 
 export function AuthGate({ children }: { children: ReactNode }) {
   const { session, notice, restore, logout } = useAuth();
@@ -40,7 +175,6 @@ export function AuthGate({ children }: { children: ReactNode }) {
 
 export function AuthScreen({ initialMode }: { initialMode: "login" | "register" }) {
   const [mode, setMode] = useState<"login" | "register">(initialMode);
-
   useEffect(() => {
     setMode(initialMode);
   }, [initialMode]);
@@ -52,6 +186,7 @@ export function AuthScreen({ initialMode }: { initialMode: "login" | "register" 
 
   return (
     <main className="auth-shell">
+      <LoginGraphBackground />
       <section className="ds-card ds-card--glass auth-card">
         <div style={{ display: "flex", gap: "6px" }}>
           {mode === "register" && (
