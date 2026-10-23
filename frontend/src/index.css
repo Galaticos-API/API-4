@@ -16,13 +16,17 @@
 }
 
 .auth-graph {
-  --graph-tilt-x: 0deg;
-  --graph-tilt-z: 0deg;
   position: absolute;
   z-index: -1;
   inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
   pointer-events: none;
   opacity: .9;
+  background:
+    radial-gradient(circle at 12% 18%, color-mix(in srgb, var(--brand-primary) 12%, transparent), transparent 24%),
+    radial-gradient(circle at 88% 82%, color-mix(in srgb, var(--brand-primary) 10%, transparent), transparent 26%);
 }
 
 .auth-graph::before,
@@ -45,90 +49,6 @@
 .auth-graph::after {
   right: -12%;
   bottom: -22%;
-}
-
-.auth-graph svg {
-  display: block;
-  width: 100%;
-  height: 100%;
-}
-
-.auth-graph__scene {
-  width: 100%;
-  height: 100%;
-  perspective: 900px;
-  transform-style: preserve-3d;
-}
-
-.auth-graph__cluster {
-  transform-box: fill-box;
-  transform-origin: center;
-  transform-style: preserve-3d;
-  will-change: transform;
-}
-
-.auth-graph__cluster-content {
-  transform-box: fill-box;
-  transform-origin: center;
-  transform: perspective(700px) rotateX(var(--graph-tilt-x)) rotateZ(var(--graph-tilt-z));
-  transition: transform 1s cubic-bezier(.2, .75, .2, 1);
-  will-change: transform;
-}
-
-.auth-graph__cluster--1 {
-  animation: auth-graph-cluster-one 34s linear infinite;
-}
-
-.auth-graph__cluster--2 {
-  animation: auth-graph-cluster-two 46s linear infinite reverse;
-}
-
-.auth-graph__cluster--3 {
-  animation: auth-graph-cluster-three 40s linear infinite;
-}
-
-.auth-graph__edges line {
-  stroke: var(--brand-primary);
-  stroke-width: 1;
-  stroke-dasharray: 6 14;
-  opacity: .26;
-  animation: auth-graph-edge 7s ease-in-out infinite alternate;
-  animation-delay: var(--edge-delay);
-}
-
-.auth-graph__nodes circle {
-  fill: var(--accent-secondary);
-  opacity: .58;
-  filter: drop-shadow(0 0 5px var(--brand-primary));
-  transform-box: fill-box;
-  transform-origin: center;
-  animation: auth-graph-node 4.5s ease-in-out infinite;
-  animation-delay: var(--node-delay);
-}
-
-@keyframes auth-graph-edge {
-  from { stroke-dashoffset: 0; opacity: .16; }
-  to { stroke-dashoffset: -42; opacity: .52; }
-}
-
-@keyframes auth-graph-node {
-  0%, 100% { transform: scale(.8); opacity: .36; }
-  50% { transform: scale(1.35); opacity: .9; }
-}
-
-@keyframes auth-graph-cluster-one {
-  from { transform: rotateY(0deg) rotateX(-4deg); }
-  to { transform: rotateY(360deg) rotateX(-4deg); }
-}
-
-@keyframes auth-graph-cluster-two {
-  from { transform: rotateY(0deg) rotateX(7deg); }
-  to { transform: rotateY(360deg) rotateX(7deg); }
-}
-
-@keyframes auth-graph-cluster-three {
-  from { transform: rotateY(0deg) rotateX(-6deg); }
-  to { transform: rotateY(360deg) rotateX(-6deg); }
 }
 
 .auth-card {
@@ -187,16 +107,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .auth-graph__cluster,
-  .auth-graph__cluster-content {
-    animation: none;
-    transition: none;
-  }
-
-  .auth-graph__edges line,
-  .auth-graph__nodes circle {
-    animation: none;
-  }
+  .auth-graph { opacity: .72; }
 }
 
 button:focus-visible,
