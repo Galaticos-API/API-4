@@ -4,6 +4,64 @@ import { ApiError } from "../../api/api_auth";
 import { useAuth } from "../../viewmodels/useAuthViewModel";
 import { loginDestination, navigate, safeDestination } from "../../models/navigation";
 
+const graphNodes = [
+  [82, 118], [178, 68], [286, 138], [402, 74], [526, 154], [654, 82],
+  [780, 132], [918, 64], [1080, 142], [1128, 286], [978, 332], [842, 268],
+  [704, 370], [566, 292], [418, 382], [274, 300], [126, 382], [42, 524],
+  [190, 594], [344, 536], [488, 650], [644, 548], [792, 660], [946, 560],
+  [1102, 672], [1034, 458], [884, 478], [742, 466], [604, 432], [364, 462],
+] as const;
+
+const graphEdges = [
+  [0, 1], [0, 2], [1, 2], [1, 3], [2, 3], [2, 5], [3, 4], [3, 6],
+  [4, 5], [4, 7], [5, 6], [5, 8], [6, 7], [6, 10], [7, 8], [8, 9],
+  [8, 10], [9, 10], [10, 11], [10, 12], [11, 12], [11, 13], [12, 13],
+  [12, 14], [13, 14], [13, 15], [14, 15], [14, 19], [15, 16], [15, 17],
+  [16, 17], [16, 18], [17, 18], [18, 19], [18, 20], [19, 20], [19, 28],
+  [20, 21], [20, 28], [21, 22], [21, 27], [22, 23], [22, 24], [23, 24],
+  [23, 25], [24, 25], [24, 26], [25, 26], [26, 27], [26, 29], [27, 28],
+  [28, 29], [14, 28], [10, 27],
+] as const;
+
+function LoginGraphBackground() {
+  return (
+    <div className="auth-graph" aria-hidden="true">
+      <svg viewBox="0 0 1200 800" preserveAspectRatio="xMidYMid slice">
+        <defs>
+          <radialGradient id="auth-graph-glow" cx="50%" cy="50%" r="60%">
+            <stop offset="0%" stopColor="var(--brand-primary)" stopOpacity=".12" />
+            <stop offset="100%" stopColor="var(--brand-primary)" stopOpacity="0" />
+          </radialGradient>
+        </defs>
+        <rect width="1200" height="800" fill="url(#auth-graph-glow)" />
+        <g className="auth-graph__edges">
+          {graphEdges.map(([from, to], index) => (
+            <line
+              key={`${from}-${to}`}
+              x1={graphNodes[from][0]}
+              y1={graphNodes[from][1]}
+              x2={graphNodes[to][0]}
+              y2={graphNodes[to][1]}
+              style={{ "--edge-delay": `${(index % 9) * 0.32}s` } as React.CSSProperties}
+            />
+          ))}
+        </g>
+        <g className="auth-graph__nodes">
+          {graphNodes.map(([cx, cy], index) => (
+            <circle
+              key={`${cx}-${cy}`}
+              cx={cx}
+              cy={cy}
+              r={index % 5 === 0 ? 3.5 : 2.2}
+              style={{ "--node-delay": `${(index % 8) * 0.45}s` } as React.CSSProperties}
+            />
+          ))}
+        </g>
+      </svg>
+    </div>
+  );
+}
+
 export function AuthGate({ children }: { children: ReactNode }) {
   const { session, notice, restore, logout } = useAuth();
   const [location, setLocation] = useState(() => window.location.href);
@@ -52,6 +110,7 @@ export function AuthScreen({ initialMode }: { initialMode: "login" | "register" 
 
   return (
     <main className="auth-shell">
+      <LoginGraphBackground />
       <section className="ds-card ds-card--glass auth-card">
         <div style={{ display: "flex", gap: "6px" }}>
           {mode === "register" && (
