@@ -44,15 +44,35 @@ function LoginGraphBackground() {
     const draw = () => {
       context.clearRect(0, 0, width, height);
       const linkDistance = Math.min(150, Math.max(95, width * 0.12));
+      const pointerRadius = 190;
+
+      if (pointer.x > -500) {
+        const pointerGlow = context.createRadialGradient(
+          pointer.x,
+          pointer.y,
+          0,
+          pointer.x,
+          pointer.y,
+          pointerRadius,
+        );
+        pointerGlow.addColorStop(0, "rgba(237, 106, 50, .18)");
+        pointerGlow.addColorStop(.45, "rgba(237, 106, 50, .06)");
+        pointerGlow.addColorStop(1, "rgba(237, 106, 50, 0)");
+        context.fillStyle = pointerGlow;
+        context.beginPath();
+        context.arc(pointer.x, pointer.y, pointerRadius, 0, Math.PI * 2);
+        context.fill();
+      }
 
       particles.forEach((particle, index) => {
         if (!reducedMotion.matches) {
           const dx = pointer.x - particle.x;
           const dy = pointer.y - particle.y;
           const distance = Math.hypot(dx, dy);
-          if (distance < 180 && distance > 0) {
-            particle.vx += dx / distance * 0.0012;
-            particle.vy += dy / distance * 0.0012;
+          if (distance < pointerRadius && distance > 0) {
+            const influence = (1 - distance / pointerRadius) ** 2;
+            particle.vx += dx / distance * 0.0024 * influence;
+            particle.vy += dy / distance * 0.0024 * influence;
           }
           particle.x += particle.vx;
           particle.y += particle.vy;
@@ -66,7 +86,10 @@ function LoginGraphBackground() {
           const other = particles[nextIndex];
           const distance = Math.hypot(particle.x - other.x, particle.y - other.y);
           if (distance > linkDistance) continue;
-          context.strokeStyle = `rgba(237, 106, 50, ${(1 - distance / linkDistance) * 0.32})`;
+          const pointerBoost = pointer.x > -500 && Math.hypot(pointer.x - particle.x, pointer.y - particle.y) < pointerRadius
+            ? .14
+            : 0;
+          context.strokeStyle = `rgba(237, 106, 50, ${Math.min(.65, (1 - distance / linkDistance) * .32 + pointerBoost)})`;
           context.lineWidth = 0.7;
           context.beginPath();
           context.moveTo(particle.x, particle.y);
@@ -76,7 +99,7 @@ function LoginGraphBackground() {
 
         context.fillStyle = index % 7 === 0 ? "#ffad7d" : "#ed6a32";
         context.shadowColor = "#ed6a32";
-        context.shadowBlur = 8;
+        context.shadowBlur = pointer.x > -500 && Math.hypot(pointer.x - particle.x, pointer.y - particle.y) < pointerRadius ? 14 : 8;
         context.beginPath();
         context.arc(particle.x, particle.y, particle.radius, 0, Math.PI * 2);
         context.fill();
