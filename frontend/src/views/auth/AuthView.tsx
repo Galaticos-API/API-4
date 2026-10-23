@@ -35,29 +35,35 @@ function LoginGraphBackground() {
           </radialGradient>
         </defs>
         <rect width="1200" height="800" fill="url(#auth-graph-glow)" />
-        <g className="auth-graph__edges">
-          {graphEdges.map(([from, to], index) => (
-            <line
-              key={`${from}-${to}`}
-              x1={graphNodes[from][0]}
-              y1={graphNodes[from][1]}
-              x2={graphNodes[to][0]}
-              y2={graphNodes[to][1]}
-              style={{ "--edge-delay": `${(index % 9) * 0.32}s` } as React.CSSProperties}
-            />
-          ))}
-        </g>
-        <g className="auth-graph__nodes">
-          {graphNodes.map(([cx, cy], index) => (
-            <circle
-              key={`${cx}-${cy}`}
-              cx={cx}
-              cy={cy}
-              r={index % 5 === 0 ? 3.5 : 2.2}
-              style={{ "--node-delay": `${(index % 8) * 0.45}s` } as React.CSSProperties}
-            />
-          ))}
-        </g>
+        {[graphEdges.slice(0, 18), graphEdges.slice(18, 36), graphEdges.slice(36)].map((edges, clusterIndex) => (
+          <g className={`auth-graph__cluster auth-graph__cluster--${clusterIndex + 1}`} key={clusterIndex}>
+            <g className="auth-graph__cluster-content">
+              <g className="auth-graph__edges">
+                {edges.map(([from, to], index) => (
+                  <line
+                    key={`${from}-${to}`}
+                    x1={graphNodes[from][0]}
+                    y1={graphNodes[from][1]}
+                    x2={graphNodes[to][0]}
+                    y2={graphNodes[to][1]}
+                    style={{ "--edge-delay": `${(index % 9) * 0.32}s` } as React.CSSProperties}
+                  />
+                ))}
+              </g>
+              <g className="auth-graph__nodes">
+                {graphNodes.slice(clusterIndex * 10, clusterIndex === 2 ? undefined : clusterIndex * 10 + 12).map(([cx, cy], index) => (
+                  <circle
+                    key={`${cx}-${cy}`}
+                    cx={cx}
+                    cy={cy}
+                    r={index % 5 === 0 ? 3.5 : 2.2}
+                    style={{ "--node-delay": `${(index % 8) * 0.45}s` } as React.CSSProperties}
+                  />
+                ))}
+              </g>
+            </g>
+          </g>
+        ))}
         </svg>
       </div>
     </div>
