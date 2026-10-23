@@ -1,5 +1,5 @@
 import { Button } from "../common/ui";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode, type RefObject } from "react";
 import { ApiError } from "../../api/api_auth";
 import { useAuth } from "../../viewmodels/useAuthViewModel";
 import { loginDestination, navigate, safeDestination } from "../../models/navigation";
@@ -23,9 +23,9 @@ const graphEdges = [
   [28, 29], [14, 28], [10, 27],
 ] as const;
 
-function LoginGraphBackground() {
+function LoginGraphBackground({ graphRef }: { graphRef?: RefObject<HTMLDivElement | null> }) {
   return (
-    <div className="auth-graph" aria-hidden="true">
+    <div ref={graphRef} className="auth-graph" aria-hidden="true">
       <div className="auth-graph__scene">
         <svg viewBox="0 0 1200 800" preserveAspectRatio="xMidYMid slice">
         <defs>
@@ -106,7 +106,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
 
 export function AuthScreen({ initialMode }: { initialMode: "login" | "register" }) {
   const [mode, setMode] = useState<"login" | "register">(initialMode);
-  const authShellRef = useRef<HTMLElement>(null);
+  const graphRef = useRef<HTMLDivElement>(null);
   const animationFrame = useRef<number | null>(null);
 
   useEffect(() => {
@@ -117,22 +117,25 @@ export function AuthScreen({ initialMode }: { initialMode: "login" | "register" 
     const updateGraphInteraction = (event: globalThis.MouseEvent) => {
       if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
 
-      const x = event.clientX / window.innerWidth * 2 - 1;
-      const y = event.clientY / window.innerHeight * 2 - 1;
+      const graphBounds = graphRef.current?.getBoundingClientRect();
+      if (!graphBounds || graphBounds.width === 0 || graphBounds.height === 0) return;
+
+      const x = Math.max(-1, Math.min(1, ((event.clientX - graphBounds.left) / graphBounds.width) * 2 - 1));
+      const y = Math.max(-1, Math.min(1, ((event.clientY - graphBounds.top) / graphBounds.height) * 2 - 1));
       if (animationFrame.current !== null) window.cancelAnimationFrame(animationFrame.current);
       animationFrame.current = window.requestAnimationFrame(() => {
-        authShellRef.current?.style.setProperty("--graph-mouse-x", `${x * 18}px`);
-        authShellRef.current?.style.setProperty("--graph-mouse-y", `${y * 14}px`);
-        authShellRef.current?.style.setProperty("--graph-tilt-x", `${y * -5}deg`);
-        authShellRef.current?.style.setProperty("--graph-tilt-y", `${x * 7}deg`);
+        graphRef.current?.style.setProperty("--graph-mouse-x", `${x * 16}px`);
+        graphRef.current?.style.setProperty("--graph-mouse-y", `${y * 12}px`);
+        graphRef.current?.style.setProperty("--graph-tilt-x", `${y * -4}deg`);
+        graphRef.current?.style.setProperty("--graph-tilt-y", `${x * 6}deg`);
       });
     };
 
     const resetGraphInteraction = () => {
-      authShellRef.current?.style.setProperty("--graph-mouse-x", "0px");
-      authShellRef.current?.style.setProperty("--graph-mouse-y", "0px");
-      authShellRef.current?.style.setProperty("--graph-tilt-x", "0deg");
-      authShellRef.current?.style.setProperty("--graph-tilt-y", "0deg");
+      graphRef.current?.style.setProperty("--graph-mouse-x", "0px");
+      graphRef.current?.style.setProperty("--graph-mouse-y", "0px");
+      graphRef.current?.style.setProperty("--graph-tilt-x", "0deg");
+      graphRef.current?.style.setProperty("--graph-tilt-y", "0deg");
     };
 
     window.addEventListener("mousemove", updateGraphInteraction);
@@ -150,8 +153,8 @@ export function AuthScreen({ initialMode }: { initialMode: "login" | "register" 
   };
 
   return (
-    <main ref={authShellRef} className="auth-shell">
-      <LoginGraphBackground />
+    <main className="auth-shell">
+      <LoginGraphBackground graphRef={graphRef} />
       <section className="ds-card ds-card--glass auth-card">
         <div style={{ display: "flex", gap: "6px" }}>
           {mode === "register" && (
