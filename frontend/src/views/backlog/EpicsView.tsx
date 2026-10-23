@@ -13,6 +13,8 @@ import { BacklogBreadcrumb } from "./BacklogBreadcrumb";
 import { BacklogTechnologySelector } from "./BacklogTechnologySelector";
 import { CriteriaEditor } from "./CriteriaView";
 import { ItemArchiveView } from "./ItemArchiveView";
+import { reuseAfterCreate, SimilarItemsPanel, SimilarSelection } from "./SimilarItemsPanel";
+import type { SimilarItem } from "../../api/api_similar_items";
 
 type ListResult = { state: "loading" } | { state: "error"; message: string } | { state: "ready"; epics: Epic[] };
 const emptyInput: EpicInput = { projeto_id: "", titulo: "", descricao: "", objetivo: "", escopo_macro: "", resultado_esperado: "", tecnologias_ids: [] };
@@ -63,6 +65,7 @@ export function EpicList({ projetoId, canCreate: allowedToCreate }: { projetoId:
 
 export function EpicForm({ projetoId }: { projetoId: string }) {
   const [values, setValues] = useState<EpicInput>({ ...emptyInput, projeto_id: projetoId });
+  const [origin, setOrigin] = useState<SimilarItem | null>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const submitting = useRef(false);
@@ -82,6 +85,7 @@ export function EpicForm({ projetoId }: { projetoId: string }) {
         submitting.current = true; setBusy(true); setMessage("");
         try {
           const epic = await createEpic({ ...values, projeto_id: projetoId });
+          await reuseAfterCreate("epico", epic.id, origin);
           if (mounted.current) navigate(`/projects/${projetoId}/epics/${epic.id}`);
         } catch (error) {
           if (!mounted.current) return;
@@ -107,6 +111,10 @@ export function EpicForm({ projetoId }: { projetoId: string }) {
           onChange={(tecnologias_ids) => setValues((current) => ({ ...current, tecnologias_ids }))}
           disabled={busy}
         />
+        <SimilarItemsPanel kind="epico" projectId={projetoId} titulo={values.titulo}
+          descricao={[values.objetivo, values.descricao].filter((part) => part.trim()).join("\n")}
+          disabled={busy} selectedId={origin?.id ?? null} onSelect={setOrigin} />
+        <SimilarSelection item={origin} disabled={busy} onClear={() => setOrigin(null)} />
         <CopilotPanel projectId={projetoId} level="epico" values={values} disabled={busy} />
         {message && <p role="alert">{message}</p>}
         <div className="project-actions">
@@ -138,6 +146,7 @@ export function EpicDetail({ projectId, epicId, canEdit, children }: { projectId
   const [formValues, setFormValues] = useState<EpicFields | null>(null);
   const [saving, setSaving] = useState(false);
   const [editMessage, setEditMessage] = useState("");
+  const [reuseTick, setReuseTick] = useState(0);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -302,7 +311,12 @@ export function EpicDetail({ projectId, epicId, canEdit, children }: { projectId
       <ItemArchiveView project={epic} kind="epics" canWrite={canEdit && !readOnly && !editing && !saving && !completing} onArchived={() => setAttempt(v => v + 1)} />
       <CriteriaEditor entidadeTipo="epico" entidadeId={epic.id} canEdit={canWrite} titulo="Critérios do épico"
         itemConcluido={epic.status === "concluido"} justificativaObrigatoria={justificationRequired} />
-      <SuggestionsPanel kind="epico" id={epic.id} canWrite={canWrite} readOnlyNote={readOnly ? "Item ou projeto arquivado: as sugestões ficam disponíveis somente para consulta." : undefined} />
+      {canWrite && !editing && (
+        <SimilarItemsPanel kind="epico" projectId={projectId} excludeId={epic.id} titulo={epic.titulo}
+          descricao={[epic.objetivo, epic.descricao].filter(Boolean).join("\n")} reuseTargetId={epic.id}
+          onReused={() => setReuseTick((value) => value + 1)} />
+      )}
+      <SuggestionsPanel kind="epico" id={epic.id} refreshKey={reuseTick} canWrite={canWrite} readOnlyNote={readOnly ? "Item ou projeto arquivado: as sugestões ficam disponíveis somente para consulta." : undefined} />
       <DecisionsPanel kind="epico" id={epic.id} canWrite={canWrite} readOnlyNote={readOnly ? "Item ou projeto arquivado: as decisões ficam disponíveis somente para consulta." : undefined} />
       <ItemHistoryView entidadeTipo="epico" entidadeId={epic.id} refreshTrigger={attempt} />
       <ReadOnlyContext.Provider value={readOnly}>{children}</ReadOnlyContext.Provider>

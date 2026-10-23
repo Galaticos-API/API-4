@@ -18,6 +18,7 @@ import { epicsCompatRouter } from "./modules/epics/epics.compat.routes.js";
 import { repoAnalysesRouter } from './modules/repo-analyses/repo-analyses.routes';
 import { epicDecisionsRouter, featureDecisionsRouter, pbiDecisionsRouter, projectDecisionsRouter } from "./modules/decisions/decisions.routes.js";
 import { epicSuggestionsRouter, featureSuggestionsRouter, pbiSuggestionsRouter } from "./modules/suggestions/suggestions.routes.js";
+import { epicSimilarItemsRouter, featureSimilarItemsRouter, pbiSimilarItemsRouter, projectSimilarItemsRouter } from "./modules/similar-items/similar-items.routes.js";
 import { backlogSearchRouter } from "./modules/backlog-search/backlog-search.routes.js";
 import { documentsRouter } from "./modules/documents/documents.routes.js";
 import { chunksRouter } from "./modules/documents/chunks.routes.js";
@@ -107,6 +108,12 @@ app.use("/api/v1/pbis/:entityId/decisions", pbiDecisionsRouter);
 app.use("/api/v1/epics/:entityId/suggestions", epicSuggestionsRouter);
 app.use("/api/v1/features/:entityId/suggestions", featureSuggestionsRouter);
 app.use("/api/v1/pbis/:entityId/suggestions", pbiSuggestionsRouter);
+
+// Itens semelhantes entre projetos e aproveitamento com origem registrada (S2-12)
+app.use("/api/v1/projects/:projectId/similar-items", projectSimilarItemsRouter);
+app.use("/api/v1/epics/:entityId/similar-items", epicSimilarItemsRouter);
+app.use("/api/v1/features/:entityId/similar-items", featureSimilarItemsRouter);
+app.use("/api/v1/pbis/:entityId/similar-items", pbiSimilarItemsRouter);
 
 // Busca textual no backlog (S1-17)
 app.use("/api/v1/projects/:projectId/backlog-search", backlogSearchRouter);

@@ -2448,6 +2448,188 @@ paths:
         '409':
           description: Sugestão já resolvida de outra forma
 
+  /api/v1/projects/{projectId}/similar-items:
+    parameters:
+      - name: projectId
+        in: path
+        required: true
+        description: Projeto em que o item está sendo escrito
+        schema: {type: string, format: uuid}
+    post:
+      summary: Sugere itens semelhantes enquanto o item é escrito (S2-12)
+      description: >
+        Consulta somente leitura (POST apenas para transportar o texto em
+        edição). Diferentemente da busca, o acervo é consultado em todos os
+        projetos que o usuário pode acessar; cada item informa o projeto de
+        origem e `outro_projeto`. Só entram itens já indexados, não arquivados
+        e acima do limiar de similaridade, no máximo 5. Texto curto, nada
+        semelhante ou serviço de embeddings indisponível (`degradado: true`)
+        resultam em `items: []` com 200, sem interromper a escrita. Nada é
+        gravado.
+      operationId: searchSimilarItems
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SimilarItemsSearchInput'
+      responses:
+        '200':
+          description: Itens semelhantes, do mais para o menos similar
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SimilarItemsResult'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Projeto não encontrado ou sem acesso
+
+  /api/v1/epics/{id}/similar-items/{origemId}/reuse:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        description: Item em edição que receberá a proposta
+        schema: {type: string, format: uuid}
+      - name: origemId
+        in: path
+        required: true
+        description: Item semelhante a aproveitar (mesmo nível)
+        schema: {type: string, format: uuid}
+    post:
+      summary: Aproveita um item semelhante como proposta editável no épico (S2-12)
+      description: >
+        Copia os campos de texto do item de origem para sugestões pendentes do
+        item em edição (origem `similar:<tipo>:<id>`), que a pessoa aceita,
+        edita ou descarta pelo fluxo de S2-13, e registra a relação de origem.
+        Não altera o item. Repetir o aproveitamento atualiza as propostas
+        pendentes e a relação. Apenas admin e po.
+      operationId: reuseEpicsSimilarItem
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SimilarItemsReuseInput'
+      responses:
+        '201':
+          description: Propostas pendentes criadas e relação registrada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SimilarItemsReuseResult'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Perfil sem permissão de escrita
+        '404':
+          description: Item em edição ou item de origem não encontrado
+        '409':
+          description: Item em edição ou item de origem arquivado
+
+  /api/v1/features/{id}/similar-items/{origemId}/reuse:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        description: Item em edição que receberá a proposta
+        schema: {type: string, format: uuid}
+      - name: origemId
+        in: path
+        required: true
+        description: Item semelhante a aproveitar (mesmo nível)
+        schema: {type: string, format: uuid}
+    post:
+      summary: Aproveita um item semelhante como proposta editável no feature (S2-12)
+      description: >
+        Copia os campos de texto do item de origem para sugestões pendentes do
+        item em edição (origem `similar:<tipo>:<id>`), que a pessoa aceita,
+        edita ou descarta pelo fluxo de S2-13, e registra a relação de origem.
+        Não altera o item. Repetir o aproveitamento atualiza as propostas
+        pendentes e a relação. Apenas admin e po.
+      operationId: reuseFeaturesSimilarItem
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SimilarItemsReuseInput'
+      responses:
+        '201':
+          description: Propostas pendentes criadas e relação registrada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SimilarItemsReuseResult'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Perfil sem permissão de escrita
+        '404':
+          description: Item em edição ou item de origem não encontrado
+        '409':
+          description: Item em edição ou item de origem arquivado
+
+  /api/v1/pbis/{id}/similar-items/{origemId}/reuse:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        description: Item em edição que receberá a proposta
+        schema: {type: string, format: uuid}
+      - name: origemId
+        in: path
+        required: true
+        description: Item semelhante a aproveitar (mesmo nível)
+        schema: {type: string, format: uuid}
+    post:
+      summary: Aproveita um item semelhante como proposta editável no PBI (S2-12)
+      description: >
+        Copia os campos de texto do item de origem para sugestões pendentes do
+        item em edição (origem `similar:<tipo>:<id>`), que a pessoa aceita,
+        edita ou descarta pelo fluxo de S2-13, e registra a relação de origem.
+        Não altera o item. Repetir o aproveitamento atualiza as propostas
+        pendentes e a relação. Apenas admin e po.
+      operationId: reusePbisSimilarItem
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SimilarItemsReuseInput'
+      responses:
+        '201':
+          description: Propostas pendentes criadas e relação registrada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SimilarItemsReuseResult'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Perfil sem permissão de escrita
+        '404':
+          description: Item em edição ou item de origem não encontrado
+        '409':
+          description: Item em edição ou item de origem arquivado
+
   /api/v1/auth/register:
     post:
       summary: Cria uma conta; PO e administrador exigem sessão de administrador
@@ -4516,6 +4698,93 @@ components:
         resolvido_em: {type: string, format: date-time, nullable: true}
         created_at: {type: string, format: date-time}
         updated_at: {type: string, format: date-time}
+
+    SimilarItemsSearchInput:
+      type: object
+      additionalProperties: false
+      required: [tipo]
+      properties:
+        tipo: {type: string, enum: [epico, feature, pbi]}
+        titulo: {type: string, maxLength: 255}
+        descricao: {type: string, maxLength: 5000}
+        excluir_id: {type: string, format: uuid, description: Item já salvo que está em edição (não é sugerido a si mesmo)}
+
+    SimilarItem:
+      type: object
+      required: [tipo, id, titulo, status, similaridade, trecho, projeto, outro_projeto, caminho, origem, ja_aproveitado]
+      properties:
+        tipo: {type: string, enum: [epico, feature, pbi]}
+        id: {type: string, format: uuid}
+        codigo: {type: string, nullable: true}
+        titulo: {type: string}
+        status: {type: string}
+        similaridade: {type: number, minimum: 0, maximum: 1}
+        trecho: {type: string}
+        projeto:
+          type: object
+          required: [id, nome]
+          properties:
+            id: {type: string, format: uuid}
+            nome: {type: string}
+        outro_projeto: {type: boolean, description: true quando o item pertence a outro projeto}
+        caminho:
+          type: array
+          items:
+            type: object
+            required: [tipo, id, titulo]
+            properties:
+              tipo: {type: string, enum: [epico, feature, pbi]}
+              id: {type: string, format: uuid}
+              titulo: {type: string}
+        origem: {type: string, description: 'Rótulo legível, ex. Projeto › Épico › Feature'}
+        ja_aproveitado: {type: boolean}
+
+    SimilarItemsResult:
+      type: object
+      required: [items, total, degradado]
+      properties:
+        items:
+          type: array
+          maxItems: 5
+          items:
+            $ref: '#/components/schemas/SimilarItem'
+        total: {type: integer}
+        degradado: {type: boolean, description: true quando o serviço de embeddings estava indisponível}
+
+    SimilarItemsReuseInput:
+      type: object
+      additionalProperties: false
+      properties:
+        campos:
+          type: array
+          minItems: 1
+          items: {type: string}
+          description: Campos a copiar (padrão todos os campos de texto sugeríveis com conteúdo)
+
+    SimilarItemsReuseResult:
+      type: object
+      required: [relacao, sugestoes]
+      properties:
+        relacao:
+          type: object
+          required: [id, tipo_relacao, destino_tipo, destino_id, origem_tipo, origem_id, origem_projeto_id, campos]
+          properties:
+            id: {type: string, format: uuid}
+            tipo_relacao: {type: string, enum: [reaproveitado_de]}
+            destino_tipo: {type: string, enum: [epico, feature, pbi]}
+            destino_id: {type: string, format: uuid}
+            destino_projeto_id: {type: string, format: uuid}
+            origem_tipo: {type: string, enum: [epico, feature, pbi]}
+            origem_id: {type: string, format: uuid}
+            origem_projeto_id: {type: string, format: uuid}
+            campos: {type: array, items: {type: string}}
+            criado_por: {type: string, format: uuid, nullable: true}
+            created_at: {type: string}
+            updated_at: {type: string}
+        sugestoes:
+          type: array
+          items:
+            $ref: '#/components/schemas/Suggestion'
 
     SuggestionList:
       type: object

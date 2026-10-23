@@ -9,8 +9,6 @@ export { app };
 
 const PORT = env.PORT;
 if (env.NODE_ENV !== "test") {
-  // Worker unico pos-merge S2-01: processa documentos pendentes via claim/lease
-  // (processPendingDocuments) + flush de eventos + reconciliacao de arquivos.
   startDocumentsBackgroundWorker();
   startIndexingWorker();
   startRepoAnalysesWorker();
