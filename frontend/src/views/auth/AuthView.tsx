@@ -1,5 +1,5 @@
 import { Button } from "../common/ui";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { ApiError } from "../../api/api_auth";
 import { useAuth } from "../../viewmodels/useAuthViewModel";
 import { loginDestination, navigate, safeDestination } from "../../models/navigation";
@@ -26,7 +26,8 @@ const graphEdges = [
 function LoginGraphBackground() {
   return (
     <div className="auth-graph" aria-hidden="true">
-      <svg viewBox="0 0 1200 800" preserveAspectRatio="xMidYMid slice">
+      <div className="auth-graph__scene">
+        <svg viewBox="0 0 1200 800" preserveAspectRatio="xMidYMid slice">
         <defs>
           <radialGradient id="auth-graph-glow" cx="50%" cy="50%" r="60%">
             <stop offset="0%" stopColor="var(--brand-primary)" stopOpacity=".12" />
@@ -57,7 +58,8 @@ function LoginGraphBackground() {
             />
           ))}
         </g>
-      </svg>
+        </svg>
+      </div>
     </div>
   );
 }
@@ -98,10 +100,43 @@ export function AuthGate({ children }: { children: ReactNode }) {
 
 export function AuthScreen({ initialMode }: { initialMode: "login" | "register" }) {
   const [mode, setMode] = useState<"login" | "register">(initialMode);
+  const authShellRef = useRef<HTMLElement>(null);
+  const animationFrame = useRef<number | null>(null);
 
   useEffect(() => {
     setMode(initialMode);
   }, [initialMode]);
+
+  useEffect(() => {
+    const updateGraphInteraction = (event: globalThis.MouseEvent) => {
+      if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+
+      const x = event.clientX / window.innerWidth * 2 - 1;
+      const y = event.clientY / window.innerHeight * 2 - 1;
+      if (animationFrame.current !== null) window.cancelAnimationFrame(animationFrame.current);
+      animationFrame.current = window.requestAnimationFrame(() => {
+        authShellRef.current?.style.setProperty("--graph-mouse-x", `${x * 18}px`);
+        authShellRef.current?.style.setProperty("--graph-mouse-y", `${y * 14}px`);
+        authShellRef.current?.style.setProperty("--graph-tilt-x", `${y * -5}deg`);
+        authShellRef.current?.style.setProperty("--graph-tilt-y", `${x * 7}deg`);
+      });
+    };
+
+    const resetGraphInteraction = () => {
+      authShellRef.current?.style.setProperty("--graph-mouse-x", "0px");
+      authShellRef.current?.style.setProperty("--graph-mouse-y", "0px");
+      authShellRef.current?.style.setProperty("--graph-tilt-x", "0deg");
+      authShellRef.current?.style.setProperty("--graph-tilt-y", "0deg");
+    };
+
+    window.addEventListener("mousemove", updateGraphInteraction);
+    window.addEventListener("mouseleave", resetGraphInteraction);
+    return () => {
+      window.removeEventListener("mousemove", updateGraphInteraction);
+      window.removeEventListener("mouseleave", resetGraphInteraction);
+      if (animationFrame.current !== null) window.cancelAnimationFrame(animationFrame.current);
+    };
+  }, []);
 
   const switchMode = (nextMode: "login" | "register") => {
     setMode(nextMode);
@@ -109,7 +144,7 @@ export function AuthScreen({ initialMode }: { initialMode: "login" | "register" 
   };
 
   return (
-    <main className="auth-shell">
+    <main ref={authShellRef} className="auth-shell">
       <LoginGraphBackground />
       <section className="ds-card ds-card--glass auth-card">
         <div style={{ display: "flex", gap: "6px" }}>
