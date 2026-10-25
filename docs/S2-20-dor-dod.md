@@ -16,6 +16,20 @@ As definições são orientações descritivas. Não geram verificações autom�
 
 ## Validação
 
+### Revisão consolidada em 25/10/2026
+
+Revisão limitada à S2-20, sobre a main `6772058`. Foram conferidos o PBI-01.6.2, condições independentes por nível, autorização administrativa, consulta durante a especificação, limites máximos, concorrência, auditoria transacional, preservação de autoria, reaplicação da migração, recuperação de falhas e respostas atrasadas.
+
+Três problemas foram reproduzidos em testes e corrigidos:
+
+| Problema | Correção |
+|---|---|
+| O sinal externo de cancelamento substituía o prazo padrão HTTP, permitindo carregamento indefinido se a consulta não respondesse. | A leitura das definições combina o cancelamento do componente com prazo de 15 segundos. |
+| Definições recebidas não eram validadas; respostas malformadas podiam quebrar a renderização ou anunciar atualização antes de validar o salvamento. | Validação dos níveis, condições e metadados antes de atualizar o estado ou emitir o evento de sucesso. Erros seguem os avisos recuperáveis existentes. |
+| O schema aceitava caractere nulo e sequências Unicode incompletas, incompatíveis com JSONB, levando a erro de banco em vez de validação. | Recusa com 400 antes da gravação. A regressão HTTP confirma que conteúdo, versão e auditoria permanecem intactos. Emojis válidos continuam aceitos. |
+
+Passaram o build da interface, seus 125 testes, a verificação de tipos e os 71 testes do backend, 28 testes de qualidade/RAG em PostgreSQL e 13 de navegador autenticado. A OpenAPI foi atualizada e lida sem erros, com 104 caminhos. A cobertura adicional inclui cancelamento imediato, configuração inicial vazia, conteúdo máximo, autoria após exclusão da conta, recuperação da consulta e descarte de resposta antiga após atualização do painel. Não foram encontradas outras falhas nos caminhos exercitados. Não é necessária migração nem alteração das definições existentes.
+
 1. Como administrador, cadastre condições diferentes nos três níveis e salve.
 2. Como PO, abra um item e clique em **Editar**. Consulte DoR/DoD no painel de qualidade e confira que aparecem somente as condições desse nível.
 3. Confira também os formulários de criação. Se nenhuma condição estiver cadastrada, deve aparecer uma indicação explícita.

@@ -1,5 +1,5 @@
 import { afterEach,expect,it,vi } from 'vitest';
-import { cleanup,fireEvent,render,screen,within } from '@testing-library/react';
+import { act,cleanup,fireEvent,render,screen,within } from '@testing-library/react';
 import { WorkDefinitionsSettings } from './WorkDefinitionsSettings';
 import { WorkDefinitionsPanel } from '../backlog/WorkDefinitionsPanel';
 import { getWorkDefinitions,saveWorkDefinitions,type WorkDefinitions } from '../../api/api_work_definitions';
@@ -7,6 +7,21 @@ import { ApiError } from '../../api/api_auth';
 vi.mock('../../api/api_work_definitions',()=>({getWorkDefinitions:vi.fn(),saveWorkDefinitions:vi.fn()}));
 afterEach(()=>{cleanup();vi.restoreAllMocks();vi.resetAllMocks();});
 const config:WorkDefinitions={version:1,updated_by:null,updated_by_name:null,updated_at:'2026-10-25T12:00:00Z',levels:{epico:{dor:['Escopo definido'],dod:[]},feature:{dor:[],dod:[]},pbi:{dor:[],dod:[]}}};
+it('ignora consulta antiga depois de atualizar as definições ao retornar à janela',async()=>{
+  let finish!:(value:WorkDefinitions)=>void;
+  vi.mocked(getWorkDefinitions).mockReturnValueOnce(new Promise(resolve=>{finish=resolve;})).mockResolvedValueOnce({...config,version:2,levels:{...config.levels,pbi:{dor:['Condição atual'],dod:[]}}});
+  render(<WorkDefinitionsPanel level="pbi"/>);
+  act(()=>{window.dispatchEvent(new Event('focus'));});
+  await screen.findByText('Condição atual');
+  await act(async()=>finish({...config,levels:{...config.levels,pbi:{dor:['Condição antiga'],dod:[]}}}));
+  expect(screen.queryByText('Condição antiga')).toBeNull();expect(screen.getByText('Versão 2')).toBeInTheDocument();
+});
+it('permite recuperar falha de consulta sem alterar as definições',async()=>{
+  vi.mocked(getWorkDefinitions).mockRejectedValueOnce(new Error('offline')).mockResolvedValueOnce(config);
+  render(<WorkDefinitionsPanel level="epico"/>);
+  await screen.findByRole('alert');fireEvent.click(screen.getByRole('button',{name:'Atualizar definições'}));
+  await screen.findByText('Escopo definido');expect(screen.queryByRole('alert')).toBeNull();
+});
 it.each(['\n','\r\n','\r','\u2028','\u2029'])('salva condições por nível com separador %j sem apagar os demais',async(separator)=>{
   vi.mocked(getWorkDefinitions).mockResolvedValue(structuredClone(config));
   vi.mocked(saveWorkDefinitions).mockImplementation(async value=>({...value,version:2}));

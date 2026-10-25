@@ -101,8 +101,8 @@ paths:
                         additionalProperties: false
                         required: [dor, dod]
                         properties:
-                          dor: {type: array, maxItems: 50, uniqueItems: true, items: {type: string, minLength: 1, maxLength: 500, pattern: '^[^\r\n\u2028\u2029]*$'}}
-                          dod: {type: array, maxItems: 50, uniqueItems: true, items: {type: string, minLength: 1, maxLength: 500, pattern: '^[^\r\n\u2028\u2029]*$'}}
+                          dor: {type: array, maxItems: 50, uniqueItems: true, items: {type: string, minLength: 1, maxLength: 500, pattern: '^[^\u0000\r\n\u2028\u2029]*$', description: 'Texto Unicode válido, sem caractere nulo ou sequência incompleta de substitutos UTF-16'}}
+                          dod: {type: array, maxItems: 50, uniqueItems: true, items: {type: string, minLength: 1, maxLength: 500, pattern: '^[^\u0000\r\n\u2028\u2029]*$', description: 'Texto Unicode válido, sem caractere nulo ou sequência incompleta de substitutos UTF-16'}}
                       feature: *workDefinition
                       pbi: *workDefinition
         '401': {description: Autenticação obrigatória}

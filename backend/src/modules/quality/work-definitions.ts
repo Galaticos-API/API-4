@@ -5,6 +5,7 @@ import { ConflictError } from '../../shared/errors.js';
 import { auditService } from '../audit/audit.service.js';
 
 const conditions=z.array(z.string().trim().min(1).max(500)
+  .refine(value=>!/[\u0000\uD800-\uDFFF]/u.test(value),'Use texto Unicode válido, sem caractere nulo.')
   .refine(value=>!/[\r\n\u2028\u2029]/u.test(value),'Cada condição deve ocupar uma única linha.')).max(50)
   .refine(items=>new Set(items.map(item=>item.normalize('NFC').toLocaleLowerCase('pt-BR'))).size===items.length,'Não repita condições na mesma definição.');
 const definition=z.object({dor:conditions,dod:conditions}).strict();

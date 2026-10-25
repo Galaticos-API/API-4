@@ -20,3 +20,9 @@ test('uma condição não pode conter quebras de linha que mudariam sua estrutur
     assert.equal(workDefinitionsSchema.safeParse({...body,levels:{...body.levels,pbi:{dor:['Revisar requisitos'+separator+'Validar evidências'],dod:[]}}}).success,false);
   }
 });
+test('DoR/DoD recusa texto incompatível com JSONB e preserva emojis válidos',()=>{
+  for(const invalid of ['\u0000','\uD800','\uDC00']) {
+    assert.equal(workDefinitionsSchema.safeParse({...body,levels:{...body.levels,pbi:{dor:['Revisar '+invalid+' critérios'],dod:[]}}}).success,false);
+  }
+  assert.ok(workDefinitionsSchema.safeParse({...body,levels:{...body.levels,pbi:{dor:['Revisar critérios ✅ 😀'],dod:[]}}}).success);
+});

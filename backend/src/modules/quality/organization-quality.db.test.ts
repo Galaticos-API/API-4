@@ -66,6 +66,17 @@ test('S2-19: organização, níveis, dicionário imediato, conclusão, autoria e
       assert.equal(large.status,200);
       assert.equal((await call(path,'admin','PUT',{expected_version:large.json.version,levels:baseline.levels})).status,200);
     });
+    await t.test('S2-20: texto inválido retorna 400 sem alterar definições ou auditoria',async()=>{
+      const path='/quality/configuration/definitions';
+      const before=(await call<{version:number;levels:Record<string,{dor:string[];dod:string[]}>}>(path)).json;
+      const count=(await db.query("SELECT count(*)::int AS n FROM auditoria WHERE acao='ATUALIZAR_DOR_DOD'")).rows[0].n;
+      for(const invalid of ['\u0000','\uD800','\uDC00']) {
+        const result=await call(path,'admin','PUT',{expected_version:before.version,levels:{...before.levels,pbi:{dor:['Revisar '+invalid+' critérios'],dod:[]}}});
+        assert.equal(result.status,400);
+      }
+      assert.deepEqual((await call(path)).json,before);
+      assert.equal((await db.query("SELECT count(*)::int AS n FROM auditoria WHERE acao='ATUALIZAR_DOR_DOD'")).rows[0].n,count);
+    });
     await t.test('S2-20: falha na auditoria desfaz a alteração das definições',async()=>{
       const path='/quality/configuration/definitions';
       const before=(await call<{version:number;levels:Record<string,{dor:string[];dod:string[]}>}>(path)).json;
