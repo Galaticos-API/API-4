@@ -1,3 +1,4 @@
+export interface BacklogPage<T> { items: T[]; nextCursor?: string | null }
 import {
   apiRequest,
   ApiError,
@@ -355,20 +356,24 @@ function parsePbi(value: unknown): Pbi {
   };
 }
 
-export async function listEpics(
+export async function listEpicsPage(
   projetoId: string,
   signal: AbortSignal,
   status?: string,
-): Promise<Epic[]> {
+  offset = 0,
+  before?: string,
+): Promise<BacklogPage<Epic>> {
   const params = new URLSearchParams({
     projeto_id: projetoId,
     limit: "100",
+    offset: String(offset),
   });
 
-  if (status && status !== "todos") {
+  if (status) {
     params.set("status", status);
   }
 
+  if (before) params.set("before", before);
   const response = await apiRequest(
     `/epics?${params.toString()}`,
     { signal },
@@ -382,7 +387,12 @@ export async function listEpics(
     );
   }
 
-  return data.items.map(parseEpic);
+  if (data.next_cursor !== undefined && data.next_cursor !== null && typeof data.next_cursor !== 'string') throw new Error('Cursor de lista inválido');
+  return { items: data.items.map(parseEpic), nextCursor: data.next_cursor };
+}
+
+export async function listEpics(projetoId: string, signal: AbortSignal, status?: string, offset = 0): Promise<Epic[]> {
+  return (await listEpicsPage(projetoId, signal, status, offset)).items;
 }
 
 export async function getEpic(
@@ -441,20 +451,24 @@ export async function updateEpic(
   return parseEpic(await response.json());
 }
 
-export async function listFeatures(
+export async function listFeaturesPage(
   epicoId: string,
   signal: AbortSignal,
   status?: string,
-): Promise<Feature[]> {
+  offset = 0,
+  before?: string,
+): Promise<BacklogPage<Feature>> {
   const params = new URLSearchParams({
     epico_id: epicoId,
     limit: "100",
+    offset: String(offset),
   });
 
-  if (status && status !== "todos") {
+  if (status) {
     params.set("status", status);
   }
 
+  if (before) params.set("before", before);
   const response = await apiRequest(
     `/features?${params.toString()}`,
     { signal },
@@ -468,7 +482,12 @@ export async function listFeatures(
     );
   }
 
-  return data.items.map(parseFeature);
+  if (data.next_cursor !== undefined && data.next_cursor !== null && typeof data.next_cursor !== 'string') throw new Error('Cursor de lista inválido');
+  return { items: data.items.map(parseFeature), nextCursor: data.next_cursor };
+}
+
+export async function listFeatures(epicoId: string, signal: AbortSignal, status?: string, offset = 0): Promise<Feature[]> {
+  return (await listFeaturesPage(epicoId, signal, status, offset)).items;
 }
 
 export async function getFeature(
@@ -535,14 +554,16 @@ export async function updateFeature(
   );
 }
 
-export async function listPbis(
+export async function listPbisPage(
   featureId: string,
   signal: AbortSignal,
-): Promise<Pbi[]> {
+  offset = 0,
+  before?: string,
+): Promise<BacklogPage<Pbi>> {
   const response = await apiRequest(
     `/pbis?feature_id=${encodeURIComponent(
       featureId,
-    )}&limit=100`,
+    )}&limit=100&offset=${offset}${before ? "&before=" + encodeURIComponent(before) : ""}`,
     { signal },
   );
 
@@ -554,7 +575,12 @@ export async function listPbis(
     );
   }
 
-  return data.items.map(parsePbi);
+  if (data.next_cursor !== undefined && data.next_cursor !== null && typeof data.next_cursor !== 'string') throw new Error('Cursor de lista inválido');
+  return { items: data.items.map(parsePbi), nextCursor: data.next_cursor };
+}
+
+export async function listPbis(featureId: string, signal: AbortSignal, offset = 0): Promise<Pbi[]> {
+  return (await listPbisPage(featureId, signal, offset)).items;
 }
 
 export async function getPbi(

@@ -1,8 +1,10 @@
+import { useBacklogList } from '../../viewmodels/useBacklogList';
+import { BacklogListContinuation } from './BacklogListContinuation';
 import { WorkDefinitionsPanel } from './WorkDefinitionsPanel';
 import { CopilotPanel } from "./CopilotPanel";
-import { useContext, useEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { ApiError } from "../../api/api_auth";
-import { camposFaltantesDe, completeFeature, createFeature, getFeature, listFeatures, updateFeature, type Feature, type FeatureInput } from "../../api/api_backlog";
+import { camposFaltantesDe, completeFeature, createFeature, getFeature, listFeaturesPage, updateFeature, type Feature, type FeatureInput } from "../../api/api_backlog";
 import "../../assets/styles/projects.css";
 import { descreverCamposFaltantes } from "../../models/fields";
 import { navigate } from "../../models/navigation";
@@ -17,27 +19,14 @@ import { ItemArchiveView } from "./ItemArchiveView";
 import { reuseAfterCreate, SimilarItemsPanel, SimilarSelection } from "./SimilarItemsPanel";
 import type { SimilarItem } from "../../api/api_similar_items";
 
-type ListResult = { state: "loading" } | { state: "error"; message: string } | { state: "ready"; features: Feature[] };
 const emptyInput: FeatureInput = { epico_id: "", titulo: "", descricao: "", objetivo: "", tecnologias_ids: [] };
 
 export function FeatureList({ projectId, epicoId, canCreate: allowedToCreate }: { projectId: string; epicoId: string; canCreate: boolean }) {
   const inheritedReadOnly = useContext(ReadOnlyContext);
   const canCreate = allowedToCreate && !inheritedReadOnly;
-  const [result, setResult] = useState<ListResult>({ state: "loading" });
-  const [attempt, setAttempt] = useState(0);
   const [status, setStatus] = useState("");
-
-  useEffect(() => {
-    const controller = new AbortController();
-    setResult({ state: "loading" });
-    listFeatures(epicoId, controller.signal, status)
-      .then((features) => { if (!controller.signal.aborted) setResult({ state: "ready", features }); })
-      .catch((error) => {
-        if (controller.signal.aborted) return;
-        setResult({ state: "error", message: error instanceof ApiError && error.status === 401 ? "É necessário entrar para acessar as features." : "Não foi possível carregar as features." });
-      });
-    return () => controller.abort();
-  }, [epicoId, attempt, status]);
+  const load = useCallback((offset: number, signal: AbortSignal, before?: string) => listFeaturesPage(epicoId, signal, status, offset, before), [epicoId, status]);
+  const { result, retry, ...continuation } = useBacklogList(load);
 
   return (
     <section className="projects-page">
@@ -48,11 +37,11 @@ export function FeatureList({ projectId, epicoId, canCreate: allowedToCreate }: 
       <label className="project-filter">Exibir itens <select value={status} onChange={event => setStatus(event.target.value)}><option value="">Não arquivados</option><option value="arquivado">Arquivados</option><option value="todos">Todos</option></select></label>
       {result.state === "loading" && <div className="ds-card ds-card--glass projects-state" role="status">Carregando features…</div>}
       {result.state === "error" && <div className="ds-card ds-card--glass projects-state"><p role="alert">{result.message}</p>
-        <Button variant="secondary" onClick={() => setAttempt((v) => v + 1)}>Tentar novamente</Button></div>}
-      {result.state === "ready" && (result.features.length === 0
+        <Button variant="secondary" onClick={retry}>Tentar novamente</Button></div>}
+      {result.state === "ready" && (result.items.length === 0
         ? <div className="ds-card ds-card--glass projects-state"><h4>Nenhuma feature cadastrada</h4><p>Crie a primeira feature para detalhar este épico.</p>
           {canCreate && <Button variant="primary" onClick={() => navigate(`/projects/${projectId}/epics/${epicoId}/features/new`)}>Criar primeira feature</Button>}</div>
-        : <div className="projects-grid">{result.features.map((feature) => (
+        : <div className="projects-grid">{result.items.map((feature) => (
           <article className="ds-card ds-card--glass project-card" key={feature.id}>
             <span className={`ds-badge ${feature.status === "concluido" ? "ds-badge--success" : "ds-badge--warning"}`}>{feature.status}</span>
             <h4>{feature.titulo}</h4>
@@ -60,6 +49,7 @@ export function FeatureList({ projectId, epicoId, canCreate: allowedToCreate }: 
             <Button variant="secondary" onClick={() => navigate(`/projects/${projectId}/epics/${epicoId}/features/${feature.id}`)}>Ver feature</Button>
           </article>
         ))}</div>)}
+      {result.state === "ready" && <BacklogListContinuation {...continuation} />}
     </section>
   );
 }

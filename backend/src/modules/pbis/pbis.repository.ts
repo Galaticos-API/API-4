@@ -1,3 +1,4 @@
+import { backlogPage, cursorTimestamp } from '../../shared/backlog-cursor.js';
 import { projectAccessSql } from "../projects/project-access.js";
 import { Pool, PoolClient } from "pg";
 import { pool } from "../../database/db.js";
@@ -117,16 +118,22 @@ export class PbisRepository {
     const countResult = await this.pool.query<{ total: number }>(countQuery, params);
     const total = countResult.rows[0]?.total ?? 0;
 
-    const dataParams = [...params, query.limit, query.offset];
+    if (query.before) {
+      whereConditions.push(`(p.created_at, p.id) < ($${paramIndex}::timestamptz, $${paramIndex + 1}::uuid)`);
+      params.push(query.before.at, query.before.id);
+      paramIndex += 2;
+    }
+    const pageWhere = whereConditions.length ? 'WHERE ' + whereConditions.join(' AND ') : '';
+    const dataParams = [...params, query.limit, query.before ? 0 : query.offset];
     const dataQuery = `
-      ${SELECT_WITH_CONTEXT}
-      ${whereClause}
-      ORDER BY p.created_at DESC
+      ${SELECT_WITH_CONTEXT.replace("SELECT", "SELECT " + cursorTimestamp("p") + ",")}
+      ${pageWhere}
+      ORDER BY p.created_at DESC, p.id DESC
       LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
     `;
     const dataResult = await this.pool.query<PbiWithContext>(dataQuery, dataParams);
 
-    return { items: dataResult.rows, total, limit: query.limit, offset: query.offset };
+    return { ...backlogPage(dataResult.rows, query.limit), total, limit: query.limit, offset: query.before ? 0 : query.offset };
   }
 
   async update(id: string, data: UpdatePbiDTO, usuarioId?: string | null): Promise<PbiWithContext | null> {
