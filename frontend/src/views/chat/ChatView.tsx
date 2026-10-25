@@ -32,6 +32,7 @@ export function ChatView() {
   const [conversations, setConversations] = useState<ChatConversation[]>([]);
   const [conversationsState, setConversationsState] = useState<LoadState>("loading");
   const [projects, setProjects] = useState<ProjectOption[]>([]);
+  const [projectsState, setProjectsState] = useState<LoadState>('loading');
   const [activeId, setActiveId] = useState<string | null>(null);
   const [scopeId, setScopeId] = useState("");
   const [messages, setMessages] = useState<ThreadMessage[]>([]);
@@ -44,6 +45,8 @@ export function ChatView() {
   const composer = useRef<HTMLTextAreaElement>(null);
   const mounted = useRef(true);
   const messagesRequest = useRef(0);
+  const conversationsRequest = useRef(0);
+  const projectsRequest = useRef(0);
   const sendLocks = useRef(new Set<string>());
   const skipReload = useRef<string | null>(null);
   const conversationRevision = useRef(0);
@@ -58,29 +61,43 @@ export function ChatView() {
   }, []);
 
   const loadConversations = useCallback(async (selectFirst: boolean) => {
+    const request = ++conversationsRequest.current;
+    const revision=conversationRevision.current;
     setConversationsState("loading");
     try {
       const items = await listConversations();
-      if (!mounted.current) return;
+      if (!mounted.current || request !== conversationsRequest.current) return;
       setConversations(items);
       setConversationsState("idle");
-      if (selectFirst && items.length > 0) {
+      if (selectFirst && items.length > 0 && revision===0 && revision===conversationRevision.current) {
         setActiveId((current) => current ?? items[0].id);
         setScopeId((current) => current || items[0].projeto_id || "");
       }
     } catch {
-      if (mounted.current) setConversationsState("error");
+      if (mounted.current && request === conversationsRequest.current) setConversationsState("error");
+    }
+  }, []);
+
+  const loadProjects = useCallback(async (signal?: AbortSignal) => {
+    const request = ++projectsRequest.current;
+    setProjectsState('loading');
+    try {
+      const timeout = AbortSignal.timeout(15000);
+      const page = await listChatProjects(signal ? AbortSignal.any([signal, timeout]) : timeout);
+      if (!mounted.current || request !== projectsRequest.current) return;
+      setProjects(page.map(project => ({ id: project.id, nome: project.nome })));
+      setProjectsState('idle');
+    } catch {
+      if (mounted.current && request === projectsRequest.current) setProjectsState('error');
     }
   }, []);
 
   useEffect(() => {
     void loadConversations(true);
     const controller = new AbortController();
-    void listChatProjects(AbortSignal.any([controller.signal, AbortSignal.timeout(15000)]))
-      .then((page) => { if (mounted.current) setProjects(page.map((project) => ({ id: project.id, nome: project.nome }))); })
-      .catch(() => undefined);
+    void loadProjects(controller.signal);
     return () => controller.abort();
-  }, [loadConversations]);
+  }, [loadConversations, loadProjects]);
 
   const loadMessages = useCallback(async (conversationId: string) => {
     const request = ++messagesRequest.current;
@@ -141,7 +158,7 @@ export function ChatView() {
 
   const send = useCallback(async (text: string, retryId?: string) => {
     const question = text.trim();
-    if (!question || sendLocks.current.has(sendKey) || !scopeId) return;
+    if (!question || sendLocks.current.has(sendKey) || !scopeId || messagesState==='loading') return;
     sendLocks.current.add(sendKey);
     const revision = conversationRevision.current;
     setPendingKeys(current => [...current, sendKey]);
@@ -150,7 +167,7 @@ export function ChatView() {
     setMessages((current) => retryId
       ? current.map((item) => (item.id === retryId ? { ...item, failed: false } : item))
       : [...current, { id: pendingId, remetente: "user", conteudo: question, fontes: [], created_at: new Date().toISOString() }]);
-    if (!retryId) setDraft("");
+    setDraft(current=>!retryId||current.trim()===question?'':current);
     try {
       const answer = await askQuestion({ pergunta: question, conversaId: activeId, projetoId: activeId ? null : scopeId });
       if (!mounted.current) return;
@@ -174,6 +191,7 @@ export function ChatView() {
         return;
       }
       setMessages((current) => current.map((item) => (item.id === pendingId ? { ...item, failed: true } : item)));
+      setDraft(current=>current||question);
       if (error instanceof ApiError && error.details && typeof error.details === "object" && "details" in error.details) {
         const detail = error.details.details as { conversa_id?: string };
         if (detail?.conversa_id) { setActiveId(detail.conversa_id); void loadMessages(detail.conversa_id); void loadConversations(false); }
@@ -183,7 +201,7 @@ export function ChatView() {
       sendLocks.current.delete(sendKey);
       if (mounted.current) setPendingKeys(current => current.filter(key => key !== sendKey));
     }
-  }, [activeId, scopeId, sendKey, loadConversations, loadMessages]);
+  }, [activeId, scopeId, sendKey, loadConversations, loadMessages,messagesState]);
 
   const copy = async (message: ThreadMessage) => {
     try {
@@ -196,8 +214,14 @@ export function ChatView() {
   };
 
   const remaining = remainingCharacters(draft, MAX_QUESTION_LENGTH);
-  const canSend = Boolean(scopeId) && draft.trim().length > 0 && remaining >= 0 && !sending;
-  const failedMessage = messages.find((item) => item.failed);
+  const canSend = Boolean(scopeId) && draft.trim().length > 0 && remaining >= 0 && !sending && messagesState!=='loading';
+  const lastMessage = messages[messages.length - 1];
+  const failedMessage = lastMessage?.remetente === 'user' && lastMessage.failed ? lastMessage : undefined;
+
+  const editDraft = (value: string) => {
+    if (!activeId && conversationRevision.current === 0) conversationRevision.current += 1;
+    setDraft(value);
+  };
 
   return (
     <div className="page-container chat-page">
@@ -230,6 +254,14 @@ export function ChatView() {
             <span id="chat-scope-help" className="ds-help">
               {scopeLocked ? "O escopo é definido ao iniciar a conversa. Crie uma nova para mudar." : "Escolha o projeto que o assistente deve consultar."}
             </span>
+            {projectsState === 'loading' && <span className="ds-help" role="status">Carregando projetos…</span>}
+            {projectsState === 'error' && (
+              <Alert tone="danger" role="alert">
+                Não foi possível carregar os projetos.{' '}
+                <Button variant="secondary" size="sm" onClick={() => void loadProjects()}>Recarregar projetos</Button>
+              </Alert>
+            )}
+            {projectsState === 'idle' && projects.length === 0 && <span className="ds-help">Nenhum projeto disponível para consulta.</span>}
           </div>
 
           <nav className="chat-conversations" aria-label="Histórico de conversas">
@@ -272,7 +304,7 @@ export function ChatView() {
             {messagesState === "error" && activeId && (
               <Alert tone="danger" role="alert">
                 Não foi possível carregar as mensagens desta conversa.{" "}
-                <Button variant="secondary" size="sm" onClick={() => void loadMessages(activeId)}>Tentar novamente</Button>
+                <Button variant="secondary" size="sm" disabled={sending} onClick={() => void loadMessages(activeId)}>Tentar novamente</Button>
               </Alert>
             )}
 
@@ -282,7 +314,7 @@ export function ChatView() {
                 <p>Faça uma pergunta sobre {scopeName ? `o projeto ${scopeName}` : "os seus projetos"} ou comece por uma sugestão.</p>
                 <div className="chat-suggestions">
                   {SUGGESTED_PROMPTS.map((prompt) => (
-                    <button key={prompt} type="button" onClick={() => { setDraft(prompt); composer.current?.focus(); }}>{prompt}</button>
+                    <button key={prompt} type="button" onClick={() => { editDraft(prompt); composer.current?.focus(); }}>{prompt}</button>
                   ))}
                 </div>
               </div>
@@ -296,10 +328,10 @@ export function ChatView() {
             <div ref={bottom} />
           </div>
 
-          {sendError && (
+          {(sendError || failedMessage) && (
             <Alert tone="danger" role="alert" title="Não foi possível concluir">
-              {sendError}{" "}
-              {failedMessage && <Button variant="secondary" size="sm" disabled={sending} onClick={() => void send(failedMessage.conteudo, failedMessage.id)}>Tentar novamente</Button>}
+              {sendError || 'A última pergunta não foi concluída. Tente novamente.'}{" "}
+              {failedMessage && <Button variant="secondary" size="sm" disabled={sending||messagesState==='loading'} onClick={() => void send(failedMessage.conteudo, failedMessage.id)}>Tentar novamente</Button>}
             </Alert>
           )}
 
@@ -315,7 +347,7 @@ export function ChatView() {
               disabled={sending}
               aria-describedby="chat-composer-help"
               aria-invalid={remaining < 0}
-              onChange={(event) => setDraft(event.target.value)}
+              onChange={(event) => editDraft(event.target.value)}
               onKeyDown={(event) => {
                 if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) {
                   event.preventDefault();
@@ -353,7 +385,7 @@ function MessageBubble({ message, copied, onCopy }: { message: ThreadMessage; co
           <summary>Fontes citadas ({message.fontes.length})</summary>
           <ul>
             {message.fontes.map((source) => (
-              <li key={source.id}><Badge>{source.tipo}</Badge> {source.titulo}</li>
+              <li key={source.id}><Badge>{source.tipo}</Badge> {source.url?<a href={source.url}>{source.titulo}</a>:source.titulo}{source.projeto_nome?` · ${source.projeto_nome}`:''}</li>
             ))}
           </ul>
         </details>

@@ -12,6 +12,68 @@ servers:
     description: Serviço de IA local
 
 paths:
+  /api/v1/chat/answer:
+    post:
+      summary: Recuperar evidências e responder por extração literal em projetos autorizados
+      description: >-
+        Contrato rag-extrativo-v1. Sem projeto_ids, consulta todos os projetos permitidos ao usuário.
+        A seleção explícita de qualquer projeto não autorizado retorna 404 antes da recuperação.
+        O modelo seleciona até cinco passagens literais; o backend verifica cada passagem contra o contexto
+        enviado e revalida acesso e elegibilidade antes de devolver a resposta.
+        Não há síntese livre ou fonte adicionada sem evidência. Este endpoint não persiste conversa.
+      tags: [Chat]
+      security: [{bearerAuth: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [pergunta]
+              properties:
+                pergunta: {type: string, minLength: 1, maxLength: 2000}
+                projeto_ids: {type: array, minItems: 1, maxItems: 50, items: {type: string, format: uuid}}
+      responses:
+        '200':
+          description: Resposta extrativa e somente as fontes utilizadas; sem evidência retorna mensagem padrão e listas vazias
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [contrato, resposta, fontes, evidencias, escopo]
+                properties:
+                  contrato: {type: string, enum: [rag-extrativo-v1]}
+                  resposta: {type: string}
+                  escopo: {type: array, items: {type: string, format: uuid}}
+                  evidencias:
+                    type: array
+                    maxItems: 5
+                    items:
+                      type: object
+                      required: [chunk_id, texto]
+                      properties:
+                        chunk_id: {type: string, format: uuid}
+                        texto: {type: string, minLength: 1, maxLength: 1000}
+                  fontes:
+                    type: array
+                    maxItems: 5
+                    items:
+                      type: object
+                      required: [id, titulo, tipo, projeto_id, projeto_nome, entidade_id, url, chunk_ids]
+                      properties:
+                        id: {type: string, format: uuid}
+                        titulo: {type: string}
+                        tipo: {type: string}
+                        projeto_id: {type: string, format: uuid}
+                        projeto_nome: {type: string}
+                        entidade_id: {type: string, format: uuid}
+                        url: {type: string, nullable: true}
+                        chunk_ids: {type: array, items: {type: string, format: uuid}}
+        '400': {description: Pergunta ou escopo inválido}
+        '401': {description: Autenticação obrigatória}
+        '404': {description: Projeto não autorizado ou inexistente}
+        '503': {description: Serviço indisponível ou evidência inválida; nenhuma resposta do modelo é divulgada}
   /api/v1/quality/configuration/definitions:
     get:
       summary: Consultar DoR e DoD da organização por nível
@@ -3038,6 +3100,14 @@ paths:
                         titulo: {type: string}
                         tipo: {type: string}
                   origem: {type: string, enum: [assistente, busca_textual, sem_resultado]}
+                  evidencias:
+                    type: array
+                    maxItems: 5
+                    items:
+                      type: object
+                      properties:
+                        chunk_id: {type: string, format: uuid}
+                        texto: {type: string, maxLength: 1000}
         '400':
           $ref: '#/components/responses/ValidationError'
         '401':

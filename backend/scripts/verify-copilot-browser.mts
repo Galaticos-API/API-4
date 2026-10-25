@@ -265,6 +265,47 @@ export async function verifyCopilotBrowser({
       });
       await report.close();
     }
+    const ragPage=await browser.newPage({viewport:{width:1440,height:1100}});
+    await ragPage.addInitScript((value:string)=>localStorage.setItem('app_auth_token',value),token);
+    let releaseHistory!:()=>void;
+    const historyGate=new Promise<void>(resolve=>{releaseHistory=resolve;});
+    await ragPage.route('**/api/v1/chat/conversations',async(route:any)=>{await historyGate;await route.continue();},{times:1});
+    await ragPage.goto('http://127.0.0.1:5189/chat');
+    await ragPage.getByLabel('Escopo da consulta').selectOption(projectId);
+    await ragPage.getByRole('textbox').fill('Pergunta mantida enquanto o histórico carrega');
+    const pendingHistory=ragPage.waitForResponse(response=>response.url().endsWith('/api/v1/chat/conversations'));
+    releaseHistory();
+    const historyBody=await(await pendingHistory).json();
+    assert.ok(historyBody.items.length>0);
+    await ragPage.getByRole('navigation',{name:'Histórico de conversas'}).getByText(historyBody.items[0].titulo,{exact:true}).first().waitFor({state:'visible'});
+    assert.equal(await ragPage.getByLabel('Escopo da consulta').isEnabled(),true);
+    assert.equal(await ragPage.getByRole('textbox').inputValue(),'Pergunta mantida enquanto o histórico carrega');
+    await ragPage.getByRole('button',{name:'Nova conversa',exact:true}).click();
+    await ragPage.getByLabel('Escopo da consulta').selectOption(projectId);
+    const question=ragPage.getByRole('textbox');
+    await question.fill('Consultar pedido');
+    await ragPage.getByRole('button',{name:'Enviar',exact:true}).click();
+    await ragPage.getByText(/Fontes citadas \(/).last().click();
+    const source=ragPage.locator('.chat-sources a').last();await source.waitFor({state:'visible'});
+    const href=await source.getAttribute('href');assert.ok(href?.startsWith('/projects/'+projectId));
+    await source.click();await ragPage.waitForURL('**'+href);
+    await ragPage.goto('http://127.0.0.1:5189/chat');
+    await ragPage.waitForFunction(()=>document.querySelector<HTMLSelectElement>('#chat-scope')?.disabled===true);
+    await ragPage.getByRole('button',{name:'Nova conversa',exact:true}).click();
+    await ragPage.getByLabel('Escopo da consulta').selectOption(projectId);
+    try {
+      await setUnavailable(true);
+      await ragPage.getByRole('textbox').fill('Consultar pedido durante indisponibilidade');
+      await ragPage.getByRole('button',{name:'Enviar',exact:true}).click();
+      await ragPage.getByText(/Não foi possível falar com o assistente agora/).waitFor({state:'visible'});
+      assert.equal(await ragPage.getByRole('textbox').inputValue(),'Consultar pedido durante indisponibilidade');
+      await setUnavailable(false);
+      const retry=ragPage.waitForResponse(response=>response.url().endsWith('/api/v1/chat/query')&&response.request().method()==='POST');
+      await ragPage.getByRole('button',{name:'Tentar novamente',exact:true}).click();
+      assert.equal((await retry).status(),200);
+      assert.equal(await ragPage.getByRole('textbox').inputValue(),'');
+    } finally {await setUnavailable(false);await ragPage.close();}
+    console.log('S2-24 navegador aprovado: histórico atrasado preserva o escopo; evidências e navegação à fonte; recuperação após indisponibilidade sem perder a pergunta.');
     console.log(
       "S2-10 navegador aprovado: questionador, proposta separada, demora, cancelamento, IA indisponível com edição salva, mobile, acessibilidade e padronização de épico/feature.",
     );

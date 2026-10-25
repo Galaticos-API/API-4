@@ -151,8 +151,9 @@ try {
     "INSERT INTO projeto(id,nome,cliente,status) VALUES($1::uuid,$1::text,'Sintético','ativo'),($2::uuid,$2::text,'Sintético','ativo')",
     [a, b],
   );
+  await pool.query("INSERT INTO documento(id,projeto_id,nome,caminho,status_processamento) VALUES ($1,$3,'Base A','a.txt','processado'),($2,$4,'Base B','b.txt','processado')",[ca,cb,a,b]);
   await pool.query(
-    "INSERT INTO chunk(id,projeto_id,entidade_tipo,entidade_id,texto) VALUES($1,$3,'pbi',$1,'Consultar pedido no projeto A'),($2,$4,'pbi',$2,'Consultar pedido secreto do projeto B')",
+    "INSERT INTO chunk(id,projeto_id,entidade_tipo,entidade_id,texto) VALUES($1,$3,'documento',$1,'Consultar pedido no projeto A'),($2,$4,'documento',$2,'Consultar pedido secreto do projeto B')",
     [ca, cb, a, b],
   );
   const sessions = await Promise.all(
@@ -283,6 +284,22 @@ try {
     projeto_id: a,
   });
   assert.equal(chat.status, 200, JSON.stringify(chat.body));
+  const structured=await call('/chat/answer',0,'POST',{pergunta:'Consultar pedido',projeto_ids:[a,b]});
+  assert.equal(structured.status,200,JSON.stringify(structured.body));
+  assert.equal(structured.body.contrato,'rag-extrativo-v1');
+  assert.equal(structured.body.evidencias.length,2);
+  assert.deepEqual(new Set(structured.body.fontes.map((source:any)=>source.projeto_id)),new Set([a,b]));
+  assert.equal((await call('/chat/answer',null,'POST',{pergunta:'Consultar pedido'})).status,401);
+  assert.equal((await call('/chat/answer',0,'POST',{pergunta:' '})).status,400);
+  try {
+    await control({invalid:true});
+    const rejected=await call('/chat/answer',0,'POST',{pergunta:'Consultar pedido',projeto_ids:[a]});
+    assert.equal(rejected.status,503);assert.ok(!JSON.stringify(rejected.body).includes('SEGREDO'));
+    await control({invalid:false,unavailable:true});
+    const failed=await call('/chat/query',1,'POST',{pergunta:'Consultar pedido com IA indisponível',projeto_id:a});
+    assert.equal(failed.status,503);
+    assert.equal((await pool.query("SELECT processing_status FROM mensagem WHERE conteudo=$1 AND remetente='user'",['Consultar pedido com IA indisponível'])).rows[0].processing_status,'failed');
+  } finally {await control({invalid:false,unavailable:false});}
   assert.equal(
     (await pool.query("SELECT count(*)::int AS n FROM projeto")).rows[0].n,
     2,

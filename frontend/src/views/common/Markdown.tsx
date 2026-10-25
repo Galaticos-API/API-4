@@ -88,7 +88,7 @@ export function parseMarkdown(source: string): Block[] {
 
 function renderInline(text: string, keyPrefix: string): ReactNode[] {
   const nodes: ReactNode[] = [];
-  const pattern = /(`[^`\n]+`)|(\*\*[^*\n]+\*\*)|(\[[^\]\n]+\]\([^)\s]+\))|(\*[^*\n]+\*)/g;
+  const pattern = /\\[\\`*_{}\[\]()#+.!<>|~\-]|(`[^`\n]+`)|(\*\*[^*\n]+\*\*)|(\[[^\]\n]+\]\([^)\s]+\))|(\*[^*\n]+\*)/g;
   let last = 0;
   let match: RegExpExecArray | null;
   let position = 0;
@@ -96,7 +96,8 @@ function renderInline(text: string, keyPrefix: string): ReactNode[] {
     if (match.index > last) nodes.push(text.slice(last, match.index));
     const token = match[0];
     const key = `${keyPrefix}-${position++}`;
-    if (token.startsWith("`")) nodes.push(<code key={key}>{token.slice(1, -1)}</code>);
+    if (token.startsWith('\\')) nodes.push(token.slice(1));
+    else if (token.startsWith("`")) nodes.push(<code key={key}>{token.slice(1, -1)}</code>);
     else if (token.startsWith("**")) nodes.push(<strong key={key}>{token.slice(2, -2)}</strong>);
     else if (token.startsWith("[")) {
       const link = token.match(/^\[([^\]]+)\]\(([^)]+)\)$/);

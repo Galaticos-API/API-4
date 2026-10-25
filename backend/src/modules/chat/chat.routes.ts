@@ -2,6 +2,7 @@ import { Router, type NextFunction, type Request, type RequestHandler, type Resp
 import { requireAuth } from "../../middleware/requireAuth.js";
 import { ValidationError } from "../../shared/errors.js";
 import { ChatService } from "./chat.service.js";
+import { RagService,ragInput } from './rag.service.js';
 
 function userId(req: Request): string {
   if (!req.auth?.id) throw new ValidationError("Autenticação necessária.");
@@ -15,6 +16,13 @@ function text(value: unknown): string | undefined {
 export function createChatRouter(service: ChatService = new ChatService(), authentication: RequestHandler = requireAuth): Router {
   const router = Router();
   router.use(authentication);
+  router.post('/answer',async(req,res,next)=>{
+    try {
+      const parsed=ragInput.safeParse(req.body);
+      if(!parsed.success)throw new ValidationError('Pergunta ou escopo inválido.');
+      res.json(await new RagService().answer(userId(req),parsed.data.pergunta,parsed.data.projeto_ids));
+    } catch(error){next(error);}
+  });
 
   router.get("/projects", async (req, res, next) => { try { res.json({ items: await service.accessibleProjects(userId(req)) }); } catch (error) { next(error); } });
 

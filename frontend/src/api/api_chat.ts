@@ -7,6 +7,8 @@ export interface ChatSource {
   id: string;
   titulo: string;
   tipo: string;
+  projeto_nome?: string;
+  url?: string | null;
 }
 
 export interface ChatConversation {
@@ -35,7 +37,8 @@ export interface ChatAnswer {
 }
 
 export const MAX_QUESTION_LENGTH = 2000;
-const QUERY_TIMEOUT_MS = 60_000;
+// Inclui os embeddings (até 10 s), a geração (até 60 s) e a comunicação.
+const QUERY_TIMEOUT_MS = 90_000;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
@@ -49,6 +52,8 @@ function parseSources(value: unknown): ChatSource[] {
       id: item.id,
       titulo: typeof item.titulo === "string" && item.titulo ? item.titulo : item.id,
       tipo: typeof item.tipo === "string" ? item.tipo : "documento",
+      projeto_nome: typeof item.projeto_nome==='string'?item.projeto_nome:undefined,
+      url: typeof item.url==='string'&&item.url.startsWith('/projects/')&&!/[\\\s]/.test(item.url)?item.url:null,
     }];
   });
 }
@@ -97,6 +102,7 @@ export async function askQuestion(
   input: { pergunta: string; conversaId?: string | null; projetoId?: string | null },
   signal?: AbortSignal,
 ): Promise<ChatAnswer> {
+  const deadline = AbortSignal.timeout(QUERY_TIMEOUT_MS);
   const response = await apiRequest("/chat/query", {
     method: "POST",
     body: JSON.stringify({
@@ -104,7 +110,7 @@ export async function askQuestion(
       conversa_id: input.conversaId || undefined,
       projeto_id: input.projetoId || undefined,
     }),
-    signal: signal ?? AbortSignal.timeout(QUERY_TIMEOUT_MS),
+    signal: signal ? AbortSignal.any([signal, deadline]) : deadline,
   });
   const data: unknown = await response.json();
   if (!isRecord(data) || typeof data.conversa_id !== "string" || typeof data.resposta !== "string") {
@@ -124,7 +130,11 @@ export function describeChatError(error: unknown): string {
 }
 
 export async function listChatProjects(signal?: AbortSignal): Promise<Array<{id: string; nome: string}>> {
-  const data = await (await apiRequest("/chat/projects", {signal})).json();
-  if (!Array.isArray(data.items)) throw new Error("Projetos inválidos");
-  return data.items;
+  const data: unknown = await (await apiRequest("/chat/projects", {signal})).json();
+  if (!isRecord(data) || !Array.isArray(data.items)) throw new Error("Projetos inválidos");
+  return data.items.map(item => {
+    if (!isRecord(item) || typeof item.id !== 'string' || !item.id.trim()
+      || typeof item.nome !== 'string' || !item.nome.trim()) throw new Error('Projeto inválido');
+    return {id: item.id, nome: item.nome};
+  });
 }

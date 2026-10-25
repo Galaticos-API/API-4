@@ -1,9 +1,11 @@
-import { HarnessService, HttpHarnessEngine } from "../harness/harness.service.js";
-import { searchPatterns } from "../harness/search-patterns.js";
+import { HttpHarnessEngine } from "../harness/harness.service.js";
 export { searchPatterns } from "../harness/search-patterns.js";
 import { env } from "../../config/env.js";
 import { AppError, NotFoundError, ValidationError, validateUuid } from "../../shared/errors.js";
 import { ChatRepository } from "./chat.repository.js";
+import { RagService } from './rag.service.js';
+import { SearchRepository } from '../search/search.repository.js';
+import { HttpSearchEmbeddingClient } from '../search/search.service.js';
 import {
   MAX_QUESTION_LENGTH,
   NOT_FOUND_ANSWER,
@@ -16,7 +18,7 @@ import {
 } from "./chat.types.js";
 
 export interface AssistantClient {
-  ask(pergunta: string, projetoId?: string): Promise<AssistantAnswer>;
+  ask(pergunta: string, projetoId?: string,usuarioId?:string): Promise<AssistantAnswer>;
 }
 
 export function sanitizeSources(value: unknown): ChatSource[] {
@@ -36,18 +38,11 @@ export function sanitizeSources(value: unknown): ChatSource[] {
 export class HttpAssistantClient implements AssistantClient {
   constructor(private readonly baseUrl: string = env.AI_SERVICE_URL, private readonly repository = new ChatRepository()) { }
 
-  async ask(pergunta: string, projetoId?: string): Promise<AssistantAnswer> {
+  async ask(pergunta: string, projetoId?: string,usuarioId?:string): Promise<AssistantAnswer> {
     if (!projetoId) throw new ValidationError("Escolha um projeto.");
-    const chunks = await this.repository.searchChunks(projetoId, searchPatterns(pergunta), 5);
-    if (!chunks.length) return { resposta: NOT_FOUND_ANSWER, fontes: [] };
-    const response = await new HarnessService(undefined, new HttpHarnessEngine(this.baseUrl), this.repository).run(
-      projetoId,
-      { mode: "consulta", operation: "responder", level: "pbi", fields: { pergunta }, context: [] },
-      chunks.map(row => ({ id: row.id, text: row.texto.slice(0, 8000) })),
-    );
-    const result = response.result as { answer: string; sources: string[] };
-    const text = result.answer + (result.sources.length ? "\n" + result.sources.map(id => "[" + id + "]").join(" ") : "");
-    return { resposta: text, fontes: result.sources.length ? citedSources(text, chunks) : [] };
+    if(!usuarioId)throw new ValidationError('Autenticação necessária.');
+    return new RagService(this.repository,new SearchRepository(),new HttpSearchEmbeddingClient(this.baseUrl),undefined,new HttpHarnessEngine(this.baseUrl))
+      .answer(usuarioId,pergunta,[projetoId]);
   }
 }
 
@@ -127,27 +122,11 @@ export class ChatService {
     const messageId = await this.repository.addMessage(conversaId, "user", pergunta);
     try {
 
-      let answer: AssistantAnswer;
-      let origem: QueryResult["origem"];
-      try {
-        answer = await this.assistant.ask(pergunta, projetoId ?? undefined);
-        origem = answer.resposta === NOT_FOUND_ANSWER ? "sem_resultado" : "assistente";
-      } catch {
-        const chunks = await this.repository.searchChunks(projetoId, searchPatterns(pergunta), 3);
-        if (chunks.length > 0) {
-          answer = {
-            resposta: `O assistente está indisponível. Estes trechos do acervo mencionam termos da sua pergunta:\n\n${chunks.map((chunk) => `- ${chunk.texto}`).join("\n\n")}`,
-            fontes: chunks.map((chunk) => ({ id: chunk.id, titulo: `Trecho de ${chunk.entidade_tipo}`, tipo: chunk.entidade_tipo })),
-          };
-          origem = "busca_textual";
-        } else {
-          answer = { resposta: NOT_FOUND_ANSWER, fontes: [] };
-          origem = "sem_resultado";
-        }
-      }
+      const answer=await this.assistant.ask(pergunta,projetoId,usuarioId);
+      const origem:QueryResult['origem']=answer.resposta===NOT_FOUND_ANSWER?'sem_resultado':'assistente';
 
       await this.repository.finishMessage(conversaId, messageId, answer.resposta, answer.fontes);
-      return { conversa_id: conversaId, resposta: answer.resposta, fontes: answer.fontes, origem };
+      return { conversa_id: conversaId, resposta: answer.resposta, fontes: answer.fontes, origem,...(answer.evidencias?{evidencias:answer.evidencias}: {}) };
     } catch (error) {
       await this.repository.failMessage(messageId).catch(() => undefined);
       throw new AppError("Não foi possível processar a pergunta. Tente novamente.", 503, "CHAT_FAILED", { conversa_id: conversaId, mensagem_id: messageId });

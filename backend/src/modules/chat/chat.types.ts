@@ -2,6 +2,11 @@ export interface ChatSource {
   id: string;
   titulo: string;
   tipo: string;
+  projeto_id?: string;
+  projeto_nome?: string;
+  entidade_id?: string;
+  url?: string | null;
+  chunk_ids?: string[];
 }
 
 export type ChatOrigin = "assistente" | "busca_textual" | "sem_resultado";
@@ -50,6 +55,7 @@ export interface QueryResult {
 export interface AssistantAnswer {
   resposta: string;
   fontes: ChatSource[];
+  evidencias?: Array<{chunk_id:string;texto:string}>;
 }
 
 export const MAX_QUESTION_LENGTH = 2000;

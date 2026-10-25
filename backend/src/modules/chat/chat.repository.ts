@@ -1,4 +1,5 @@
 import { projectAccessSql } from "../projects/project-access.js";
+import { knowledgeSourceSql } from '../../shared/knowledge-source-sql.js';
 import { withTransaction } from "../../database/transaction.js";
 import { ConflictError } from "../../shared/errors.js";
 import { Pool } from "pg";
@@ -100,6 +101,18 @@ export class ChatRepository {
        ORDER BY created_at DESC, id LIMIT $3`,
       [projetoId, patterns, limit],
     );
+    return result.rows;
+  }
+
+  async currentRagChunks(userId:string,ids:string[]):Promise<Array<{id:string;texto:string;projeto_id:string;entidade_tipo:string;entidade_id:string;metadados_json:Record<string,unknown>|null}>> {
+    if(!ids.length)return [];
+    const result=await this.pool.query(`SELECT c.id,c.texto,c.projeto_id,c.entidade_tipo,c.entidade_id,c.metadados_json FROM chunk c JOIN projeto p ON p.id=c.projeto_id
+      WHERE c.id=ANY($1::uuid[]) AND p.status<>'arquivado' AND ${projectAccessSql('c.projeto_id','$2')}
+      AND ${knowledgeSourceSql('c')}
+      AND (c.entidade_tipo<>'analise_repositorio' OR EXISTS (SELECT 1 FROM analise_repositorio r
+        WHERE r.id=c.entidade_id AND r.projeto_id=c.projeto_id AND r.status='concluido'
+        AND r.aprovado_por IS NOT NULL AND r.aprovado_em IS NOT NULL
+        AND r.aprovacao_hash=encode(sha256(convert_to(r.relatorio_markdown,'UTF8')),'hex')))`,[ids,userId]);
     return result.rows;
   }
 }
