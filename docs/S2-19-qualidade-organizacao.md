@@ -29,6 +29,21 @@ O padrão legado permanece em `quality_configuration`; não é criada outra font
 
 ## Validação
 
+### Revisão consolidada em 25/10/2026
+
+Revisão da S2-19 sobre a main `08af090`, sem avançar para a S2-20. Foram conferidos os padrões por nível, autorização administrativa, aplicação imediata do dicionário, cálculo da completude, histórico com autor/data, versões concorrentes, preservação dos itens concluídos e compatibilidade com a API anterior de PBI.
+
+Quatro problemas foram reproduzidos em testes e corrigidos:
+
+| Problema | Correção |
+|---|---|
+| Recarregar a configuração ou fechar/atualizar a aba podia perder alterações sem aviso. | A recarga pede confirmação quando há alterações pendentes, e o fechamento/atualização da aba recebe o aviso padrão. Cancelar mantém termos, flags e política em edição. |
+| A API aceitava quebras internas de linha em um termo, enquanto o editor separava apenas parte dos tipos de quebra. Salvar novamente podia modificar a estrutura do dicionário. | Cada termo deve ocupar uma linha nas duas APIs. O editor separa CR/LF e os separadores Unicode de linha/parágrafo antes do envio. |
+| Consultas com sinal externo de cancelamento substituíam o prazo padrão HTTP e podiam deixar o painel carregando indefinidamente. | Configuração, histórico e relatório têm prazo de 15 segundos, preservando o cancelamento do componente. |
+| Dados da API eram usados sem validar configuração, histórico ou relatório; um salvamento malformado também anunciava atualização antes da validação. | As respostas são validadas antes de atualizar a tela ou anunciar sucesso. Falhas seguem os avisos recuperáveis existentes, preservando a edição. |
+
+A validação passou: build da interface, 112 testes da interface, typecheck e 70 testes do backend, 27 testes de qualidade/RAG em PostgreSQL, 89 de regressão de indexação e 13 de navegador autenticado. A nova regressão HTTP comprova que dicionários inválidos retornam 400 nas duas APIs sem publicar outra versão da política. A OpenAPI foi atualizada e lida sem erros, com 104 caminhos. Um teste opcional de indexação com IA real permanece ignorado; as verificações da S2-19 são determinísticas. Não foram encontradas outras falhas nos caminhos testados. Não é necessária migração: políticas, avaliações de conclusão e históricos já persistidos não são reescritos.
+
 - `npm --prefix backend run build` e `npm --prefix backend test`
 - `npm --prefix frontend run build` e `npm --prefix frontend test`
 - `npm --prefix backend run test:integration:quality`: PostgreSQL isolado para padrões, níveis, dicionário, conclusão, metadados, permissões, rollback e conflito de versões.

@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from "express";
 import { qualityService, QualityService } from "./quality.service.js";
 import { qualityConfigurationRepository, QualityConfigurationRepository } from "./quality.configuration.repository.js";
 import { z } from "zod";
+import { vagueTermSchema } from './organization-quality.types.js';
 
 const configurationSchema = z.object({
   checks: z.object({
@@ -11,7 +12,7 @@ const configurationSchema = z.object({
     termos_vagos: z.boolean(),
     prototipo_vinculado: z.boolean(),
   }).strict(),
-  vague_terms: z.array(z.string().trim().min(1).max(80)).max(100),
+  vague_terms: z.array(vagueTermSchema).max(100),
   exigir_justificativa_item_concluido: z.boolean().optional(),
 }).strict();
 

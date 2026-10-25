@@ -2,7 +2,7 @@ import { Pool, PoolClient } from "pg";
 import { pool } from "../../database/db.js";
 import { auditService } from "../audit/audit.service.js";
 import { ConflictError, ValidationError } from "../../shared/errors.js";
-import { effectiveConfiguration, type OrganizationConfigurationInput } from './organization-quality.types.js';
+import { effectiveConfiguration, vagueTermSchema, type OrganizationConfigurationInput } from './organization-quality.types.js';
 import {
   PBI_QUALITY_CHECKS,
   PbiQualityCheck,
@@ -235,9 +235,7 @@ export class QualityConfigurationRepository {
       || input.vague_terms.length > 100
       || input.vague_terms.some(
         (term) =>
-          typeof term !== "string"
-          || !term.trim()
-          || term.trim().length > 80,
+          !vagueTermSchema.safeParse(term).success,
       )
       || new Set(
         input.vague_terms.map(

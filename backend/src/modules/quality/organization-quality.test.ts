@@ -24,3 +24,10 @@ test('S2-19: dicionário reconhece acentos e frases sem casar partes de palavras
   assert.deepEqual(identificarTermosVagos('facilidade e agilizar',['fácil','ágil']),[]);
   assert.deepEqual(identificarTermosVagos('literal a+b e nada de aab',['a+b']),['a+b']);
 });
+test('S2-19: cada termo do dicionário deve ocupar uma única linha',()=>{
+  const current=effectiveConfiguration({},1,'2026-10-25T12:00:00Z',null);
+  for(const separator of ['\n','\r','\u2028','\u2029']) {
+    assert.equal(organizationConfigurationSchema.safeParse({expected_version:1,levels:current.levels,
+      vague_terms:['rápido'+separator+'ótimo'],exigir_justificativa_item_concluido:true}).success,false);
+  }
+});

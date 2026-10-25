@@ -95,6 +95,18 @@ test('S2-19: organização, níveis, dicionário imediato, conclusão, autoria e
       assert.equal((await call('/quality/configuration/organization','dev','PUT',{})).status,403);
       assert.equal((await call('/quality/configuration/organization','admin','PUT',{expected_version:1,levels:{}})).status,400);
     });
+    await t.test('dicionários multilinha são recusados nas duas APIs sem alterar a política',async()=>{
+      const version=config.version;
+      for(const separator of ['\n','\r','\u2028','\u2029']) {
+        const vague_terms=['rápido'+separator+'ótimo'];
+        assert.equal((await call('/quality/configuration/organization','admin','PUT',{
+          expected_version:version,levels:config.levels,vague_terms,exigir_justificativa_item_concluido:true,
+        })).status,400);
+        assert.equal((await call('/quality/configuration/pbi','admin','PUT',{checks:config.levels.pbi,vague_terms})).status,400);
+      }
+      const after=(await call<OrganizationConfiguration>('/quality/configuration/organization')).json;
+      assert.equal(after.version,version);assert.deepEqual(after.vague_terms,config.vague_terms);
+    });
     await t.test('configuração de um nível não altera o indicador dos outros',async()=>{
       const before=await call<Report>('/quality/items/feature/'+ids.feature,'po');assert.equal(before.status,200);
       assert.equal(before.json.score_completude,50);

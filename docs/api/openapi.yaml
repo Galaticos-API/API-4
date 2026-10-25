@@ -4757,8 +4757,8 @@ components:
       type: array
       maxItems: 100
       uniqueItems: true
-      description: Termos distintos após normalização Unicode e comparação sem diferenciar maiúsculas
-      items: {type: string, minLength: 1, maxLength: 80}
+      description: Termos em uma única linha, distintos após normalização Unicode e comparação sem diferenciar maiúsculas
+      items: {type: string, minLength: 1, maxLength: 80, pattern: '^[^\r\n\u2028\u2029]+$'}
     OrganizationLevelChecks:
       type: object
       additionalProperties: false
@@ -4975,7 +4975,7 @@ components:
         vague_terms:
           type: array
           maxItems: 100
-          items: { type: string, minLength: 1, maxLength: 80 }
+          items: { type: string, minLength: 1, maxLength: 80, pattern: '^[^\r\n\u2028\u2029]+$' }
         exigir_justificativa_item_concluido:
           type: boolean
           description: Se alterações em itens concluídos exigem justificativa; omissão preserva a configuração atual.

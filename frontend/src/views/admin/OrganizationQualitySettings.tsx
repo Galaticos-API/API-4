@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { ApiError } from '../../api/api_auth';
 import { getOrganizationConfiguration, getQualityHistory, saveOrganizationConfiguration, type OrganizationConfiguration, type Level } from '../../api/api_organization_quality';
 import { Button } from '../common/ui';
+import { useUnsavedChangesGuard } from '../../viewmodels/useUnsavedChangesGuard';
 import '../../assets/styles/organization-quality.css';
 
 const levelNames:Record<Level,string>={epico:'Épico',feature:'Feature',pbi:'PBI'};
@@ -19,25 +20,30 @@ export function OrganizationQualitySettings() {
   const [next,setNext]=useState<number|null>(null);
   const historyRequest=useRef<AbortController|null>(null);
   const mounted=useRef(false);
+  const baseline=useRef<OrganizationConfiguration|null>(null);
+  const dirty=Boolean(config&&baseline.current&&(terms!==baseline.current.vague_terms.join('\n')
+    || JSON.stringify(config.levels)!==JSON.stringify(baseline.current.levels)
+    || config.exigir_justificativa_item_concluido!==baseline.current.exigir_justificativa_item_concluido));
+  useUnsavedChangesGuard(dirty);
 
   useEffect(()=>{mounted.current=true;return()=>{mounted.current=false;historyRequest.current?.abort();};},[]);
   useEffect(()=>{
     const controller=new AbortController();
     setLoading(true);setError('');setMessage('');
     Promise.all([getOrganizationConfiguration(controller.signal),getQualityHistory(controller.signal)]).then(([current,page])=>{
-      if(!controller.signal.aborted){setConfig(current);setTerms(current.vague_terms.join('\n'));setHistory(page.items);setNext(page.next_before);}
+      if(!controller.signal.aborted){baseline.current=current;setConfig(current);setTerms(current.vague_terms.join('\n'));setHistory(page.items);setNext(page.next_before);}
     }).catch(()=>{if(!controller.signal.aborted)setError('Não foi possível carregar a configuração de qualidade.');})
       .finally(()=>{if(!controller.signal.aborted)setLoading(false);});
     return()=>controller.abort();
   },[attempt]);
 
   async function save(event:React.FormEvent) {
-    event.preventDefault();if(!config || busy)return;
+    event.preventDefault();if(!config || busy || loading)return;
     setBusy(true);setError('');setMessage('');
     try {
-      const updated=await saveOrganizationConfiguration(config,terms.split(/\r?\n/).map(term=>term.trim()).filter(Boolean));
+      const updated=await saveOrganizationConfiguration(config,terms.split(/\r\n|[\r\n\u2028\u2029]/u).map(term=>term.trim()).filter(Boolean));
       if(!mounted.current)return;
-      setConfig(updated);setTerms(updated.vague_terms.join('\n'));setHistory(current=>[updated,...current]);
+      baseline.current=updated;setConfig(updated);setTerms(updated.vague_terms.join('\n'));setHistory(current=>[updated,...current]);
       setMessage('Configuração salva. As próximas avaliações já usam as novas verificações.');
     } catch(error) {
       if(mounted.current)setError(error instanceof ApiError && error.status===409
@@ -61,7 +67,10 @@ export function OrganizationQualitySettings() {
     {loading && <p role="status">Carregando configuração…</p>}
     {error && <p role="alert">{error}</p>}
     {message && <p role="status">{message}</p>}
-    <Button variant="secondary" disabled={loading||busy} onClick={()=>setAttempt(value=>value+1)}>Recarregar configuração</Button>
+    <Button variant="secondary" disabled={loading||busy} onClick={()=>{
+      if(dirty&&!window.confirm('Recarregar a configuração descarta as alterações não salvas. Deseja continuar?'))return;
+      setAttempt(value=>value+1);
+    }}>Recarregar configuração</Button>
     {config && !loading && <form onSubmit={save}>
       <p>Versão {config.version} · {config.updated_by?.nome ?? 'Padrão da instalação'} · {new Date(config.updated_at).toLocaleString('pt-BR')}</p>
       <div className="organization-quality-levels">{(['epico','feature','pbi'] as const).map(level=><fieldset key={level} disabled={busy}>

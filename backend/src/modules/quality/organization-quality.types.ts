@@ -4,6 +4,9 @@ import { TERMOS_VAGOS_PADRAO } from './quality.rules.js';
 export const organizationChecksSchema = z.object({
   campos_obrigatorios: z.boolean(), criterios_aceitacao: z.boolean(), termos_vagos: z.boolean(),
 }).strict();
+export const vagueTermSchema = z.string().trim().min(1).max(80)
+  .refine(term=>!/[\r\n\u2028\u2029]/u.test(term),'Cada termo deve ocupar uma única linha.')
+  .transform(term=>term.normalize('NFC'));
 export const organizationConfigurationSchema = z.object({
   expected_version: z.number().int().positive().max(2147483647),
   levels: z.object({
@@ -11,7 +14,7 @@ export const organizationConfigurationSchema = z.object({
     feature: organizationChecksSchema,
     pbi: z.object({ titulo_infinitivo:z.boolean(), historia_completa:z.boolean(), cenario_estruturado:z.boolean(), termos_vagos:z.boolean(), prototipo_vinculado:z.boolean() }).strict(),
   }).strict(),
-  vague_terms: z.array(z.string().trim().min(1).max(80).transform(term=>term.normalize('NFC'))).max(100),
+  vague_terms: z.array(vagueTermSchema).max(100),
   exigir_justificativa_item_concluido: z.boolean(),
 }).strict().refine(input=>new Set(input.vague_terms.map(term=>term.toLocaleLowerCase('pt-BR'))).size===input.vague_terms.length, 'Não repita termos vagos.');
 export type OrganizationConfigurationInput = z.infer<typeof organizationConfigurationSchema>;
