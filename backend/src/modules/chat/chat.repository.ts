@@ -97,6 +97,8 @@ export class ChatRepository {
     const result = await this.pool.query<ChunkMatch>(
       `SELECT id, entidade_tipo, entidade_id, texto, metadados_json FROM chunk
        WHERE projeto_id = $1 AND texto ILIKE ANY($2::text[])
+       AND EXISTS (SELECT 1 FROM projeto p WHERE p.id=chunk.projeto_id AND p.status<>'arquivado')
+       AND ${knowledgeSourceSql('chunk')}
        AND (entidade_tipo <> 'analise_repositorio' OR EXISTS (SELECT 1 FROM analise_repositorio reviewed
          WHERE reviewed.id=chunk.entidade_id AND reviewed.projeto_id=chunk.projeto_id
          AND reviewed.aprovacao_hash=encode(sha256(convert_to(reviewed.relatorio_markdown,'UTF8')),'hex')
@@ -105,6 +107,15 @@ export class ChatRepository {
       [projetoId, patterns, limit],
     );
     return result.rows;
+  }
+
+  async currentHarnessChunks(projectId: string, ids: string[]) {
+    if (!ids.length) return [];
+    return (await this.pool.query<{ id: string; texto: string }>(
+      `SELECT c.id,c.texto FROM chunk c JOIN projeto p ON p.id=c.projeto_id
+       WHERE c.projeto_id=$1 AND c.id=ANY($2::uuid[]) AND p.status<>'arquivado'
+         AND ${knowledgeSourceSql('c')}`, [projectId, ids],
+    )).rows;
   }
 
   async currentRagChunks(userId:string,ids:string[]):Promise<Array<{id:string;texto:string;projeto_id:string;entidade_tipo:string;entidade_id:string;metadados_json:Record<string,unknown>|null}>> {

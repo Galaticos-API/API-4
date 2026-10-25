@@ -3,16 +3,18 @@ import { Pool } from "pg";
 import { pool } from "../../database/db.js";
 import { withTransaction } from "../../database/transaction.js";
 import { requireAuth } from "../../middleware/requireAuth.js";
+import { ProjectAccess, projectAccessSql } from '../projects/project-access.js';
 import { NotFoundError, ValidationError, validateUuid } from "../../shared/errors.js";
 
 export class DocumentTextRepository {
   constructor(private readonly db: Pool = pool) {}
-  async read(projectId: string, documentId: string, chunkId: string, offset?: number) {
+  async read(projectId: string, documentId: string, chunkId: string, offset?: number, userId?: string) {
     return withTransaction(this.db, async client => {
       const document = (await client.query(
         `SELECT d.id,d.nome AS name,d.projeto_id AS project_id FROM documento d JOIN projeto p ON p.id=d.projeto_id
-         WHERE d.id=$1 AND d.projeto_id=$2 AND p.status<>'arquivado' AND d.status_processamento='processado'`,
-        [documentId, projectId],
+         WHERE d.id=$1 AND d.projeto_id=$2 AND p.status<>'arquivado' AND d.status_processamento='processado'
+           AND ($3::uuid IS NULL OR ${projectAccessSql('d.projeto_id', '$3')})`,
+        [documentId, projectId, userId ?? null],
       )).rows[0];
       if (!document) throw new NotFoundError("Documento indisponível.");
       const rows = (await client.query(
@@ -36,7 +38,7 @@ export class DocumentTextRepository {
     }, "snapshot");
   }
 }
-export function createDocumentTextRouter(repository = new DocumentTextRepository()) {
+export function createDocumentTextRouter(repository = new DocumentTextRepository(), access = new ProjectAccess()) {
   const router = Router({ mergeParams: true });
   router.get("/:documentId/excerpts", requireAuth, async (req, res, next) => {
     try {
@@ -46,7 +48,9 @@ export function createDocumentTextRouter(repository = new DocumentTextRepository
       validateUuid(projectId, "Projeto"); validateUuid(documentId, "Documento"); validateUuid(chunkId, "Trecho");
       const rawOffset = req.query.offset;
       if (rawOffset !== undefined && (typeof rawOffset !== "string" || !/^\d{1,8}$/.test(rawOffset))) throw new ValidationError("Página inválida.");
-      res.json(await repository.read(projectId, documentId, chunkId, rawOffset === undefined ? undefined : Number(rawOffset)));
+      const result = await repository.read(projectId, documentId, chunkId, rawOffset === undefined ? undefined : Number(rawOffset), req.auth!.id);
+      await access.assertEntity(req.auth!.id, 'projeto', projectId);
+      res.json(result);
     } catch (error) { next(error); }
   });
   return router;

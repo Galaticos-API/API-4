@@ -4,7 +4,7 @@ import { NotFoundError, ValidationError, validateUuid } from "../../shared/error
 
 // Arguments are SQL expressions controlled by repositories, never request input.
 export function projectAccessSql(project: string, user: string): string {
-  return `EXISTS (SELECT 1 FROM usuario access_user WHERE access_user.id=${user} AND
+  return `EXISTS (SELECT 1 FROM usuario access_user WHERE access_user.id=${user} AND access_user.ativo AND
     (access_user.role IN ('admin','po') OR EXISTS (
       SELECT 1 FROM desenvolvedor access_dev JOIN alocacao access_allocation ON access_allocation.desenvolvedor_id=access_dev.id
       WHERE access_dev.usuario_id=access_user.id AND access_allocation.projeto_id=${project}

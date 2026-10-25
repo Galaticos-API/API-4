@@ -37,7 +37,8 @@ export function createSearchRouter(service: SearchService = new SearchService(),
         technologyId,
         level: parseSearchLevel(levelValue),
         limit: parsedLimit,
-      });
+      }, req.auth!.id);
+      await access.assertEntity(req.auth!.id, "projeto", projectId);
       res.json(result);
     } catch (error) {
       next(error);

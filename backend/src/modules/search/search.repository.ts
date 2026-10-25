@@ -2,6 +2,7 @@ import { Pool } from "pg";
 import { pool } from "../../database/db.js";
 import type { HybridSearchInput, HybridSearchRow } from "./search.types.js";
 import { knowledgeSourceSql } from '../../shared/knowledge-source-sql.js';
+import { projectAccessSql } from '../projects/project-access.js';
 
 export class SearchRepository {
   private readonly pool: Pool;
@@ -15,7 +16,7 @@ export class SearchRepository {
     return (result.rowCount ?? 0) > 0;
   }
 
-  async hybridSearch(input: HybridSearchInput, embedding: number[], minimumSimilarity: number, minimumTextRank = 0.05, projectIds = [input.projectId]): Promise<HybridSearchRow[]> {
+  async hybridSearch(input: HybridSearchInput, embedding: number[], minimumSimilarity: number, minimumTextRank = 0.05, projectIds = [input.projectId], userId?: string): Promise<HybridSearchRow[]> {
     const vector = `[${embedding.join(",")}]`;
     const result = await this.pool.query<HybridSearchRow>(
       `WITH scoped_chunks AS (
@@ -24,6 +25,7 @@ export class SearchRepository {
          FROM chunk c
          JOIN projeto p ON p.id = c.projeto_id
          WHERE c.projeto_id = ANY($1::uuid[])
+           AND ($9::uuid IS NULL OR ${projectAccessSql('c.projeto_id', '$9')})
            AND p.status <> 'arquivado'
            AND ${knowledgeSourceSql('c')}
            AND (c.entidade_tipo <> 'analise_repositorio' OR EXISTS (SELECT 1 FROM analise_repositorio reviewed
@@ -133,7 +135,7 @@ export class SearchRepository {
        LEFT JOIN feature source_decision_pbi_feature ON source_decision_pbi_feature.id = source_decision_pbi.feature_id
        ORDER BY fused.relevance_score DESC, c.id
        LIMIT $6`,
-      [projectIds, input.query, vector, input.technologyId ?? null, input.level ?? null, input.limit, minimumSimilarity, minimumTextRank],
+      [projectIds, input.query, vector, input.technologyId ?? null, input.level ?? null, input.limit, minimumSimilarity, minimumTextRank, userId ?? null],
     );
     return result.rows;
   }

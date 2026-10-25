@@ -1,3 +1,4 @@
+import { EvidenceEngine, validateEvidence } from '../chat/rag-evidence.js';
 import axios from "axios";
 import { env } from "../../config/env.js";
 import { serviceHeaders } from "../../shared/service-auth.js";
@@ -231,10 +232,11 @@ export class HarnessService {
             )
           ).map((row) => ({ id: row.id, text: row.texto.slice(0, 8000) })));
     const scoped = { ...input, context };
+    const evidenceEngine = input.operation === 'responder' && trustedContext === undefined ? new EvidenceEngine(this.engine) : undefined;
     try {
       const result = parseOutput(
         scoped,
-        await this.engine.generate(
+        await (evidenceEngine ?? this.engine).generate(
           {
             mode: input.mode,
             operation: input.operation,
@@ -250,6 +252,12 @@ export class HarnessService {
         ),
       );
       validateGuide(scoped, result, config);
+      if (input.mode !== 'levantamento' && trustedContext === undefined && context.length) {
+        const current = new Map((await this.chunks.currentHarnessChunks(projectId, context.map(chunk => chunk.id)))
+          .map(chunk => [chunk.id, chunk.texto]));
+        if (context.some(chunk => current.get(chunk.id)?.slice(0, 8000) !== chunk.text)) throw new Error('Contexto alterado durante a consulta.');
+        if (evidenceEngine) validateEvidence({ evidence: evidenceEngine.evidence }, [...current].map(([id, text]) => ({ id, text })));
+      }
       return {
         mode: input.mode,
         version: revision.version,

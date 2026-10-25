@@ -5,6 +5,7 @@ import { requireRole } from "../../middleware/requireRole.js";
 import { ValidationError } from "../../shared/errors.js";
 import { MODES, requestSchema } from "./harness.contract.js";
 import { HarnessService, describeRevision } from "./harness.service.js";
+import { ProjectAccess } from '../projects/project-access.js';
 
 export function createHarnessAdminRouter(
   service = new HarnessService(),
@@ -96,14 +97,10 @@ export function createHarnessRunRouter(
         const body = requestSchema.omit({ context: true }).safeParse(req.body);
         if (!body.success)
           throw new ValidationError("Solicitação de IA inválida.");
-        res
-          .set("Cache-Control", "no-store")
-          .json(
-            await service.run(String(req.params.projectId), {
-              ...body.data,
-              context: [],
-            }),
-          );
+        const projectId = String(req.params.projectId);
+        const result = await service.run(projectId, { ...body.data, context: [] });
+        await new ProjectAccess().assertEntity(req.auth!.id, 'projeto', projectId);
+        res.set("Cache-Control", "no-store").json(result);
       } catch (error) {
         next(error);
       }
