@@ -1,10 +1,12 @@
 import { z } from 'zod';
+import { validDatabaseText } from '../../shared/text-validation.js';
 import { TERMOS_VAGOS_PADRAO } from './quality.rules.js';
 
 export const organizationChecksSchema = z.object({
   campos_obrigatorios: z.boolean(), criterios_aceitacao: z.boolean(), termos_vagos: z.boolean(),
 }).strict();
 export const vagueTermSchema = z.string().trim().min(1).max(80)
+  .refine(validDatabaseText, 'Use texto Unicode válido, sem caractere nulo.')
   .refine(term=>!/[\r\n\u2028\u2029]/u.test(term),'Cada termo deve ocupar uma única linha.')
   .transform(term=>term.normalize('NFC'));
 export const organizationConfigurationSchema = z.object({

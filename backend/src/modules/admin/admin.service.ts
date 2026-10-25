@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { validateTextFields } from '../../shared/text-validation.js';
 import { ValidationError, validateUuid } from "../../shared/errors.js";
 import { AdminRepository, type PurgeProjectResult } from "./admin.repository.js";
 
@@ -13,7 +14,7 @@ const purgeProjectSchema = z
   .refine((data) => !!(data.confirmacao_nome || data.nome_confirmacao), {
     message: "Informe o nome do projeto para confirmar o expurgo.",
     path: ["confirmacao_nome"],
-  });
+  }).superRefine(validateTextFields);
 
 export class AdminService {
   constructor(

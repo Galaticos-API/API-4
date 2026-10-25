@@ -1,4 +1,5 @@
 import { NotFoundError, ValidationError, validateUuid } from "../../shared/errors.js";
+import { validDatabaseText } from '../../shared/text-validation.js';
 import { ProjectsRepository } from "../projects/projects.repository.js";
 import { BacklogSearchRepository } from "./backlog-search.repository.js";
 import { likePatterns, makeSnippet, parseTerms } from "./backlog-search.text.js";
@@ -44,6 +45,7 @@ export class BacklogSearchService {
   async search(input: BacklogSearchInput): Promise<BacklogSearchResponse> {
     validateUuid(input.projetoId, "ID do projeto");
     const query = (input.q ?? "").replace(/\s+/g, " ").trim();
+    if (!validDatabaseText(query)) throw new ValidationError('Use texto Unicode válido, sem caractere nulo.');
     if (query.length < MIN_QUERY_LENGTH) throw new ValidationError(`Digite ao menos ${MIN_QUERY_LENGTH} caracteres para buscar.`);
     if (query.length > MAX_QUERY_LENGTH) throw new ValidationError(`A busca pode ter no máximo ${MAX_QUERY_LENGTH} caracteres.`);
     const terms = parseTerms(query);

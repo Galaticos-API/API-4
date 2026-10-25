@@ -1,3 +1,4 @@
+import { validateTextFields } from '../../shared/text-validation.js';
 import { z } from "zod";
 
 export type DecisionEntityType = "projeto" | "epico" | "feature" | "pbi";
@@ -72,6 +73,6 @@ export const createDecisionSchema = z
       .nullish()
       .transform((value) => (value ? value : null)),
   })
-  .strict();
+  .strict().superRefine(validateTextFields);
 
 export type CreateDecisionBody = z.infer<typeof createDecisionSchema>;

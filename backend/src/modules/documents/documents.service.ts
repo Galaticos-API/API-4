@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { validProjectDate } from '../../shared/text-validation.js';
 import { env } from "../../config/env.js";
 import { AppError, NotFoundError, ValidationError, validateUuid } from "../../shared/errors.js";
 import { ArchiveConflict } from "../projects/archive.types.js";
@@ -41,11 +42,14 @@ function decodeCursor(value: string | undefined): { createdAt: string; id: strin
       throw new Error("invalid cursor");
     }
     const candidate = parsed as { created_at: unknown; id: unknown };
-    if (typeof candidate.created_at !== "string" || !Number.isFinite(Date.parse(candidate.created_at)) || typeof candidate.id !== "string") {
+    if (typeof candidate.created_at !== "string" || typeof candidate.id !== "string") {
       throw new Error("invalid cursor");
     }
+    // O PostgreSQL devolve microssegundos e fuso +00; mantém essa precisão na leitura.
+    const timestamp = candidate.created_at.replace(' ', 'T').replace(/([+-]\d{2})$/, '$1:00');
+    if (timestamp.length <= 10 || !validProjectDate(timestamp)) throw new Error('invalid cursor');
     validateUuid(candidate.id, "Cursor de documentos");
-    return { createdAt: candidate.created_at, id: candidate.id };
+    return { createdAt: timestamp, id: candidate.id };
   } catch {
     throw new ValidationError("Cursor de documentos inválido.");
   }

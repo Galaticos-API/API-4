@@ -1,3 +1,4 @@
+import { validateTextFields } from '../../shared/text-validation.js';
 import { z } from "zod";
 
 export const CRITERION_ENTITY_TYPES = ["epico", "feature", "pbi"] as const;
@@ -19,7 +20,7 @@ const justificationShape = {
     .optional(),
 };
 
-export const criterionJustificationSchema = z.object(justificationShape);
+export const criterionJustificationSchema = z.object(justificationShape).superRefine(validateTextFields);
 
 const epicoCriterionSchema = z.object({
   entidade_tipo: z.literal("epico"),
@@ -53,7 +54,7 @@ export const createCriterionSchema = z.discriminatedUnion("entidade_tipo", [
   epicoCriterionSchema,
   featureCriterionSchema,
   pbiCriterionSchema,
-]);
+]).superRefine(validateTextFields);
 
 export type CreateCriterionDTO = z.infer<typeof createCriterionSchema>;
 
@@ -67,7 +68,7 @@ export type CriterionQueryDTO = z.infer<typeof criterionQuerySchema>;
 export const moveCriterionSchema = z.object({
   direction: z.enum(["up", "down"], { required_error: "A direção do movimento é obrigatória." }),
   justificativa: justificationShape.justificativa,
-});
+}).superRefine(validateTextFields);
 
 export type MoveCriterionDTO = z.infer<typeof moveCriterionSchema>;
 

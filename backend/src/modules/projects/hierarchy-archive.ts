@@ -5,6 +5,7 @@ import { pool } from "../../database/db.js";
 import { NotFoundError, ValidationError, validateUuid } from "../../shared/errors.js";
 import { ArchiveConflict } from "./archive.types.js";
 import { auditService } from "../audit/audit.service.js";
+import { validateTextFields } from '../../shared/text-validation.js';
 
 type Kind = "epico" | "feature" | "pbi";
 const scope = {
@@ -17,7 +18,7 @@ export const hierarchyArchiveSchema = z.object({
   confirmado: z.literal(true),
   impacto: z.object({ epicos: count, features: count, pbis: count }).strict(),
   justificativa: z.string().trim().max(2000).optional(),
-});
+}).superRefine(validateTextFields);
 
 // The same lock order is used by archive and ordinary hierarchy writers.
 export async function lockHierarchy(client: PoolClient, kind: Kind | "projeto", id: string) {

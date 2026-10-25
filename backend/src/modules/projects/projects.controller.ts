@@ -9,6 +9,7 @@ import {
 } from "./projects.service.js";
 import { ValidationError } from "../../shared/errors.js";
 import { z } from "zod";
+import { validateTextFields } from '../../shared/text-validation.js';
 
 const confirmation = z.object({
   confirmado: z.literal(true),
@@ -43,7 +44,7 @@ const confirmation = z.object({
     .trim()
     .max(2000)
     .optional(),
-});
+}).superRefine(validateTextFields);
 
 function getParamId(
   param: string | string[] | undefined,

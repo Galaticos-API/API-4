@@ -387,10 +387,10 @@ export function RegisterOnCard({ onSwitch }: { onSwitch: () => void }) {
         }
       }}>
         <label htmlFor="reg-nome" style={{ fontSize: "0.85rem", fontWeight: 600 }}>Nome Completo</label>
-        <input id="reg-nome" type="text" required value={nome} onChange={e => setNome(e.target.value)} disabled={busy} placeholder="Seu nome" />
+        <input id="reg-nome" type="text" required maxLength={255} value={nome} onChange={e => setNome(e.target.value)} disabled={busy} placeholder="Seu nome" />
 
         <label htmlFor="reg-email" style={{ fontSize: "0.85rem", fontWeight: 600 }}>E-mail Corporativo</label>
-        <input id="reg-email" type="email" autoComplete="username" required value={email} onChange={e => setEmail(e.target.value)} disabled={busy} placeholder="seu.email@empresa.com" />
+        <input id="reg-email" type="email" maxLength={255} autoComplete="username" required value={email} onChange={e => setEmail(e.target.value)} disabled={busy} placeholder="seu.email@empresa.com" />
 
         <p>Novas contas recebem o perfil Desenvolvedor. O acesso de PO é concedido por um administrador.</p>
 
