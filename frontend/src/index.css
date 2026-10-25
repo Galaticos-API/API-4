@@ -6,13 +6,38 @@
   position: relative;
   isolation: isolate;
   min-height: 100vh;
+  min-height: 100dvh;
   display: grid;
   place-items: center;
   padding: 24px;
-  overflow: hidden;
+  overflow-x: clip;
   background:
     radial-gradient(circle at 50% 44%, color-mix(in srgb, var(--brand-primary) 8%, transparent), transparent 38%),
     var(--surface-base);
+}
+
+.auth-shell::before,
+.auth-shell::after {
+  position: absolute;
+  z-index: 0;
+  width: 34vw;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: var(--accent-glow);
+  filter: blur(80px);
+  opacity: .22;
+  content: "";
+  pointer-events: none;
+}
+
+.auth-shell::before {
+  top: -18%;
+  left: -12%;
+}
+
+.auth-shell::after {
+  right: -12%;
+  bottom: -22%;
 }
 
 .auth-graph {
@@ -27,28 +52,6 @@
   background:
     radial-gradient(circle at 12% 18%, color-mix(in srgb, var(--brand-primary) 12%, transparent), transparent 24%),
     radial-gradient(circle at 88% 82%, color-mix(in srgb, var(--brand-primary) 10%, transparent), transparent 26%);
-}
-
-.auth-graph::before,
-.auth-graph::after {
-  position: absolute;
-  content: "";
-  width: 34vw;
-  aspect-ratio: 1;
-  border-radius: 50%;
-  background: var(--accent-glow);
-  filter: blur(80px);
-  opacity: .22;
-}
-
-.auth-graph::before {
-  top: -18%;
-  left: -12%;
-}
-
-.auth-graph::after {
-  right: -12%;
-  bottom: -22%;
 }
 
 .auth-card {

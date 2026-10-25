@@ -17,17 +17,40 @@ function LoginGraphBackground() {
 
     const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
     const pointer = { x: -1000, y: -1000 };
+    const isDocumentHidden = () => document.visibilityState === "hidden";
     let particles: Particle[] = [];
     let animationFrame: number | null = null;
     let width = 0;
     let height = 0;
     let pixelRatio = 1;
+    let brandColor = "rgb(237, 106, 50)";
+    let highlightColor = "rgb(255, 173, 125)";
+    let brandColorWithAlpha = (alpha: number) => `rgba(237, 106, 50, ${alpha})`;
+
+    const parseColor = (value: string) => {
+      const hexMatch = value.match(/^#([\da-f]{3}|[\da-f]{6})$/i);
+      if (hexMatch) {
+        const hex = hexMatch[1].length === 3
+          ? [...hexMatch[1]].map(part => part + part).join("")
+          : hexMatch[1];
+        return [0, 2, 4].map(offset => Number.parseInt(hex.slice(offset, offset + 2), 16));
+      }
+
+      const rgbMatch = value.match(/^rgba?\(\s*([\d.]+)[,\s]+([\d.]+)[,\s]+([\d.]+)/i);
+      if (rgbMatch) return rgbMatch.slice(1, 4).map(channel => Number.parseFloat(channel));
+      return [237, 106, 50];
+    };
 
     const resize = () => {
       const bounds = canvas.getBoundingClientRect();
       width = bounds.width;
       height = bounds.height;
       pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
+      const configuredBrandColor = window.getComputedStyle(canvas).getPropertyValue("--brand-primary").trim();
+      const [red, green, blue] = parseColor(configuredBrandColor || "#ed6a32");
+      brandColor = `rgb(${red}, ${green}, ${blue})`;
+      highlightColor = `rgb(${Math.round(red + (255 - red) * .48)}, ${Math.round(green + (255 - green) * .48)}, ${Math.round(blue + (255 - blue) * .48)})`;
+      brandColorWithAlpha = (alpha: number) => `rgba(${red}, ${green}, ${blue}, ${alpha})`;
       canvas.width = Math.floor(width * pixelRatio);
       canvas.height = Math.floor(height * pixelRatio);
       context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
@@ -43,12 +66,13 @@ function LoginGraphBackground() {
       }));
     };
 
-    const draw = () => {
+    const drawScene = (advanceParticles: boolean) => {
       context.clearRect(0, 0, width, height);
       const linkDistance = Math.min(180, Math.max(135, width * 0.22));
       const pointerRadius = 190;
+      const pointerActive = advanceParticles && pointer.x > -500;
 
-      if (pointer.x > -500) {
+      if (pointerActive) {
         const pointerGlow = context.createRadialGradient(
           pointer.x,
           pointer.y,
@@ -57,9 +81,9 @@ function LoginGraphBackground() {
           pointer.y,
           pointerRadius,
         );
-        pointerGlow.addColorStop(0, "rgba(237, 106, 50, .18)");
-        pointerGlow.addColorStop(.45, "rgba(237, 106, 50, .06)");
-        pointerGlow.addColorStop(1, "rgba(237, 106, 50, 0)");
+        pointerGlow.addColorStop(0, brandColorWithAlpha(.18));
+        pointerGlow.addColorStop(.45, brandColorWithAlpha(.06));
+        pointerGlow.addColorStop(1, brandColorWithAlpha(0));
         context.fillStyle = pointerGlow;
         context.beginPath();
         context.arc(pointer.x, pointer.y, pointerRadius, 0, Math.PI * 2);
@@ -67,7 +91,7 @@ function LoginGraphBackground() {
       }
 
       particles.forEach((particle, index) => {
-        if (!reducedMotion.matches) {
+        if (advanceParticles) {
           const dx = pointer.x - particle.x;
           const dy = pointer.y - particle.y;
           const distance = Math.hypot(dx, dy);
@@ -88,10 +112,10 @@ function LoginGraphBackground() {
           const other = particles[nextIndex];
           const distance = Math.hypot(particle.x - other.x, particle.y - other.y);
           if (distance > linkDistance) continue;
-          const pointerBoost = pointer.x > -500 && Math.hypot(pointer.x - particle.x, pointer.y - particle.y) < pointerRadius
+          const pointerBoost = pointerActive && Math.hypot(pointer.x - particle.x, pointer.y - particle.y) < pointerRadius
             ? .14
             : 0;
-          context.strokeStyle = `rgba(237, 106, 50, ${Math.min(.65, (1 - distance / linkDistance) * .32 + pointerBoost)})`;
+          context.strokeStyle = brandColorWithAlpha(Math.min(.65, (1 - distance / linkDistance) * .32 + pointerBoost));
           context.lineWidth = 0.7;
           context.beginPath();
           context.moveTo(particle.x, particle.y);
@@ -99,19 +123,36 @@ function LoginGraphBackground() {
           context.stroke();
         }
 
-        context.fillStyle = index % 7 === 0 ? "#ffad7d" : "#ed6a32";
-        context.shadowColor = "#ed6a32";
-        context.shadowBlur = pointer.x > -500 && Math.hypot(pointer.x - particle.x, pointer.y - particle.y) < pointerRadius ? 14 : 8;
+        context.fillStyle = index % 7 === 0 ? highlightColor : brandColor;
+        context.shadowColor = brandColor;
+        context.shadowBlur = pointerActive && Math.hypot(pointer.x - particle.x, pointer.y - particle.y) < pointerRadius ? 14 : 8;
         context.beginPath();
         context.arc(particle.x, particle.y, particle.radius, 0, Math.PI * 2);
         context.fill();
         context.shadowBlur = 0;
       });
-
-      animationFrame = window.requestAnimationFrame(draw);
     };
 
+    const cancelPendingFrame = () => {
+      if (animationFrame === null) return;
+      window.cancelAnimationFrame(animationFrame);
+      animationFrame = null;
+    };
+
+    function scheduleFrame() {
+      if (animationFrame !== null || reducedMotion.matches || isDocumentHidden()) return;
+      animationFrame = window.requestAnimationFrame(renderFrame);
+    }
+
+    function renderFrame() {
+      animationFrame = null;
+      const advanceParticles = !reducedMotion.matches && !isDocumentHidden();
+      drawScene(advanceParticles);
+      if (advanceParticles) scheduleFrame();
+    }
+
     const movePointer = (event: MouseEvent) => {
+      if (reducedMotion.matches || isDocumentHidden()) return;
       const bounds = canvas.getBoundingClientRect();
       pointer.x = event.clientX - bounds.left;
       pointer.y = event.clientY - bounds.top;
@@ -121,16 +162,48 @@ function LoginGraphBackground() {
       pointer.y = -1000;
     };
 
+    const handleResize = () => {
+      resize();
+      if (reducedMotion.matches) drawScene(false);
+      else scheduleFrame();
+    };
+
+    const handleMotionPreferenceChange = () => {
+      resetPointer();
+      if (reducedMotion.matches) {
+        cancelPendingFrame();
+        drawScene(false);
+      } else {
+        scheduleFrame();
+      }
+    };
+
+    const handleVisibilityChange = () => {
+      resetPointer();
+      if (isDocumentHidden()) {
+        cancelPendingFrame();
+      } else if (reducedMotion.matches) {
+        drawScene(false);
+      } else {
+        scheduleFrame();
+      }
+    };
+
     resize();
-    draw();
-    window.addEventListener("resize", resize);
+    if (reducedMotion.matches) drawScene(false);
+    else scheduleFrame();
+    window.addEventListener("resize", handleResize);
     window.addEventListener("mousemove", movePointer);
     window.addEventListener("mouseleave", resetPointer);
+    reducedMotion.addEventListener("change", handleMotionPreferenceChange);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
     return () => {
-      window.removeEventListener("resize", resize);
+      window.removeEventListener("resize", handleResize);
       window.removeEventListener("mousemove", movePointer);
       window.removeEventListener("mouseleave", resetPointer);
-      if (animationFrame !== null) window.cancelAnimationFrame(animationFrame);
+      reducedMotion.removeEventListener("change", handleMotionPreferenceChange);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      cancelPendingFrame();
     };
   }, []);
 
