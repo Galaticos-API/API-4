@@ -36,6 +36,7 @@ import { requireAuth } from "./middleware/requireAuth.js";
 export const app = express();
 
 app.use(cors());
+app.use('/api/v1/quality/configuration/definitions',express.json({limit:'1mb'}));
 app.use(express.json());
 
 app.use("/api/v1/auth", authRouter);

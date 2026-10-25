@@ -1,3 +1,4 @@
+import { WorkDefinitionsPanel } from './WorkDefinitionsPanel';
 import { CopilotPanel } from "./CopilotPanel";
 import { useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { ApiError } from "../../api/api_auth";
@@ -78,6 +79,7 @@ export function FeatureForm({ projectId, epicoId }: { projectId: string; epicoId
     <section className="projects-page">
       <div className="projects-heading"><div><p className="projects-eyebrow">Features / Nova feature</p><h2>Criar feature</h2>
         <p>Apenas o título é obrigatório para salvar como rascunho.</p></div></div>
+      <WorkDefinitionsPanel level="feature"/>
       <form className="ds-card ds-card--glass project-form" noValidate aria-busy={busy} onSubmit={async (event) => {
         event.preventDefault();
         if (submitting.current) return;

@@ -11,10 +11,22 @@ import { ValidationError } from '../../shared/errors.js';
 import { ENTITY_TYPES } from './quality.types.js';
 import { pool } from '../../database/db.js';
 import { withTransaction } from '../../database/transaction.js';
+import { getWorkDefinitions,saveWorkDefinitions,workDefinitionsSchema } from './work-definitions.js';
 
 const router = Router();
 
 router.use(requireAuth);
+
+router.get('/configuration/definitions',async(_req,res,next)=>{
+  try {res.json(await getWorkDefinitions());} catch(error){next(error);}
+});
+router.put('/configuration/definitions',requireRole('admin'),async(req,res,next)=>{
+  try {
+    const parsed=workDefinitionsSchema.safeParse(req.body);
+    if(!parsed.success)throw new ValidationError('Definições inválidas.',parsed.error.flatten());
+    res.json(await saveWorkDefinitions(parsed.data,req.auth!.id));
+  } catch(error){next(error);}
+});
 
 router.get('/configuration/organization',async(_req,res,next)=>{
   try { res.json(await qualityConfigurationRepository.getOrganizationConfiguration()); } catch(error) { next(error); }

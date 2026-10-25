@@ -1,0 +1,57 @@
+import { afterEach,expect,it,vi } from 'vitest';
+import { cleanup,fireEvent,render,screen,within } from '@testing-library/react';
+import { WorkDefinitionsSettings } from './WorkDefinitionsSettings';
+import { WorkDefinitionsPanel } from '../backlog/WorkDefinitionsPanel';
+import { getWorkDefinitions,saveWorkDefinitions,type WorkDefinitions } from '../../api/api_work_definitions';
+import { ApiError } from '../../api/api_auth';
+vi.mock('../../api/api_work_definitions',()=>({getWorkDefinitions:vi.fn(),saveWorkDefinitions:vi.fn()}));
+afterEach(()=>{cleanup();vi.restoreAllMocks();vi.resetAllMocks();});
+const config:WorkDefinitions={version:1,updated_by:null,updated_by_name:null,updated_at:'2026-10-25T12:00:00Z',levels:{epico:{dor:['Escopo definido'],dod:[]},feature:{dor:[],dod:[]},pbi:{dor:[],dod:[]}}};
+it.each(['\n','\r\n','\r','\u2028','\u2029'])('salva condições por nível com separador %j sem apagar os demais',async(separator)=>{
+  vi.mocked(getWorkDefinitions).mockResolvedValue(structuredClone(config));
+  vi.mocked(saveWorkDefinitions).mockImplementation(async value=>({...value,version:2}));
+  render(<WorkDefinitionsSettings/>);
+  const pbi=await screen.findByRole('group',{name:'PBI'});
+  fireEvent.change(within(pbi).getByLabelText('Definição de Preparado (DoR)'),{target:{value:'  História clara'+separator+'Cenários revisados'}});
+  fireEvent.click(screen.getByRole('button',{name:'Salvar definições'}));
+  await screen.findByText(/Definições salvas/);
+  expect(saveWorkDefinitions).toHaveBeenCalledWith(expect.objectContaining({version:1,levels:{...config.levels,pbi:{dor:['História clara','Cenários revisados'],dod:[]}}}));
+});
+it.each([new Error('offline'),new ApiError(409)])('preserva edição se o salvamento falha (%s)',async(error)=>{
+  vi.mocked(getWorkDefinitions).mockResolvedValue(structuredClone(config));
+  vi.mocked(saveWorkDefinitions).mockRejectedValue(error);
+  render(<WorkDefinitionsSettings/>);
+  const epic=await screen.findByRole('group',{name:'Épico'});
+  const field=within(epic).getByLabelText('Definição de Pronto (DoD)');
+  fireEvent.change(field,{target:{value:'Validar evidências'}});
+  fireEvent.click(screen.getByRole('button',{name:'Salvar definições'}));
+  await screen.findByRole('alert');expect(field).toHaveValue('Validar evidências');
+});
+it('exibe somente as condições aplicáveis ao nível e informa configuração vazia',async()=>{
+  vi.mocked(getWorkDefinitions).mockResolvedValue(config);
+  render(<WorkDefinitionsPanel level="pbi"/>);
+  await screen.findByText('Versão 1');
+  expect(screen.queryByText('Escopo definido')).toBeNull();
+  expect(screen.getAllByText('Nenhuma condição cadastrada para este nível.')).toHaveLength(2);
+});
+it('pede confirmação antes de recarregar definições com alterações não salvas',async()=>{
+  vi.mocked(getWorkDefinitions).mockResolvedValue(structuredClone(config));
+  const confirm=vi.spyOn(window,'confirm').mockReturnValue(false);
+  render(<WorkDefinitionsSettings/>);
+  const pbi=await screen.findByRole('group',{name:'PBI'});
+  const field=within(pbi).getByLabelText('Definição de Preparado (DoR)');
+  fireEvent.change(field,{target:{value:'Condição ainda não salva'}});
+  fireEvent.click(screen.getByRole('button',{name:'Recarregar definições'}));
+  expect(confirm).toHaveBeenCalledTimes(1);
+  expect(getWorkDefinitions).toHaveBeenCalledTimes(1);
+  expect(field).toHaveValue('Condição ainda não salva');
+  const dirtyUnload=new Event('beforeunload',{cancelable:true});
+  window.dispatchEvent(dirtyUnload);expect(dirtyUnload.defaultPrevented).toBe(true);
+  confirm.mockReturnValue(true);
+  fireEvent.click(screen.getByRole('button',{name:'Recarregar definições'}));
+  await screen.findByRole('group',{name:'PBI'});
+  expect(getWorkDefinitions).toHaveBeenCalledTimes(2);
+  expect(within(screen.getByRole('group',{name:'PBI'})).getByLabelText('Definição de Preparado (DoR)')).toHaveValue('');
+  const cleanUnload=new Event('beforeunload',{cancelable:true});
+  window.dispatchEvent(cleanUnload);expect(cleanUnload.defaultPrevented).toBe(false);
+});

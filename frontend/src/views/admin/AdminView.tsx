@@ -4,6 +4,7 @@ import { listProjects, type Project } from "../../api/api_projects";
 import { ApiError, apiRequest } from "../../api/api_auth";
 import { navigate } from "../../models/navigation";
 import { OrganizationQualitySettings } from './OrganizationQualitySettings';
+import { WorkDefinitionsSettings } from './WorkDefinitionsSettings';
 
 interface Stats {
   projetos: number;
@@ -156,6 +157,7 @@ export const AdminView: React.FC = () => {
       )}
 
       <OrganizationQualitySettings />
+      <WorkDefinitionsSettings />
       {/* Grid de Estatísticas */}
       <div className="ds-grid ds-grid--three" style={{ marginTop: "20px" }}>
         <article className="ds-card">

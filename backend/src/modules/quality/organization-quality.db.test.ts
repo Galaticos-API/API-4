@@ -39,6 +39,52 @@ test('S2-19: organização, níveis, dicionário imediato, conclusão, autoria e
     await db.query("INSERT INTO epico(id,projeto_id,titulo,descricao) VALUES ($1,$2,'Definir acesso','Fluxo especialissimo')",[ids.epic,ids.project]);
     await db.query("INSERT INTO feature(id,epico_id,titulo) VALUES ($1,$2,'Detalhar acesso')",[ids.feature,ids.epic]);
     await db.query("INSERT INTO pbi(id,feature_id,codigo,titulo,historia_como_um,historia_eu_quero,historia_para_que) VALUES ($1::uuid,$2,$1::text,'Portal de acesso','PO','Consultar','Validar')",[ids.pbi,ids.feature]);
+    await t.test('S2-20: definições por nível, permissões, auditoria e conflito sem alterar a qualidade',async()=>{
+      const path='/quality/configuration/definitions';
+      assert.equal((await call(path,'none')).status,401);
+      const baseline=(await call<{version:number;levels:Record<string,{dor:string[];dod:string[]}>}>(path,'po')).json;
+      assert.deepEqual(baseline.levels.pbi,{dor:[],dod:[]});
+      const qualityVersion=(await repo.getOrganizationConfiguration()).version;
+      const body={expected_version:baseline.version,levels:{...baseline.levels,pbi:{dor:['História compreensível'],dod:['Testes revisados']}}};
+      for(const role of ['dev','po'])assert.equal((await call(path,role,'PUT',body)).status,403);
+      assert.equal((await call(path,'admin','PUT',{...body,levels:{}})).status,400);
+      assert.equal((await call(path,'admin','PUT',{...body,levels:{...body.levels,pbi:{dor:['Uma condição\nOutra condição'],dod:[]}}})).status,400);
+      const results=await Promise.all([call<{version:number}>(path,'admin','PUT',body),call<{version:number}>(path,'admin','PUT',body)]);
+      assert.deepEqual(results.map(row=>row.status).sort(),[200,409]);
+      const saved=(await call<{version:number;levels:typeof baseline.levels;updated_by:string}>(path,'dev')).json;
+      assert.equal(saved.version,baseline.version+1);assert.equal(saved.updated_by,ids.admin);
+      assert.deepEqual(saved.levels.epico,{dor:[],dod:[]});assert.deepEqual(saved.levels.pbi,body.levels.pbi);
+      assert.equal((await repo.getOrganizationConfiguration()).version,qualityVersion);
+      assert.equal((await db.query("SELECT count(*)::int AS n FROM auditoria WHERE acao='ATUALIZAR_DOR_DOD'")).rows[0].n,1);
+      const migration=await loadMigration('025_work_definitions.sql',true);
+      await db.query(migration);await db.query(migration);
+      const reapplied=(await call<typeof saved>(path,'po')).json;
+      assert.deepEqual(reapplied,saved);
+      const conditions=Array.from({length:50},(_,i)=>String(i).padStart(3,'0')+'ã'.repeat(497));
+      const maximum=Object.fromEntries(['epico','feature','pbi'].map(level=>[level,{dor:conditions,dod:conditions}]));
+      const large=await call<{version:number}>(path,'admin','PUT',{expected_version:saved.version,levels:maximum});
+      assert.equal(large.status,200);
+      assert.equal((await call(path,'admin','PUT',{expected_version:large.json.version,levels:baseline.levels})).status,200);
+    });
+    await t.test('S2-20: falha na auditoria desfaz a alteração das definições',async()=>{
+      const path='/quality/configuration/definitions';
+      const before=(await call<{version:number;levels:Record<string,{dor:string[];dod:string[]}>}>(path)).json;
+      const count=(await db.query("SELECT count(*)::int AS n FROM auditoria WHERE acao='ATUALIZAR_DOR_DOD'")).rows[0].n;
+      try {
+        await db.query(`CREATE FUNCTION definitions_test_audit_failure() RETURNS trigger LANGUAGE plpgsql AS $$
+          BEGIN RAISE EXCEPTION 'Falha de auditoria simulada para teste'; END $$`);
+        await db.query(`CREATE TRIGGER definitions_test_audit_failure BEFORE INSERT ON auditoria
+          FOR EACH ROW WHEN (NEW.acao='ATUALIZAR_DOR_DOD') EXECUTE FUNCTION definitions_test_audit_failure()`);
+        const result=await call(path,'admin','PUT',{expected_version:before.version,levels:{...before.levels,pbi:{dor:['Alteração que deve ser desfeita'],dod:[]}}});
+        assert.equal(result.status,500);
+        const after=(await call<typeof before>(path)).json;
+        assert.equal(after.version,before.version);assert.deepEqual(after.levels,before.levels);
+        assert.equal((await db.query("SELECT count(*)::int AS n FROM auditoria WHERE acao='ATUALIZAR_DOR_DOD'")).rows[0].n,count);
+      } finally {
+        await db.query('DROP TRIGGER IF EXISTS definitions_test_audit_failure ON auditoria');
+        await db.query('DROP FUNCTION IF EXISTS definitions_test_audit_failure()');
+      }
+    });
     await t.test('padrão inicial e permissões administrativas',async()=>{
       assert.equal((await call('/quality/configuration/organization','none')).status,401);
       const current=await call('/quality/configuration/organization');assert.equal(current.status,200);config=current.json;
@@ -238,6 +284,8 @@ test('S2-19: organização, níveis, dicionário imediato, conclusão, autoria e
       const history=await repo.organizationHistory(25);
       assert.equal(history.items[0].updated_by?.nome,'admin');assert.equal(history.items[0].updated_by?.id,null);
       assert.equal((await repo.getOrganizationConfiguration()).updated_by?.nome,'admin');
+      const definitions=(await call<{updated_by:string|null;updated_by_name:string}>('/quality/configuration/definitions','po')).json;
+      assert.equal(definitions.updated_by,null);assert.equal(definitions.updated_by_name,'admin');
     });
   } finally {
     server.closeAllConnections();await new Promise<void>(resolve=>server.close(()=>resolve()));

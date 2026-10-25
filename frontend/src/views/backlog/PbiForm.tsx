@@ -1,3 +1,4 @@
+import { WorkDefinitionsPanel } from './WorkDefinitionsPanel';
 import { CopilotPanel } from "./CopilotPanel";
 import { useEffect, useRef, useState } from "react";
 import { ApiError } from "../../api/api_auth";
@@ -143,6 +144,7 @@ export function PbiForm({
         />
       )}
 
+      <WorkDefinitionsPanel level="pbi"/>
       <form
         className="ds-card ds-card--glass project-form"
         noValidate

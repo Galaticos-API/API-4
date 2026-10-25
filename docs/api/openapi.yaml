@@ -12,6 +12,59 @@ servers:
     description: Serviço de IA local
 
 paths:
+  /api/v1/quality/configuration/definitions:
+    get:
+      summary: Consultar DoR e DoD da organização por nível
+      tags: [Quality]
+      security: [{bearerAuth: []}]
+      responses:
+        '200':
+          description: Definições descritivas, versão, autor e data; listas inicialmente vazias
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  version: {type: integer}
+                  updated_by: {type: string, format: uuid, nullable: true}
+                  updated_by_name: {type: string, nullable: true}
+                  updated_at: {type: string, format: date-time}
+                  levels: &workDefinitionLevels
+                    type: object
+                    additionalProperties: false
+                    required: [epico, feature, pbi]
+                    properties:
+                      epico: &workDefinition
+                        type: object
+                        additionalProperties: false
+                        required: [dor, dod]
+                        properties:
+                          dor: {type: array, maxItems: 50, uniqueItems: true, items: {type: string, minLength: 1, maxLength: 500, pattern: '^[^\r\n\u2028\u2029]*$'}}
+                          dod: {type: array, maxItems: 50, uniqueItems: true, items: {type: string, minLength: 1, maxLength: 500, pattern: '^[^\r\n\u2028\u2029]*$'}}
+                      feature: *workDefinition
+                      pbi: *workDefinition
+        '401': {description: Autenticação obrigatória}
+    put:
+      summary: Administrador atualiza DoR e DoD sem alterar as verificações automáticas
+      tags: [Quality]
+      security: [{bearerAuth: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [expected_version, levels]
+              properties:
+                expected_version: {type: integer, minimum: 1, maximum: 2147483646}
+                levels: *workDefinitionLevels
+      responses:
+        '200': {description: Definições gravadas com versão incrementada, autor/data e auditoria; mesmo formato da consulta}
+        '400': {description: Condições inválidas, duplicadas ou acima dos limites}
+        '401': {description: Autenticação obrigatória}
+        '403': {description: Somente administrador pode alterar}
+        '409': {description: Versão desatualizada; recarregar antes de salvar}
   /api/v1/projects/{projectId}/index-events:
     parameters:
       - {name: projectId, in: path, required: true, schema: {type: string, format: uuid}}

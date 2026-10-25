@@ -69,7 +69,7 @@ não possui entidade de organização, a linha singleton representa a organizaç
 única atual. Alterações devem passar pela API administrativa, que registra autor,
 data e valores anterior/novo na auditoria. A configuração não modifica o status
 dos PBIs já concluídos. Esta migration não implementa regras de épico/feature nem
-DoR/DoD (PBI-01.6.2), que permanecem no escopo restante da S2-19.
+DoR/DoD (PBI-01.6.2), entregues separadamente na S2-20.
 O cenário PostgreSQL de `npm run test:integration:s105` valida configuração
 padrão, versionamento, autor/data, auditoria e rollback quando a autoria não é válida.
 
@@ -113,3 +113,7 @@ reinício. Consulte [S2-09](../../docs/S2-09-HARNESS.md) para configuração e e
 ## 024 — Qualidade da organização (S2-19)
 
 `024_organization_quality.sql` amplia a política existente com níveis de épico/feature, preserva a configuração de PBI e adiciona histórico de revisões e registro dos critérios de conclusão. As conclusões antigas são explicitamente não documentadas, sem atribuição retroativa de critérios. Detalhes em `docs/S2-19-qualidade-organizacao.md`.
+
+## 025 — Definições de Preparado e Pronto (S2-20)
+
+`025_work_definitions.sql` cria DoR e DoD descritivas por nível, com versão e autoria, inicialmente sem condições. As revisões são auditadas pelo backend. Não altera o motor de qualidade nem as conclusões. Detalhes em `docs/S2-20-dor-dod.md`.

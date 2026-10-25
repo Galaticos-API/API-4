@@ -1,3 +1,4 @@
+import { WorkDefinitionsPanel } from './WorkDefinitionsPanel';
 import { CopilotPanel } from "./CopilotPanel";
 import { useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { ApiError } from "../../api/api_auth";
@@ -78,6 +79,7 @@ export function EpicForm({ projetoId }: { projetoId: string }) {
     <section className="projects-page">
       <div className="projects-heading"><div><p className="projects-eyebrow">Épicos / Novo épico</p><h2>Criar épico</h2>
         <p>Apenas o título é obrigatório para salvar como rascunho. Os demais campos do guia são exigidos para concluir.</p></div></div>
+      <WorkDefinitionsPanel level="epico"/>
       <form className="ds-card ds-card--glass project-form" noValidate aria-busy={busy} onSubmit={async (event) => {
         event.preventDefault();
         if (submitting.current) return;

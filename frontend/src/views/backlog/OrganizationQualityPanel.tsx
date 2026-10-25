@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { getOrganizationQuality, type Level, type OrganizationQualityReport } from '../../api/api_organization_quality';
 import { Button } from '../common/ui';
+import { WorkDefinitionsPanel } from './WorkDefinitionsPanel';
 
 export function OrganizationQualityPanel({kind,id,refreshTrigger=0}:{kind:Level;id:string;refreshTrigger?:number}) {
   const [report,setReport]=useState<OrganizationQualityReport|null>(null);
@@ -20,6 +21,7 @@ export function OrganizationQualityPanel({kind,id,refreshTrigger=0}:{kind:Level;
   },[kind,id,refreshTrigger,attempt]);
   return <section className="ds-card quality-panel organization-quality-report" aria-label="Qualidade conforme a organização">
     <h4>Qualidade conforme a organização</h4>
+    <WorkDefinitionsPanel level={kind}/>
     {loading && <p role="status">Avaliando verificações…</p>}
     {error && <p role="alert">Não foi possível consultar a qualidade.</p>}
     {report && <>

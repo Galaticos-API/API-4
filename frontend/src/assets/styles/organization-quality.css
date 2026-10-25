@@ -7,6 +7,9 @@
 .organization-quality-levels input, .organization-quality-policy input { width: auto; flex-shrink: 0; accent-color: var(--brand-primary,#f97316); }
 .organization-quality-terms { display: grid; gap: 8px; margin-block: 20px; }
 .organization-quality-terms textarea { width: 100%; box-sizing: border-box; background: var(--bg-secondary,#111827); color: var(--text-primary,#fff); border: 1px solid var(--border-subtle,#353c4a); border-radius: 8px; padding: 12px; font: inherit; resize: vertical; }
+.organization-quality-levels .organization-quality-terms { display: grid; }
+.work-definitions-panel .organization-quality-levels { grid-template-columns: repeat(2,minmax(0,1fr)); overflow-wrap: anywhere; }
+@media(max-width:800px) { .work-definitions-panel .organization-quality-levels { grid-template-columns: 1fr; } }
 .organization-quality-settings details { margin-top: 20px; overflow-wrap: anywhere; }
 .organization-quality-settings summary { cursor: pointer; }
 .organization-quality-report { padding: 20px; margin-bottom: 20px; overflow-wrap: anywhere; }
