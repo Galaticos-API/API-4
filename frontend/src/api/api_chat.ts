@@ -111,7 +111,7 @@ export async function askQuestion(
       projeto_id: input.projetoId || undefined,
     }),
     signal: signal ? AbortSignal.any([signal, deadline]) : deadline,
-  });
+  }, QUERY_TIMEOUT_MS);
   const data: unknown = await response.json();
   if (!isRecord(data) || typeof data.conversa_id !== "string" || typeof data.resposta !== "string") {
     throw new Error("Resposta do assistente inválida");

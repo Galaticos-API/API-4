@@ -254,6 +254,7 @@ export async function askCopilot(
       signal,
       body: JSON.stringify({ mode: "levantamento", operation, level, fields }),
     },
+    65000,
   );
   return parseCopilotAnswer(await response.json(), operation, level);
 }

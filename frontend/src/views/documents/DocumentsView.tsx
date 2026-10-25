@@ -68,43 +68,85 @@ export function DocumentsView({
   const uploadLock = useRef(false);
   const removalLock = useRef(false);
 
+  const pageCount = useRef(1);
+  const listRequest = useRef<AbortController | null>(null);
+  const listGeneration = useRef(0);
+  const listBusy = useRef(false);
+  const projectEpoch = useRef(0);
+
+  const cancelList = useCallback(() => {
+    listRequest.current?.abort();
+    listRequest.current = null;
+    ++listGeneration.current;
+    listBusy.current = false;
+  }, []);
+
   const refresh = useCallback(async (quiet = false) => {
-    if (!projectId) return;
-    if (quiet) setRefreshing(true);
-    else setLoading(true);
+    if (!projectId || listBusy.current) return;
+    const controller = new AbortController();
+    const generation = ++listGeneration.current;
+    listRequest.current = controller;
+    listBusy.current = true;
+    if (quiet) setRefreshing(true); else setLoading(true);
     setLoadError("");
     try {
-      const response = await listDocuments(projectId, { signal: AbortSignal.timeout(15_000) });
-      setItems(response.items);
+      const signal = AbortSignal.any([controller.signal, AbortSignal.timeout(15000)]);
+      const loaded: ProjectDocument[] = [];
+      let cursor: string | null = null;
+      let pages = 0;
+      let response;
+      do {
+        response = await listDocuments(projectId, { cursor: cursor ?? undefined, signal });
+        if (controller.signal.aborted || generation !== listGeneration.current) return;
+        loaded.push(...response.items);
+        cursor = response.next_cursor;
+        pages++;
+      } while (cursor && pages < pageCount.current);
+      pageCount.current = pages;
+      setItems([...new Map(loaded.map(item => [item.id, item])).values()]);
       setLimits(response.limites);
-      setNextCursor(response.next_cursor);
+      setNextCursor(cursor);
     } catch {
-      setLoadError("Não foi possível carregar os documentos. Tente novamente.");
+      if (!controller.signal.aborted && generation === listGeneration.current) setLoadError("Não foi possível carregar os documentos. Tente novamente.");
     } finally {
-      setLoading(false);
-      setRefreshing(false);
+      if (generation === listGeneration.current) {
+        listBusy.current = false;
+        listRequest.current = null;
+        setLoading(false);
+        setRefreshing(false);
+      }
     }
   }, [projectId]);
 
   useEffect(() => {
-    let active = true;
-    if (!projectId) return;
-    const controller = new AbortController();
-    setLoading(true);
+    cancelList();
+    ++projectEpoch.current;
+    pageCount.current = 1;
+    setItems([]);
+    setLimits(null);
+    setNextCursor(null);
+    setLoading(Boolean(projectId));
+    setLoadingMore(false);
+    setRefreshing(false);
     setLoadError("");
-    void listDocuments(projectId, { signal: AbortSignal.any([controller.signal, AbortSignal.timeout(15_000)]) })
-      .then((response) => {
-        if (!active) return;
-        setItems(response.items);
-        setLimits(response.limites);
-        setNextCursor(response.next_cursor);
-      })
-      .catch(() => {
-        if (active && !controller.signal.aborted) setLoadError("Não foi possível carregar os documentos. Tente novamente.");
-      })
-      .finally(() => { if (active) setLoading(false); });
-    return () => { active = false; controller.abort(); };
-  }, [projectId]);
+    setMoreError("");
+    setTarget(null);
+    if (dialog.current?.open) dialog.current.close();
+    setSelection(null);
+    setUploading(false);
+    setRemoving(false);
+    setRetryingId(null);
+    setNotice("");
+    setUploadError("");
+    setSelectionError("");
+    setProcessingError("");
+    setRemovalError("");
+    uploadLock.current = false;
+    removalLock.current = false;
+    if (fileInput.current) fileInput.current.value = '';
+    if (projectId) void refresh(false);
+    return cancelList;
+  }, [projectId, refresh, cancelList]);
 
   const hasProcessing = items.some((item) => item.status_processamento === "pendente" || item.status_processamento === "processando");
   useEffect(() => {
@@ -119,20 +161,27 @@ export function DocumentsView({
   }, [target]);
 
   const loadMore = async () => {
-    if (!projectId || !nextCursor || loadingMore) return;
+    if (!projectId || !nextCursor || listBusy.current) return;
+    const controller = new AbortController();
+    const generation = ++listGeneration.current;
+    listRequest.current = controller;
+    listBusy.current = true;
     setLoadingMore(true);
     setMoreError("");
     try {
-      const response = await listDocuments(projectId, { cursor: nextCursor, signal: AbortSignal.timeout(15_000) });
-      setItems((current) => {
-        const known = new Set(current.map((item) => item.id));
-        return [...current, ...response.items.filter((item) => !known.has(item.id))];
-      });
+      const response = await listDocuments(projectId, { cursor: nextCursor, signal: AbortSignal.any([controller.signal, AbortSignal.timeout(15000)]) });
+      if (controller.signal.aborted || generation !== listGeneration.current) return;
+      setItems(current => [...new Map([...current, ...response.items].map(item => [item.id, item])).values()]);
+      if (response.items.length) pageCount.current++;
       setNextCursor(response.next_cursor);
     } catch {
-      setMoreError("Não foi possível carregar mais documentos.");
+      if (!controller.signal.aborted && generation === listGeneration.current) setMoreError("Não foi possível carregar mais documentos.");
     } finally {
-      setLoadingMore(false);
+      if (generation === listGeneration.current) {
+        listBusy.current = false;
+        listRequest.current = null;
+        setLoadingMore(false);
+      }
     }
   };
 
@@ -168,18 +217,24 @@ export function DocumentsView({
     setUploading(true);
     setUploadError("");
     setNotice("");
+    const epoch = projectEpoch.current;
     try {
       const created = await uploadDocument(projectId, selection);
+      if (epoch !== projectEpoch.current) return;
+      cancelList();
+      setLoading(false);
+      setRefreshing(false);
+      setLoadingMore(false);
       setItems((current) => [created, ...current.filter((item) => item.id !== created.id)]);
       setNotice(created.armazenamento_pendente
         ? `O documento “${created.nome}” foi recebido. O armazenamento está sendo finalizado e a indexação começará em segundo plano.`
         : `O documento “${created.nome}” foi armazenado e será indexado em segundo plano.`);
       clearSelection();
     } catch (error) {
+      if (epoch !== projectEpoch.current) return;
       setUploadError(describeUploadError(error));
     } finally {
-      uploadLock.current = false;
-      setUploading(false);
+      if (epoch === projectEpoch.current) { uploadLock.current = false; setUploading(false); }
     }
   };
 
@@ -194,17 +249,23 @@ export function DocumentsView({
     removalLock.current = true;
     setRemoving(true);
     setRemovalError("");
+    const epoch = projectEpoch.current;
     try {
       await removeDocument(projectId, target.id);
+      if (epoch !== projectEpoch.current) return;
+      cancelList();
+      setLoading(false);
+      setRefreshing(false);
+      setLoadingMore(false);
       setItems((current) => current.filter((item) => item.id !== target.id));
       setNotice(`O documento “${target.nome}” foi removido deste projeto.`);
       closeDialog();
       heading.current?.focus();
     } catch (error) {
+      if (epoch !== projectEpoch.current) return;
       setRemovalError(describeRemovalError(error));
     } finally {
-      removalLock.current = false;
-      setRemoving(false);
+      if (epoch === projectEpoch.current) { removalLock.current = false; setRemoving(false); }
     }
   };
 
@@ -213,17 +274,24 @@ export function DocumentsView({
     setRetryingId(document.id);
     setNotice("");
     setProcessingError("");
+    const epoch = projectEpoch.current;
     try {
       await retryDocumentProcessing(projectId, document.id);
+      if (epoch !== projectEpoch.current) return;
+      cancelList();
+      setLoading(false);
+      setRefreshing(false);
+      setLoadingMore(false);
       setItems((current) => current.map((item) => item.id === document.id
         ? { ...item, status_processamento: "pendente", processamento_erro: null }
         : item));
       setNotice(`O reprocessamento de “${document.nome}” foi agendado.`);
       void refresh(true);
     } catch {
+      if (epoch !== projectEpoch.current) return;
       setProcessingError("Não foi possível agendar o reprocessamento. Atualize a lista e tente novamente.");
     } finally {
-      setRetryingId(null);
+      if (epoch === projectEpoch.current) setRetryingId(null);
     }
   };
 
@@ -357,7 +425,7 @@ export function DocumentsView({
             </tbody>
           </table>
           {moreError && <Alert tone="danger" role="alert">{moreError}</Alert>}
-          {nextCursor && <Button variant="secondary" disabled={loadingMore} onClick={() => void loadMore()}>{loadingMore ? "Carregando…" : "Carregar mais"}</Button>}
+          {nextCursor && <Button variant="secondary" disabled={loadingMore || refreshing} onClick={() => void loadMore()}>{loadingMore ? "Carregando…" : "Carregar mais"}</Button>}
         </div>
       ) : null}
 
