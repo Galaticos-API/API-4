@@ -1,3 +1,5 @@
+import { backlogCursorSchema } from '../../shared/backlog-cursor.js';
+import { validateTextFields } from '../../shared/text-validation.js';
 import { z } from "zod";
 
 export const PBI_STATUSES = ["rascunho", "concluido", "arquivado"] as const;
@@ -30,7 +32,7 @@ export const createPbiSchema = z.object({
   prioridade: z.enum(PBI_PRIORITIES).default("Must"),
   requer_interface: z.boolean().default(false),
   tecnologias_ids: z.array(z.string().uuid()).max(50).optional(),
-});
+}).superRefine(validateTextFields);
 
 export type CreatePbiDTO = z.infer<typeof createPbiSchema>;
 
@@ -45,7 +47,7 @@ export const updatePbiSchema = z.object({
   requer_interface: z.boolean().optional(),
   justificativa: z.string().trim().optional().nullable(),
   tecnologias_ids: z.array(z.string().uuid()).max(50).optional(),
-});
+}).superRefine(validateTextFields);
 
 export type UpdatePbiDTO = z.infer<typeof updatePbiSchema>;
 
@@ -53,6 +55,7 @@ export const pbiQuerySchema = z.object({
   feature_id: z.string().uuid().optional(),
   status: z.enum([...PBI_STATUSES, "todos"]).optional(),
   limit: z.coerce.number().int().min(1).max(100).default(50),
+  before: backlogCursorSchema.optional(),
   offset: z.coerce.number().int().min(0).default(0),
 });
 
@@ -94,4 +97,5 @@ export interface PaginatedPbis {
   total: number;
   limit: number;
   offset: number;
+  next_cursor?: string | null;
 }

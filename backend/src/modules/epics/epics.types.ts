@@ -1,3 +1,5 @@
+import { backlogCursorSchema } from '../../shared/backlog-cursor.js';
+import { validateTextFields } from '../../shared/text-validation.js';
 import { z } from "zod";
 
 // Historical ativo remains writable; only dedicated operations complete or archive items.
@@ -25,7 +27,7 @@ export const createEpicSchema = z.object({
   tecnologias_ids: z.array(z.string().uuid()).max(50).optional(),
   prioridade: z.enum(EPIC_PRIORITIES).default("Must"),
   status: z.literal("rascunho").optional(),
-});
+}).superRefine(validateTextFields);
 
 export type CreateEpicDTO = z.infer<typeof createEpicSchema>;
 
@@ -39,7 +41,7 @@ export const updateEpicSchema = z.object({
   justificativa: z.string().trim().optional().nullable(),
   tecnologias_ids: z.array(z.string().uuid()).max(50).optional(),
   status: z.never().optional(),
-});
+}).superRefine(validateTextFields);
 
 export type UpdateEpicDTO = z.infer<typeof updateEpicSchema>;
 
@@ -47,6 +49,7 @@ export const epicQuerySchema = z.object({
   projeto_id: z.string().uuid().optional(),
   status: z.enum([...EPIC_STATUSES, "todos"]).optional(),
   limit: z.coerce.number().int().min(1).max(100).default(50),
+  before: backlogCursorSchema.optional(),
   offset: z.coerce.number().int().min(0).default(0),
 });
 
@@ -79,4 +82,5 @@ export interface PaginatedEpics {
   total: number;
   limit: number;
   offset: number;
+  next_cursor?: string | null;
 }

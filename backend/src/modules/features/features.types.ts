@@ -1,3 +1,5 @@
+import { backlogCursorSchema } from '../../shared/backlog-cursor.js';
+import { validateTextFields } from '../../shared/text-validation.js';
 import { z } from "zod";
 
 export const FEATURE_STATUSES = ["rascunho", "concluido", "arquivado"] as const;
@@ -19,7 +21,7 @@ export const createFeatureSchema = z.object({
   objetivo: z.string().trim().optional().nullable(),
   tecnologias_ids: z.array(z.string().uuid()).max(50).optional(),
   prioridade: z.enum(FEATURE_PRIORITIES).default("Must"),
-});
+}).superRefine(validateTextFields);
 
 export type CreateFeatureDTO = z.infer<typeof createFeatureSchema>;
 
@@ -30,7 +32,7 @@ export const updateFeatureSchema = z.object({
   prioridade: z.enum(FEATURE_PRIORITIES).optional(),
   justificativa: z.string().trim().optional().nullable(),
   tecnologias_ids: z.array(z.string().uuid()).max(50).optional(),
-});
+}).superRefine(validateTextFields);
 
 export type UpdateFeatureDTO = z.infer<typeof updateFeatureSchema>;
 
@@ -38,6 +40,7 @@ export const featureQuerySchema = z.object({
   epico_id: z.string().uuid().optional(),
   status: z.enum([...FEATURE_STATUSES, "todos"]).optional(),
   limit: z.coerce.number().int().min(1).max(100).default(50),
+  before: backlogCursorSchema.optional(),
   offset: z.coerce.number().int().min(0).default(0),
 });
 
@@ -70,4 +73,5 @@ export interface PaginatedFeatures {
   total: number;
   limit: number;
   offset: number;
+  next_cursor?: string | null;
 }

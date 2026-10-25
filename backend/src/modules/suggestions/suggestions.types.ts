@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { validateTextFields } from '../../shared/text-validation.js';
 import { maxLengthFor, SUGGESTIBLE_FIELDS, type SuggestibleEntityType } from "../provenance/provenance.js";
 
 export type { SuggestibleEntityType } from "../provenance/provenance.js";
@@ -65,6 +66,7 @@ export function createSuggestionSchema(kind: SuggestibleEntityType) {
       .min(1, "O valor sugerido é obrigatório."),
     origem: z.string().trim().max(100).optional(),
   }).strict().superRefine((data, ctx) => {
+    validateTextFields(data, ctx);
     const max = maxLengthFor(data.campo);
     if (data.valor_sugerido.length > max) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["valor_sugerido"], message: `O valor sugerido pode ter no máximo ${max} caracteres.` });
@@ -76,7 +78,7 @@ export const resolveDiscardSchema = z.object({}).strict();
 
 export const resolveAcceptSchema = z.object({
   justificativa: z.string().trim().max(2000).optional().nullable(),
-}).strict();
+}).strict().superRefine(validateTextFields);
 
 export function resolveEditSchema(campo: string) {
   const max = maxLengthFor(campo);
@@ -87,5 +89,5 @@ export function resolveEditSchema(campo: string) {
       .min(1, "Informe o valor editado.")
       .max(max, `O valor editado pode ter no máximo ${max} caracteres.`),
     justificativa: z.string().trim().max(2000).optional().nullable(),
-  }).strict();
+  }).strict().superRefine(validateTextFields);
 }

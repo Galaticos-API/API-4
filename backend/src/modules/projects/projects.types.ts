@@ -1,4 +1,13 @@
 import { z } from "zod";
+import { validDatabaseText, validProjectDate } from '../../shared/text-validation.js';
+
+function validateProjectText(data: Record<string, unknown>, ctx: z.RefinementCtx) {
+  for (const [field, value] of Object.entries(data)) {
+    if (typeof value === 'string' && !validDatabaseText(value)) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: [field], message: 'Use texto Unicode válido, sem caractere nulo.' });
+    }
+  }
+}
 
 export const PROJECT_STATUSES = [
   "ativo",
@@ -58,7 +67,7 @@ export const createProjectSchema = z.object({
   data_inicio: z
     .string()
     .refine(
-      (val) => !isNaN(Date.parse(val)),
+      validProjectDate,
       {
         message:
           "Data de início deve ser uma data válida.",
@@ -66,7 +75,7 @@ export const createProjectSchema = z.object({
     )
     .optional()
     .nullable(),
-});
+}).superRefine(validateProjectText);
 
 export type CreateProjectDTO =
   z.infer<typeof createProjectSchema>;
@@ -115,7 +124,7 @@ export const updateProjectSchema = z.object({
   data_inicio: z
     .string()
     .refine(
-      (val) => !isNaN(Date.parse(val)),
+      validProjectDate,
       {
         message:
           "Data de início deve ser uma data válida.",
@@ -129,7 +138,7 @@ export const updateProjectSchema = z.object({
     .trim()
     .optional()
     .nullable(),
-});
+}).superRefine(validateProjectText);
 
 export type UpdateProjectDTO =
   z.infer<typeof updateProjectSchema>;
@@ -168,7 +177,7 @@ export const projectQuerySchema = z.object({
       "nome_desc",
     ])
     .default("created_at_desc"),
-});
+}).superRefine(validateProjectText);
 
 export type ProjectQueryDTO =
   z.infer<typeof projectQuerySchema>;

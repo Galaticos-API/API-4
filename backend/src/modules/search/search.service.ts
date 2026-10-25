@@ -1,4 +1,5 @@
 import axios from "axios";
+import { validDatabaseText } from '../../shared/text-validation.js';
 import { env } from "../../config/env.js";
 import { AppError, NotFoundError, ValidationError, validateUuid } from "../../shared/errors.js";
 import { serviceHeaders } from "../../shared/service-auth.js";
@@ -35,6 +36,7 @@ export class SearchService {
 
   async search(input: HybridSearchInput): Promise<HybridSearchResult> {
     const query = input.query.trim();
+    if (!validDatabaseText(query)) throw new ValidationError('Use texto Unicode válido, sem caractere nulo.');
     if (query.length < 3) throw new ValidationError("A busca deve ter pelo menos 3 caracteres.");
     if (query.length > 200) throw new ValidationError("A busca pode ter no máximo 200 caracteres.");
     validateUuid(input.projectId, "ID do projeto");

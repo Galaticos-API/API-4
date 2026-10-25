@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { validDatabaseText } from '../../shared/text-validation.js';
 
 export const USER_ROLES = ["admin", "po", "dev"] as const;
 
@@ -9,6 +10,7 @@ export const loginSchema = z.object({
     .string({ required_error: "O e-mail é obrigatório." })
     .trim()
     .email("E-mail inválido.")
+    .max(255, "O e-mail deve ter no máximo 255 caracteres.")
     .transform((value) => value.toLowerCase()),
 
   password: z
@@ -22,12 +24,15 @@ export const registerSchema = z.object({
   nome: z
     .string({ required_error: "O nome é obrigatório." })
     .trim()
-    .min(2, "O nome deve ter no mínimo 2 caracteres."),
+    .min(2, "O nome deve ter no mínimo 2 caracteres.")
+    .max(255, "O nome deve ter no máximo 255 caracteres.")
+    .refine(validDatabaseText, 'Use texto Unicode válido, sem caractere nulo.'),
 
   email: z
     .string({ required_error: "O e-mail é obrigatório." })
     .trim()
     .email("E-mail inválido.")
+    .max(255, "O e-mail deve ter no máximo 255 caracteres.")
     .transform((value) => value.toLowerCase()),
 
   password: z
