@@ -34,7 +34,7 @@ export class SearchService {
     private readonly minimumTextRank = env.SEARCH_MIN_TEXT_RANK,
   ) {}
 
-  async search(input: HybridSearchInput): Promise<HybridSearchResult> {
+  async search(input: HybridSearchInput, userId?: string): Promise<HybridSearchResult> {
     const query = input.query.trim();
     if (!validDatabaseText(query)) throw new ValidationError('Use texto Unicode válido, sem caractere nulo.');
     if (query.length < 3) throw new ValidationError("A busca deve ter pelo menos 3 caracteres.");
@@ -53,7 +53,7 @@ export class SearchService {
       throw new AppError("O serviço de embeddings retornou um vetor incompatível.", 502, "INVALID_EMBEDDING");
     }
 
-    const items = await this.repository.hybridSearch({ ...input, query }, vector, this.minimumSimilarity, this.minimumTextRank);
+    const items = await this.repository.hybridSearch({ ...input, query }, vector, this.minimumSimilarity, this.minimumTextRank, [input.projectId], userId);
     return {
       items,
       total: items.length,
