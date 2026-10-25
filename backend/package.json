@@ -19,6 +19,7 @@
     "test:integration:harness": "tsx scripts/validate-harness.mts",
     "test:integration:copilot": "tsx scripts/validate-harness.mts --browser",
     "test:integration:review": "tsx scripts/test-browser-qa.mts",
+    "test:integration:regressions": "tsx scripts/test-main-regressions.mts && tsx scripts/test-history-and-inputs.mts",
     "audit:security": "npm audit --omit=dev"
   },
   "dependencies": {

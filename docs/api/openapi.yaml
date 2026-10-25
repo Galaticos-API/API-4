@@ -3,7 +3,10 @@ openapi: 3.0.3
 info:
   title: Sinapse Service Contracts
   version: 0.1.0
-  description: Contratos versionados entre backend, serviço de IA e automações n8n.
+  description: >-
+    Contratos versionados entre backend, serviço de IA e automações n8n.
+    Termos das buscas de projetos, backlog e acervo, assim como justificativas de
+    arquivamento e expurgo, devem ser Unicode válido sem caractere nulo; entradas inválidas retornam 400.
 
 servers:
   - url: http://localhost:3001
@@ -358,6 +361,8 @@ paths:
         válidas são levantamento/questionar,padronizar,cenarios; consulta/responder; recomendacao/similares.
         Cenários detalhados são exclusivos de PBI e exigem a história completa (COMO UM, EU QUERO
         e PARA QUE); sem ela a resposta é 400 HISTORIA_INCOMPLETA e o modelo não é consultado.
+        Consulta/responder usa evidências literais validadas pelo mesmo contrato extrativo do RAG.
+        Uma afirmação ou citação sem apoio no trecho recuperado é recusada com 503.
         Cada cenário sugerido tem nome, tipo (caminho_principal, acesso_nao_autorizado ou alternativo),
         dado, quando e entao. Há sempre um caminho_principal e, quando a história ou as regras citam
         um termo de rules.permission_terms, também um acesso_nao_autorizado cujo entao descreve a recusa
@@ -887,6 +892,7 @@ paths:
       security:
         - cookieAuth: []
       parameters:
+        - $ref: '#/components/parameters/BacklogBefore'
         - name: projeto_id
           in: query
           schema:
@@ -1082,6 +1088,7 @@ paths:
       security:
         - cookieAuth: []
       parameters:
+        - $ref: '#/components/parameters/BacklogBefore'
         - name: epico_id
           in: query
           schema:
@@ -1247,6 +1254,7 @@ paths:
       security:
         - cookieAuth: []
       parameters:
+        - $ref: '#/components/parameters/BacklogBefore'
         - name: feature_id
           in: query
           schema:
@@ -1833,7 +1841,7 @@ paths:
             default: 25
         - name: cursor
           in: query
-          description: Cursor opaco retornado pela página anterior
+          description: Cursor opaco retornado pela página anterior, preservando os microssegundos da data e o desempate por ID. Cursores inválidos retornam 400.
           schema:
             type: string
       responses:
@@ -2969,8 +2977,8 @@ paths:
               type: object
               required: [nome, email, password]
               properties:
-                nome: {type: string, minLength: 2}
-                email: {type: string, format: email}
+                nome: {type: string, minLength: 2, maxLength: 255, description: 'Texto Unicode válido, sem caractere nulo.'}
+                email: {type: string, format: email, maxLength: 255}
                 password: {type: string, minLength: 6}
                 role: {type: string, enum: [po, dev, admin], default: dev, description: "po e admin só são aceitos com sessão de administrador"}
       responses:
@@ -3281,7 +3289,7 @@ paths:
   /api/v1/search:
     get:
       summary: Busca híbrida por texto e significado no acervo, sempre isolada por projeto
-      description: Valida o acesso do usuário autenticado ao projeto antes de gerar embeddings ou consultar o acervo. PO e administrador seguem a política global; desenvolvedores precisam de alocação vigente. Projeto inexistente ou sem acesso retorna 404.
+      description: Valida o acesso do usuário autenticado antes dos embeddings, na consulta e antes de devolver resultados. PO e administrador seguem a política global; desenvolvedores precisam de alocação vigente e a conta deve estar ativa. Projeto inexistente ou acesso revogado durante a solicitação retorna 404.
       operationId: searchKnowledge
       security: [{cookieAuth: []}]
       parameters:
@@ -3535,7 +3543,7 @@ paths:
         - name: cursor
           in: query
           required: false
-          description: Cursor opaco devolvido em `next_cursor`
+          description: Cursor opaco devolvido em `next_cursor`; UUID e timestamp completos são validados e cursores inválidos retornam 400.
           schema: {type: string, maxLength: 512}
         - name: limit
           in: query
@@ -3940,6 +3948,11 @@ paths:
 
 components:
   parameters:
+    BacklogBefore:
+      name: before
+      in: query
+      description: Cursor opaco de next_cursor. Mantém a posição por data e ID durante inserções e exclusões. Quando informado, offset é ignorado.
+      schema: {type: string, maxLength: 300}
     HarnessMode:
       in: path
       name: mode
@@ -4193,6 +4206,7 @@ components:
 
     CreateProjectRequest:
       type: object
+      description: Campos textuais aceitam somente Unicode válido, sem caractere nulo.
       required: [nome, cliente]
       properties:
         nome:
@@ -4212,11 +4226,13 @@ components:
           default: ativo
         data_inicio:
           type: string
-          format: date-time
+          description: Data ISO de calendário válida (AAAA-MM-DD) ou timestamp ISO com fuso horário de até 15:59 em módulo, compatível com PostgreSQL.
+          example: '2026-10-25'
           nullable: true
 
     UpdateProjectRequest:
       type: object
+      description: Campos textuais aceitam somente Unicode válido, sem caractere nulo.
       properties:
         nome:
           type: string
@@ -4234,7 +4250,8 @@ components:
           enum: [ativo, em_andamento, concluido]
         data_inicio:
           type: string
-          format: date-time
+          description: Data ISO de calendário válida (AAAA-MM-DD) ou timestamp ISO com fuso horário de até 15:59 em módulo, compatível com PostgreSQL.
+          example: '2026-10-25T14:30:00-03:00'
           nullable: true
         justificativa:
           type: string
@@ -4423,6 +4440,12 @@ components:
           type: integer
         offset:
           type: integer
+        next_cursor:
+          type: string
+          nullable: true
+          maxLength: 300
+          description: Posição opaca para a página seguinte; null quando não há continuação.
+
 
     CreateFeatureRequest:
       type: object
@@ -4536,6 +4559,12 @@ components:
           type: integer
         offset:
           type: integer
+        next_cursor:
+          type: string
+          nullable: true
+          maxLength: 300
+          description: Posição opaca para a página seguinte; null quando não há continuação.
+
 
     CreatePbiRequest:
       type: object
@@ -4692,6 +4721,12 @@ components:
           type: integer
         offset:
           type: integer
+        next_cursor:
+          type: string
+          nullable: true
+          maxLength: 300
+          description: Posição opaca para a página seguinte; null quando não há continuação.
+
 
     CreateCriterionRequest:
       type: object
@@ -4757,7 +4792,7 @@ components:
       type: array
       maxItems: 100
       uniqueItems: true
-      description: Termos em uma única linha, distintos após normalização Unicode e comparação sem diferenciar maiúsculas
+      description: Termos Unicode válidos, sem caractere nulo, em uma única linha, distintos após normalização e comparação sem diferenciar maiúsculas
       items: {type: string, minLength: 1, maxLength: 80, pattern: '^[^\r\n\u2028\u2029]+$'}
     OrganizationLevelChecks:
       type: object
@@ -5058,6 +5093,7 @@ components:
 
     SuggestionInput:
       type: object
+      description: Valores, origem e justificativas devem ser texto Unicode válido, sem caractere nulo.
       additionalProperties: false
       required: [campo, valor_sugerido]
       properties:
