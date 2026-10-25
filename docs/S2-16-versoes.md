@@ -28,6 +28,19 @@ Validação local em 25/10/2026, integrada à main `071c9f4`: builds backend/fro
 
 ## Revisão de QA
 
+### Revisão consolidada após a S2-24 — 25/10/2026
+
+Revisão realizada sobre a main `8aa9959`, limitada à S2-16. Foram conferidos o PBI-01.5.4, os campos preservados nos snapshots, numeração concorrente, transações e rollback, migração/reaplicação, filtros de autor/data, paginação, autorização por projeto, comparação, atualização da interface e navegação desktop/mobile.
+
+Dois problemas adicionais foram reproduzidos em testes e corrigidos:
+
+| Problema | Correção |
+|---|---|
+| Listagem e comparação passavam apenas o sinal externo de cancelamento, substituindo o prazo padrão da camada HTTP. Uma conexão sem resposta podia manter a tela ocupada indefinidamente. | Prazo de 15 segundos combinado ao sinal do componente. A saída do item continua cancelando a consulta imediatamente. |
+| Respostas JSON eram tratadas como válidas apenas por coerção de tipos. Listas, metadados ou diferenças malformadas podiam causar falha na renderização. | Validação dos dados antes de entregá-los à tela, incluindo paginação, autor/data e campos da comparação. A resposta precisa corresponder às versões solicitadas; falhas seguem o aviso e a opção de recarga existentes. |
+
+Onze novos casos cobrem os dois prazos, dados malformados, paginação válida, comparação em ordem inversa, textos completos, booleanos, nulos e cancelamento. A verificação final passou: build da interface, 97 testes da interface, typecheck e 69 testes do backend, 89 testes nas suítes PostgreSQL/indexação e 13 testes de navegador autenticado. O teste opcional de indexação com modelo real permaneceu ignorado. Não foram encontradas novas falhas nos caminhos de snapshots, autorização, concorrência e comparação exercitados no banco. Estas correções não exigem migração nem alteram os snapshots existentes.
+
 - Arquivamento em cascata: o evento do ancestral agora registra as versões dos descendentes na mesma transação, mantendo autor e justificativa e evitando repetir estados já arquivados.
 - Parâmetros inválidos: números de versão respeitam o limite do INTEGER do PostgreSQL; datas são validadas e normalizadas para UTC. Valores fora do contrato retornam 400 em vez de falha interna.
 - Atualização da interface: incluir, remover ou reordenar critérios e resolver sugestões atualiza o histórico sem recarregar a página ou apagar outros formulários. O navegador verifica inclusão/remoção de critério e aceite/edição/descarte de sugestões.
