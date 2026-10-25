@@ -22,6 +22,7 @@ import { BacklogBreadcrumb } from "./BacklogBreadcrumb";
 import { BacklogTechnologySelector } from "./BacklogTechnologySelector";
 import { CriteriaEditor, type ScenarioDraftHandler } from "./CriteriaView";
 import { DecisionsPanel } from "./DecisionsPanel";
+import { SimilarItemsPanel } from "./SimilarItemsPanel";
 import { SuggestionsPanel } from "./SuggestionsPanel";
 import { ProvenanceBadge } from "./ProvenanceBadge";
 import { ItemHistoryView } from "./ItemHistoryView";
@@ -86,6 +87,7 @@ export function PbiDetail({
   ] = useState("");
 
   const [attempt, setAttempt] = useState(0);
+  const [reuseTick, setReuseTick] = useState(0);
   const [editing, setEditing] = useState(false);
 
   const [formValues, setFormValues] =
@@ -789,9 +791,22 @@ export function PbiDetail({
         titulo="Critérios da feature (consulta)"
       />
 
+      {canEdit && !readOnly && !editing && (
+        <SimilarItemsPanel
+          kind="pbi"
+          projectId={projectId}
+          excludeId={pbi!.id}
+          titulo={pbi!.titulo}
+          descricao={[pbi!.historia_como_um, pbi!.historia_eu_quero, pbi!.historia_para_que].filter(Boolean).join(" ")}
+          reuseTargetId={pbi!.id}
+          onReused={() => setReuseTick((value) => value + 1)}
+        />
+      )}
+
       <SuggestionsPanel
         kind="pbi"
         id={pbi!.id}
+        refreshKey={reuseTick}
         canWrite={canEdit && !readOnly}
         readOnlyNote={readOnly ? "Item ou ancestral arquivado: as sugestões ficam disponíveis somente para consulta." : undefined}
       />
