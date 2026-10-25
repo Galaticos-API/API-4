@@ -67,6 +67,7 @@ export function CriteriaEditor({
     useState<string | null>(null);
 
   const versaoRef = useRef(0);
+  const mutation = useRef(false);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -143,6 +144,7 @@ export function CriteriaEditor({
     event: React.FormEvent,
   ) {
     event.preventDefault();
+    if (mutation.current) return;
     setMessage("");
 
     if (isCenario) {
@@ -169,6 +171,7 @@ export function CriteriaEditor({
       return;
     }
 
+    mutation.current = true;
     setBusy(true);
 
     try {
@@ -222,11 +225,13 @@ export function CriteriaEditor({
         "Não foi possível adicionar o critério. Tente novamente.",
       );
     } finally {
+      mutation.current = false;
       setBusy(false);
     }
   }
 
   async function remover(id: string) {
+    if (mutation.current) return;
     if (justificativaObrigatoria && !justificativa.trim()) {
       setMessage("Informe uma justificativa antes de remover este critério.");
       document.getElementById("criteria-justification")?.focus();
@@ -241,6 +246,7 @@ export function CriteriaEditor({
       return;
     }
 
+    mutation.current = true;
     setBusy(true);
 
     try {
@@ -272,6 +278,7 @@ export function CriteriaEditor({
         "Não foi possível remover o critério.",
       );
     } finally {
+      mutation.current = false;
       setBusy(false);
     }
   }
@@ -280,12 +287,15 @@ export function CriteriaEditor({
     id: string,
     direction: "up" | "down",
   ) {
+    if (mutation.current) return;
     if (justificativaObrigatoria && !justificativa.trim()) {
       setMessage("Informe uma justificativa antes de reordenar estes critérios.");
       document.getElementById("criteria-justification")?.focus();
       return;
     }
 
+    mutation.current = true;
+    setBusy(true);
     setMovendoId(id);
 
     try {
@@ -311,6 +321,8 @@ export function CriteriaEditor({
         "Não foi possível reordenar os critérios.",
       );
     } finally {
+      mutation.current = false;
+      setBusy(false);
       setMovendoId(null);
     }
   }
@@ -450,7 +462,7 @@ export function CriteriaEditor({
                       <Button
                         variant="secondary"
                         disabled={
-                          index === 0 ||
+                          busy || index === 0 ||
                           movendoId === item.id
                         }
                         aria-label="Mover para cima"
@@ -464,7 +476,7 @@ export function CriteriaEditor({
                       <Button
                         variant="secondary"
                         disabled={
-                          index ===
+                          busy || index ===
                           result.items.length - 1 ||
                           movendoId === item.id
                         }

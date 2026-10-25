@@ -96,6 +96,7 @@ export function DecisionsPanel({
   const openButton = useRef<HTMLButtonElement>(null);
   const lock = useRef(false);
   const mounted = useRef(true);
+  const listRequest = useRef<AbortController | null>(null);
 
   useEffect(() => {
     mounted.current = true;
@@ -104,6 +105,7 @@ export function DecisionsPanel({
 
   useEffect(() => {
     const controller = new AbortController();
+    listRequest.current = controller;
     setState({ state: "loading" });
     listDecisions(kind, id, controller.signal)
       .then((data) => { if (!controller.signal.aborted) setState({ state: "ready", data }); })
@@ -142,10 +144,12 @@ export function DecisionsPanel({
     try {
       const created = await createDecision(kind, id, values);
       if (!mounted.current) return;
+      listRequest.current?.abort();
       setState((current) => current.state === "ready"
         ? { state: "ready", data: { ...current.data, decisoes: [...current.data.decisoes, { ...created, origem: { ...created.origem, herdada: false } }] } }
         : current);
       setNotice("Decisão registrada com autor e data.");
+      setAttempt(value => value + 1);
       close();
     } catch (error) {
       if (mounted.current) setSaveError(describeDecisionError(error));
