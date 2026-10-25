@@ -32,7 +32,7 @@ paths:
               additionalProperties: false
               required: [pergunta]
               properties:
-                pergunta: {type: string, minLength: 1, maxLength: 2000}
+                pergunta: {type: string, minLength: 1, maxLength: 2000, description: 'Texto Unicode válido, sem caractere nulo nem sequência UTF-16 incompleta'}
                 projeto_ids: {type: array, minItems: 1, maxItems: 50, items: {type: string, format: uuid}}
       responses:
         '200':
@@ -3028,7 +3028,7 @@ paths:
             schema:
               type: object
               properties:
-                titulo: {type: string, maxLength: 120}
+                titulo: {type: string, maxLength: 120, description: 'Texto Unicode válido; a abreviação preserva caracteres completos'}
                 projeto_id: {type: string, format: uuid}
       responses:
         '201':
@@ -3077,7 +3077,7 @@ paths:
               type: object
               required: [pergunta]
               properties:
-                pergunta: {type: string, minLength: 1, maxLength: 2000}
+                pergunta: {type: string, minLength: 1, maxLength: 2000, description: 'Texto Unicode válido, sem caractere nulo nem sequência UTF-16 incompleta'}
                 conversa_id: {type: string, format: uuid}
                 projeto_id: {type: string, format: uuid}
       responses:

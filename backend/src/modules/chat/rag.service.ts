@@ -7,9 +7,9 @@ import { SearchRepository } from '../search/search.repository.js';
 import { HttpSearchEmbeddingClient,type SearchEmbeddingClient } from '../search/search.service.js';
 import type { HybridSearchRow } from '../search/search.types.js';
 import { ChatRepository } from './chat.repository.js';
-import { NOT_FOUND_ANSWER,type ChatSource } from './chat.types.js';
+import { NOT_FOUND_ANSWER,validChatText,type ChatSource } from './chat.types.js';
 
-export const ragInput=z.object({pergunta:z.string().trim().min(1).max(2000),projeto_ids:z.array(z.string().uuid().transform(id=>id.toLowerCase())).min(1).max(50).optional()}).strict();
+export const ragInput=z.object({pergunta:z.string().trim().min(1).max(2000).refine(validChatText,'Use texto Unicode válido, sem caractere nulo.'),projeto_ids:z.array(z.string().uuid().transform(id=>id.toLowerCase())).min(1).max(50).optional()}).strict();
 const evidenceSchema=z.object({evidence:z.array(z.object({source_id:z.string().uuid().transform(id=>id.toLowerCase()),quote:z.string().trim().min(1).max(1000)}).strict()).max(5)}).strict();
 export const evidenceOutputSchema={type:'object',additionalProperties:false,required:['evidence'],properties:{evidence:{type:'array',maxItems:5,items:{type:'object',additionalProperties:false,required:['source_id','quote'],properties:{source_id:{type:'string',format:'uuid'},quote:{type:'string',minLength:1,maxLength:1000}}}}}};
 const escapeMarkdown=(text:string)=>text.replace(/[\\`*_{}\[\]()#+.!<>|~\-]/g,'\\$&');

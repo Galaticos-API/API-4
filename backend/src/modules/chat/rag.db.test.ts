@@ -5,6 +5,9 @@ import { Pool } from 'pg';
 import { validateTarget } from '../../database/seed-lib.js';
 import { RagService } from './rag.service.js';
 import { ChatRepository } from './chat.repository.js';
+import { ChatService } from './chat.service.js';
+import { HttpHarnessEngine } from '../harness/harness.service.js';
+import { HttpSearchEmbeddingClient } from '../search/search.service.js';
 import { SearchRepository } from '../search/search.repository.js';
 import { HarnessRepository } from '../harness/harness.repository.js';
 import { NOT_FOUND_ANSWER } from './chat.types.js';
@@ -49,6 +52,23 @@ test('S2-24: busca híbrida, evidências, escopo transversal autorizado e revoga
       const previous=modelCalls;const result=await service.answer(admin,'assunto inexistente',[a,b]);
       assert.equal(result.resposta,NOT_FOUND_ANSWER);assert.deepEqual(result.fontes,[]);assert.equal(modelCalls,previous);
     });
+    await t.test('HTTP recusa perguntas e títulos inválidos sem criar conversas órfãs',async()=>{
+      const {app}=await import('../../app.js');
+      const {sessionService}=await import('../auth/session.service.js');
+      const token=(await sessionService.createSession(dev)).token;
+      const server=app.listen(0,'127.0.0.1');await new Promise<void>(resolve=>server.once('listening',resolve));
+      const base='http://127.0.0.1:'+(server.address() as {port:number}).port+'/api/v1/chat/';
+      const before=(await db.query('SELECT count(*)::int AS n FROM conversa WHERE usuario_id=$1',[dev])).rows[0].n;
+      try {
+        for(const invalid of ['\u0000','\uD800','\uDC00']) {
+          for(const [path,body] of [['query',{pergunta:'Consultar '+invalid,projeto_id:a}],['answer',{pergunta:'Consultar '+invalid,projeto_ids:[a]}],['conversations',{titulo:'Título '+invalid,projeto_id:a}]] as const) {
+            const response=await fetch(base+path,{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify(body)});
+            assert.equal(response.status,400);assert.equal((await response.json() as {code:string}).code,'VALIDATION_ERROR');
+          }
+        }
+        assert.equal((await db.query('SELECT count(*)::int AS n FROM conversa WHERE usuario_id=$1',[dev])).rows[0].n,before);
+      } finally {server.closeAllConnections();await new Promise<void>(resolve=>server.close(()=>resolve()));}
+    });
     await t.test('modelo não pode citar um ID inventado',async()=>{
       invalid=true;try{await assert.rejects(()=>service.answer(dev,'WhatsApp',[a]),/validar as evidências/);}finally{invalid=false;}
     });
@@ -62,6 +82,37 @@ test('S2-24: busca híbrida, evidências, escopo transversal autorizado e revoga
       invalidate=true;
       try {await assert.rejects(()=>service.answer(dev,'WhatsApp',[a]),/validar as evidências/);}
       finally {invalidate=false;await db.query("UPDATE documento SET status_processamento='processado' WHERE id=$1",[docA]);}
+    });
+    await t.test('modelo local real recupera evidências e cita somente projetos autorizados',{skip:!process.env.RAG_REAL_AI_URL},async()=>{
+      const embeddings=new HttpSearchEmbeddingClient(process.env.RAG_REAL_AI_URL!);
+      const real=new RagService(new ChatRepository(db),new SearchRepository(db),embeddings,new HarnessRepository(db),new HttpHarnessEngine(process.env.RAG_REAL_AI_URL!));
+      try {
+        for(const id of [chunkA,chunkB]) {
+          const text=(await db.query('SELECT texto FROM chunk WHERE id=$1',[id])).rows[0].texto;
+          await db.query('UPDATE chunk SET embedding=$2::vector WHERE id=$1',[id,JSON.stringify(await embeddings.embed(text))]);
+        }
+        const answer=await real.answer(dev,'Como o projeto A usa WhatsApp?',[a]);
+        assert.ok(answer.evidencias.length>0,'O modelo real não selecionou a evidência conhecida.');
+        assert.ok(answer.fontes.every(source=>source.projeto_id===a));
+        assert.ok(answer.evidencias.every(evidence=>evidence.chunk_id===chunkA));
+        const transversal=await real.answer(admin,'Quais usos do WhatsApp existem nos projetos?',[a,b]);
+        assert.deepEqual(new Set(transversal.fontes.map(source=>source.projeto_id)),new Set([a,b]));
+        const missing=await real.answer(dev,'Qual política de autenticação biométrica foi definida?',[a]);
+        assert.equal(missing.resposta,NOT_FOUND_ANSWER);assert.deepEqual(missing.fontes,[]);
+      } finally {await db.query('UPDATE chunk SET embedding=$2::vector WHERE id=ANY($1::uuid[])',[[chunkA,chunkB],JSON.stringify(vector)]);}
+    });
+    await t.test('revogação entre autorização e leitura não divulga mensagens do histórico',async()=>{
+      const repository=new ChatRepository(db);
+      const conversation=await repository.createConversation(dev,a,'Conversa para testar revogação');
+      await repository.addMessage(conversation.id,'assistant','Conteúdo privado do projeto A.');
+      const guardedPool={query:async(sql:string,values:unknown[])=>{
+        if(sql.includes('FROM mensagem'))await db.query("UPDATE alocacao SET data_fim=CURRENT_TIMESTAMP-INTERVAL '1 second' WHERE desenvolvedor_id=$1",[developer]);
+        return db.query(sql,values);
+      }} as unknown as Pool;
+      try {
+        const history=await new ChatService(new ChatRepository(guardedPool)).listMessages(dev,conversation.id);
+        assert.deepEqual(history,[]);
+      } finally {await db.query('UPDATE alocacao SET data_fim=NULL WHERE desenvolvedor_id=$1',[developer]);}
     });
     await t.test('revogação de acesso durante geração impede divulgar a resposta',async()=>{
       revoke=true;await assert.rejects(()=>service.answer(dev,'WhatsApp',[a]),/validar as evidências/);revoke=false;

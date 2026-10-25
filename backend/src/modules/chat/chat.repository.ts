@@ -55,11 +55,14 @@ export class ChatRepository {
     return result.rows[0] ?? null;
   }
 
-  async listMessages(conversaId: string): Promise<ChatMessage[]> {
+  async listMessages(conversaId: string, usuarioId: string): Promise<ChatMessage[]> {
     const result = await this.pool.query<ChatMessage>(
       `SELECT id, conversa_id, remetente, conteudo, COALESCE(fontes_json, '[]'::jsonb) AS fontes_json, CASE WHEN processing_status='pending' AND created_at < CURRENT_TIMESTAMP - INTERVAL '2 minutes' THEN 'failed' ELSE processing_status END AS processing_status, created_at
-       FROM mensagem WHERE conversa_id = $1 ORDER BY created_at ASC, id ASC`,
-      [conversaId],
+       FROM mensagem WHERE conversa_id = $1
+       AND EXISTS (SELECT 1 FROM conversa scope WHERE scope.id=mensagem.conversa_id AND scope.usuario_id=$2
+         AND ${projectAccessSql('scope.projeto_id','$2')})
+       ORDER BY created_at ASC, id ASC`,
+      [conversaId,usuarioId],
     );
     return result.rows;
   }

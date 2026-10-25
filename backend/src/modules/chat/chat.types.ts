@@ -50,6 +50,7 @@ export interface QueryResult {
   resposta: string;
   fontes: ChatSource[];
   origem: ChatOrigin;
+  evidencias?: Array<{chunk_id:string;texto:string}>;
 }
 
 export interface AssistantAnswer {
@@ -59,4 +60,5 @@ export interface AssistantAnswer {
 }
 
 export const MAX_QUESTION_LENGTH = 2000;
+export const validChatText = (text:string) => !/[\u0000\uD800-\uDFFF]/u.test(text);
 export const NOT_FOUND_ANSWER = "Informação não encontrada no acervo do projeto.";

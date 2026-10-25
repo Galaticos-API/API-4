@@ -9,6 +9,7 @@ import { HttpSearchEmbeddingClient } from '../search/search.service.js';
 import {
   MAX_QUESTION_LENGTH,
   NOT_FOUND_ANSWER,
+  validChatText,
   type AssistantAnswer,
   type ChatMessage,
   type ChatSource,
@@ -63,7 +64,8 @@ export function citedSources(text: string, chunks: Array<{id: string; entidade_t
 
 function makeTitle(question: string): string {
   const clean = question.replace(/\s+/g, " ").trim();
-  return clean.length > 60 ? `${clean.slice(0, 57)}...` : clean;
+  const characters=[...clean];
+  return characters.length > 60 ? `${characters.slice(0, 57).join('')}...` : clean;
 }
 
 export class ChatService {
@@ -89,7 +91,8 @@ export class ChatService {
 
   async createConversation(usuarioId: string, input: { titulo?: unknown; projetoId?: string }): Promise<Conversation> {
     const projetoId = await this.requireProject(input.projetoId, usuarioId);
-    const titulo = typeof input.titulo === "string" && input.titulo.trim() ? input.titulo.trim().slice(0, 120) : "Nova conversa";
+    const titulo = typeof input.titulo === "string" && input.titulo.trim() ? [...input.titulo.trim()].slice(0, 120).join('') : "Nova conversa";
+    if(!validChatText(titulo))throw new ValidationError('Use texto Unicode válido, sem caractere nulo.');
     return this.repository.createConversation(usuarioId, projetoId, titulo);
   }
 
@@ -98,13 +101,14 @@ export class ChatService {
     const conversation = await this.repository.findOwnedConversation(conversaId, usuarioId);
     if (!conversation) throw new NotFoundError("Conversa não encontrada.");
     await this.requireProject(conversation.projeto_id ?? undefined, usuarioId);
-    return this.repository.listMessages(conversaId);
+    return this.repository.listMessages(conversaId,usuarioId);
   }
 
   async query(usuarioId: string, input: QueryInput): Promise<QueryResult> {
     const pergunta = input.pergunta.trim();
     if (!pergunta) throw new ValidationError("Digite uma pergunta.");
     if (pergunta.length > MAX_QUESTION_LENGTH) throw new ValidationError(`A pergunta pode ter no máximo ${MAX_QUESTION_LENGTH} caracteres.`);
+    if(!validChatText(pergunta))throw new ValidationError('Use texto Unicode válido, sem caractere nulo.');
 
     let projetoId: string;
     let conversaId = input.conversaId;

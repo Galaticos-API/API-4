@@ -45,6 +45,22 @@ A revisão incluiu ainda permissões por projeto, revalidação das fontes após
 
 ## Validação
 
+### Revisão após S2-16/S2-19/S2-20 — 25/10/2026
+
+Revisão sobre a main `7effa9c`, sem alterar as outras entregas. Foram reproduzidos e corrigidos três problemas:
+
+| Problema | Correção |
+|---|---|
+| Perguntas e títulos podiam conter caractere nulo ou Unicode incompleto, causando falha ou substituição de texto na persistência. | Chat e RAG recusam esses caracteres com 400 antes da gravação. A regressão HTTP cobre os três endpoints e confirma que não há conversas órfãs. |
+| A abreviação por índices UTF-16 podia cortar um emoji ao montar o título. | A abreviação usa caracteres Unicode completos, incluindo títulos informados explicitamente. A pergunta original permanece intacta. |
+| Uma alocação podia ser revogada entre a autorização inicial e a leitura das mensagens, mas a consulta do histórico não repetia a restrição. | A própria consulta SQL verifica titularidade e acesso ao projeto. A regressão revoga a alocação nesse intervalo e comprova que nenhum conteúdo é devolvido. |
+
+Também foi executado o fluxo com **bge-m3 e qwen2.5:1.5b reais**, usando PostgreSQL e FastAPI temporários e somente dados sintéticos. Passaram a pergunta sobre um projeto autorizado, a consulta transversal com fontes dos dois projetos e a pergunta sem evidência, que retornou a mensagem padrão sem fontes. Os embeddings dos documentos foram calculados pelo bge-m3 real. Esse ensaio não substitui a avaliação de relevância pelo PO/time.
+
+Para repetir: com Docker, Ollama, os dois modelos e a imagem de testes `sinapse-s209-ai-test` disponíveis, execute `npx tsx scripts/validate-rag-local-model.mts` no backend. O script usa credenciais temporárias, publica a IA somente em loopback e remove os serviços/banco ao terminar. A suíte comum mantém esse caso opcional; ele é ativado pelo script com `RAG_REAL_AI_URL`.
+
+A rodada com modelo real passou nos 31 testes de qualidade/RAG. Builds, 74 testes do backend, 125 da interface e 89 de regressão de indexação passaram; a integração com FastAPI, Ollama simulado e navegador autenticado também passou. A OpenAPI foi atualizada e lida sem erros, com 104 caminhos. Não há migração de banco para estas correções.
+
 Integração com a main verificada em 25/10/2026: após `git fetch origin`, HEAD e `origin/main` apontavam para `c4c9d53b0dfcb25d5100031c42e813436ca5c1c0`, sem commits divergentes. As alterações da S2-24 estão aplicadas diretamente sobre essa base, sem conflito textual a resolver. Foram repetidos os builds de backend/frontend, a compilação de sintaxe Python, o teste dos scripts Windows, `docker compose --env-file .env.example config --quiet` com tokens de exemplo e `n8n-sync validate`; todos passaram. O arquivo `.env` local foi preservado. Isso verifica a integração com esse commit; uma atualização posterior da main exige nova comparação.
 
 - Backend e frontend: builds, verificação de tipos e testes unitários.
@@ -52,6 +68,6 @@ Integração com a main verificada em 25/10/2026: após `git fetch origin`, HEAD
 - `npm run test:integration:copilot`: backend + FastAPI real + Ollama simulado, validando também o contrato de evidências do chat e a proveniência de relatórios.
 - `npm run test:integration:indexing` e `npm run test:integration:review`: regressões da indexação e navegação autenticada.
 
-Esses testes demonstram o contrato e as guardas; não substituem avaliação de relevância pelo PO/time nem medem qualidade do modelo local real. Os limiares atuais da S2-17 são reutilizados, sem declarar encerrada a revisão de relevância do backlog. Revisão por outra pessoa permanece como aprovação externa.
+Esses testes demonstram o contrato e as guardas; os cenários sintéticos com modelo real não substituem uma avaliação ampla de relevância pelo PO/time. Os limiares atuais da S2-17 são reutilizados, sem declarar encerrada a revisão de relevância do backlog. Revisão por outra pessoa permanece como aprovação externa.
 
 Validação em 25/10/2026: a revisão consolidada repetiu o build e os 86 testes da interface, a verificação de tipos e os 69 testes do backend, os 26 testes de qualidade/RAG em PostgreSQL, a suíte de regressão de indexação e os 13 testes de navegação autenticada. Os testes executados passaram. A OpenAPI foi lida sem erros, com 104 caminhos. O harness FastAPI real com Ollama simulado também passou, incluindo consulta transversal, rejeição de respostas fora do schema, chat autenticado, fontes navegáveis, preservação do escopo escolhido e recuperação após indisponibilidade. Um teste opcional de indexação com IA real não foi executado.
