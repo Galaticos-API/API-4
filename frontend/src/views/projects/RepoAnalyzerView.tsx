@@ -75,18 +75,23 @@ export function RepoAnalyzerView({ projectId, canStart = true }: { projectId: st
   const requestKey = useRef<{ input: string; key: string } | null>(null);
   const mounted = useRef(true);
   const requestId = useRef(0);
+  const refreshRequest = useRef<{ projectId: string; controller: AbortController } | null>(null);
 
   useEffect(() => {
     mounted.current = true;
     return () => { mounted.current = false; };
   }, []);
 
-  const refresh = useCallback(async (silent: boolean) => {
+  const refresh = useCallback(async (silent: boolean, replacePending = false) => {
+    if (!replacePending && refreshRequest.current?.projectId === projectId && !refreshRequest.current.controller.signal.aborted) return;
+    refreshRequest.current?.controller.abort();
+    const controller = new AbortController();
+    refreshRequest.current = { projectId, controller };
     const current = ++requestId.current;
     if (silent) setRefreshing(true);
     else setLoad({ state: "loading" });
     try {
-      const data = await listRepoAnalyses(projectId);
+      const data = await listRepoAnalyses(projectId, controller.signal);
       if (!mounted.current || current !== requestId.current) return;
       setAnalyses(data);
       setSelectedId((previous) => {
@@ -101,12 +106,18 @@ export function RepoAnalyzerView({ projectId, canStart = true }: { projectId: st
       if (silent) setPollFailed(true);
       else setLoad({ state: "error", message: describeLoadError(error) });
     } finally {
+      if (refreshRequest.current?.controller === controller) refreshRequest.current = null;
       if (mounted.current && current === requestId.current) setRefreshing(false);
     }
   }, [projectId]);
 
   useEffect(() => {
     void refresh(false);
+    return () => {
+      ++requestId.current;
+      refreshRequest.current?.controller.abort();
+      refreshRequest.current = null;
+    };
   }, [refresh]);
 
   const hasActive = analyses.some(item => isActive(item) || (item.status === "concluido" && (!item.relatorio_markdown || ['pendente', 'processando'].includes(item.indexacao_status ?? ''))));
@@ -134,7 +145,7 @@ export function RepoAnalyzerView({ projectId, canStart = true }: { projectId: st
       setSelectedId(created.id);
       window.history.replaceState(null, '', window.location.pathname + '#repo-analyzer=' + created.id);
       setLoad({ state: "ready" });
-      void refresh(true);
+      void refresh(true, true);
     } catch (error) {
       if (mounted.current) setStartError(describeStartError(error));
     } finally {
@@ -152,7 +163,7 @@ export function RepoAnalyzerView({ projectId, canStart = true }: { projectId: st
       const updated = await controlRepoAnalysis(projectId, analysisId, action, undefined, analyses.find(item => item.id === analysisId)?.relatorio_revisao);
       if (mounted.current) {
         setAnalyses((previous) => previous.map((item) => item.id === updated.id ? updated : item));
-        void refresh(true);
+        void refresh(true, true);
       }
     } catch (error) {
       const message = serverMessage(error) ?? "Não foi possível controlar a análise. Tente novamente.";

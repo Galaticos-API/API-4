@@ -122,22 +122,31 @@ export function IngestionObservabilityView() {
   const [retrying, setRetrying] = useState<string | null>(null);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
   const scope = useRef(new AbortController());
+  const request = useRef<AbortController | null>(null);
 
-  const refresh = useCallback(async (quiet = false) => {
+  const refresh = useCallback(async (quiet = false, replacePending = false) => {
     if (scope.current.signal.aborted) return;
+    if (request.current && !replacePending) return;
+    request.current?.abort();
+    const controller = new AbortController();
+    request.current = controller;
+    const signal = AbortSignal.any([scope.current.signal, controller.signal]);
     if (!quiet) setLoading(true);
     try {
-      const data = await fetchIngestionSnapshot(scope.current.signal);
-      if (!scope.current.signal.aborted) {
+      const data = await fetchIngestionSnapshot(signal);
+      if (!signal.aborted) {
         setSnapshot(data);
         setError(null);
       }
     } catch (caught) {
-      if (!scope.current.signal.aborted) {
+      if (!signal.aborted) {
         setError(caught instanceof Error ? caught.message : "Não foi possível carregar o estado da ingestão.");
       }
     } finally {
-      if (!scope.current.signal.aborted && !quiet) setLoading(false);
+      if (request.current === controller) {
+        request.current = null;
+        if (!signal.aborted) setLoading(false);
+      }
     }
   }, []);
 
@@ -148,6 +157,8 @@ export function IngestionObservabilityView() {
     const timer = window.setInterval(() => { void refresh(true); }, 5_000);
     return () => {
       controller.abort();
+      request.current?.abort();
+      request.current = null;
       window.clearInterval(timer);
     };
   }, [refresh]);
@@ -158,7 +169,7 @@ export function IngestionObservabilityView() {
     try {
       await reprocessIngestionDocument(item.projeto_id, item.id);
       setActionMessage(`O documento “${item.nome}” foi recolocado na fila. O worker vai pegar no próximo ciclo (≈ a cada 5 s).`);
-      await refresh(true);
+      await refresh(true, true);
     } catch (caught) {
       setActionMessage(caught instanceof Error ? caught.message : "Não foi possível reagendar o documento.");
     } finally {

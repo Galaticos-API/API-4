@@ -4,7 +4,7 @@ export class ApiError extends Error {
   constructor(public status: number, public details?: unknown) { super(`HTTP ${status}`); }
 }
 
-export async function apiRequest(path: string, init: RequestInit = {}) {
+export async function apiRequest(path: string, init: RequestInit = {}, timeoutMs = 15000) {
   const token = localStorage.getItem("app_auth_token");
 
   // Com FormData o browser precisa gerar o próprio Content-Type com boundary;
@@ -19,13 +19,13 @@ export async function apiRequest(path: string, init: RequestInit = {}) {
     headers["Authorization"] = `Bearer ${token}`;
   }
 
-  const timeoutSignal = typeof AbortSignal !== "undefined" && typeof AbortSignal.timeout === "function" ? AbortSignal.timeout(15000) : undefined;
+  const timeoutSignal = AbortSignal.timeout(timeoutMs);
 
   const response = await fetch(`/api/v1${path}`, {
     ...init,
     credentials: "same-origin",
     cache: "no-store",
-    signal: init.signal ?? timeoutSignal,
+    signal: init.signal ? AbortSignal.any([init.signal, timeoutSignal]) : timeoutSignal,
     headers,
   });
 

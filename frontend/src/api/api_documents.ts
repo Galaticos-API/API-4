@@ -106,8 +106,8 @@ export async function uploadDocument(projectId: string, file: File, signal?: Abo
   const response = await apiRequest(`/projects/${encodeURIComponent(projectId)}/documents`, {
     method: "POST",
     body,
-    signal: signal ?? AbortSignal.timeout(UPLOAD_TIMEOUT_MS),
-  });
+    signal,
+  }, UPLOAD_TIMEOUT_MS);
   return parseDocument(await response.json());
 }
 
