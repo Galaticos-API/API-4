@@ -1,18 +1,15 @@
-import { useEffect, useState } from "react";
-import { ApiError } from "../../api/api_auth";
+import { useBacklogList } from '../../viewmodels/useBacklogList';
+import { BacklogListContinuation } from './BacklogListContinuation';
+import { useCallback } from "react";
+
 import {
   hasCompletudeIndicator,
-  listPbis,
-  type Pbi
+  listPbisPage,
 } from "../../api/api_backlog";
 import "../../assets/styles/projects.css";
 import { navigate } from "../../models/navigation";
 import { Button } from "../common/ui";
 
-type ListResult =
-  | { state: "loading" }
-  | { state: "error"; message: string }
-  | { state: "ready"; pbis: Pbi[] };
 
 export function PbiList({
   projectId,
@@ -25,49 +22,8 @@ export function PbiList({
   featureId: string;
   canCreate: boolean;
 }) {
-  const [result, setResult] =
-    useState<ListResult>({
-      state: "loading",
-    });
-
-  const [attempt, setAttempt] = useState(0);
-
-  useEffect(() => {
-    const controller = new AbortController();
-
-    setResult({
-      state: "loading",
-    });
-
-    listPbis(
-      featureId,
-      controller.signal,
-    )
-      .then((pbis) => {
-        if (!controller.signal.aborted) {
-          setResult({
-            state: "ready",
-            pbis,
-          });
-        }
-      })
-      .catch((error) => {
-        if (controller.signal.aborted) {
-          return;
-        }
-
-        setResult({
-          state: "error",
-          message:
-            error instanceof ApiError
-              && error.status === 401
-              ? "É necessário entrar para acessar os PBIs."
-              : "Não foi possível carregar os PBIs.",
-        });
-      });
-
-    return () => controller.abort();
-  }, [featureId, attempt]);
+  const load = useCallback((offset: number, signal: AbortSignal, before?: string) => listPbisPage(featureId, signal, offset, before), [featureId]);
+  const { result, retry, ...continuation } = useBacklogList(load);
 
   const newPath =
     `/projects/${projectId}`
@@ -129,9 +85,7 @@ export function PbiList({
 
           <Button
             variant="secondary"
-            onClick={() =>
-              setAttempt((value) => value + 1)
-            }
+            onClick={retry}
           >
             Tentar novamente
           </Button>
@@ -139,7 +93,7 @@ export function PbiList({
       )}
 
       {result.state === "ready" && (
-        result.pbis.length === 0
+        result.items.length === 0
           ? (
             <div className="ds-card ds-card--glass projects-state">
               <h4>
@@ -165,7 +119,7 @@ export function PbiList({
           )
           : (
             <div className="projects-grid">
-              {result.pbis.map((pbi) => (
+              {result.items.map((pbi) => (
                 <article
                   className="ds-card ds-card--glass project-card"
                   key={pbi.id}
@@ -237,6 +191,7 @@ export function PbiList({
             </div>
           )
       )}
+      {result.state === "ready" && <BacklogListContinuation {...continuation} />}
     </section>
   );
 }

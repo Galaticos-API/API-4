@@ -2,6 +2,8 @@ import { Pool, PoolClient } from "pg";
 import { pool } from "../../database/db.js";
 import { NotFoundError, ValidationError } from "../../shared/errors.js";
 import { ENTITY_TYPES, type EntityType } from "../quality/quality.types.js";
+import { validProjectDate } from '../../shared/text-validation.js';
+import { cursorTimestamp } from '../../shared/backlog-cursor.js';
 
 const ENTITY_TABLE: Record<EntityType, string> = {
   epico: "epico",
@@ -33,19 +35,16 @@ export function decodeAuditCursor(value: string): AuditHistoryCursor {
       throw new Error("Codificação inválida");
     }
     const parsed = JSON.parse(decoded) as Record<string, unknown>;
-    const createdAt = typeof parsed.created_at === "string"
-      ? new Date(parsed.created_at)
-      : null;
+    const createdAt = typeof parsed.created_at === 'string' ? parsed.created_at : '';
     if (
-      !createdAt
-      || Number.isNaN(createdAt.getTime())
+      !validProjectDate(createdAt) || createdAt.length <= 10
       || typeof parsed.id !== "string"
       || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(parsed.id)
       || Object.keys(parsed).some((key) => !["created_at", "id"].includes(key))
     ) {
       throw new Error("Cursor inválido");
     }
-    return { created_at: createdAt.toISOString(), id: parsed.id };
+    return { created_at: createdAt, id: parsed.id };
   } catch {
     throw new ValidationError("Cursor do histórico inválido.");
   }
@@ -156,6 +155,7 @@ export class AuditService {
         a.justificativa,
         a.dados_json,
         a.created_at,
+        ${cursorTimestamp('a')},
         ${pbiVersionFields}
       FROM auditoria a
       LEFT JOIN usuario u ON u.id = a.usuario_id
@@ -173,7 +173,7 @@ export class AuditService {
       limit + 1,
     ]);
     const hasMore = result.rows.length > limit;
-    const items = result.rows.slice(0, limit).map((row) => ({
+    const items = result.rows.slice(0, limit).map(({ pagination_at: _, ...row }) => ({
       ...row,
       created_at: new Date(row.created_at).toISOString(),
       pbi_versao: row.pbi_versao ?? null,
@@ -184,7 +184,7 @@ export class AuditService {
     return {
       items,
       next_cursor: hasMore && lastItem
-        ? encodeAuditCursor({ created_at: lastItem.created_at, id: lastItem.id })
+        ? encodeAuditCursor({ created_at: result.rows[limit - 1].pagination_at, id: lastItem.id })
         : null,
     };
   }

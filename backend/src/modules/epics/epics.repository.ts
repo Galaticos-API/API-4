@@ -1,3 +1,4 @@
+import { backlogPage, cursorTimestamp } from '../../shared/backlog-cursor.js';
 import { projectAccessSql } from "../projects/project-access.js";
 import { ValidationError } from "../../shared/errors.js";
 import { Pool, PoolClient } from "pg";
@@ -104,22 +105,28 @@ export class EpicsRepository {
     const countResult = await this.pool.query<{ total: number }>(countQuery, params);
     const total = countResult.rows[0]?.total ?? 0;
 
-    const dataParams = [...params, query.limit, query.offset];
+    if (query.before) {
+      whereConditions.push(`(e.created_at, e.id) < ($${paramIndex}::timestamptz, $${paramIndex + 1}::uuid)`);
+      params.push(query.before.at, query.before.id);
+      paramIndex += 2;
+    }
+    const pageWhere = whereConditions.length ? 'WHERE ' + whereConditions.join(' AND ') : '';
+    const dataParams = [...params, query.limit, query.before ? 0 : query.offset];
     const dataQuery = `
       SELECT
-        e.*,
+        e.*, ${cursorTimestamp("e")},
         p.status AS projeto_status,
         COALESCE((SELECT COUNT(*)::int FROM feature f WHERE f.epico_id = e.id), 0) AS features_count,
         COALESCE((SELECT COUNT(*)::int FROM criterio_aceitacao c WHERE c.entidade_tipo = 'epico' AND c.entidade_id = e.id), 0) AS criterios_count
       FROM epico e
       JOIN projeto p ON p.id = e.projeto_id
-      ${whereClause}
-      ORDER BY e.created_at DESC
+      ${pageWhere}
+      ORDER BY e.created_at DESC, e.id DESC
       LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
     `;
     const dataResult = await this.pool.query<EpicWithStats>(dataQuery, dataParams);
 
-    return { items: dataResult.rows, total, limit: query.limit, offset: query.offset };
+    return { ...backlogPage(dataResult.rows, query.limit), total, limit: query.limit, offset: query.before ? 0 : query.offset };
   }
 
   async update(id: string, data: UpdateEpicDTO, usuarioId?: string | null): Promise<EpicWithStats | null> {

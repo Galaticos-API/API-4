@@ -1,3 +1,4 @@
+import { backlogPage, cursorTimestamp } from '../../shared/backlog-cursor.js';
 import { projectAccessSql } from "../projects/project-access.js";
 import { ValidationError } from "../../shared/errors.js";
 import { Pool, PoolClient } from "pg";
@@ -105,16 +106,22 @@ export class FeaturesRepository {
     const countResult = await this.pool.query<{ total: number }>(countQuery, params);
     const total = countResult.rows[0]?.total ?? 0;
 
-    const dataParams = [...params, query.limit, query.offset];
+    if (query.before) {
+      whereConditions.push(`(f.created_at, f.id) < ($${paramIndex}::timestamptz, $${paramIndex + 1}::uuid)`);
+      params.push(query.before.at, query.before.id);
+      paramIndex += 2;
+    }
+    const pageWhere = whereConditions.length ? 'WHERE ' + whereConditions.join(' AND ') : '';
+    const dataParams = [...params, query.limit, query.before ? 0 : query.offset];
     const dataQuery = `
-      ${SELECT_WITH_STATS}
-      ${whereClause}
-      ORDER BY f.created_at DESC
+      ${SELECT_WITH_STATS.replace("SELECT", "SELECT " + cursorTimestamp("f") + ",")}
+      ${pageWhere}
+      ORDER BY f.created_at DESC, f.id DESC
       LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
     `;
     const dataResult = await this.pool.query<FeatureWithStats>(dataQuery, dataParams);
 
-    return { items: dataResult.rows, total, limit: query.limit, offset: query.offset };
+    return { ...backlogPage(dataResult.rows, query.limit), total, limit: query.limit, offset: query.before ? 0 : query.offset };
   }
 
   async update(id: string, data: UpdateFeatureDTO, usuarioId?: string | null): Promise<FeatureWithStats | null> {
