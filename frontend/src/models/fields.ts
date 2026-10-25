@@ -1,4 +1,5 @@
 export const CAMPO_LABELS: Record<string, string> = {
+  campos_obrigatorios: "Campos obrigatórios do guia",
   descricao: "Descrição",
   objetivo: "Objetivo",
   escopo_macro: "Escopo macro",

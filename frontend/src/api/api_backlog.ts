@@ -323,6 +323,7 @@ function parsePbi(value: unknown): Pbi {
     historia_para_que: asText(
       pbi.historia_para_que,
     ),
+    regras_observacoes: typeof pbi.regras_observacoes === 'string' ? pbi.regras_observacoes : null,
     requer_interface:
       pbi.requer_interface === true,
     tecnologias_ids: parseTechnologyIds(pbi.tecnologias_ids),

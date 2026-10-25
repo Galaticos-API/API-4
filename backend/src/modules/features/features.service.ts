@@ -97,17 +97,6 @@ export class FeaturesService {
       return existing;
     }
 
-    const camposFaltantes: string[] = FEATURE_REQUIRED_FIELDS.filter(
-      (field) => !existing[field] || String(existing[field]).trim().length === 0,
-    );
-
-    if (camposFaltantes.length > 0) {
-      throw new ValidationError(
-        "Não é possível concluir a feature: preencha os campos obrigatórios do guia antes de concluir.",
-        { campos_faltantes: camposFaltantes },
-      );
-    }
-
     const completed = await this.repository.markConcluded(id, usuarioId);
     if (!completed) {
       throw new NotFoundError("Feature não encontrada.");

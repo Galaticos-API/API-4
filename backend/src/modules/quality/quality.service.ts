@@ -96,9 +96,11 @@ export class QualityService {
       { campo: "historia_como_um", termos: identificarTermosVagos(pbi.historia_como_um, vagueTerms) },
       { campo: "historia_eu_quero", termos: identificarTermosVagos(pbi.historia_eu_quero, vagueTerms) },
       { campo: "historia_para_que", termos: identificarTermosVagos(pbi.historia_para_que, vagueTerms) },
+      { campo: "regras_observacoes", termos: identificarTermosVagos(pbi.regras_observacoes ?? '', vagueTerms) },
       ...cenariosRegistrados.map((cenario) => ({
         campo: `cenario:${cenario.nome ?? cenario.id}`,
-        termos: identificarTermosVagos([cenario.dado, cenario.quando, cenario.entao].filter(Boolean).join(" "), vagueTerms),
+        termos: [...new Set([cenario.nome, cenario.dado, cenario.quando, cenario.entao]
+          .flatMap(texto => identificarTermosVagos(texto ?? '', vagueTerms)))],
       })),
     ].filter((ocorrencia) => ocorrencia.termos.length > 0);
 

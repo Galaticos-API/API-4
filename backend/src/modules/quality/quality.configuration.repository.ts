@@ -1,7 +1,8 @@
 import { Pool, PoolClient } from "pg";
 import { pool } from "../../database/db.js";
 import { auditService } from "../audit/audit.service.js";
-import { ValidationError } from "../../shared/errors.js";
+import { ConflictError, ValidationError } from "../../shared/errors.js";
+import { effectiveConfiguration, type OrganizationConfigurationInput } from './organization-quality.types.js';
 import {
   PBI_QUALITY_CHECKS,
   PbiQualityCheck,
@@ -27,6 +28,44 @@ type ConfigurationRow = {
 
 export class QualityConfigurationRepository {
   constructor(private readonly db: Pool = pool) {}
+
+  async getOrganizationConfiguration(executor: Pool | PoolClient = this.db, lock = false) {
+    const result = await executor.query(`SELECT c.*,COALESCE(u.nome,h.updated_by_name) AS updated_by_name FROM quality_configuration c
+      LEFT JOIN usuario u ON u.id=c.updated_by LEFT JOIN quality_configuration_history h ON h.version=c.version
+      WHERE c.id=$1 ${lock ? 'FOR SHARE OF c' : ''}`,[CONFIGURATION_ID]);
+    const row=result.rows[0];
+    if(!row) throw new Error('Configuração de qualidade não encontrada. Aplique as migrations do banco.');
+    return effectiveConfiguration(row.configuration,row.version,row.updated_at,
+      row.updated_by || row.updated_by_name ? {id:row.updated_by,nome:row.updated_by_name ?? 'Usuário não identificado'} : null);
+  }
+
+  async updateOrganizationConfiguration(input: OrganizationConfigurationInput, userId: string) {
+    this.validate({checks:input.levels.pbi,vague_terms:input.vague_terms});
+    const client=await this.db.connect();
+    try {
+      await client.query('BEGIN');
+      const before=(await client.query('SELECT * FROM quality_configuration WHERE id=$1 FOR UPDATE',[CONFIGURATION_ID])).rows[0];
+      if(!before || before.version!==input.expected_version) throw new ConflictError('A configuração mudou. Recarregue antes de salvar.');
+      const configuration={...before.configuration,checks:input.levels.pbi,
+        levels:{epico:input.levels.epico,feature:input.levels.feature},vague_terms:input.vague_terms,
+        exigir_justificativa_item_concluido:input.exigir_justificativa_item_concluido};
+      await client.query(`UPDATE quality_configuration SET version=version+1,configuration=$2::jsonb,
+        updated_by=$3,updated_at=clock_timestamp() WHERE id=$1`,[CONFIGURATION_ID,JSON.stringify(configuration),userId]);
+      await auditService.record({usuario_id:userId,entidade_tipo:'quality_configuration',entidade_id:CONFIGURATION_ID,
+        acao:'ATUALIZAR_QUALIDADE_ORGANIZACAO',dados_json:{version:before.version+1,before:before.configuration,after:configuration}},client);
+      const result=await this.getOrganizationConfiguration(client);
+      await client.query('COMMIT');
+      return result;
+    } catch(error) { await client.query('ROLLBACK'); throw error; } finally { client.release(); }
+  }
+
+  async organizationHistory(limit: number, before?: number) {
+    const rows=(await this.db.query(`SELECT * FROM quality_configuration_history
+      WHERE ($1::integer IS NULL OR version<$1) ORDER BY version DESC LIMIT $2`,[before ?? null,limit+1])).rows;
+    return {items:rows.slice(0,limit).map(row=>effectiveConfiguration(row.configuration,row.version,row.updated_at,
+      row.updated_by || row.updated_by_name ? {id:row.updated_by,nome:row.updated_by_name ?? 'Usuário não identificado'} : null)),
+      next_before:rows.length>limit ? rows[limit-1].version as number : null};
+  }
 
   async getPbiConfiguration(
     executor: Pool | PoolClient = this.db,
@@ -205,6 +244,7 @@ export class QualityConfigurationRepository {
           (term) =>
             term
               .trim()
+              .normalize('NFC')
               .toLocaleLowerCase("pt-BR"),
         ),
       ).size !== input.vague_terms.length

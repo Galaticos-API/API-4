@@ -16,6 +16,13 @@ export function usePbiQualityConfiguration(enabled = true) {
   const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
+    const refresh = () => setAttempt(value => value + 1);
+    window.addEventListener('organization-quality-updated',refresh);
+    window.addEventListener('focus',refresh);
+    return () => { window.removeEventListener('organization-quality-updated',refresh); window.removeEventListener('focus',refresh); };
+  }, []);
+
+  useEffect(() => {
     if (!enabled) {
       setResult({ state: "loading" });
       return;

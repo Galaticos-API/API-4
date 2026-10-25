@@ -80,7 +80,8 @@ export class EpicsService {
 
     if (existing.status === "concluido") {
       const merged = { ...existing, ...parseResult.data };
-      if (EPIC_REQUIRED_FIELDS.some((field) => !String(merged[field] ?? "").trim())) {
+      const organizationConfig = await this.qualityConfigRepo.getOrganizationConfiguration();
+      if (organizationConfig.levels.epico.campos_obrigatorios && EPIC_REQUIRED_FIELDS.some((field) => !String(merged[field] ?? "").trim())) {
         throw new ValidationError("Não é possível remover campos obrigatórios de um épico concluído.");
       }
       const config = await this.qualityConfigRepo.getPbiConfiguration();
@@ -106,20 +107,6 @@ export class EpicsService {
     await this.ensureWritable(existing);
     if (existing.status === "concluido") {
       return existing;
-    }
-
-    const camposFaltantes: string[] = EPIC_REQUIRED_FIELDS.filter(
-      (field) => !existing[field] || String(existing[field]).trim().length === 0,
-    );
-    if ((existing.criterios_count ?? 0) === 0) {
-      camposFaltantes.push("criterios_aceitacao");
-    }
-
-    if (camposFaltantes.length > 0) {
-      throw new ValidationError(
-        `Não é possível concluir o épico: preencha os campos obrigatórios do guia antes de concluir.`,
-        { campos_faltantes: camposFaltantes },
-      );
     }
 
     const completed = await this.repository.markConcluded(id, usuarioId);

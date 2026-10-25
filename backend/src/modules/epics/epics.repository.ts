@@ -9,6 +9,8 @@ import { assertWritable, lockHierarchy } from "../projects/hierarchy-archive.js"
 import { assertJustificationForCompletedItem } from "../quality/completed-item-policy.js";
 import { getEntityTechnologyIds, replaceEntityTechnologies } from "../technologies/entity-technologies.js";
 import { markFieldsHumanAuthored } from "../provenance/provenance.js";
+import { assertOrganizationCompletion } from '../quality/organization-quality.service.js';
+import { QualityConfigurationRepository } from '../quality/quality.configuration.repository.js';
 import { EPIC_REQUIRED_FIELDS, CreateEpicDTO, Epic, EpicQueryDTO, EpicWithStats, PaginatedEpics, UpdateEpicDTO } from "./epics.types.js";
 
 export class EpicsRepository {
@@ -133,8 +135,9 @@ export class EpicsRepository {
       }
       if (existing.status === "concluido") {
         const merged = { ...existing, ...data };
+        const config = await new QualityConfigurationRepository(this.pool).getOrganizationConfiguration(client,true);
         const missing = EPIC_REQUIRED_FIELDS.filter(field => !String(merged[field] ?? "").trim());
-        if (missing.length) throw new ValidationError("Não é possível remover campos obrigatórios de um item concluído.", { campos_faltantes: missing });
+        if (config.levels.epico.campos_obrigatorios && missing.length) throw new ValidationError("Não é possível remover campos obrigatórios de um item concluído.", { campos_faltantes: missing });
       }
       await assertJustificationForCompletedItem(
         client,
@@ -207,9 +210,7 @@ export class EpicsRepository {
       }
 
       if (existing.status === "concluido") return existing;
-      const missing: string[] = EPIC_REQUIRED_FIELDS.filter(field => !String(existing[field] ?? "").trim());
-      if (!existing.criterios_count) missing.push("criterios_aceitacao");
-      if (missing.length) throw new ValidationError("Preencha os campos obrigatórios antes de concluir.", { campos_faltantes: missing });
+      await assertOrganizationCompletion(client,'epico',id);
 
       await client.query(`UPDATE epico SET status = 'concluido', updated_at = CURRENT_TIMESTAMP WHERE id = $1`, [id]);
 

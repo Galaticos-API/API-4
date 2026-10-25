@@ -3,6 +3,7 @@ import { getItemHistory, type AuditHistoryItem } from "../../api/api_backlog";
 import { describeAuditChanges } from "../../models/auditChanges";
 import { Button } from "../common/ui";
 import { ItemVersionsView } from "./ItemVersionsView";
+import { OrganizationQualityPanel } from './OrganizationQualityPanel';
 
 const actionLabels: Record<string, string> = {
   CRIAR_EPICO: "Épico criado", ATUALIZAR_EPICO: "Épico atualizado", CONCLUIR_EPICO: "Épico concluído",
@@ -20,6 +21,7 @@ export interface ItemHistoryViewProps {
 
 export function ItemHistoryView(props: ItemHistoryViewProps) {
   return <>
+    <OrganizationQualityPanel key={`quality:${props.entidadeTipo}:${props.entidadeId}`} kind={props.entidadeTipo} id={props.entidadeId} refreshTrigger={props.refreshTrigger} />
     <div className="ds-card ds-card--glass quality-panel-body">
       <ItemVersionsView key={`${props.entidadeTipo}:${props.entidadeId}`} kind={props.entidadeTipo} id={props.entidadeId} refreshTrigger={props.refreshTrigger} />
     </div>

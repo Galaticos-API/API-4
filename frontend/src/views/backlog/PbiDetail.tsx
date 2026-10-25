@@ -183,6 +183,7 @@ export function PbiDetail({
       ? evaluatePbiRealtime(
         {
           ...qualityValues,
+          regras_observacoes: pbi?.regras_observacoes,
           prototipo_vinculado:
             pbi?.prototipo_vinculado,
         },
@@ -764,6 +765,16 @@ export function PbiDetail({
               )}
             </>
           )}
+        {pbi!.regras_observacoes?.trim() && (
+          <dl className="pbi-story-grid">
+            <div className="pbi-story-field">
+              <dt>Regras e observações <ProvenanceBadge provenance={pbi!.provenance_json} field="regras_observacoes" /></dt>
+              <dd id={editing ? 'edit-regras_observacoes' : 'regras_observacoes'} tabIndex={-1}>
+                {pbi!.regras_observacoes}
+              </dd>
+            </div>
+          </dl>
+        )}
       </article>
 
       <div

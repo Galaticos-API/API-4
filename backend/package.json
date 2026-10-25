@@ -15,6 +15,7 @@
     "bootstrap:admin": "tsx scripts/bootstrap-admin.mts",
     "test": "node scripts/test.mjs",
     "test:integration:indexing": "tsx scripts/test-indexing-db.mts",
+    "test:integration:quality": "tsx scripts/test-indexing-db.mts --quality",
     "test:integration:harness": "tsx scripts/validate-harness.mts",
     "test:integration:copilot": "tsx scripts/validate-harness.mts --browser",
     "test:integration:review": "tsx scripts/test-browser-qa.mts",

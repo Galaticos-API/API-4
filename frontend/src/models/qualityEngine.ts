@@ -149,15 +149,16 @@ export function identificarTermosVagos(
 ): string[] {
   if (!texto) return [];
 
-  const textoNormalizado = texto.toLowerCase();
+  const textoNormalizado = texto.normalize('NFC').toLowerCase();
 
   return termos.filter((termo) => {
     const literalTerm = termo
+      .normalize('NFC')
       .toLowerCase()
       .replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
     return new RegExp(
-      `\\b${literalTerm}\\b`,
+      `(?<![\\p{L}\\p{N}_])${literalTerm}(?![\\p{L}\\p{N}_])`,
       "u",
     ).test(textoNormalizado);
   });
@@ -184,6 +185,7 @@ export interface PbiFormEvaluationData {
   historia_como_um: string;
   historia_eu_quero: string;
   historia_para_que: string;
+  regras_observacoes?: string | null;
   requer_interface: boolean;
   prototipo_vinculado?: boolean;
 }
@@ -354,6 +356,11 @@ export function evaluatePbiRealtime(
           vagueTerms,
         ),
       },
+      {
+        campo: 'Regras e observações',
+        targetId: `${fieldPrefix}regras_observacoes`,
+        termos: identificarTermosVagos(data.regras_observacoes ?? '', vagueTerms),
+      },
       ...cenarios.map((cenario, index) => ({
         campo: `Cenário ${
           cenario.nome
@@ -363,16 +370,12 @@ export function evaluatePbiRealtime(
         targetId: cenario.id
           ? `cenario-${cenario.id}`
           : "cenarios-section",
-        termos: identificarTermosVagos(
-          [
+        termos: [...new Set([
+            cenario.nome,
             cenario.dado,
             cenario.quando,
             cenario.entao,
-          ]
-            .filter(Boolean)
-            .join(" "),
-          vagueTerms,
-        ),
+          ].flatMap(texto => identificarTermosVagos(texto ?? '', vagueTerms)))],
       })),
     ].filter((item) => item.termos.length > 0);
 

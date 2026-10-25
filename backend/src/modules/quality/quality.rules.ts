@@ -83,9 +83,9 @@ export function validarCenario(cenario: { dado: string; quando: string; entao: s
 }
 
 export function identificarTermosVagos(texto: string, termos: readonly string[] = TERMOS_VAGOS_PADRAO): string[] {
-  const textoNormalizado = texto.toLowerCase();
+  const textoNormalizado = texto.normalize('NFC').toLowerCase();
   return termos.filter((termo) => {
-    const literalTerm = termo.toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    return new RegExp(`\\b${literalTerm}\\b`, "u").test(textoNormalizado);
+    const literalTerm = termo.normalize('NFC').toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    return new RegExp(`(?<![\\p{L}\\p{N}_])${literalTerm}(?![\\p{L}\\p{N}_])`, "u").test(textoNormalizado);
   });
 }

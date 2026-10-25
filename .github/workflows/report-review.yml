@@ -33,6 +33,8 @@ jobs:
           npm test --prefix frontend
       - name: Atomicidade, concorrencia, idempotencia e proveniencia no PostgreSQL
         run: npm run test:integration:indexing --prefix backend
+      - name: Configuracao de qualidade, conclusao e historico no PostgreSQL
+        run: npm run test:integration:quality --prefix backend
       - name: Busca, aprovacao e expurgo no navegador autenticado
         run: npm run test:integration:review --prefix backend
       - name: Harness real e regressao do copiloto

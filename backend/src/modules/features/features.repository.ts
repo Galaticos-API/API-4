@@ -9,6 +9,8 @@ import { assertWritable, lockHierarchy } from "../projects/hierarchy-archive.js"
 import { assertJustificationForCompletedItem } from "../quality/completed-item-policy.js";
 import { getEntityTechnologyIds, replaceEntityTechnologies } from "../technologies/entity-technologies.js";
 import { markFieldsHumanAuthored } from "../provenance/provenance.js";
+import { assertOrganizationCompletion } from '../quality/organization-quality.service.js';
+import { QualityConfigurationRepository } from '../quality/quality.configuration.repository.js';
 import { FEATURE_REQUIRED_FIELDS, CreateFeatureDTO, Feature, FeatureQueryDTO, FeatureWithStats, PaginatedFeatures, UpdateFeatureDTO } from "./features.types.js";
 
 const SELECT_WITH_STATS = `
@@ -128,8 +130,9 @@ export class FeaturesRepository {
       }
       if (existing.status === "concluido") {
         const merged = { ...existing, ...data };
+        const config = await new QualityConfigurationRepository(this.pool).getOrganizationConfiguration(client,true);
         const missing = FEATURE_REQUIRED_FIELDS.filter(field => !String(merged[field] ?? "").trim());
-        if (missing.length) throw new ValidationError("Não é possível remover campos obrigatórios de um item concluído.", { campos_faltantes: missing });
+        if (config.levels.feature.campos_obrigatorios && missing.length) throw new ValidationError("Não é possível remover campos obrigatórios de um item concluído.", { campos_faltantes: missing });
       }
       await assertJustificationForCompletedItem(
         client,
@@ -200,8 +203,7 @@ export class FeaturesRepository {
       }
 
       if (existing.status === "concluido") return existing;
-      const missing: string[] = FEATURE_REQUIRED_FIELDS.filter(field => !String(existing[field] ?? "").trim());
-      if (missing.length) throw new ValidationError("Preencha os campos obrigatórios antes de concluir.", { campos_faltantes: missing });
+      await assertOrganizationCompletion(client,'feature',id);
 
       await client.query(`UPDATE feature SET status = 'concluido', updated_at = CURRENT_TIMESTAMP WHERE id = $1`, [id]);
 

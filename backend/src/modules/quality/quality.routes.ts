@@ -2,10 +2,48 @@ import { Router } from "express";
 import { qualityController } from "./quality.controller.js";
 import { requireAuth } from "../../middleware/requireAuth.js";
 import { requireRole } from "../../middleware/requireRole.js";
+import { z } from 'zod';
+import { qualityConfigurationRepository } from './quality.configuration.repository.js';
+import { organizationConfigurationSchema } from './organization-quality.types.js';
+import { evaluateOrganizationQuality } from './organization-quality.service.js';
+import { ProjectAccess } from '../projects/project-access.js';
+import { ValidationError } from '../../shared/errors.js';
+import { ENTITY_TYPES } from './quality.types.js';
+import { pool } from '../../database/db.js';
+import { withTransaction } from '../../database/transaction.js';
 
 const router = Router();
 
 router.use(requireAuth);
+
+router.get('/configuration/organization',async(_req,res,next)=>{
+  try { res.json(await qualityConfigurationRepository.getOrganizationConfiguration()); } catch(error) { next(error); }
+});
+router.put('/configuration/organization',requireRole('admin'),async(req,res,next)=>{
+  try {
+    const parsed=organizationConfigurationSchema.safeParse(req.body);
+    if(!parsed.success) throw new ValidationError('Configuração inválida.',parsed.error.flatten());
+    res.json(await qualityConfigurationRepository.updateOrganizationConfiguration(parsed.data,req.auth!.id));
+  } catch(error) { next(error); }
+});
+router.get('/configuration/history',requireRole('admin'),async(req,res,next)=>{
+  try {
+    const query=z.object({limit:z.coerce.number().int().min(1).max(100).default(25),before:z.coerce.number().int().positive().max(2147483647).optional()}).strict().safeParse(req.query);
+    if(!query.success) throw new ValidationError('Paginação inválida.');
+    res.json(await qualityConfigurationRepository.organizationHistory(query.data.limit,query.data.before));
+  } catch(error) { next(error); }
+});
+router.get('/items/:kind/:id',async(req,res,next)=>{
+  try {
+    const kind=z.enum(ENTITY_TYPES).safeParse(req.params.kind),id=z.string().uuid().safeParse(req.params.id);
+    if(!kind.success || !id.success) throw new ValidationError('Item inválido.');
+    const report=await withTransaction(pool,async client=>{
+      await new ProjectAccess(client).assertEntity(req.auth!.id,kind.data,id.data);
+      return evaluateOrganizationQuality(kind.data,id.data,client);
+    },'snapshot');
+    res.json(report);
+  } catch(error) { next(error); }
+});
 
 /**
  * @swagger

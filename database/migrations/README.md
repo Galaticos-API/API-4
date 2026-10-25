@@ -109,3 +109,7 @@ reinício. Consulte [S2-09](../../docs/S2-09-HARNESS.md) para configuração e e
 ## 023 — Versões de especificações (S2-16)
 
 `023_item_versions.sql` acrescenta snapshots de épicos/features/PBIs na transação da auditoria. Inclui campos, critérios e tecnologias. A referência inicial dos itens existentes não presume autoria histórica; o histórico anterior permanece preservado. Consultas paginadas e comparação exigem acesso ao projeto. Detalhes e testes em `docs/S2-16-versoes.md`.
+
+## 024 — Qualidade da organização (S2-19)
+
+`024_organization_quality.sql` amplia a política existente com níveis de épico/feature, preserva a configuração de PBI e adiciona histórico de revisões e registro dos critérios de conclusão. As conclusões antigas são explicitamente não documentadas, sem atribuição retroativa de critérios. Detalhes em `docs/S2-19-qualidade-organizacao.md`.
