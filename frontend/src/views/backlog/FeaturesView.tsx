@@ -135,6 +135,8 @@ function toFields(feature: Feature): FeatureFields {
 }
 
 export function FeatureDetail({ projectId, epicoId, featureId, canEdit, children }: { projectId: string; epicoId: string; featureId: string; canEdit: boolean; children?: ReactNode }) {
+  const [historyRevision, setHistoryRevision] = useState(0);
+  const refreshHistory = () => setHistoryRevision(value => value + 1);
   const [result, setResult] = useState<{ state: "loading" } | { state: "error"; message: string } | { state: "ready"; feature: Feature }>({ state: "loading" });
   const [completing, setCompleting] = useState(false);
   const [completionMessage, setCompletionMessage] = useState("");
@@ -294,15 +296,15 @@ export function FeatureDetail({ projectId, epicoId, featureId, canEdit, children
       {feature!.status === "arquivado" && <p>Arquivado em: {feature!.archived_at ? new Date(feature!.archived_at!).toLocaleString("pt-BR") : "data não registrada"}</p>}
       <ItemArchiveView project={feature!} kind="features" canWrite={canEdit && !readOnly && !editing && !saving && !completing} onArchived={() => setAttempt(v => v + 1)} />
       <CriteriaEditor entidadeTipo="feature" entidadeId={feature!.id} canEdit={canEdit && !readOnly} titulo="Critérios da feature"
-        itemConcluido={feature!.status === "concluido"} justificativaObrigatoria={justificationRequired} />
+        itemConcluido={feature!.status === "concluido"} justificativaObrigatoria={justificationRequired} onSaved={refreshHistory} />
       {canEdit && !readOnly && !editing && (
         <SimilarItemsPanel kind="feature" projectId={projectId} excludeId={feature!.id} titulo={feature!.titulo}
           descricao={[feature!.objetivo, feature!.descricao].filter(Boolean).join("\n")} reuseTargetId={feature!.id}
           onReused={() => setReuseTick((value) => value + 1)} />
       )}
-      <SuggestionsPanel kind="feature" id={feature!.id} refreshKey={reuseTick} canWrite={canEdit && !readOnly} readOnlyNote={readOnly ? "Item ou ancestral arquivado: as sugestões ficam disponíveis somente para consulta." : undefined} />
+      <SuggestionsPanel kind="feature" id={feature!.id} refreshKey={reuseTick} onChanged={refreshHistory} canWrite={canEdit && !readOnly} readOnlyNote={readOnly ? "Item ou ancestral arquivado: as sugestões ficam disponíveis somente para consulta." : undefined} />
       <DecisionsPanel kind="feature" id={feature!.id} canWrite={canEdit && !readOnly} readOnlyNote={readOnly ? "Item ou ancestral arquivado: as decisões ficam disponíveis somente para consulta." : undefined} />
-      <ItemHistoryView entidadeTipo="feature" entidadeId={feature!.id} refreshTrigger={attempt} />
+      <ItemHistoryView entidadeTipo="feature" entidadeId={feature!.id} refreshTrigger={attempt + historyRevision} />
       <ReadOnlyContext.Provider value={readOnly}>{children}</ReadOnlyContext.Provider>
     </section>
   );

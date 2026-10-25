@@ -63,7 +63,7 @@ try {
   });
   process.exitCode=exitCode;
   if (exitCode === 0) {
-    const suggestions = spawnSync(process.execPath, ["--import", "tsx", "--test", "src/modules/suggestions/suggestions.db.test.ts", "src/modules/pbis/pbis.relations.db.test.ts", "src/modules/documents/chunks.http.db.test.ts", "src/modules/search/search.access.db.test.ts", "src/modules/auth/auth.registration.db.test.ts"], {
+    const suggestions = spawnSync(process.execPath, ["--import", "tsx", "--test", "src/modules/audit/versions.db.test.ts", "src/modules/similar-items/similar-items.db.test.ts", "src/modules/suggestions/suggestions.db.test.ts", "src/modules/pbis/pbis.relations.db.test.ts", "src/modules/documents/chunks.http.db.test.ts", "src/modules/search/search.access.db.test.ts", "src/modules/auth/auth.registration.db.test.ts"], {
       env: { ...process.env, NODE_ENV: "test", DATABASE_URL: url, ARCHIVE_TEST_DATABASE_URL: url },
       stdio: "inherit",
     });

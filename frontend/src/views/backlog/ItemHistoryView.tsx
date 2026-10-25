@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { getItemHistory, type AuditHistoryItem } from "../../api/api_backlog";
 import { describeAuditChanges } from "../../models/auditChanges";
 import { Button } from "../common/ui";
+import { ItemVersionsView } from "./ItemVersionsView";
 
 const actionLabels: Record<string, string> = {
   CRIAR_EPICO: "Épico criado", ATUALIZAR_EPICO: "Épico atualizado", CONCLUIR_EPICO: "Épico concluído",
@@ -17,7 +18,16 @@ export interface ItemHistoryViewProps {
   refreshTrigger?: number;
 }
 
-export function ItemHistoryView({
+export function ItemHistoryView(props: ItemHistoryViewProps) {
+  return <>
+    <div className="ds-card ds-card--glass quality-panel-body">
+      <ItemVersionsView key={`${props.entidadeTipo}:${props.entidadeId}`} kind={props.entidadeTipo} id={props.entidadeId} refreshTrigger={props.refreshTrigger} />
+    </div>
+    <AuditHistoryView {...props} />
+  </>;
+}
+
+function AuditHistoryView({
   entidadeTipo,
   entidadeId,
   refreshTrigger = 0,
@@ -164,7 +174,7 @@ export function ItemHistoryView({
                   <div className="history-entry-action">
                     <span className="history-action-label" title={item.acao}>{actionLabels[item.acao] ?? item.acao.replace(/_/g, " ").toLocaleLowerCase("pt-BR")}</span>
                     {item.pbi_versao !== null && item.pbi_versao !== undefined && (
-                      <span className="ds-badge ds-badge--brand">Versão {item.pbi_versao}</span>
+                      <span className="ds-badge ds-badge--brand">Snapshot legado {item.pbi_versao}</span>
                     )}
                   </div>
                   {changes.length > 0 && (

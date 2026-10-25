@@ -89,6 +89,8 @@ export function PbiDetail({
   const [attempt, setAttempt] = useState(0);
   const [reuseTick, setReuseTick] = useState(0);
   const [editing, setEditing] = useState(false);
+  const [historyRevision, setHistoryRevision] = useState(0);
+  const refreshHistory = () => setHistoryRevision(value => value + 1);
 
   const [formValues, setFormValues] =
     useState<PbiFields | null>(null);
@@ -781,6 +783,7 @@ export function PbiDetail({
             setScenarios
           }
           scenarioDraftRef={scenarioDraftRef}
+          onSaved={refreshHistory}
         />
       </div>
 
@@ -807,6 +810,7 @@ export function PbiDetail({
         kind="pbi"
         id={pbi!.id}
         refreshKey={reuseTick}
+        onChanged={refreshHistory}
         canWrite={canEdit && !readOnly}
         readOnlyNote={readOnly ? "Item ou ancestral arquivado: as sugestões ficam disponíveis somente para consulta." : undefined}
       />
@@ -828,7 +832,7 @@ export function PbiDetail({
       <ItemHistoryView
         entidadeTipo="pbi"
         entidadeId={pbi!.id}
-        refreshTrigger={attempt}
+        refreshTrigger={attempt + historyRevision}
       />
     </section>
   );

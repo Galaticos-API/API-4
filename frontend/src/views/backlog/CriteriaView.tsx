@@ -37,6 +37,7 @@ export function CriteriaEditor({
   itemConcluido = false,
   justificativaObrigatoria = false,
   onCriteriaChange,
+  onSaved,
   scenarioDraftRef,
 }: {
   entidadeTipo: CriterionEntityType;
@@ -46,6 +47,7 @@ export function CriteriaEditor({
   itemConcluido?: boolean;
   justificativaObrigatoria?: boolean;
   onCriteriaChange?: (items: Criterion[]) => void;
+  onSaved?: () => void;
   scenarioDraftRef?: MutableRefObject<ScenarioDraftHandler | null>;
 }) {
   const [result, setResult] = useState<Result>({
@@ -214,6 +216,7 @@ export function CriteriaEditor({
       setJustificativa("");
       setMessage("");
       setFormOpen(false);
+      onSaved?.();
     } catch {
       setMessage(
         "Não foi possível adicionar o critério. Tente novamente.",
@@ -263,6 +266,7 @@ export function CriteriaEditor({
       }
       setJustificativa("");
       setMessage("");
+      onSaved?.();
     } catch {
       setMessage(
         "Não foi possível remover o critério.",
@@ -299,6 +303,7 @@ export function CriteriaEditor({
       });
 
       onCriteriaChange?.(items);
+      onSaved?.();
       setJustificativa("");
       setMessage("");
     } catch {

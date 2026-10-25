@@ -1480,6 +1480,102 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
+  /api/v1/audit/{entidade_tipo}/{entidade_id}/versions:
+    get:
+      summary: Lista snapshots da especificação por autor e data (S2-16)
+      operationId: listItemVersions
+      description: >-
+        Exige acesso ao projeto. Ordena por versão decrescente. A referência inicial
+        de itens legados é identificada por REFERENCIA_INICIAL, sem autoria histórica presumida.
+      security:
+        - cookieAuth: []
+      parameters:
+        - &versionEntityType
+          name: entidade_tipo
+          in: path
+          required: true
+          schema: {type: string, enum: [epico, feature, pbi]}
+        - &versionEntityId
+          name: entidade_id
+          in: path
+          required: true
+          schema: {type: string, format: uuid}
+        - name: limit
+          in: query
+          schema: {type: integer, minimum: 1, maximum: 100, default: 25}
+        - name: before
+          in: query
+          description: Continua a página abaixo deste número de versão
+          schema: {type: integer, minimum: 1, maximum: 2147483647}
+        - name: autor_id
+          in: query
+          schema: {type: string, format: uuid}
+        - name: desde
+          in: query
+          description: Início inclusivo, data ISO com fuso horário
+          schema: {type: string, format: date-time}
+        - name: ate
+          in: query
+          description: Fim inclusivo, não anterior a desde
+          schema: {type: string, format: date-time}
+      responses:
+        '200':
+          description: Página de versões, mais recente primeiro
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, next_before]
+                properties:
+                  items:
+                    type: array
+                    items: {$ref: '#/components/schemas/ItemVersion'}
+                  next_before: {type: integer, nullable: true}
+        '400': {$ref: '#/components/responses/ValidationError'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '404': {description: Item inexistente ou sem acesso ao projeto}
+
+  /api/v1/audit/{entidade_tipo}/{entidade_id}/versions/compare:
+    get:
+      summary: Compara os campos de dois snapshots do mesmo item (S2-16)
+      operationId: compareItemVersions
+      security:
+        - cookieAuth: []
+      parameters:
+        - *versionEntityType
+        - *versionEntityId
+        - name: de
+          in: query
+          required: true
+          schema: {type: integer, minimum: 1, maximum: 2147483647}
+        - name: para
+          in: query
+          required: true
+          schema: {type: integer, minimum: 1, maximum: 2147483647}
+      responses:
+        '200':
+          description: Snapshots selecionados e somente os campos diferentes, sem alterar o item
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [anterior, nova, campos]
+                properties:
+                  anterior: {$ref: '#/components/schemas/ItemVersionSnapshot'}
+                  nova: {$ref: '#/components/schemas/ItemVersionSnapshot'}
+                  campos:
+                    type: array
+                    items:
+                      type: object
+                      required: [campo, anterior, novo]
+                      properties:
+                        campo: {type: string}
+                        anterior: {nullable: true, description: Valor JSON na origem}
+                        novo: {nullable: true, description: Valor JSON no destino}
+        '400': {$ref: '#/components/responses/ValidationError'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '404': {description: Item inacessível ou versão inexistente no item informado}
+
   /api/v1/audit/{entidade_tipo}/{entidade_id}/history:
     get:
       summary: Consulta o histórico de auditoria paginado de uma entidade
@@ -4420,6 +4516,27 @@ components:
           type: string
           format: date-time
 
+    ItemVersion:
+      type: object
+      required: [id, versao, autor_id, autor_nome, created_at, acao, justificativa]
+      properties:
+        id: {type: string, format: uuid}
+        versao: {type: integer, minimum: 1}
+        autor_id: {type: string, format: uuid, nullable: true}
+        autor_nome: {type: string, nullable: true}
+        created_at: {type: string, format: date-time}
+        acao: {type: string}
+        justificativa: {type: string, nullable: true}
+    ItemVersionSnapshot:
+      allOf:
+        - {$ref: '#/components/schemas/ItemVersion'}
+        - type: object
+          required: [snapshot_json]
+          properties:
+            snapshot_json:
+              type: object
+              description: Campos da especificação, critérios ordenados e tecnologias na data da versão
+              additionalProperties: true
     AuditHistoryItem:
       type: object
       required: [id, entidade_tipo, entidade_id, acao, dados_json, created_at]

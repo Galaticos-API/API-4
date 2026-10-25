@@ -5,6 +5,7 @@ import { validateUuid, ValidationError } from "../../shared/errors.js";
 import { z } from "zod";
 import { ENTITY_TYPES } from "../quality/quality.types.js";
 import { decodeAuditCursor } from "./audit.service.js";
+import { VersionsService } from "./versions.service.js";
 
 export const auditRouter = Router();
 
@@ -14,6 +15,40 @@ const historyQuerySchema = z.object({
 }).strict();
 
 auditRouter.use(requireAuth);
+
+const versions = new VersionsService();
+const versionNumber = z.coerce.number().int().positive().max(2147483647);
+const versionDate = z.string().datetime({ offset: true })
+  .refine(value => Number.isFinite(Date.parse(value)) && new Date(value).getUTCFullYear() >= 1, 'Data inválida.')
+  .transform(value => new Date(value).toISOString());
+const versionsQuery = z.object({
+  limit: z.coerce.number().int().min(1).max(100).default(25),
+  before: versionNumber.optional(),
+  autor_id: z.string().uuid().optional(),
+  desde: versionDate.optional(),
+  ate: versionDate.optional(),
+}).strict().refine(value => !value.desde || !value.ate || Date.parse(value.desde) <= Date.parse(value.ate), 'Intervalo de datas inválido.');
+const compareQuery = z.object({ de: versionNumber, para: versionNumber }).strict();
+
+for (const operation of ['versions', 'versions/compare'] as const) {
+  auditRouter.get('/:entidade_tipo/:entidade_id/' + operation, async (req, res, next) => {
+    try {
+      const kind = z.enum(ENTITY_TYPES).parse(req.params.entidade_tipo);
+      const id = z.string().uuid().parse(req.params.entidade_id);
+      if (operation === 'versions') {
+        const query = versionsQuery.safeParse(req.query);
+        if (!query.success) throw new ValidationError('Filtros de versões inválidos.');
+        res.json(await versions.list(req.auth!.id,kind,id,query.data));
+      } else {
+        const query = compareQuery.safeParse(req.query);
+        if (!query.success) throw new ValidationError('Selecione duas versões válidas.');
+        res.json(await versions.compare(req.auth!.id,kind,id,query.data.de,query.data.para));
+      }
+    } catch (error) {
+      next(error instanceof z.ZodError ? new ValidationError('Item inválido.') : error);
+    }
+  });
+}
 
 function getStringParam(param: string | string[] | undefined): string {
   if (Array.isArray(param)) return param[0] ?? "";

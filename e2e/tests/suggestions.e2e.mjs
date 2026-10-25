@@ -37,14 +37,19 @@ test('S2-13/S2-14: aceite, edição e descarte explícitos, papel autorizado e p
     const accept = page.waitForResponse(response => response.url().endsWith('/accept') && response.request().method() === 'POST');
     await cards.filter({ hasText: 'Consultar saldo validado' }).getByRole('button', { name: 'Aceitar', exact: true }).click();
     assert.equal((await accept).status(), 200);
+    const versions = page.getByRole('region', { name: 'Histórico de versões' });
+    await versions.getByText('Versão 2', { exact: true }).waitFor({ state: 'visible' });
     await cards.filter({ hasText: 'consultar o saldo' }).getByRole('button', { name: 'Editar antes de aceitar' }).click();
     await panel.getByLabel('Valor editado', { exact: true }).fill('consultar o saldo atualizado');
     const edit = page.waitForResponse(response => response.url().endsWith('/edit') && response.request().method() === 'POST');
     await panel.getByRole('button', { name: 'Confirmar edição' }).click();
     assert.equal((await edit).status(), 200);
+    await versions.getByText('Versão 3', { exact: true }).waitFor({ state: 'visible' });
     const discard = page.waitForResponse(response => response.url().endsWith('/discard') && response.request().method() === 'POST');
     await cards.filter({ hasText: 'texto a descartar' }).getByRole('button', { name: 'Descartar', exact: true }).click();
     assert.equal((await discard).status(), 200);
+    await versions.getByText('Versão 3', { exact: true }).waitFor({ state: 'visible' });
+    assert.equal(await versions.getByText('Versão 4', { exact: true }).count(), 0);
     await testDatabase(async db => {
       const row = (await db.query('SELECT * FROM pbi WHERE id=$1', [pbi.id])).rows[0];
       assert.equal(row.titulo, 'Consultar saldo validado');

@@ -151,6 +151,7 @@ export function SuggestionsPanel({
   canWrite,
   readOnlyNote,
   refreshKey = 0,
+  onChanged,
 }: {
   kind: SuggestionKind;
   id: string;
@@ -158,6 +159,7 @@ export function SuggestionsPanel({
   readOnlyNote?: string;
   /** Incrementar para recarregar a lista (ex.: depois de aproveitar um item semelhante). */
   refreshKey?: number;
+  onChanged?: () => void;
 }) {
   const [state, setState] = useState<{ state: "loading" } | { state: "error" } | { state: "ready"; items: Suggestion[] }>({ state: "loading" });
   const [attempt, setAttempt] = useState(0);
@@ -182,6 +184,7 @@ export function SuggestionsPanel({
     setState((current) => current.state === "ready"
       ? { state: "ready", items: current.items.map((item) => (item.id === updated.id ? updated : item)) }
       : current);
+    onChanged?.();
   };
 
   const pending = state.state === "ready" ? state.items.filter((item) => item.status === "pendente") : [];

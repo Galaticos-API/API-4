@@ -138,6 +138,8 @@ function toFields(epic: Epic): EpicFields {
 }
 
 export function EpicDetail({ projectId, epicId, canEdit, children }: { projectId: string; epicId: string; canEdit: boolean; children?: ReactNode }) {
+  const [historyRevision, setHistoryRevision] = useState(0);
+  const refreshHistory = () => setHistoryRevision(value => value + 1);
   const [result, setResult] = useState<{ state: "loading" } | { state: "error"; message: string } | { state: "ready"; epic: Epic }>({ state: "loading" });
   const [completing, setCompleting] = useState(false);
   const [completionMessage, setCompletionMessage] = useState("");
@@ -310,15 +312,15 @@ export function EpicDetail({ projectId, epicId, canEdit, children }: { projectId
       {epic.status === "arquivado" && <p>Arquivado em: {epic.archived_at ? new Date(epic.archived_at!).toLocaleString("pt-BR") : "data não registrada"}</p>}
       <ItemArchiveView project={epic} kind="epics" canWrite={canEdit && !readOnly && !editing && !saving && !completing} onArchived={() => setAttempt(v => v + 1)} />
       <CriteriaEditor entidadeTipo="epico" entidadeId={epic.id} canEdit={canWrite} titulo="Critérios do épico"
-        itemConcluido={epic.status === "concluido"} justificativaObrigatoria={justificationRequired} />
+        itemConcluido={epic.status === "concluido"} justificativaObrigatoria={justificationRequired} onSaved={refreshHistory} />
       {canWrite && !editing && (
         <SimilarItemsPanel kind="epico" projectId={projectId} excludeId={epic.id} titulo={epic.titulo}
           descricao={[epic.objetivo, epic.descricao].filter(Boolean).join("\n")} reuseTargetId={epic.id}
           onReused={() => setReuseTick((value) => value + 1)} />
       )}
-      <SuggestionsPanel kind="epico" id={epic.id} refreshKey={reuseTick} canWrite={canWrite} readOnlyNote={readOnly ? "Item ou projeto arquivado: as sugestões ficam disponíveis somente para consulta." : undefined} />
+      <SuggestionsPanel kind="epico" id={epic.id} refreshKey={reuseTick} onChanged={refreshHistory} canWrite={canWrite} readOnlyNote={readOnly ? "Item ou projeto arquivado: as sugestões ficam disponíveis somente para consulta." : undefined} />
       <DecisionsPanel kind="epico" id={epic.id} canWrite={canWrite} readOnlyNote={readOnly ? "Item ou projeto arquivado: as decisões ficam disponíveis somente para consulta." : undefined} />
-      <ItemHistoryView entidadeTipo="epico" entidadeId={epic.id} refreshTrigger={attempt} />
+      <ItemHistoryView entidadeTipo="epico" entidadeId={epic.id} refreshTrigger={attempt + historyRevision} />
       <ReadOnlyContext.Provider value={readOnly}>{children}</ReadOnlyContext.Provider>
     </section>
   );
