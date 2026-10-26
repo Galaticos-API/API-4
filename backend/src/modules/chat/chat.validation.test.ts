@@ -44,3 +44,23 @@ test('título informado pelo usuário também preserva emojis e recusa texto inv
   await service.createConversation(randomUUID(),{projetoId:randomUUID(),titulo:'x'.repeat(119)+'😀'+'fim'});
   assert.equal(/[\uD800-\uDFFF]/u.test(chats.titles[0]),false);assert.ok(chats.titles[0].endsWith('😀'));
 });
+
+test('exclusão de conversa valida UUID e lança NotFoundError se inexistente',async()=>{
+  const {NotFoundError}=await import('../../shared/errors.js');
+  class MockChats extends ChatRepository {
+    deleted:string[]=[];
+    async deleteConversation(id:string,userId:string){
+      if(id==='11111111-1111-4111-8111-111111111111'&&userId==='user-1'){
+        this.deleted.push(id);
+        return true;
+      }
+      return false;
+    }
+  }
+  const mockRepo=new MockChats();
+  const service=new ChatService(mockRepo,assistant);
+  await assert.rejects(()=>service.deleteConversation('user-1','invalido'),ValidationError);
+  await assert.rejects(()=>service.deleteConversation('user-1','22222222-2222-4222-8222-222222222222'),NotFoundError);
+  await service.deleteConversation('user-1','11111111-1111-4111-8111-111111111111');
+  assert.deepEqual(mockRepo.deleted,['11111111-1111-4111-8111-111111111111']);
+});

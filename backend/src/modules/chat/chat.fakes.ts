@@ -42,6 +42,16 @@ export class FakeChatRepository extends ChatRepository {
     return this.conversations.find((item) => item.id === conversaId && item.usuario_id === usuarioId) ?? null;
   }
 
+  async deleteConversation(conversaId: string, usuarioId: string): Promise<boolean> {
+    const initial = this.conversations.length;
+    this.conversations = this.conversations.filter((item) => !(item.id === conversaId && item.usuario_id === usuarioId));
+    if (this.conversations.length < initial) {
+      this.messages = this.messages.filter((msg) => msg.conversa_id !== conversaId);
+      return true;
+    }
+    return false;
+  }
+
   async listMessages(conversaId: string): Promise<ChatMessage[]> {
     return this.messages.filter((item) => item.conversa_id === conversaId);
   }

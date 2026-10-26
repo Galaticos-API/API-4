@@ -92,6 +92,13 @@ export async function listConversations(signal?: AbortSignal): Promise<ChatConve
   return data.items.map(parseConversation);
 }
 
+export async function deleteConversation(conversationId: string, signal?: AbortSignal): Promise<void> {
+  await apiRequest(`/chat/conversations/${encodeURIComponent(conversationId)}`, {
+    method: "DELETE",
+    signal,
+  });
+}
+
 export async function listMessages(conversationId: string, signal?: AbortSignal): Promise<ChatMessage[]> {
   const data: unknown = await (await apiRequest(`/chat/conversations/${encodeURIComponent(conversationId)}/messages`, { signal })).json();
   if (!isRecord(data) || !Array.isArray(data.items)) throw new Error("Lista de mensagens inválida");

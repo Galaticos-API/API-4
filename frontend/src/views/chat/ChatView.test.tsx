@@ -1,8 +1,8 @@
 import {afterEach,expect,it,vi} from 'vitest';
 import {act,cleanup,fireEvent,render,screen} from '@testing-library/react';
 import {ChatView} from './ChatView';
-import {askQuestion,listChatProjects,listConversations,listMessages,type ChatConversation,type ChatAnswer} from '../../api/api_chat';
-vi.mock('../../api/api_chat',()=>({MAX_QUESTION_LENGTH:2000,askQuestion:vi.fn(),listChatProjects:vi.fn(),listConversations:vi.fn(),listMessages:vi.fn(),describeChatError:()=> 'Assistente indisponível'}));
+import {askQuestion,deleteConversation,listChatProjects,listConversations,listMessages,type ChatConversation,type ChatAnswer} from '../../api/api_chat';
+vi.mock('../../api/api_chat',()=>({MAX_QUESTION_LENGTH:2000,askQuestion:vi.fn(),deleteConversation:vi.fn(),listChatProjects:vi.fn(),listConversations:vi.fn(),listMessages:vi.fn(),describeChatError:()=> 'Assistente indisponível'}));
 afterEach(()=>{cleanup();vi.resetAllMocks();});
 it('permite recarregar os projetos após falha sem apagar a pergunta',async()=>{
   vi.mocked(listConversations).mockResolvedValue([]);
@@ -197,4 +197,55 @@ it.each([
   fireEvent.change(field,{target:{value:draft}});
   fireEvent.click(screen.getByRole('button',{name:'Tentar novamente'}));
   await screen.findByText(success?'Resposta verificada':'Assistente indisponível');expect(field).toHaveValue(expected);
+});
+
+it('permite excluir uma conversa a partir da lista lateral após confirmação',async()=>{
+  vi.spyOn(window,'confirm').mockReturnValue(true);
+  vi.mocked(deleteConversation).mockResolvedValue(undefined);
+  vi.mocked(listChatProjects).mockResolvedValue([{id:'project-a',nome:'Projeto A'}]);
+  vi.mocked(listConversations).mockResolvedValue([
+    {id:'conv-1',titulo:'Conversa 1',projeto_id:'project-a',projeto_nome:'Projeto A',updated_at:''},
+    {id:'conv-2',titulo:'Conversa 2',projeto_id:'project-a',projeto_nome:'Projeto A',updated_at:''},
+  ]);
+  vi.mocked(listMessages).mockResolvedValue([]);
+  render(<ChatView/>);
+  await screen.findByRole('heading',{name:'Conversa 1'});
+  const deleteButtons=screen.getAllByRole('button',{name:'Excluir conversa'});
+  fireEvent.click(deleteButtons[0]);
+  expect(window.confirm).toHaveBeenCalled();
+  expect(deleteConversation).toHaveBeenCalledWith('conv-1');
+  await screen.findByText('Conversa 2');
+  expect(screen.queryByRole('heading',{name:'Conversa 1'})).toBeNull();
+});
+
+it('permite excluir a conversa ativa a partir do cabeçalho e reseta o chat para nova conversa',async()=>{
+  vi.spyOn(window,'confirm').mockReturnValue(true);
+  vi.mocked(deleteConversation).mockResolvedValue(undefined);
+  vi.mocked(listChatProjects).mockResolvedValue([{id:'project-a',nome:'Projeto A'}]);
+  vi.mocked(listConversations).mockResolvedValue([
+    {id:'conv-active',titulo:'Conversa Ativa',projeto_id:'project-a',projeto_nome:'Projeto A',updated_at:''},
+  ]);
+  vi.mocked(listMessages).mockResolvedValue([]);
+  render(<ChatView/>);
+  await screen.findByRole('heading',{name:'Conversa Ativa'});
+  const deleteBtn=screen.getByTitle('Excluir esta conversa');
+  fireEvent.click(deleteBtn);
+  expect(deleteConversation).toHaveBeenCalledWith('conv-active');
+  await screen.findByRole('heading',{name:'Nova conversa'});
+});
+
+it('não exclui a conversa caso o usuário cancele a confirmação',async()=>{
+  vi.spyOn(window,'confirm').mockReturnValue(false);
+  vi.mocked(listChatProjects).mockResolvedValue([{id:'project-a',nome:'Projeto A'}]);
+  vi.mocked(listConversations).mockResolvedValue([
+    {id:'conv-1',titulo:'Conversa Permanente',projeto_id:'project-a',projeto_nome:'Projeto A',updated_at:''},
+  ]);
+  vi.mocked(listMessages).mockResolvedValue([]);
+  render(<ChatView/>);
+  await screen.findByRole('heading',{name:'Conversa Permanente'});
+  const deleteBtn=screen.getByTitle('Excluir esta conversa');
+  fireEvent.click(deleteBtn);
+  expect(window.confirm).toHaveBeenCalled();
+  expect(deleteConversation).not.toHaveBeenCalled();
+  expect(screen.getByRole('heading',{name:'Conversa Permanente'})).toBeInTheDocument();
 });

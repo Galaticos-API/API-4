@@ -44,6 +44,15 @@ export function createChatRouter(service: ChatService = new ChatService(), authe
     }
   });
 
+  router.delete("/conversations/:id", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      await service.deleteConversation(userId(req), String(req.params.id));
+      res.status(204).end();
+    } catch (error) {
+      next(error);
+    }
+  });
+
   router.get("/conversations/:id/messages", async (req: Request, res: Response, next: NextFunction) => {
     try {
       const items = await service.listMessages(userId(req), String(req.params.id));

@@ -55,6 +55,14 @@ export class ChatRepository {
     return result.rows[0] ?? null;
   }
 
+  async deleteConversation(conversaId: string, usuarioId: string): Promise<boolean> {
+    const result = await this.pool.query(
+      `DELETE FROM conversa WHERE id = $1 AND usuario_id = $2 RETURNING id`,
+      [conversaId, usuarioId],
+    );
+    return (result.rowCount ?? 0) > 0;
+  }
+
   async listMessages(conversaId: string, usuarioId: string): Promise<ChatMessage[]> {
     const result = await this.pool.query<ChatMessage>(
       `SELECT id, conversa_id, remetente, conteudo, COALESCE(fontes_json, '[]'::jsonb) AS fontes_json, CASE WHEN processing_status='pending' AND created_at < CURRENT_TIMESTAMP - INTERVAL '2 minutes' THEN 'failed' ELSE processing_status END AS processing_status, created_at

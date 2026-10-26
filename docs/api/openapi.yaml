@@ -3048,6 +3048,24 @@ paths:
         '404':
           description: Projeto não encontrado
 
+  /api/v1/chat/conversations/{id}:
+    delete:
+      summary: Exclui uma conversa do usuário autenticado
+      description: Conversa de outra pessoa ou inexistente retorna 404, sem revelar a existência. Exclui a conversa e todas as mensagens associadas.
+      operationId: deleteChatConversation
+      security: [{cookieAuth: []}]
+      parameters:
+        - {name: id, in: path, required: true, schema: {type: string, format: uuid}}
+      responses:
+        '204':
+          description: Conversa excluída com sucesso
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Conversa não encontrada
+
   /api/v1/chat/conversations/{id}/messages:
     get:
       summary: Mensagens de uma conversa do próprio usuário

@@ -41,3 +41,14 @@ it('mantém a navegação interna da fonte e descarta links externos ou malforma
   expect(result.fontes.map(source=>source.url)).toEqual([urls[0],null,null,null,null]);
   expect(result.fontes[0].projeto_nome).toBe('Projeto A');
 });
+
+it('envia requisição DELETE com o id da conversa correto',async()=>{
+  const fetchMock = vi.fn(async()=>new Response(null,{status:204}));
+  vi.stubGlobal('fetch',fetchMock);
+  const {deleteConversation} = await import('./api_chat');
+  await deleteConversation('conv-123');
+  expect(fetchMock).toHaveBeenCalledWith(
+    expect.stringContaining('/chat/conversations/conv-123'),
+    expect.objectContaining({method:'DELETE'})
+  );
+});

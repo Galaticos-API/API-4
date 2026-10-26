@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   MAX_QUESTION_LENGTH,
   askQuestion,
+  deleteConversation,
   describeChatError,
   listConversations,
   listMessages,
@@ -41,6 +42,7 @@ export function ChatView() {
   const [pendingKeys, setPendingKeys] = useState<string[]>([]);
   const [sendError, setSendError] = useState("");
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const bottom = useRef<HTMLDivElement>(null);
   const composer = useRef<HTMLTextAreaElement>(null);
   const mounted = useRef(true);
@@ -154,6 +156,27 @@ export function ChatView() {
     setSendError("");
     setActiveId(conversation.id);
     setScopeId(conversation.projeto_id ?? "");
+  };
+
+  const handleDeleteConversation = async (conversationId: string) => {
+    if (deletingId) return;
+    const confirmed = window.confirm("Tem certeza que deseja excluir esta conversa? Todas as mensagens serão removidas permanentemente.");
+    if (!confirmed) return;
+
+    setDeletingId(conversationId);
+    try {
+      await deleteConversation(conversationId);
+      if (!mounted.current) return;
+      setConversations((current) => current.filter((c) => c.id !== conversationId));
+      if (activeId === conversationId) {
+        startNewConversation();
+      }
+    } catch (error) {
+      if (!mounted.current) return;
+      setSendError(describeChatError(error));
+    } finally {
+      if (mounted.current) setDeletingId(null);
+    }
   };
 
   const send = useCallback(async (text: string, retryId?: string) => {
@@ -275,7 +298,7 @@ export function ChatView() {
             {conversationsState === "idle" && conversations.length === 0 && <p className="help">Nenhuma conversa ainda. Faça sua primeira pergunta.</p>}
             <ul>
               {conversations.map((conversation) => (
-                <li key={conversation.id}>
+                <li key={conversation.id} className="chat-conversation-item">
                   <button
                     type="button"
                     className="chat-conversation"
@@ -287,6 +310,24 @@ export function ChatView() {
                       {conversation.projeto_nome ?? "Todos os projetos"} · {formatRelative(conversation.updated_at)}
                     </span>
                   </button>
+                  <button
+                    type="button"
+                    className="chat-conversation-delete"
+                    title={`Excluir conversa "${conversation.titulo}"`}
+                    aria-label={`Excluir conversa`}
+                    disabled={deletingId === conversation.id}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      void handleDeleteConversation(conversation.id);
+                    }}
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                      <polyline points="3 6 5 6 21 6" />
+                      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                      <line x1="10" y1="11" x2="10" y2="17" />
+                      <line x1="14" y1="11" x2="14" y2="17" />
+                    </svg>
+                  </button>
                 </li>
               ))}
             </ul>
@@ -296,7 +337,20 @@ export function ChatView() {
         <section className="ds-card chat-thread" aria-label="Conversa atual">
           <div className="chat-thread-header">
             <h2>{activeConversation?.titulo ?? "Nova conversa"}</h2>
-            <Badge tone={scopeName ? "brand" : "info"}>{scopeName ?? "Todos os projetos"}</Badge>
+            <div className="chat-thread-actions">
+              <Badge tone={scopeName ? "brand" : "info"}>{scopeName ?? "Todos os projetos"}</Badge>
+              {activeId && (
+                <Button
+                  variant="danger"
+                  size="sm"
+                  disabled={deletingId === activeId}
+                  onClick={() => void handleDeleteConversation(activeId)}
+                  title="Excluir esta conversa"
+                >
+                  {deletingId === activeId ? "Excluindo…" : "Excluir conversa"}
+                </Button>
+              )}
+            </div>
           </div>
 
           <div className="chat-messages" role="log" aria-live="polite" aria-relevant="additions" aria-label="Mensagens da conversa" tabIndex={0}>

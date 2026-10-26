@@ -96,6 +96,12 @@ export class ChatService {
     return this.repository.createConversation(usuarioId, projetoId, titulo);
   }
 
+  async deleteConversation(usuarioId: string, conversaId: string): Promise<void> {
+    validateUuid(conversaId, "ID da conversa");
+    const deleted = await this.repository.deleteConversation(conversaId, usuarioId);
+    if (!deleted) throw new NotFoundError("Conversa não encontrada.");
+  }
+
   async listMessages(usuarioId: string, conversaId: string): Promise<ChatMessage[]> {
     validateUuid(conversaId, "ID da conversa");
     const conversation = await this.repository.findOwnedConversation(conversaId, usuarioId);
