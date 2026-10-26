@@ -6,6 +6,7 @@ import argparse
 import hashlib
 import ipaddress
 import json
+import math
 import os
 import subprocess
 import sys
@@ -15,12 +16,21 @@ from pathlib import Path
 from urllib.parse import urlsplit
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
-from urllib.request import Request, urlopen
+from urllib.request import Request, HTTPRedirectHandler, build_opener
 
-from evaluate_search import DEFAULT_DATASET, load_json, validate_dataset
+from evaluate_search import DEFAULT_DATASET, SEARCH_LEVELS, canonical_dataset_sha256, load_json, validate_dataset
 
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
+EVALUATION_V2 = Path(__file__).parent / 'datasets' / 'search-ptbr-v2.json'
+
+
+class NoRedirects(HTTPRedirectHandler):
+    def redirect_request(self, request, response, code, message, headers, new_url):
+        return None
+
+
+urlopen = build_opener(NoRedirects()).open
 
 
 def validate_api_base_url(value: str) -> str:
@@ -82,6 +92,7 @@ def working_tree_is_dirty(root: Path = REPOSITORY_ROOT) -> bool:
 
 
 def run_query(api_base_url: str, session_cookie: str, query: dict, limit: int, timeout: float) -> dict:
+    api_base_url = validate_api_base_url(api_base_url)
     parameters = {
         "q": query["query"],
         "projeto_id": query["project_id"],
@@ -114,6 +125,10 @@ def run_query(api_base_url: str, session_cookie: str, query: dict, limit: int, t
         if not isinstance(item, dict) or not isinstance(item.get("id"), str) or not isinstance(item.get("project_id"), str):
             raise RuntimeError(f"{query['id']}: resultado sem id ou project_id verificável")
         normalized_item = {"source_id": item["id"], "project_id": item["project_id"]}
+        level = item.get('entity_type')
+        if not isinstance(level, str) or level not in SEARCH_LEVELS:
+            raise RuntimeError(f"{query['id']}: resultado sem entity_type verificável")
+        normalized_item['entity_type'] = level
         score = item.get("relevance_score")
         if isinstance(score, (int, float)) and not isinstance(score, bool):
             normalized_item["relevance_score"] = float(score)
@@ -127,9 +142,24 @@ def run_suite(dataset: dict, api_base_url: str, session_cookie: str, limit: int 
     api_base_url = validate_api_base_url(api_base_url)
     if not session_cookie.strip():
         raise ValueError("SINAPSE_SESSION_COOKIE não foi configurado")
-    if limit < 1 or limit > 50:
+    if type(limit) is not int or limit < 1 or limit > 50:
         raise ValueError("limit deve estar entre 1 e 50")
+    if isinstance(timeout, bool) or not isinstance(timeout, (int, float)) or not math.isfinite(timeout) or timeout <= 0:
+        raise ValueError('timeout deve ser um número positivo e finito')
+    explicit_dataset = dataset_path or (Path(os.environ['SEARCH_DATASET_PATH']) if os.getenv('SEARCH_DATASET_PATH') else None)
+    dataset_file = explicit_dataset or (DEFAULT_DATASET if dataset['version'] == 1 else EVALUATION_V2)
+    same_file = dataset_file.is_file() and load_json(dataset_file) == dataset
+    if explicit_dataset is not None and not same_file:
+        raise ValueError('o arquivo informado não corresponde ao dataset executado')
+    dataset_hash_kind = 'file' if same_file else 'canonical_json'
+    dataset_hash = _sha256_file(dataset_file) if same_file else canonical_dataset_sha256(dataset)
+    try:
+        dirty, snapshot_hash = working_tree_is_dirty(), source_snapshot_sha256()
+    except (OSError, subprocess.CalledProcessError, UnicodeDecodeError):
+        dirty, snapshot_hash = None, 'unavailable'
+    started_at = datetime.now(timezone.utc).isoformat()
     runs = [run_query(api_base_url, session_cookie, query, limit, timeout) for query in dataset["queries"]]
+    finished_at = datetime.now(timezone.utc).isoformat()
     run_by_id = {run["query_id"]: run for run in runs}
     categories = sorted({query.get("category", "uncategorized") for query in dataset["queries"]})
     by_category = {
@@ -144,15 +174,15 @@ def run_suite(dataset: dict, api_base_url: str, session_cookie: str, limit: int 
         ).stdout.strip()
     except (OSError, subprocess.CalledProcessError):
         revision = "unknown"
-    dataset_file = dataset_path or Path(os.getenv("SEARCH_DATASET_PATH", ""))
-    if not dataset_file.is_file():
-        dataset_file = DEFAULT_DATASET if dataset.get("version") == 1 else Path(__file__).parent / "datasets" / "search-ptbr-v2.json"
+    if same_file and _sha256_file(dataset_file) != dataset_hash:
+        raise RuntimeError('O dataset mudou durante a execução; repita a bateria sem editar as fontes.')
     corpus_path = REPOSITORY_ROOT / dataset.get("corpus", {}).get("file", "")
     try:
-        dirty = working_tree_is_dirty()
-        snapshot_hash = source_snapshot_sha256()
+        finished_snapshot = source_snapshot_sha256()
     except (OSError, subprocess.CalledProcessError, UnicodeDecodeError):
-        dirty, snapshot_hash = None, "unavailable"
+        finished_snapshot = 'unavailable'
+    if snapshot_hash != 'unavailable' and finished_snapshot != 'unavailable' and snapshot_hash != finished_snapshot:
+        raise RuntimeError('As fontes locais mudaram durante a execução; repita a bateria sem editar as fontes.')
     try:
         corpus_hash = _sha256_file(corpus_path) if corpus_path.is_file() else "unavailable"
     except OSError:
@@ -163,7 +193,8 @@ def run_suite(dataset: dict, api_base_url: str, session_cookie: str, limit: int 
     return {
         "dataset": dataset["dataset"],
         "version": dataset["version"],
-        "started_at": datetime.now(timezone.utc).isoformat(),
+        "started_at": started_at,
+        "finished_at": finished_at,
         "limit": limit,
         "execution_metadata": {
             "query_count": len(runs),
@@ -174,7 +205,9 @@ def run_suite(dataset: dict, api_base_url: str, session_cookie: str, limit: int 
             "code_revision": revision,
             "working_tree_dirty": dirty,
             "source_snapshot_sha256": snapshot_hash,
-            "dataset_sha256": _sha256_file(dataset_file),
+            "dataset_sha256": dataset_hash,
+            "dataset_hash_kind": dataset_hash_kind,
+            "source_snapshot_stable": snapshot_hash == finished_snapshot if snapshot_hash != 'unavailable' and finished_snapshot != 'unavailable' else None,
             "corpus_sha256": corpus_hash,
             "embedding_model": os.getenv("SEARCH_EMBEDDING_MODEL", "bge-m3"),
             "minimum_vector_similarity": float(os.getenv("SEARCH_MIN_VECTOR_SIMILARITY", "0.55")),

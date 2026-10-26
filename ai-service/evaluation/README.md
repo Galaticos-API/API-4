@@ -45,14 +45,113 @@ O executor `run_search_suite.py` converte a resposta da rota S2-06 para este for
 - `Precision@5` macro: relevantes recuperados divididos por cinco nas consultas com resposta esperada; resultados ausentes contam como posições vazias.
 - `MRR@5`: média do inverso da posição da primeira evidência relevante, nas consultas com resposta esperada.
 - Acurácia de ausência: proporção das consultas sem evidência que retornaram lista vazia.
-- Latência: percentis p50/p95 e proporção de consultas em até 2.000 ms, limite descrito no PBI-02.3.1.
+- Latência: percentis p50/p95 e proporção de consultas abaixo de 2.000 ms, conforme RNF-06 do PRD.
 - Isolamento: contagem de resultados cujo `project_id` difere do projeto pedido. O objetivo de segurança é zero violações.
 - Métricas por categoria: repetem recuperação, acurácia sem evidência e p95 para cada tipo de consulta, permitindo localizar regressões que uma média global esconde.
 - Filtros de nível e tecnologia são enviados pelo executor quando declarados na consulta. A fixture PRE-06 não contém associações de tecnologia curadas; por isso a avaliação quantitativa de tecnologia requer um corpus/fixture versionado com tags revisadas, enquanto o filtro combinado já é coberto por teste PostgreSQL de integração.
 
-O backlog não define um mínimo de Recall/Precision/MRR. Portanto, o relatório mede e registra a linha de base, sem inventar um critério de aprovação. O time/PO deve definir metas de relevância depois de observar a busca real. Para latência, os 2.000 ms são limite por consulta; reporte ambiente, hardware, concorrência e se houve aquecimento do Ollama para que comparações sejam reproduzíveis.
+O backlog não define um mínimo de Recall/Precision/MRR. Portanto, o relatório mede e registra a linha de base, sem inventar um critério de aprovação. O time/PO deve definir metas de relevância depois de observar a busca real. Para latência, RNF-06 exige menos de 2.000 ms por consulta; exatamente 2.000 ms não passa. Reporte ambiente, hardware, concorrência e se houve aquecimento do Ollama para que comparações sejam reproduzíveis.
 
 ## Executar
+
+### Execução isolada e reproduzível
+
+Há um orquestrador que cria PostgreSQL/pgvector e FastAPI temporários, aplica a fixture PRE-06,
+gera os embeddings com o Ollama local, cria uma sessão exclusivamente de QA e executa a API real.
+Ao terminar, inclusive em caso de erro, tenta encerrar todos os recursos; uma falha na
+limpeza de um deles não interrompe as demais tentativas e produz saída de erro.
+
+Pré-requisitos: Docker, Python 3.11+, Ollama com `bge-m3` disponível na porta 11434 e imagem
+`sinapse-s209-ai-test` construída a partir de `ai-service`. Validado em Windows/Docker Desktop.
+Em Linux, o Ollama precisa aceitar conexões pelo gateway local usado pelo contêiner.
+
+```bash
+# Na raiz, uma vez ou após alterar as dependências Python:
+docker build -t sinapse-s209-ai-test ai-service
+
+# Em backend:
+npm run evaluate:search -- --python python --version 2 --rounds 3
+```
+
+Se o Windows resolver `python` para o atalho da Store, informe em `--python` o caminho do
+executável instalado. `SEARCH_PYTHON` também define esse caminho. `--version 1` seleciona a
+bateria original; nenhuma execução modifica fixtures ou gabaritos.
+
+A saída padrão fica em `ai-service/evaluation/results/s217-<SHA>`, ignorada pelo Git; use
+`--output` para preservar rodadas separadas. Cada rodada grava resultados e métricas.
+`environment.json` registra hardware, runtimes, modelo/digest, imagem de IA, aquecimento e
+concorrência. `summary.json` separa os gates de isolamento, latência e aceite de relevância.
+O processo retorna erro se qualquer consulta atingir ou ultrapassar 2.000 ms. Violação de isolamento
+é recusada pelo avaliador, inclusive depois da quinta posição. Um retorno zero não é aceite
+de relevância: o backlog não define o mínimo de Recall/Precision/MRR.
+
+O preparo gera seis vetores do texto curado e marca os documentos dessa base descartável
+como processados. Isso prepara a medição de recuperação; não é teste do upload/extração S2-01/S2-02.
+Uma consulta de aquecimento fica fora da medição, e as rodadas usam concorrência 1.
+Não compare números de ambientes diferentes como se fossem uma melhoria da implementação.
+
+Os testes unitários do avaliador e do adaptador HTTP são executados no CI, sem Docker ou Ollama.
+Uma avaliação com modelo real permanece execução explícita, pois requer o runtime local.
+O registro da reexecução sobre a API `9936354` está em
+[QA-S2-17-2026-10-25](../../docs/QA-S2-17-2026-10-25.md).
+
+O diretório padrão inclui versão, data e identificador da execução. Um `--output` que já
+exista é recusado, preservando as evidências anteriores; use uma pasta nova a cada execução.
+O executor confere o dataset e seu corpus antes de criar recursos. O cliente HTTP recusa
+redirecionamentos para que a sessão não seja encaminhada a outro destino. O avaliador
+confere o nível da fonte e o filtro de nível; resultados antigos sem `entity_type` podem
+usar o manifesto curado como referência. Fontes desconhecidas em consultas filtradas precisam
+informar o nível. Os resultados da API atual incluem esse campo.
+
+Os hashes do dataset são capturados antes das consultas. Um dataset em memória sem arquivo
+correspondente recebe hash do JSON canônico, identificado por `dataset_hash_kind`.
+O avaliador verifica o hash quando presente; resultados históricos sem metadados continuam
+compatíveis. Alterações de dataset ou fontes durante a medição invalidam a execução quando
+há hashes verificáveis. Veja a [revisão complementar](../../docs/QA-S2-17-REVISAO-2026-10-25.md).
+
+### Correção de relevância e diagnóstico suplementar
+
+As quatro falhas suplementares foram tratadas depois da revisão complementar. A execução
+mais recente está em [QA-S2-17-QUATRO-CONSULTAS-2026-10-25](../../docs/QA-S2-17-QUATRO-CONSULTAS-2026-10-25.md).
+`search-diagnostics-draft-v2.json` preserva as 40 consultas suplementares anteriores e
+acrescenta oito negativas para verificar ambiguidades dos conceitos. As versões publicadas
+`search-ptbr-v1/v2.json` e suas fixtures permanecem inalteradas.
+
+A recuperação parcial exige pelo menos dois conceitos compartilhados que ajudem a
+distinguir a fonte dentro do projeto. Termos presentes em todos os chunks do projeto não
+sustentam essa etapa quando há mais de um chunk. O vocabulário versionado de autenticação,
+papéis de gestão, restrição e inativação está em `backend/src/modules/search/search.concepts.ts`.
+Conjugações com alternância c/qu e g/gu são normalizadas depois do stemming. Repetições e
+sinônimos do mesmo conceito contam uma única vez. Os cortes independentes são
+`SEARCH_MIN_PARTIAL_SIMILARITY=0.5` e `SEARCH_MIN_CONCEPT_SIMILARITY=0.45`.
+Esse caminho também passa pelos filtros de projeto, acesso, nível e elegibilidade da origem.
+O relatório registra a versão do vocabulário e os dois cortes adicionais.
+
+A reexecução após corrigir a recuperação está em
+[QA-S2-17-CORRECOES-2026-10-25](../../docs/QA-S2-17-CORRECOES-2026-10-25.md).
+A busca mantém o corte vetorial de 0,55 e o rank textual de 0,05. Candidatos sem
+correspondência textual integral passam por uma combinação de similaridade e cobertura
+dos termos (`SEARCH_MIN_HYBRID_SCORE`, padrão 0,45), preservando correspondências semânticas
+fortes (`SEARCH_STRONG_VECTOR_SIMILARITY`, padrão 0,6). Quando nenhum candidato apresenta
+apoio textual, permanece o fallback semântico original. Siglas em maiúsculas podem
+corresponder às iniciais da expressão completa; números de 0 a 20 também são comparados
+por extenso. Não há dicionário específico de respostas, siglas ou IDs do gabarito.
+
+`search-diagnostics-draft-v1.json` preserva as 26 perguntas da v2 e acrescenta 14 propostas
+de diagnóstico. Seu gabarito suplementar ainda requer revisão do PO/time. Foi usado no
+desenvolvimento do ajuste; não representa avaliação cega nem substitui a v2 publicada.
+Para executar o diagnóstico sobre a fixture v2, dentro de `backend`:
+
+```bash
+npm run evaluate:search -- --version 2 --rounds 1 --dataset ../ai-service/evaluation/datasets/search-diagnostics-draft-v1.json --output ../ai-service/evaluation/results/diagnostics
+npm run test:integration:search
+```
+
+Use `--python caminho/do/python` caso o executável não se chame `python`. `--diagnostics`
+registra os sinais de similaridade e cobertura em `diagnostics.json`, sem consultar outros
+projetos. O ambiente registra as quatro configurações efetivas da busca, além das versões
+independentes do corpus e do dataset. O teste de banco cobre sinais de relevância com vetores
+determinísticos e verifica autorização, isolamento, arquivamento e documento não processado.
 
 Executar as 24 consultas contra o backend local (a sessão deve ter acesso ao projeto de cada consulta):
 
