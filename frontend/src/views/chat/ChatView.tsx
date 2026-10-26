@@ -107,7 +107,14 @@ export function ChatView() {
     try {
       const items = await listMessages(conversationId);
       if (!mounted.current || request !== messagesRequest.current) return;
-      setMessages(items);
+      const supersededFailures = new Set(items.flatMap((item, index) => {
+        if (item.remetente !== "user" || !item.failed) return [];
+        const laterRetryIndex = items.findIndex((candidate, candidateIndex) => candidateIndex > index
+          && candidate.remetente === "user" && !candidate.failed && candidate.conteudo === item.conteudo);
+        const answered = laterRetryIndex >= 0 && items.slice(laterRetryIndex + 1).some((candidate) => candidate.remetente === "assistant");
+        return answered ? [item.id] : [];
+      }));
+      setMessages(items.filter((item) => !supersededFailures.has(item.id)));
       setMessagesState("idle");
     } catch {
       if (!mounted.current || request !== messagesRequest.current) return;
@@ -192,7 +199,7 @@ export function ChatView() {
       : [...current, { id: pendingId, remetente: "user", conteudo: question, fontes: [], created_at: new Date().toISOString() }]);
     setDraft(current=>!retryId||current.trim()===question?'':current);
     try {
-      const answer = await askQuestion({ pergunta: question, conversaId: activeId, projetoId: activeId ? null : scopeId });
+      const answer = await askQuestion({ pergunta: question, conversaId: activeId, projetoId: activeId ? null : scopeId, mensagemId: retryId });
       if (!mounted.current) return;
       void loadConversations(false);
       if (revision !== conversationRevision.current) {

@@ -106,7 +106,7 @@ export async function listMessages(conversationId: string, signal?: AbortSignal)
 }
 
 export async function askQuestion(
-  input: { pergunta: string; conversaId?: string | null; projetoId?: string | null },
+  input: { pergunta: string; conversaId?: string | null; projetoId?: string | null; mensagemId?: string | null },
   signal?: AbortSignal,
 ): Promise<ChatAnswer> {
   const deadline = AbortSignal.timeout(QUERY_TIMEOUT_MS);
@@ -115,6 +115,7 @@ export async function askQuestion(
     body: JSON.stringify({
       pergunta: input.pergunta,
       conversa_id: input.conversaId || undefined,
+      mensagem_id: input.mensagemId || undefined,
       projeto_id: input.projetoId || undefined,
     }),
     signal: signal ? AbortSignal.any([signal, deadline]) : deadline,

@@ -41,6 +41,7 @@ export interface ChunkMatch {
 
 export interface QueryInput {
   conversaId?: string;
+  mensagemId?: string;
   projetoId?: string;
   pergunta: string;
 }

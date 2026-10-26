@@ -114,6 +114,9 @@ export class ChatService {
     const pergunta = input.pergunta.trim();
     if (!pergunta) throw new ValidationError("Digite uma pergunta.");
     if (pergunta.length > MAX_QUESTION_LENGTH) throw new ValidationError(`A pergunta pode ter no máximo ${MAX_QUESTION_LENGTH} caracteres.`);
+
+    if (input.mensagemId && !input.conversaId) throw new ValidationError("A conversa é obrigatória para repetir uma pergunta.");
+    if (input.mensagemId) validateUuid(input.mensagemId, "ID da mensagem");
     if(!validChatText(pergunta))throw new ValidationError('Use texto Unicode válido, sem caractere nulo.');
 
     let projetoId: string;
@@ -129,7 +132,9 @@ export class ChatService {
       conversaId = (await this.repository.createConversation(usuarioId, projetoId, makeTitle(pergunta))).id;
     }
 
-    const messageId = await this.repository.addMessage(conversaId, "user", pergunta);
+    const messageId = input.mensagemId
+      ? await this.repository.retryMessage(conversaId, input.mensagemId, pergunta)
+      : await this.repository.addMessage(conversaId, "user", pergunta);
     try {
 
       const answer=await this.assistant.ask(pergunta,projetoId,usuarioId);
