@@ -107,8 +107,8 @@
 .chat-prompt-chip:focus-visible { outline: 2px solid var(--brand-primary); outline-offset: 2px; }
 .chat-prompt-chip:disabled { opacity: .45; cursor: not-allowed; }
 
-.chat-message { display: grid; gap: 8px; width: fit-content; max-width: min(760px, 92%); padding: 12px 16px; border-radius: 14px; border: 1px solid var(--border-subtle); background: color-mix(in srgb, var(--bg-tertiary) 70%, transparent); }
-.chat-message header { display: flex; align-items: center; gap: 10px; font-size: 12px; }
+.chat-message { position: relative; display: grid; gap: 8px; width: fit-content; max-width: min(760px, 92%); padding: 12px 16px; border-radius: 14px; border: 1px solid var(--border-subtle); background: color-mix(in srgb, var(--bg-tertiary) 70%, transparent); }
+.chat-message header { display: flex; align-items: center; gap: 10px; padding-right: 24px; font-size: 12px; }
 .chat-message header b { color: var(--brand-primary); font-weight: 700; }
 .chat-message header time { color: var(--text-muted); }
 .chat-message--user { align-self: flex-end; background: color-mix(in srgb, var(--brand-primary) 15%, var(--surface-base)); border-color: color-mix(in srgb, var(--brand-primary) 40%, transparent); }
@@ -130,7 +130,13 @@
 .chat-sources { font-size: 12.5px; border-top: 1px solid var(--border-subtle); padding-top: 8px; }
 .chat-sources summary { cursor: pointer; color: var(--text-secondary); }
 .chat-sources ul { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 6px; }
-.chat-message-actions { display: flex; justify-content: flex-end; }
+.chat-message-actions { display: flex; align-items: center; justify-content: flex-end; gap: 4px; }
+.chat-delete-confirm { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 2px; padding: 8px 10px; border: 1px solid color-mix(in srgb, var(--status-danger) 35%, var(--border-subtle)); border-radius: 9px; background: color-mix(in srgb, var(--status-danger) 7%, var(--bg-secondary)); color: var(--text-primary); font-size: 12px; }
+.chat-delete-confirm > div { display: flex; align-items: center; gap: 4px; flex: 0 0 auto; }
+.chat-message-delete { position: absolute; top: 5px; right: 6px; display: grid; place-items: center; width: 28px; min-width: 28px; height: 28px; padding: 5px; color: var(--text-muted); opacity: 0; transition: opacity .12s ease, color .12s ease, background .12s ease; }
+.chat-message-delete svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.chat-message:hover .chat-message-delete, .chat-message-delete:focus-visible { color: var(--status-danger); opacity: 1; }
+.chat-message-delete:disabled { opacity: .35; cursor: not-allowed; }
 .chat-typing { align-self: flex-start; padding: 8px 12px; color: var(--text-secondary); font-size: 13px; }
 
 .chat-composer {
@@ -183,6 +189,7 @@
   .chat-thread-actions > .ds-badge { max-width: min(55vw, 220px); }
   .chat-messages { gap: 17px; padding: 18px 1px 20px; }
   .chat-message { max-width: 100%; padding: 11px 13px; }
+  .chat-delete-confirm { align-items: flex-start; flex-direction: column; }
   .chat-message-body { font-size: 14px; }
   .chat-composer { padding-top: 10px; }
   .chat-prompt-bar { align-items: flex-start; gap: 7px; }

@@ -99,6 +99,13 @@ export async function deleteConversation(conversationId: string, signal?: AbortS
   });
 }
 
+export async function deleteMessage(conversationId: string, messageId: string, signal?: AbortSignal): Promise<void> {
+  await apiRequest(`/chat/conversations/${encodeURIComponent(conversationId)}/messages/${encodeURIComponent(messageId)}`, {
+    method: "DELETE",
+    signal,
+  });
+}
+
 export async function listMessages(conversationId: string, signal?: AbortSignal): Promise<ChatMessage[]> {
   const data: unknown = await (await apiRequest(`/chat/conversations/${encodeURIComponent(conversationId)}/messages`, { signal })).json();
   if (!isRecord(data) || !Array.isArray(data.items)) throw new Error("Lista de mensagens inválida");
@@ -133,6 +140,7 @@ export function describeChatError(error: unknown): string {
     if (error.status === 401) return "Sua sessão expirou. Entre novamente para continuar a conversa.";
     if (error.status === 404) return serverMessage(error) ?? "Conversa ou projeto não encontrado.";
     if (error.status === 400) return serverMessage(error) ?? "Revise a pergunta e tente novamente.";
+    if (error.status === 409) return serverMessage(error) ?? "A mensagem ainda está sendo processada. Tente novamente em instantes.";
     if (error.status === 503) {
       const payload = error.details;
       const details = isRecord(payload) && isRecord(payload.details) ? payload.details : undefined;

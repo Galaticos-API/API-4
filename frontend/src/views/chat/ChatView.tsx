@@ -4,6 +4,7 @@ import {
   MAX_QUESTION_LENGTH,
   askQuestion,
   deleteConversation,
+  deleteMessage,
   describeChatError,
   listConversations,
   listMessages,
@@ -44,6 +45,8 @@ export function ChatView() {
   const [sendError, setSendError] = useState("");
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deletingMessageId, setDeletingMessageId] = useState<string | null>(null);
+  const [confirmDeleteMessageId, setConfirmDeleteMessageId] = useState<string | null>(null);
   const messagesViewport = useRef<HTMLDivElement>(null);
   const composer = useRef<HTMLTextAreaElement>(null);
   const mobileSidebarTrigger = useRef<HTMLButtonElement>(null);
@@ -188,6 +191,7 @@ export function ChatView() {
     setActiveId(null);
     setMessages([]);
     setSendError("");
+    setConfirmDeleteMessageId(null);
     setDraft("");
     composer.current?.focus();
   };
@@ -199,6 +203,7 @@ export function ChatView() {
     setMessages([]);
     setDraft("");
     setSendError("");
+    setConfirmDeleteMessageId(null);
     setActiveId(conversation.id);
     setScopeId(conversation.projeto_id ?? "");
   };
@@ -222,6 +227,29 @@ export function ChatView() {
     } finally {
       if (mounted.current) setDeletingId(null);
     }
+  };
+
+  const handleDeleteMessage = async (message: ThreadMessage) => {
+    const conversationId = activeId;
+    if (!conversationId || sending || deletingMessageId) return;
+    setDeletingMessageId(message.id);
+    setSendError("");
+    try {
+      await deleteMessage(conversationId, message.id);
+      if (!mounted.current || selectedConversation.current !== conversationId) return;
+      setMessages(current => current.filter(item => item.id !== message.id));
+      setConfirmDeleteMessageId(null);
+      setCopiedId(current => current === message.id ? null : current);
+      void loadConversations(false);
+    } catch (error) {
+      if (mounted.current && selectedConversation.current === conversationId) setSendError(describeChatError(error));
+    } finally {
+      if (mounted.current) setDeletingMessageId(null);
+    }
+  };
+
+  const requestDeleteMessage = (message: ThreadMessage) => {
+    if (!sending && !deletingMessageId) setConfirmDeleteMessageId(message.id);
   };
 
   const send = useCallback(async (text: string, retryId?: string) => {
@@ -419,7 +447,18 @@ export function ChatView() {
             )}
 
             {messages.map((message) => (
-              <MessageBubble key={message.id} message={message} copied={copiedId === message.id} onCopy={() => void copy(message)} />
+              <MessageBubble
+                key={message.id}
+                message={message}
+                copied={copiedId === message.id}
+                deleting={deletingMessageId === message.id}
+                deleteDisabled={sending || deletingMessageId !== null}
+                onCopy={() => void copy(message)}
+                confirmingDelete={confirmDeleteMessageId === message.id}
+                onRequestDelete={() => requestDeleteMessage(message)}
+                onCancelDelete={() => setConfirmDeleteMessageId(null)}
+                onDelete={() => void handleDeleteMessage(message)}
+              />
             ))}
 
             {sending && <div className="chat-typing" role="status">Consultando o acervo<span aria-hidden="true">…</span></div>}
@@ -483,7 +522,17 @@ export function ChatView() {
   );
 }
 
-function MessageBubble({ message, copied, onCopy }: { message: ThreadMessage; copied: boolean; onCopy: () => void }) {
+function MessageBubble({ message, copied, deleting, deleteDisabled, confirmingDelete, onCopy, onRequestDelete, onCancelDelete, onDelete }: {
+  message: ThreadMessage;
+  copied: boolean;
+  deleting: boolean;
+  deleteDisabled: boolean;
+  confirmingDelete: boolean;
+  onCopy: () => void;
+  onRequestDelete: () => void;
+  onCancelDelete: () => void;
+  onDelete: () => void;
+}) {
   const isUser = message.remetente === "user";
   const originBadge = message.origem ? ORIGIN_BADGE[message.origem as ChatOrigin] : null;
   return (
@@ -493,6 +542,17 @@ function MessageBubble({ message, copied, onCopy }: { message: ThreadMessage; co
         <time dateTime={message.created_at ?? undefined}>{formatClock(message.created_at)}</time>
         {originBadge && <Badge tone="warning">{originBadge}</Badge>}
       </header>
+      <Button
+        variant="ghost"
+        size="sm"
+        className="chat-message-delete"
+        aria-label={`Apagar mensagem: ${message.conteudo.slice(0, 80)}`}
+        title="Apagar mensagem"
+        disabled={deleteDisabled || deleting}
+        onClick={onRequestDelete}
+      >
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M10 11v6m4-6v6M5 7l1 13h12l1-13M9 7V4h6v3" /></svg>
+      </Button>
       {message.failed && <p className="chat-message-failed" role="note">Não enviada</p>}
       {isUser ? <p className="chat-message-text">{message.conteudo}</p> : <Markdown source={message.conteudo} className="chat-message-body" />}
       {message.fontes.length > 0 && (
@@ -505,11 +565,16 @@ function MessageBubble({ message, copied, onCopy }: { message: ThreadMessage; co
           </ul>
         </details>
       )}
-      {!isUser && (
-        <div className="chat-message-actions">
-          <Button variant="ghost" size="sm" onClick={onCopy}>{copied ? "Copiado" : "Copiar resposta"}</Button>
+      {confirmingDelete && (
+        <div className="chat-delete-confirm" role="group" aria-label="Confirmar exclusão da mensagem">
+          <span>Apagar esta mensagem?</span>
+          <div>
+            <Button variant="ghost" size="sm" disabled={deleting} onClick={onCancelDelete}>Cancelar</Button>
+            <Button variant="danger" size="sm" disabled={deleting} onClick={onDelete}>{deleting ? "Apagando…" : "Apagar"}</Button>
+          </div>
         </div>
       )}
+      {!isUser && <div className="chat-message-actions"><Button variant="ghost" size="sm" onClick={onCopy}>{copied ? "Copiado" : "Copiar resposta"}</Button></div>}
     </article>
   );
 }

@@ -5,7 +5,7 @@ import { ChatService } from './chat.service.js';
 import { ChatRepository } from './chat.repository.js';
 import { ragInput } from './rag.service.js';
 import { NOT_FOUND_ANSWER } from './chat.types.js';
-import { ValidationError } from '../../shared/errors.js';
+import { ConflictError, NotFoundError, ValidationError } from '../../shared/errors.js';
 
 class RecordingChats extends ChatRepository {
   titles: string[] = [];
@@ -49,7 +49,6 @@ test('título informado pelo usuário também preserva emojis e recusa texto inv
 });
 
 test('exclusão de conversa valida UUID e lança NotFoundError se inexistente', async () => {
-  const { NotFoundError } = await import('../../shared/errors.js');
   class MockChats extends ChatRepository {
     deleted: string[] = [];
     async deleteConversation(id: string, userId: string) {
@@ -66,4 +65,35 @@ test('exclusão de conversa valida UUID e lança NotFoundError se inexistente', 
   await assert.rejects(() => service.deleteConversation('user-1', '22222222-2222-4222-8222-222222222222'), NotFoundError);
   await service.deleteConversation('user-1', '11111111-1111-4111-8111-111111111111');
   assert.deepEqual(mockRepo.deleted, ['11111111-1111-4111-8111-111111111111']);
+});
+
+test('exclusão de mensagem valida conversa, projeto e identificadores', async () => {
+  class MockChats extends RecordingChats {
+    deleted: Array<{ conversation: string; message: string; user: string }> = [];
+    async deleteMessage(conversation: string, message: string, user: string) {
+      this.deleted.push({ conversation, message, user });
+      return true;
+    }
+  }
+  const chats = new MockChats();
+  const service = new ChatService(chats, assistant);
+  const conversation = '11111111-1111-4111-8111-111111111111';
+  const message = '22222222-2222-4222-8222-222222222222';
+  await service.deleteMessage('user-1', conversation, message);
+  assert.deepEqual(chats.deleted, [{ conversation, message, user: 'user-1' }]);
+  await assert.rejects(() => service.deleteMessage('user-1', 'invalid', message), ValidationError);
+  await assert.rejects(() => service.deleteMessage('user-1', conversation, 'invalid'), ValidationError);
+});
+
+test('exclusão de mensagem inexistente ou em processamento retorna erro seguro', async () => {
+  class MockChats extends RecordingChats {
+    async deleteMessage(_conversation: string, message: string) {
+      if (message === '22222222-2222-4222-8222-222222222222') throw new ConflictError('Mensagem pendente.');
+      return false;
+    }
+  }
+  const service = new ChatService(new MockChats(), assistant);
+  const conversation = '11111111-1111-4111-8111-111111111111';
+  await assert.rejects(() => service.deleteMessage('user-1', conversation, '33333333-3333-4333-8333-333333333333'), NotFoundError);
+  await assert.rejects(() => service.deleteMessage('user-1', conversation, '22222222-2222-4222-8222-222222222222'), ConflictError);
 });

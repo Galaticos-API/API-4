@@ -1,9 +1,9 @@
 import {afterEach,expect,it,vi} from 'vitest';
-import {act,cleanup,fireEvent,render,screen,waitFor} from '@testing-library/react';
+import {act,cleanup,fireEvent,render,screen,waitFor,within} from '@testing-library/react';
 import {ChatView} from './ChatView';
-import {askQuestion,deleteConversation,listChatProjects,listConversations,listMessages,type ChatConversation,type ChatAnswer} from '../../api/api_chat';
-vi.mock('../../api/api_chat',()=>({MAX_QUESTION_LENGTH:2000,askQuestion:vi.fn(),deleteConversation:vi.fn(),listChatProjects:vi.fn(),listConversations:vi.fn(),listMessages:vi.fn(),describeChatError:()=> 'Assistente indisponível'}));
-afterEach(()=>{cleanup();vi.resetAllMocks();});
+import {askQuestion,deleteConversation,deleteMessage,listChatProjects,listConversations,listMessages,type ChatConversation,type ChatAnswer} from '../../api/api_chat';
+vi.mock('../../api/api_chat',()=>({MAX_QUESTION_LENGTH:2000,askQuestion:vi.fn(),deleteConversation:vi.fn(),deleteMessage:vi.fn(),listChatProjects:vi.fn(),listConversations:vi.fn(),listMessages:vi.fn(),describeChatError:()=> 'Assistente indisponível'}));
+afterEach(()=>{cleanup();vi.restoreAllMocks();vi.resetAllMocks();});
 it('abre e fecha o histórico mobile com foco acessível e Escape',async()=>{
   vi.mocked(listConversations).mockResolvedValue([]);
   vi.mocked(listChatProjects).mockResolvedValue([]);
@@ -89,6 +89,36 @@ it('ao reabrir uma conversa, permite tentar novamente a última pergunta que fal
   fireEvent.click(await screen.findByRole('button',{name:'Tentar novamente'}));
   await screen.findByText('Resposta da última pergunta');
   expect(askQuestion).toHaveBeenCalledWith({pergunta:'Última pergunta',conversaId:'conversation-a',projetoId:null,mensagemId:'latest-failed'});
+});
+it('apaga uma mensagem após confirmação e atualiza a conversa sem recarregá-la',async()=>{
+  vi.mocked(listConversations).mockResolvedValue([{id:'conversation-a',titulo:'Conversa A',projeto_id:'project-a',projeto_nome:'Projeto A',updated_at:''}]);
+  vi.mocked(listChatProjects).mockResolvedValue([{id:'project-a',nome:'Projeto A'}]);
+  vi.mocked(listMessages).mockResolvedValue([
+    {id:'user-message',remetente:'user',conteudo:'Pergunta original',fontes:[],created_at:null},
+    {id:'assistant-message',remetente:'assistant',conteudo:'Resposta original',fontes:[],created_at:null},
+  ]);
+  vi.mocked(deleteMessage).mockResolvedValue();
+  render(<ChatView/>);
+  await screen.findByText('Resposta original');
+  fireEvent.click(screen.getByRole('button',{name:'Apagar mensagem: Resposta original'}));
+  const confirmation=screen.getByRole('group',{name:'Confirmar exclusão da mensagem'});
+  expect(confirmation).toHaveTextContent('Apagar esta mensagem?');
+  fireEvent.click(within(confirmation).getByRole('button',{name:'Apagar'}));
+  await waitFor(()=>expect(deleteMessage).toHaveBeenCalledWith('conversation-a','assistant-message'));
+  await waitFor(()=>expect(screen.queryByText('Resposta original')).toBeNull());
+  expect(screen.getByText('Pergunta original')).toBeInTheDocument();
+});
+it('não apaga a mensagem se o usuário cancelar a confirmação',async()=>{
+  vi.mocked(listConversations).mockResolvedValue([{id:'conversation-a',titulo:'Conversa A',projeto_id:'project-a',projeto_nome:'Projeto A',updated_at:''}]);
+  vi.mocked(listChatProjects).mockResolvedValue([{id:'project-a',nome:'Projeto A'}]);
+  vi.mocked(listMessages).mockResolvedValue([{id:'user-message',remetente:'user',conteudo:'Pergunta original',fontes:[],created_at:null}]);
+  render(<ChatView/>);
+  await screen.findByText('Pergunta original');
+  fireEvent.click(screen.getByRole('button',{name:'Apagar mensagem: Pergunta original'}));
+  const confirmation=screen.getByRole('group',{name:'Confirmar exclusão da mensagem'});
+  fireEvent.click(within(confirmation).getByRole('button',{name:'Cancelar'}));
+  expect(deleteMessage).not.toHaveBeenCalled();
+  expect(screen.getByText('Pergunta original')).toBeInTheDocument();
 });
 it('não oferece novamente uma falha antiga quando a conversa já teve resposta',async()=>{
   vi.mocked(listConversations).mockResolvedValue([{id:'conversation-a',titulo:'Conversa A',projeto_id:'project-a',projeto_nome:'Projeto A',updated_at:''}]);

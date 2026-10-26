@@ -63,6 +63,29 @@ export class ChatRepository {
     return (result.rowCount ?? 0) > 0;
   }
 
+  async deleteMessage(conversaId: string, mensagemId: string, usuarioId: string): Promise<boolean> {
+    return withTransaction(this.pool, async client => {
+      const message = await client.query<{ processing_status: string | null }>(
+        `SELECT m.processing_status FROM mensagem m JOIN conversa c ON c.id=m.conversa_id
+         WHERE m.id=$1 AND m.conversa_id=$2 AND c.usuario_id=$3
+           AND ${projectAccessSql("c.projeto_id", "$3")}
+         FOR UPDATE OF m`,
+        [mensagemId, conversaId, usuarioId],
+      );
+      if (!message.rowCount) return false;
+      if (message.rows[0].processing_status === "pending") {
+        throw new ConflictError("Aguarde a resposta terminar antes de apagar esta mensagem.");
+      }
+      const deleted = await client.query(
+        `DELETE FROM mensagem WHERE id=$1 AND conversa_id=$2 RETURNING id`,
+        [mensagemId, conversaId],
+      );
+      if (!deleted.rowCount) return false;
+      await client.query("UPDATE conversa SET updated_at=CURRENT_TIMESTAMP WHERE id=$1", [conversaId]);
+      return true;
+    });
+  }
+
   async listMessages(conversaId: string, usuarioId: string): Promise<ChatMessage[]> {
     const result = await this.pool.query<ChatMessage>(
       `SELECT id, conversa_id, remetente, conteudo, COALESCE(fontes_json, '[]'::jsonb) AS fontes_json, CASE WHEN processing_status='pending' AND created_at < CURRENT_TIMESTAMP - INTERVAL '2 minutes' THEN 'failed' ELSE processing_status END AS processing_status, created_at

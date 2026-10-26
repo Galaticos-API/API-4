@@ -54,6 +54,17 @@ it('envia requisição DELETE com o id da conversa correto',async()=>{
   );
 });
 
+it('envia requisição DELETE para a mensagem da conversa correta',async()=>{
+  const fetchMock=vi.fn(async()=>new Response(null,{status:204}));
+  vi.stubGlobal('fetch',fetchMock);
+  const {deleteMessage}=await import('./api_chat');
+  await deleteMessage('conv-123','message-456');
+  expect(fetchMock).toHaveBeenCalledWith(
+    expect.stringContaining('/chat/conversations/conv-123/messages/message-456'),
+    expect.objectContaining({method:'DELETE'})
+  );
+});
+
 it('exibe o ID de diagnóstico validado em falhas de serviço do chat',()=>{
   const id='e8e57e2d-0b59-4cdc-b191-d1618381c6a2';
   expect(describeChatError(new ApiError(503,{error:'Falha',details:{diagnostico_id:id}}))).toContain(id);
