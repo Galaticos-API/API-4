@@ -60,6 +60,7 @@ export function createChatRouter(service: ChatService = new ChatService(), authe
       res.json(await service.query(userId(req), {
         pergunta,
         conversaId: text(req.body?.conversa_id),
+        mensagemId: text(req.body?.mensagem_id),
         projetoId: text(req.body?.projeto_id),
       }));
     } catch (error) {

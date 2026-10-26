@@ -88,6 +88,23 @@ export class ChatRepository {
     });
   }
 
+  async retryMessage(conversaId: string, messageId: string, conteudo: string): Promise<string> {
+    return withTransaction(this.pool, async client => {
+      await client.query("SELECT id FROM conversa WHERE id=$1 FOR UPDATE", [conversaId]);
+      await client.query("UPDATE mensagem SET processing_status='failed' WHERE conversa_id=$1 AND processing_status='pending' AND created_at < CURRENT_TIMESTAMP - INTERVAL '2 minutes'", [conversaId]);
+      if ((await client.query("SELECT 1 FROM mensagem WHERE conversa_id=$1 AND processing_status='pending'", [conversaId])).rowCount) {
+        throw new ConflictError("Aguarde a resposta em andamento nesta conversa.");
+      }
+      const result = await client.query(
+        "UPDATE mensagem SET processing_status='pending', conteudo=$3 WHERE id=$1 AND conversa_id=$2 AND remetente='user' AND processing_status='failed' RETURNING id",
+        [messageId, conversaId, conteudo],
+      );
+      if (!result.rowCount) throw new ConflictError("Esta pergunta não está mais disponível para nova tentativa.");
+      await client.query("UPDATE conversa SET updated_at=CURRENT_TIMESTAMP WHERE id=$1", [conversaId]);
+      return result.rows[0].id;
+    });
+  }
+
   async failMessage(messageId: string): Promise<void> {
     await this.pool.query("UPDATE mensagem SET processing_status='failed' WHERE id=$1 AND processing_status='pending'", [messageId]);
   }
