@@ -16,10 +16,13 @@
     "test": "node scripts/test.mjs",
     "test:integration:indexing": "tsx scripts/test-indexing-db.mts",
     "test:integration:quality": "tsx scripts/test-indexing-db.mts --quality",
+    "test:integration:search": "tsx scripts/test-indexing-db.mts --search",
     "test:integration:harness": "tsx scripts/validate-harness.mts",
     "test:integration:copilot": "tsx scripts/validate-harness.mts --browser",
     "test:integration:review": "tsx scripts/test-browser-qa.mts",
     "test:integration:regressions": "tsx scripts/test-main-regressions.mts && tsx scripts/test-history-and-inputs.mts",
+    "evaluate:search": "tsx scripts/evaluate-search.mts",
+    "test:evaluation": "node --test scripts/search-evaluation-utils.test.mjs",
     "audit:security": "npm audit --omit=dev"
   },
   "dependencies": {

@@ -72,6 +72,10 @@ jobs:
         working-directory: backend
         run: npm run build
 
+      - name: Test search evaluation output and cleanup
+        working-directory: backend
+        run: npm run test:evaluation
+
   validate-frontend:
     name: Build Frontend (React + Vite)
     runs-on: ubuntu-latest
@@ -119,4 +123,8 @@ jobs:
       - name: Compile and check syntax
         working-directory: ai-service
         run: python -m py_compile main.py config.py services/__init__.py services/chunker.py services/ollama_client.py harness.py
+
+      - name: Test versioned search evaluation
+        working-directory: ai-service
+        run: python -m unittest discover -s tests -p "test_search*.py" -v
 

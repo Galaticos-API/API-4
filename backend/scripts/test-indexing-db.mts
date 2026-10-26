@@ -54,16 +54,16 @@ try {
   }
   const exitCode = await new Promise<number>((resolve, reject) => {
     const child = spawn(process.execPath,["--import","tsx","--test",
-    ...(process.argv.includes('--quality') ? ['src/modules/quality/organization-quality.db.test.ts','src/modules/chat/rag.db.test.ts'] : ["src/modules/indexing/indexing.db.test.ts","src/modules/indexing/indexing.migration.db.test.ts","src/modules/indexing/indexing.transport.db.test.ts","src/modules/indexing/indexing.state.db.test.ts","src/modules/indexing/indexing.recovery.db.test.ts","src/modules/indexing/indexing.worker.test.ts","src/modules/indexing/indexing.integration.db.test.ts","src/modules/repo-analyses/repo-analyses.indexing.db.test.ts"])],{
-    env:{...process.env,NODE_ENV:"test",DATABASE_URL:url,INDEX_TEST_DATABASE_URL:url,QUALITY_TEST_DATABASE_URL:process.argv.includes('--quality') ? url : '',INDEX_AI_ENDPOINT:realEndpoint},
+    ...(process.argv.includes('--search') ? ['src/modules/search/search.relevance.db.test.ts','src/modules/search/search.access.db.test.ts'] : process.argv.includes('--quality') ? ['src/modules/quality/organization-quality.db.test.ts','src/modules/chat/rag.db.test.ts'] : ["src/modules/indexing/indexing.db.test.ts","src/modules/indexing/indexing.migration.db.test.ts","src/modules/indexing/indexing.transport.db.test.ts","src/modules/indexing/indexing.state.db.test.ts","src/modules/indexing/indexing.recovery.db.test.ts","src/modules/indexing/indexing.worker.test.ts","src/modules/indexing/indexing.integration.db.test.ts","src/modules/repo-analyses/repo-analyses.indexing.db.test.ts"])],{
+    env:{...process.env,NODE_ENV:"test",DATABASE_URL:url,INDEX_TEST_DATABASE_URL:url,ARCHIVE_TEST_DATABASE_URL:process.argv.includes('--search') ? url : '',QUALITY_TEST_DATABASE_URL:process.argv.includes('--quality') ? url : '',INDEX_AI_ENDPOINT:realEndpoint},
     stdio:"inherit",
   });
     child.once("error", reject);
     child.once("exit", code => resolve(code ?? 1));
   });
   process.exitCode=exitCode;
-  if (exitCode === 0 && !process.argv.includes('--quality')) {
-    const suggestions = spawnSync(process.execPath, ["--import", "tsx", "--test", "src/modules/audit/versions.db.test.ts", "src/modules/similar-items/similar-items.db.test.ts", "src/modules/suggestions/suggestions.db.test.ts", "src/modules/pbis/pbis.relations.db.test.ts", "src/modules/documents/chunks.http.db.test.ts", "src/modules/search/search.access.db.test.ts", "src/modules/auth/auth.registration.db.test.ts"], {
+  if (exitCode === 0 && !process.argv.includes('--quality') && !process.argv.includes('--search')) {
+    const suggestions = spawnSync(process.execPath, ["--import", "tsx", "--test", "src/modules/audit/versions.db.test.ts", "src/modules/similar-items/similar-items.db.test.ts", "src/modules/suggestions/suggestions.db.test.ts", "src/modules/pbis/pbis.relations.db.test.ts", "src/modules/documents/chunks.http.db.test.ts", "src/modules/search/search.access.db.test.ts", "src/modules/search/search.relevance.db.test.ts", "src/modules/auth/auth.registration.db.test.ts"], {
       env: { ...process.env, NODE_ENV: "test", DATABASE_URL: url, ARCHIVE_TEST_DATABASE_URL: url },
       stdio: "inherit",
     });

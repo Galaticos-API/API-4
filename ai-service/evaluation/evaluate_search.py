@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import math
 import sys
@@ -12,6 +13,7 @@ from typing import Any
 
 DEFAULT_DATASET = Path(__file__).parent / "datasets" / "search-ptbr-v1.json"
 DEFAULT_LATENCY_BUDGET_MS = 2000
+SEARCH_LEVELS = {"documento", "decisao", "epico", "feature", "pbi", "analise_repositorio"}
 
 
 def load_json(path: Path) -> dict[str, Any]:
@@ -19,10 +21,37 @@ def load_json(path: Path) -> dict[str, Any]:
         return json.load(file)
 
 
+def canonical_dataset_sha256(dataset: dict[str, Any]) -> str:
+    data = json.dumps(dataset, sort_keys=True, separators=(',', ':'), ensure_ascii=False).encode('utf-8')
+    return hashlib.sha256(data).hexdigest()
+
+
+def verify_dataset_provenance(dataset: dict[str, Any], results: dict[str, Any], path: Path) -> None:
+    metadata = results.get('execution_metadata', {})
+    if not isinstance(metadata, dict):
+        raise ValueError('execution_metadata deve ser um objeto')
+    fingerprint = metadata.get('dataset_sha256')
+    if fingerprint is not None:
+        kind = metadata.get('dataset_hash_kind', 'file')
+        if kind == 'file':
+            expected = hashlib.sha256(path.read_bytes()).hexdigest()
+        elif kind == 'canonical_json':
+            expected = canonical_dataset_sha256(dataset)
+        else:
+            raise ValueError('dataset_hash_kind inválido')
+        if fingerprint != expected:
+            raise ValueError('o hash do dataset dos resultados não corresponde ao arquivo avaliado')
+    corpus_hash = metadata.get('corpus_sha256')
+    if corpus_hash not in (None, 'unavailable'):
+        corpus = Path(__file__).resolve().parents[2] / (dataset.get('corpus') or {}).get('file', '')
+        if not corpus.is_file() or hashlib.sha256(corpus.read_bytes()).hexdigest() != corpus_hash:
+            raise ValueError('o hash do corpus dos resultados não corresponde ao corpus avaliado')
+
+
 def validate_dataset(dataset: dict[str, Any], minimum_queries: int = 20) -> None:
     if not isinstance(dataset, dict) or not isinstance(dataset.get("dataset"), str) or not dataset["dataset"].strip():
         raise ValueError("dataset.dataset deve ser um nome não vazio")
-    if not isinstance(dataset.get("version"), int) or dataset["version"] < 1:
+    if type(dataset.get("version")) is not int or dataset["version"] < 1:
         raise ValueError("dataset.version deve ser um inteiro positivo")
     queries = dataset.get("queries")
     if not isinstance(queries, list) or len(queries) < minimum_queries:
@@ -40,9 +69,11 @@ def validate_dataset(dataset: dict[str, Any], minimum_queries: int = 20) -> None
     source_entity_types = dataset.get("source_entity_types")
     if not isinstance(source_entity_types, dict) or set(source_entity_types) != set(source_project_ids):
         raise ValueError("dataset.source_entity_types deve mapear todas as evidências do corpus")
-    allowed_levels = {"documento", "decisao", "epico", "feature", "pbi"}
-    if not set(source_entity_types.values()) <= allowed_levels:
+    if any(not isinstance(level, str) or level not in SEARCH_LEVELS for level in source_entity_types.values()):
         raise ValueError("source_entity_types contém nível inválido")
+    corpus = dataset.get('corpus')
+    if corpus is not None and (not isinstance(corpus, dict) or not isinstance(corpus.get('file'), str) or not corpus['file'].strip()):
+        raise ValueError('dataset.corpus deve informar o arquivo do corpus')
     query_ids: set[str] = set()
     for query in queries:
         if not isinstance(query, dict):
@@ -53,6 +84,8 @@ def validate_dataset(dataset: dict[str, Any], minimum_queries: int = 20) -> None
         query_ids.add(query_id)
         if not isinstance(query.get("query"), str) or not query["query"].strip():
             raise ValueError(f"{query_id}: consulta vazia")
+        if 'category' in query and (not isinstance(query['category'], str) or not query['category'].strip()):
+            raise ValueError(f'{query_id}: category deve ser texto não vazio')
         expected = query.get("expected_source_ids")
         if not isinstance(expected, list) or any(not isinstance(item, str) or not item for item in expected):
             raise ValueError(f"{query_id}: expected_source_ids deve ser uma lista de ids")
@@ -68,7 +101,7 @@ def validate_dataset(dataset: dict[str, Any], minimum_queries: int = 20) -> None
         filters = query.get("filters", {})
         if not isinstance(filters, dict):
             raise ValueError(f"{query_id}: filters deve ser um objeto")
-        if filters.get("level") is not None and filters["level"] not in allowed_levels:
+        if filters.get("level") is not None and (not isinstance(filters["level"], str) or filters["level"] not in SEARCH_LEVELS):
             raise ValueError(f"{query_id}: nível de filtro inválido")
         if filters.get("level") and any(source_entity_types[source_id] != filters["level"] for source_id in expected):
             raise ValueError(f"{query_id}: evidência esperada não corresponde ao filtro de nível")
@@ -91,7 +124,7 @@ def evaluate(dataset: dict[str, Any], results_document: dict[str, Any], k: int =
         raise ValueError("results deve ser um objeto")
     if results_document.get("dataset") != dataset["dataset"]:
         raise ValueError("os resultados não correspondem ao dataset solicitado")
-    if results_document.get("version") != dataset["version"]:
+    if type(results_document.get("version")) is not int or results_document["version"] != dataset["version"]:
         raise ValueError("a versão dos resultados não corresponde ao dataset")
 
     expected_by_id = {query["id"]: query for query in dataset["queries"]}
@@ -103,7 +136,7 @@ def evaluate(dataset: dict[str, Any], results_document: dict[str, Any], k: int =
         if not isinstance(run, dict):
             raise ValueError("cada execução deve ser um objeto")
         query_id = run.get("query_id")
-        if query_id not in expected_by_id:
+        if not isinstance(query_id, str) or query_id not in expected_by_id:
             raise ValueError(f"resultado contém query_id desconhecido: {query_id}")
         if query_id in actual_by_id:
             raise ValueError(f"resultado contém query_id duplicado: {query_id}")
@@ -126,6 +159,15 @@ def evaluate(dataset: dict[str, Any], results_document: dict[str, Any], k: int =
             seen.add(item["source_id"])
             if item["source_id"] in dataset["source_project_ids"] and item["project_id"] != dataset["source_project_ids"][item["source_id"]]:
                 raise ValueError(f"{query_id}: project_id retornado contradiz a origem conhecida da evidência")
+            known_level = dataset['source_entity_types'].get(item['source_id'])
+            returned_level = item.get('entity_type', known_level)
+            if returned_level is not None and (not isinstance(returned_level, str) or returned_level not in SEARCH_LEVELS):
+                raise ValueError(f'{query_id}: nível retornado inválido')
+            if known_level is not None and returned_level != known_level:
+                raise ValueError(f'{query_id}: nível retornado contradiz a origem conhecida')
+            level_filter = expected_by_id[query_id].get('filters', {}).get('level')
+            if level_filter is not None and returned_level != level_filter:
+                raise ValueError(f'{query_id}: resultado fora do nível solicitado')
             query_project_id = expected_by_id[query_id].get("project_id")
             if item["project_id"] != query_project_id:
                 raise ValueError(f"{query_id}: resultado retornado fora do projeto solicitado")
@@ -153,7 +195,7 @@ def evaluate(dataset: dict[str, Any], results_document: dict[str, Any], k: int =
         relevant_positions = [index + 1 for index, source_id in enumerate(returned_ids) if source_id in expected_ids]
         latency = float(run["latency_ms"])
         latencies.append(latency)
-        within_budget += latency <= latency_budget_ms
+        within_budget += latency < latency_budget_ms
         category = query.get("category", "uncategorized")
         category_bucket = category_metrics.setdefault(category, {
             "answerable": [], "no_result": [], "latencies": [],
@@ -196,7 +238,7 @@ def evaluate(dataset: dict[str, Any], results_document: dict[str, Any], k: int =
             "precision_at_k": precision,
             "reciprocal_rank_at_k": reciprocal_rank,
             "latency_ms": latency,
-            "within_latency_budget": latency <= latency_budget_ms,
+            "within_latency_budget": latency < latency_budget_ms,
         })
 
     by_category = {}
@@ -253,7 +295,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--latency-budget-ms", type=int, default=DEFAULT_LATENCY_BUDGET_MS)
     args = parser.parse_args(argv)
     try:
-        report = evaluate(load_json(args.dataset), load_json(args.results), args.k, args.latency_budget_ms)
+        dataset, results = load_json(args.dataset), load_json(args.results)
+        report = evaluate(dataset, results, args.k, args.latency_budget_ms)
+        verify_dataset_provenance(dataset, results, args.dataset)
     except (OSError, json.JSONDecodeError, ValueError) as error:
         print(f"Erro na avaliação: {error}", file=sys.stderr)
         return 2

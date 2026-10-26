@@ -23,6 +23,10 @@ const envSchema = z.object({
   REPO_ANALYZER_URL: z.string().default('http://localhost:8000'),
   SEARCH_MIN_VECTOR_SIMILARITY: z.coerce.number().min(0).max(1).default(0.55),
   SEARCH_MIN_TEXT_RANK: z.coerce.number().min(0).max(1).default(0.05),
+  SEARCH_MIN_HYBRID_SCORE: z.coerce.number().min(0).max(1).default(0.45),
+  SEARCH_STRONG_VECTOR_SIMILARITY: z.coerce.number().min(0).max(1).default(0.6),
+  SEARCH_MIN_PARTIAL_SIMILARITY: z.coerce.number().min(0).max(1).default(0.5),
+  SEARCH_MIN_CONCEPT_SIMILARITY: z.coerce.number().min(0).max(1).default(0.45),
   // S2-12: limiar mais alto que o da busca para não forçar sugestões pouco relacionadas.
   SIMILAR_MIN_VECTOR_SIMILARITY: z.coerce.number().min(0).max(1).default(0.72),
 
