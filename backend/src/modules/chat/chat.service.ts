@@ -3,6 +3,7 @@ export { searchPatterns } from "../harness/search-patterns.js";
 import { env } from "../../config/env.js";
 import { AppError, NotFoundError, ValidationError, UUID_REGEX, validateUuid } from "../../shared/errors.js";
 import { ChatRepository } from "./chat.repository.js";
+import { GREETING_REPLY, isGreetingOnly } from "./greetings.js";
 import { RagService } from './rag.service.js';
 import { SearchRepository } from '../search/search.repository.js';
 import { HttpSearchEmbeddingClient } from '../search/search.service.js';
@@ -136,6 +137,12 @@ export class ChatService {
       ? await this.repository.retryMessage(conversaId, input.mensagemId, pergunta)
       : await this.repository.addMessage(conversaId, "user", pergunta);
     try {
+
+      if (isGreetingOnly(pergunta)) {
+        const answer: AssistantAnswer = { resposta: GREETING_REPLY, fontes: [] };
+        await this.repository.finishMessage(conversaId, messageId, answer.resposta, answer.fontes);
+        return { conversa_id: conversaId, resposta: answer.resposta, fontes: answer.fontes, origem: "assistente" };
+      }
 
       const answer=await this.assistant.ask(pergunta,projetoId,usuarioId);
       const origem:QueryResult['origem']=answer.resposta===NOT_FOUND_ANSWER?'sem_resultado':'assistente';
