@@ -88,7 +88,7 @@ export function parseMarkdown(source: string): Block[] {
 
 function renderInline(text: string, keyPrefix: string): ReactNode[] {
   const nodes: ReactNode[] = [];
-  const pattern = /\\[\\`*_{}\[\]()#+.!<>|~\-]|(`[^`\n]+`)|(\*\*[^*\n]+\*\*)|(\[[^\]\n]+\]\([^)\s]+\))|(\*[^*\n]+\*)/g;
+  const pattern = /\\[\\`*_{}\[\]()#+.!<>|~\-]|(`[^`\n]+`)|(\*\*[^*\n]+\*\*)|(\[[^\]\n]+\]\([^)\s]+\))|(\[[^\]\n]+\])|(\*[^*\n]+\*)/g;
   let last = 0;
   let match: RegExpExecArray | null;
   let position = 0;
@@ -99,11 +99,13 @@ function renderInline(text: string, keyPrefix: string): ReactNode[] {
     if (token.startsWith('\\')) nodes.push(token.slice(1));
     else if (token.startsWith("`")) nodes.push(<code key={key}>{token.slice(1, -1)}</code>);
     else if (token.startsWith("**")) nodes.push(<strong key={key}>{token.slice(2, -2)}</strong>);
-    else if (token.startsWith("[")) {
+    else if (match[3]) {
       const link = token.match(/^\[([^\]]+)\]\(([^)]+)\)$/);
       if (link && SAFE_LINK.test(link[2])) {
         nodes.push(<a key={key} href={link[2]} target="_blank" rel="noopener noreferrer">{link[1]}</a>);
       } else nodes.push(token);
+    } else if (match[4]) {
+      nodes.push(<sup key={key} className="markdown-citation" aria-label={`Citação: ${token.slice(1, -1)}`} title={`Citação: ${token.slice(1, -1)}`}>[ref]</sup>);
     } else nodes.push(<em key={key}>{token.slice(1, -1)}</em>);
     last = match.index + token.length;
   }

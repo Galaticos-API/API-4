@@ -29,7 +29,8 @@ interface ThreadMessage extends ChatMessage {
 type LoadState = "idle" | "loading" | "error";
 
 export function ChatView() {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [conversations, setConversations] = useState<ChatConversation[]>([]);
   const [conversationsState, setConversationsState] = useState<LoadState>("loading");
   const [projects, setProjects] = useState<ProjectOption[]>([]);
@@ -43,8 +44,11 @@ export function ChatView() {
   const [sendError, setSendError] = useState("");
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  const bottom = useRef<HTMLDivElement>(null);
+  const messagesViewport = useRef<HTMLDivElement>(null);
   const composer = useRef<HTMLTextAreaElement>(null);
+  const mobileSidebarTrigger = useRef<HTMLButtonElement>(null);
+  const mobileSidebarClose = useRef<HTMLButtonElement>(null);
+  const mobileSidebarPanel = useRef<HTMLElement>(null);
   const mounted = useRef(true);
   const messagesRequest = useRef(0);
   const conversationsRequest = useRef(0);
@@ -61,6 +65,39 @@ export function ChatView() {
     mounted.current = true;
     return () => { mounted.current = false; };
   }, []);
+
+  useEffect(() => {
+    if (!mobileSidebarOpen) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    mobileSidebarClose.current?.focus();
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setMobileSidebarOpen(false);
+        return;
+      }
+      if (event.key !== "Tab") return;
+      const focusable = mobileSidebarPanel.current?.querySelectorAll<HTMLElement>(
+        'button:not(:disabled), select:not(:disabled), a[href], textarea:not(:disabled), [tabindex]:not([tabindex="-1"])',
+      );
+      if (!focusable?.length) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    document.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener("keydown", closeOnEscape);
+      mobileSidebarTrigger.current?.focus();
+    };
+  }, [mobileSidebarOpen]);
 
   const loadConversations = useCallback(async (selectFirst: boolean) => {
     const request = ++conversationsRequest.current;
@@ -137,7 +174,8 @@ export function ChatView() {
   }, [activeId, loadMessages]);
 
   useEffect(() => {
-    bottom.current?.scrollIntoView?.({ behavior: "smooth", block: "end" });
+    const viewport = messagesViewport.current;
+    viewport?.scrollTo?.({ top: viewport.scrollHeight, behavior: "smooth" });
   }, [messages, sending]);
 
   const activeConversation = conversations.find((item) => item.id === activeId) ?? null;
@@ -254,18 +292,16 @@ export function ChatView() {
   };
 
   return (
-    <div className="page-container chat-page">
-      <header className="head-section">
-        <div>
-          <div className="eyebrow">COPILOTO DO PROJETO</div>
-          <h1>Assistente Sinapse</h1>
-          <p className="muted">Pergunte sobre requisitos, decisões e documentos. As respostas citam as fontes do acervo e devem ser conferidas por uma pessoa.</p>
-        </div>
-      </header>
-
-      <Button className="chat-sidebar-toggle" variant="secondary" aria-expanded={sidebarOpen} aria-controls="chat-sidebar" onClick={() => setSidebarOpen(value => !value)}>{sidebarOpen ? "Ocultar conversas e projeto" : "Conversas e projeto"}</Button>
-      <div className="chatx-layout">
-        <aside id="chat-sidebar" className={`ds-card chat-sidebar ${sidebarOpen ? "is-open" : ""}`} aria-label="Conversas">
+    <div className="chat-page">
+      {mobileSidebarOpen && <button className="chat-sidebar-backdrop" type="button" aria-label="Fechar navegação de conversas" onClick={() => setMobileSidebarOpen(false)} />}
+      <div className={`chatx-layout${sidebarCollapsed ? " sidebar-collapsed" : ""}`}>
+        <aside ref={mobileSidebarPanel} id="chat-sidebar" className={`chat-sidebar${mobileSidebarOpen ? " mobile-open" : ""}`} aria-label="Conversas" role={mobileSidebarOpen ? "dialog" : undefined} aria-modal={mobileSidebarOpen || undefined} aria-labelledby="chat-sidebar-title">
+          <div className="chat-sidebar-heading" id="chat-sidebar-title">
+            <span>Conversas</span>
+            <button ref={mobileSidebarClose} className="chat-sidebar-close" type="button" aria-label="Fechar conversas" onClick={() => setMobileSidebarOpen(false)}>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" /></svg>
+            </button>
+          </div>
           <Button onClick={startNewConversation}>Nova conversa</Button>
 
           <div className="ds-field">
@@ -310,7 +346,7 @@ export function ChatView() {
                     type="button"
                     className="chat-conversation"
                     aria-current={conversation.id === activeId}
-                    onClick={() => { openConversation(conversation); setSidebarOpen(false); }}
+                    onClick={() => { openConversation(conversation); setMobileSidebarOpen(false); }}
                   >
                     <span className="chat-conversation-title">{conversation.titulo}</span>
                     <span className="chat-conversation-meta">
@@ -341,9 +377,15 @@ export function ChatView() {
           </nav>
         </aside>
 
-        <section className="ds-card chat-thread" aria-label="Conversa atual">
+        <section className="chat-thread" aria-label="Conversa atual">
           <div className="chat-thread-header">
-            <h2>{activeConversation?.titulo ?? "Nova conversa"}</h2>
+            <button className="chat-sidebar-control chat-sidebar-control--desktop" type="button" aria-label={sidebarCollapsed ? "Expandir navegação de conversas" : "Recolher navegação de conversas"} aria-expanded={!sidebarCollapsed} aria-controls="chat-sidebar" onClick={() => setSidebarCollapsed(value => !value)}>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M9 4v16" /></svg>
+            </button>
+            <button ref={mobileSidebarTrigger} className="chat-sidebar-control chat-sidebar-control--mobile" type="button" aria-label="Abrir navegação de conversas" aria-expanded={mobileSidebarOpen} aria-controls="chat-sidebar" onClick={() => setMobileSidebarOpen(true)}>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16" /></svg>
+            </button>
+            <h2 className="chat-thread-title" title={activeConversation?.titulo ?? "Nova conversa"}>{activeConversation?.titulo ?? "Nova conversa"}</h2>
             <div className="chat-thread-actions">
               <Badge tone={scopeName ? "brand" : "info"}>{scopeName ?? "Todos os projetos"}</Badge>
               {activeId && (
@@ -360,7 +402,7 @@ export function ChatView() {
             </div>
           </div>
 
-          <div className="chat-messages" role="log" aria-live="polite" aria-relevant="additions" aria-label="Mensagens da conversa" tabIndex={0}>
+          <div ref={messagesViewport} className="chat-messages" role="log" aria-live="polite" aria-relevant="additions" aria-label="Mensagens da conversa" tabIndex={0}>
             {messagesState === "loading" && <p className="help" role="status">Carregando mensagens…</p>}
             {messagesState === "error" && activeId && (
               <Alert tone="danger" role="alert">
@@ -386,7 +428,6 @@ export function ChatView() {
             ))}
 
             {sending && <div className="chat-typing" role="status">Consultando o acervo<span aria-hidden="true">…</span></div>}
-            <div ref={bottom} />
           </div>
 
           {(sendError || failedMessage) && (

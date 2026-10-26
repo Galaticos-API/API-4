@@ -9,6 +9,7 @@ COPY tsconfig*.json ./
 COPY vite.config.ts ./
 COPY index.html ./
 COPY src/ ./src/
+COPY public/ ./public/
 
 RUN npm run build
 

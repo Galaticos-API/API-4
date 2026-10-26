@@ -1,9 +1,36 @@
 import {afterEach,expect,it,vi} from 'vitest';
-import {act,cleanup,fireEvent,render,screen} from '@testing-library/react';
+import {act,cleanup,fireEvent,render,screen,waitFor} from '@testing-library/react';
 import {ChatView} from './ChatView';
 import {askQuestion,deleteConversation,listChatProjects,listConversations,listMessages,type ChatConversation,type ChatAnswer} from '../../api/api_chat';
 vi.mock('../../api/api_chat',()=>({MAX_QUESTION_LENGTH:2000,askQuestion:vi.fn(),deleteConversation:vi.fn(),listChatProjects:vi.fn(),listConversations:vi.fn(),listMessages:vi.fn(),describeChatError:()=> 'Assistente indisponível'}));
 afterEach(()=>{cleanup();vi.resetAllMocks();});
+it('abre e fecha o histórico mobile com foco acessível e Escape',async()=>{
+  vi.mocked(listConversations).mockResolvedValue([]);
+  vi.mocked(listChatProjects).mockResolvedValue([]);
+  render(<ChatView/>);
+  const trigger=screen.getByRole('button',{name:'Abrir navegação de conversas'});
+  fireEvent.click(trigger);
+  const dialog=screen.getByRole('dialog',{name:'Conversas'});
+  expect(dialog).toBeInTheDocument();
+  expect(screen.getByRole('button',{name:'Fechar conversas'})).toHaveFocus();
+  expect(document.body.style.overflow).toBe('hidden');
+  fireEvent.keyDown(document,{key:'Escape'});
+  await waitFor(()=>expect(screen.queryByRole('dialog',{name:'Conversas'})).toBeNull());
+  expect(document.body.style.overflow).toBe('');
+  expect(trigger).toHaveFocus();
+});
+it('recolhe só o histórico e mantém a conversa na coluna de conteúdo',async()=>{
+  vi.mocked(listConversations).mockResolvedValue([]);
+  vi.mocked(listChatProjects).mockResolvedValue([]);
+  const {container}=render(<ChatView/>);
+  const layout=container.querySelector('.chatx-layout');
+  const thread=container.querySelector('.chat-thread');
+  expect(layout).not.toHaveClass('sidebar-collapsed');
+  fireEvent.click(screen.getByRole('button',{name:'Recolher navegação de conversas'}));
+  expect(layout).toHaveClass('sidebar-collapsed');
+  expect(thread).toBeInTheDocument();
+  expect(screen.getByRole('button',{name:'Expandir navegação de conversas'})).toHaveAttribute('aria-expanded','false');
+});
 it('permite recarregar os projetos após falha sem apagar a pergunta',async()=>{
   vi.mocked(listConversations).mockResolvedValue([]);
   vi.mocked(listChatProjects).mockRejectedValueOnce(new Error('offline')).mockResolvedValueOnce([{id:'project-a',nome:'Projeto A'}]);

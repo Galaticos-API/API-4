@@ -62,12 +62,16 @@ h2 {
   font-size: 1.2rem;
   display: flex;
   align-items: center;
-  gap: 2px;
+  gap: 9px;
   cursor: pointer;
 }
 
-.brand b {
-  color: var(--brand-primary);
+.brand-mark {
+  display: block;
+  width: 25px;
+  height: 35px;
+  flex: 0 0 25px;
+  object-fit: contain;
 }
 
 .nav-links {
@@ -505,9 +509,12 @@ h2 {
 }
 
 .app-shell { min-height: 100vh; display: flex; flex-direction: column; background: var(--surface-base); color: var(--text-primary); }
+.app-shell--chat { height: 100dvh; min-height: 0; overflow: hidden; }
 .app-user-actions { display: flex; align-items: center; gap: var(--space-3); }
 .app-sign-out { min-height: 34px; padding: 0 var(--space-3); font-size: .8rem; }
 .app-content { flex: 1; }
+.app-content--chat { display: flex; min-height: 0; overflow: hidden; }
+.app-footer--hidden { display: none; }
 
 .mobile-menu-toggle { display: none; }
 .mobile-menu-icon { width: 22px; height: 22px; overflow: visible; }

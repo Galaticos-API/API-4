@@ -27,6 +27,7 @@ export const App: React.FC = () => {
   const activeTab = isProjectPath(pathname)
     ? "projects"
     : (Object.keys(routes) as Array<keyof typeof routes>).find((key) => routes[key] === pathname) || "projects";
+  const isChatPage = activeTab === "chat" || activeTab === "rag";
 
   const setActiveTab = (tab: keyof typeof routes) => { setMenuOpen(false); navigate(routes[tab]); };
   const toggleMobileMenu = () => {
@@ -115,10 +116,11 @@ export const App: React.FC = () => {
   }, [menuOpen]);
 
   return (
-    <div className="app-shell">
+    <div className={`app-shell${isChatPage ? " app-shell--chat" : ""}`}>
       <header className={`top-header${menuOpen ? " menu-open" : ""}`}>
-        <a className="brand" href="/projects" onClick={(event) => { event.preventDefault(); navigate("/projects"); }}>
-          S<b>•</b>NAPSE
+        <a className="brand" href="/projects" aria-label="Sinapse — início" onClick={(event) => { event.preventDefault(); navigate("/projects"); }}>
+          <img className="brand-mark" src="/brand/icon-sinapse.svg" alt="" />
+          <span className="brand-name">SINAPSE</span>
         </a>
 
         <Button ref={menuToggleRef} className={`mobile-menu-toggle${menuOpen ? " is-open" : ""}`} variant="secondary" aria-label={menuOpen ? "Fechar menu" : "Abrir menu"} aria-expanded={menuOpen} aria-controls="mobile-menu-navigation" onClick={toggleMobileMenu}>
@@ -231,7 +233,7 @@ export const App: React.FC = () => {
       </div>
 
       {/* Main Content Area */}
-      <main className="app-content">
+      <main className={`app-content${isChatPage ? " app-content--chat" : ""}`}>
         <SearchOriginFocus pathname={pathname} />
         {activeTab === "projects" && <ProjectsView key={pathname} pathname={pathname} canCreate={session.user?.role === "po" || session.user?.role === "admin"} />}
         {activeTab === "requirements" && <RequirementsView canCreate={session.user?.role === "po" || session.user?.role === "admin"} />}
@@ -257,7 +259,7 @@ export const App: React.FC = () => {
       </main>
 
       {/* Footer */}
-      <footer style={{ borderTop: "1px solid var(--border-subtle)", padding: "20px 36px", textAlign: "center", fontSize: "0.8rem", color: "var(--text-muted)" }}>
+      <footer className={isChatPage ? "app-footer app-footer--hidden" : "app-footer"} style={{ borderTop: "1px solid var(--border-subtle)", padding: "20px 36px", textAlign: "center", fontSize: "0.8rem", color: "var(--text-muted)" }}>
         Sinapse &middot; PRO4TECH &middot; Fatec São José dos Campos &middot; Grupo Galáticos &middot; 2º Semestre/2026
       </footer>
     </div>
