@@ -29,8 +29,8 @@ export const ORIGIN_BADGE: Record<ChatOrigin, string | null> = {
 
 export const SUGGESTED_PROMPTS: readonly string[] = [
   "Quais decisões já foram tomadas neste projeto?",
-  "Resuma o escopo e os critérios de aceitação principais.",
-  "Que riscos ou dependências aparecem na documentação?",
+  "Qual é o código de validação do projeto?",
+  "Qual é o SLA para solicitação urgente?",
 ];
 
 export function remainingCharacters(text: string, max: number): number {

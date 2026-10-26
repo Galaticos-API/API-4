@@ -414,12 +414,7 @@ export function ChatView() {
             {messagesState === "idle" && messages.length === 0 && (
               <div className="chatx-welcome">
                 <h3>Como posso ajudar?</h3>
-                <p>Faça uma pergunta sobre {scopeName ? `o projeto ${scopeName}` : "os seus projetos"} ou comece por uma sugestão.</p>
-                <div className="chat-suggestions">
-                  {SUGGESTED_PROMPTS.map((prompt) => (
-                    <button key={prompt} type="button" onClick={() => { editDraft(prompt); composer.current?.focus(); }}>{prompt}</button>
-                  ))}
-                </div>
+                <p>Faça uma pergunta sobre {scopeName ? `o projeto ${scopeName}` : "os seus projetos"} ou escolha uma sugestão abaixo.</p>
               </div>
             )}
 
@@ -436,6 +431,24 @@ export function ChatView() {
               {failedMessage && <Button variant="secondary" size="sm" disabled={sending||messagesState==='loading'} onClick={() => void send(failedMessage.conteudo, failedMessage.id)}>Tentar novamente</Button>}
             </Alert>
           )}
+
+          <div className="chat-prompt-bar" role="group" aria-label="Perguntas sugeridas">
+            <span className="chat-prompt-label">Sugestões</span>
+            <div className="chat-prompt-list">
+              {SUGGESTED_PROMPTS.map((prompt) => (
+                <button
+                  key={prompt}
+                  className="chat-prompt-chip"
+                  type="button"
+                  aria-label={`Usar pergunta sugerida: ${prompt}`}
+                  disabled={sending || messagesState === "loading"}
+                  onClick={() => { editDraft(prompt); composer.current?.focus(); }}
+                >
+                  {prompt}
+                </button>
+              ))}
+            </div>
+          </div>
 
           <form className="chat-composer" onSubmit={(event) => { event.preventDefault(); if (canSend) void send(draft); }}>
             <label className="sr-only" htmlFor="chat-question">Sua pergunta</label>

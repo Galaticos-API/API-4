@@ -64,6 +64,19 @@ it('distingue ausência de projetos de falha de conexão',async()=>{
   expect(screen.queryByRole('button',{name:'Recarregar projetos'})).toBeNull();
   expect(screen.getByRole('button',{name:'Enviar'})).toBeDisabled();
 });
+it('mantém perguntas sugeridas acima do chat e só preenche o campo ao selecionar',async()=>{
+  vi.mocked(listConversations).mockResolvedValue([]);
+  vi.mocked(listChatProjects).mockResolvedValue([{id:'project-a',nome:'Projeto Aurora'}]);
+  render(<ChatView/>);
+  await screen.findByRole('option',{name:'Projeto Aurora'});
+  fireEvent.change(screen.getByLabelText('Escopo da consulta'),{target:{value:'project-a'}});
+  const prompt=screen.getByRole('button',{name:'Usar pergunta sugerida: Quais decisões já foram tomadas neste projeto?'});
+  expect(prompt).toBeInTheDocument();
+  expect(screen.getByLabelText('Perguntas sugeridas').compareDocumentPosition(screen.getByRole('textbox')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  fireEvent.click(prompt);
+  expect(screen.getByRole('textbox')).toHaveValue('Quais decisões já foram tomadas neste projeto?');
+  expect(askQuestion).not.toHaveBeenCalled();
+});
 it('ao reabrir uma conversa, permite tentar novamente a última pergunta que falhou',async()=>{
   vi.mocked(listConversations).mockResolvedValue([{id:'conversation-a',titulo:'Conversa A',projeto_id:'project-a',projeto_nome:'Projeto A',updated_at:''}]);
   vi.mocked(listChatProjects).mockResolvedValue([{id:'project-a',nome:'Projeto A'}]);
@@ -107,7 +120,7 @@ it.each(['digitação','sugestão'])('não abre conversa antiga quando a primeir
   render(<ChatView/>);
   const text=interaction==='digitação'?'Pergunta sem projeto escolhido':'Quais decisões já foram tomadas neste projeto?';
   if(interaction==='digitação')fireEvent.change(screen.getByRole('textbox'),{target:{value:text}});
-  else fireEvent.click(screen.getByRole('button',{name:text}));
+  else fireEvent.click(screen.getByRole('button',{name:`Usar pergunta sugerida: ${text}`}));
   await act(async()=>finish([{id:'old-b',titulo:'Conversa B',projeto_id:'project-b',projeto_nome:'Projeto B',updated_at:''}]));
   expect(screen.getByLabelText('Escopo da consulta')).toBeEnabled();
   expect(screen.getByLabelText('Escopo da consulta')).toHaveValue('');
