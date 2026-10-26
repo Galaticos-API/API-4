@@ -13,6 +13,7 @@ import {
   type ChatOrigin,
 } from "../../api/api_chat";
 import { listChatProjects } from "../../api/api_chat";
+import { Check, Copy } from "lucide-react";
 import { ORIGIN_BADGE, SUGGESTED_PROMPTS, formatClock, formatRelative, remainingCharacters } from "../../models/chat";
 import { Alert, Badge, Button } from "../common/ui";
 import { Markdown } from "../common/Markdown";
@@ -574,7 +575,16 @@ function MessageBubble({ message, copied, deleting, deleteDisabled, confirmingDe
           </div>
         </div>
       )}
-      {!isUser && <div className="chat-message-actions"><Button variant="ghost" size="sm" onClick={onCopy}>{copied ? "Copiado" : "Copiar resposta"}</Button></div>}
+      {!isUser && <Button
+        variant="ghost"
+        size="sm"
+        className={`chat-message-copy${copied ? " is-copied" : ""}`}
+        aria-label={copied ? "Resposta copiada" : "Copiar resposta"}
+        title={copied ? "Copiado" : "Copiar resposta"}
+        onClick={onCopy}
+      >
+        {copied ? <Check aria-hidden="true" /> : <Copy aria-hidden="true" />}
+      </Button>}
     </article>
   );
 }
