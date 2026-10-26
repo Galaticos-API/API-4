@@ -1,7 +1,7 @@
 import { HttpHarnessEngine } from "../harness/harness.service.js";
 export { searchPatterns } from "../harness/search-patterns.js";
 import { env } from "../../config/env.js";
-import { AppError, NotFoundError, ValidationError, validateUuid } from "../../shared/errors.js";
+import { AppError, NotFoundError, ValidationError, UUID_REGEX, validateUuid } from "../../shared/errors.js";
 import { ChatRepository } from "./chat.repository.js";
 import { RagService } from './rag.service.js';
 import { SearchRepository } from '../search/search.repository.js';
@@ -144,7 +144,17 @@ export class ChatService {
       return { conversa_id: conversaId, resposta: answer.resposta, fontes: answer.fontes, origem,...(answer.evidencias?{evidencias:answer.evidencias}: {}) };
     } catch (error) {
       await this.repository.failMessage(messageId).catch(() => undefined);
-      throw new AppError("Não foi possível processar a pergunta. Tente novamente.", 503, "CHAT_FAILED", { conversa_id: conversaId, mensagem_id: messageId });
+      const causeDetails = error instanceof AppError && typeof error.details === "object" && error.details !== null
+        ? error.details as Record<string, unknown>
+        : undefined;
+      const diagnosticoId = typeof causeDetails?.diagnostico_id === "string" && UUID_REGEX.test(causeDetails.diagnostico_id)
+        ? causeDetails.diagnostico_id
+        : undefined;
+      throw new AppError("Não foi possível processar a pergunta. Tente novamente.", 503, "CHAT_FAILED", {
+        conversa_id: conversaId,
+        mensagem_id: messageId,
+        ...(diagnosticoId ? { diagnostico_id: diagnosticoId } : {}),
+      });
     }
   }
 }

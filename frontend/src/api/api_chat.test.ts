@@ -1,5 +1,6 @@
 import {afterEach,expect,it,vi} from 'vitest';
-import {askQuestion,listChatProjects} from './api_chat';
+import {askQuestion,describeChatError,listChatProjects} from './api_chat';
+import {ApiError} from './api_auth';
 
 afterEach(()=>{vi.unstubAllGlobals();vi.restoreAllMocks();vi.clearAllTimers();vi.useRealTimers();});
 
@@ -51,4 +52,10 @@ it('envia requisição DELETE com o id da conversa correto',async()=>{
     expect.stringContaining('/chat/conversations/conv-123'),
     expect.objectContaining({method:'DELETE'})
   );
+});
+
+it('exibe o ID de diagnóstico validado em falhas de serviço do chat',()=>{
+  const id='e8e57e2d-0b59-4cdc-b191-d1618381c6a2';
+  expect(describeChatError(new ApiError(503,{error:'Falha',details:{diagnostico_id:id}}))).toContain(id);
+  expect(describeChatError(new ApiError(503,{error:'Falha',details:{diagnostico_id:'private prompt'}}))).not.toContain('private prompt');
 });

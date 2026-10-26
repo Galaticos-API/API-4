@@ -1,0 +1,80 @@
+{
+  "dataset": "sinapse-chat-rag-qa-smoke",
+  "version": 1,
+  "fictional_only": true,
+  "purpose": "Fixture determinística de contrato RAG. Não representa cliente, sistema ou decisão real e não mede qualidade do modelo nem do ranking de produção.",
+  "project": {
+    "id": "a1000000-0000-4000-8000-000000000001",
+    "name": "Projeto Aurora (fictício)"
+  },
+  "document": {
+    "id": "a2000000-0000-4000-8000-000000000001",
+    "title": "Base de conhecimento de QA — Projeto Aurora (fictícia)"
+  },
+  "chunks": [
+    {
+      "id": "a3000000-0000-4000-8000-000000000001",
+      "text": "Código de validação da base: QA-LARANJA-42."
+    },
+    {
+      "id": "a3000000-0000-4000-8000-000000000002",
+      "text": "O SLA para uma solicitação urgente é de até 4 horas úteis para a primeira análise."
+    },
+    {
+      "id": "a3000000-0000-4000-8000-000000000003",
+      "text": "Solicitações com valor estimado acima de R$ 5.000 exigem aprovação adicional de Finanças."
+    },
+    {
+      "id": "a3000000-0000-4000-8000-000000000004",
+      "text": "DEC-AUR-004 — 21 de agosto de 2026 — toda mudança de status gera evento de histórico com autor, data, status anterior, status novo e justificativa."
+    },
+    {
+      "id": "a3000000-0000-4000-8000-000000000005",
+      "text": "QA-AUR-08 — Tela em viewport de 360 px e navegação somente por teclado — resultado do exemplo: pendente de validação manual."
+    }
+  ],
+  "queries": [
+    {
+      "id": "AUR-Q01",
+      "kind": "positive",
+      "variants": ["Qual é o código de validação da base?", "Qual código confirma que a base fictícia foi carregada?"],
+      "expected_chunk_id": "a3000000-0000-4000-8000-000000000001",
+      "expected_quote": "Código de validação da base: QA-LARANJA-42."
+    },
+    {
+      "id": "AUR-Q02",
+      "kind": "positive_with_paraphrase",
+      "variants": ["Qual é o SLA para uma solicitação urgente?", "Em quanto tempo um pedido urgente deve receber a primeira análise?"],
+      "expected_chunk_id": "a3000000-0000-4000-8000-000000000002",
+      "expected_quote": "O SLA para uma solicitação urgente é de até 4 horas úteis para a primeira análise."
+    },
+    {
+      "id": "AUR-Q03",
+      "kind": "positive",
+      "variants": ["A partir de qual valor Finanças também precisa aprovar?"],
+      "expected_chunk_id": "a3000000-0000-4000-8000-000000000003",
+      "expected_quote": "Solicitações com valor estimado acima de R$ 5.000 exigem aprovação adicional de Finanças."
+    },
+    {
+      "id": "AUR-Q04",
+      "kind": "positive",
+      "variants": ["O que foi decidido em 21 de agosto de 2026?"],
+      "expected_chunk_id": "a3000000-0000-4000-8000-000000000004",
+      "expected_quote": "DEC-AUR-004 — 21 de agosto de 2026 — toda mudança de status gera evento de histórico com autor, data, status anterior, status novo e justificativa."
+    },
+    {
+      "id": "AUR-Q05",
+      "kind": "positive",
+      "variants": ["Qual teste ainda está pendente de validação manual?"],
+      "expected_chunk_id": "a3000000-0000-4000-8000-000000000005",
+      "expected_quote": "QA-AUR-08 — Tela em viewport de 360 px e navegação somente por teclado — resultado do exemplo: pendente de validação manual."
+    },
+    {
+      "id": "AUR-Q06",
+      "kind": "negative",
+      "variants": ["Qual foi a data da última reunião do conselho?"],
+      "expected_chunk_id": null,
+      "expected_quote": null
+    }
+  ]
+}

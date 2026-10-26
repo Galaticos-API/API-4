@@ -133,6 +133,14 @@ export function describeChatError(error: unknown): string {
     if (error.status === 401) return "Sua sessão expirou. Entre novamente para continuar a conversa.";
     if (error.status === 404) return serverMessage(error) ?? "Conversa ou projeto não encontrado.";
     if (error.status === 400) return serverMessage(error) ?? "Revise a pergunta e tente novamente.";
+    if (error.status === 503) {
+      const payload = error.details;
+      const details = isRecord(payload) && isRecord(payload.details) ? payload.details : undefined;
+      const diagnosticId = details?.diagnostico_id;
+      if (typeof diagnosticId === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(diagnosticId)) {
+        return `A consulta falhou, mas sua pergunta foi preservada. Código de diagnóstico: ${diagnosticId}. Tente novamente.`;
+      }
+    }
   }
   return "Não foi possível falar com o assistente agora. Verifique a conexão e tente novamente.";
 }

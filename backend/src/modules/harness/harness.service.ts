@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { EvidenceEngine, validateEvidence } from '../chat/rag-evidence.js';
 import axios from "axios";
 import { env } from "../../config/env.js";
@@ -198,6 +199,7 @@ export class HarnessService {
     projectId: string,
     input: HarnessInput,
     trustedContext?: HarnessInput["context"],
+    diagnosticId = randomUUID(),
   ) {
     if (
       !(OPERATIONS[input.mode] as readonly string[]).includes(input.operation)
@@ -233,10 +235,10 @@ export class HarnessService {
           ).map((row) => ({ id: row.id, text: row.texto.slice(0, 8000) })));
     const scoped = { ...input, context };
     const evidenceEngine = input.operation === 'responder' && trustedContext === undefined ? new EvidenceEngine(this.engine) : undefined;
+    const startedAt = performance.now();
+    let stage = 'generation';
     try {
-      const result = parseOutput(
-        scoped,
-        await (evidenceEngine ?? this.engine).generate(
+      const generated = await (evidenceEngine ?? this.engine).generate(
           {
             mode: input.mode,
             operation: input.operation,
@@ -249,10 +251,13 @@ export class HarnessService {
             context,
           },
           config.timeout_ms,
-        ),
-      );
+        );
+      stage = 'output_validation';
+      const result = parseOutput(scoped, generated);
+      stage = 'guide_validation';
       validateGuide(scoped, result, config);
       if (input.mode !== 'levantamento' && trustedContext === undefined && context.length) {
+        stage = 'source_revalidation';
         const current = new Map((await this.chunks.currentHarnessChunks(projectId, context.map(chunk => chunk.id)))
           .map(chunk => [chunk.id, chunk.texto]));
         if (context.some(chunk => current.get(chunk.id)?.slice(0, 8000) !== chunk.text)) throw new Error('Contexto alterado durante a consulta.');
@@ -268,10 +273,17 @@ export class HarnessService {
       };
     } catch {
       // Não propaga o erro do provedor: ele pode incluir prompt, resposta ou credenciais.
+      console.error('[AI Harness] Request failed', {
+        diagnostico_id: diagnosticId,
+        etapa: stage,
+        codigo: 'AI_HARNESS_UNAVAILABLE',
+        duracao_ms: Math.round(performance.now() - startedAt),
+      });
       throw new AppError(
         "A IA está indisponível ou retornou uma proposta fora do padrão. Sua edição foi preservada.",
         503,
         "AI_HARNESS_UNAVAILABLE",
+        { diagnostico_id: diagnosticId, etapa: stage },
       );
     }
   }

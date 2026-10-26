@@ -2,6 +2,19 @@
 
 Esta pasta contém as baterias versionadas da S2-17, um executor HTTP e um avaliador independente do mecanismo de busca. A v1 é a referência imutável; a v2 adiciona metadados de localizador e duas consultas por conteúdo para comparar os dois jeitos de busca.
 
+## Chat RAG: smoke QA determinístico
+
+`datasets/chat-rag-smoke-v1.json` contém somente fatos fictícios do Projeto Aurora. O teste
+`backend/src/modules/chat/rag.qa.test.ts` executa 5 fatos positivos e 7 formulações (incluindo
+duas paráfrases), uma pergunta negativa, validação de citação e escopo/autorização de projeto.
+Rode-o pela suíte backend (`npm test`, dentro de `backend`) sem Ollama ou PostgreSQL.
+
+Esse teste injeta retriever e gerador determinísticos: valida o contrato de resposta, a passagem
+da pergunta e as guardas do RAG, mas não mede ranking da busca de produção nem qualidade do modelo.
+Para recuperação/ranking, use a bateria S2-17 abaixo; para qualidade real de resposta, será
+necessária uma execução explícita com o modelo local e avaliação de respostas contra um gabarito
+revisado. Os fatos do smoke dataset não são informações reais da PRO4TECH.
+
 ## Privacidade e corpus
 
 O corpus usa recortes de documentação pública dos projetos API-1, API-2 e API-3. A política PRE-06 exclui código-fonte, configuração de IDE e anexos de teste; o repositório API-2 contém anexos de teste com dados pessoais. Esta suíte não coleta nem armazena esses anexos, nomes de autores ou dados pessoais. Consulte `database/seed/fixtures/historical-v1.json`, `database/seed/fixtures/historical-v2.json` e `docs/backlog/README.md` para a origem e as transformações documentadas.
