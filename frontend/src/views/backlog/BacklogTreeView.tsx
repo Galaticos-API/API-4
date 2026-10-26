@@ -283,9 +283,10 @@ export function BacklogTreeView({
             aria-label="Filtros do backlog"
           >
             <label className="project-filter backlog-search-field">
-              Buscar no backlog
+              <span>Buscar no backlog</span>
 
               <input
+                id="backlog-search-input"
                 type="search"
                 value={filters.query}
                 maxLength={MAX_QUERY_LENGTH}
@@ -305,20 +306,17 @@ export function BacklogTreeView({
                 }
               />
 
-              <span
-                id="backlog-search-help"
-                className="help"
-              >
-                {filters.query.trim().length > 0
-                  && !searchMode
-                  && filters.query.trim().length
-                  < MIN_QUERY_LENGTH
-                  ? `Digite ao menos ${MIN_QUERY_LENGTH} caracteres.`
-                  : "Busca apenas neste projeto, combinada com os filtros."}
-              </span>
             </label>
 
-            <label className="project-filter">
+            <span id="backlog-search-help" className="help backlog-tree-search-help">
+              {filters.query.trim().length > 0
+                && !searchMode
+                && filters.query.trim().length < MIN_QUERY_LENGTH
+                ? `Digite ao menos ${MIN_QUERY_LENGTH} caracteres.`
+                : "Busca apenas neste projeto, combinada com os filtros."}
+            </span>
+
+            <label className="project-filter backlog-status-filter">
               Status
 
               <select
@@ -347,7 +345,7 @@ export function BacklogTreeView({
               </select>
             </label>
 
-            <label className="project-filter">
+            <label className="project-filter backlog-technology-filter">
               Tecnologia
 
               <select
@@ -404,6 +402,7 @@ export function BacklogTreeView({
               <Button
                 variant="secondary"
                 type="button"
+                className="backlog-tree-clear-filters"
                 onClick={
                   clearFilters
                 }

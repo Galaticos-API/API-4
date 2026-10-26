@@ -245,9 +245,12 @@
 }
 
 .backlog-tree-filters {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: end;
+  display: grid;
+  grid-template-columns: minmax(250px, 1.4fr) minmax(145px, .72fr) minmax(180px, 1fr) auto auto;
+  grid-template-areas:
+    "search status technology count clear"
+    "help . . . .";
+  align-items: start;
   gap: 12px;
   padding: 16px;
   border: 1px solid var(--border-subtle);
@@ -255,7 +258,21 @@
   background: var(--bg-card);
 }
 
+.backlog-tree-filters .project-filter {
+  max-width: none;
+  margin: 0;
+}
+
+.backlog-tree-filters .backlog-search-field { grid-area: search; }
+.backlog-tree-filters .backlog-status-filter { grid-area: status; }
+.backlog-tree-filters .backlog-technology-filter { grid-area: technology; }
+.backlog-tree-search-help { grid-area: help; margin: -4px 0 0; line-height: 1.4; }
+.backlog-tree-filters .backlog-search-field input { min-height: 44px; }
+.backlog-tree-filters .project-filter select { width: 100%; min-height: 44px; }
+
 .backlog-tree-filter-count {
+  grid-area: count;
+  align-self: end;
   min-height: 42px;
   display: inline-flex;
   align-items: center;
@@ -265,6 +282,43 @@
   background: var(--bg-tertiary);
   border: 1px solid var(--border-subtle);
   font-size: 0.9rem;
+}
+
+.backlog-tree-clear-filters {
+  grid-area: clear;
+  align-self: end;
+  min-height: 42px;
+  white-space: nowrap;
+}
+
+@media (max-width: 900px) {
+  .backlog-tree-filters {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-areas:
+      "search search"
+      "help help"
+      "status technology"
+      "count clear";
+  }
+  .backlog-tree-filters .project-filter { width: 100%; }
+  .backlog-tree-clear-filters { justify-self: start; }
+}
+
+@media (max-width: 520px) {
+  .backlog-tree-filters {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "search"
+      "help"
+      "status"
+      "technology"
+      "count"
+      "clear";
+    gap: 10px;
+    padding: 14px;
+  }
+  .backlog-tree-filter-count { justify-self: start; }
+  .backlog-tree-clear-filters { width: 100%; }
 }
 
 .backlog-tree-list,
