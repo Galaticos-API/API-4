@@ -30,6 +30,34 @@ interface ThreadMessage extends ChatMessage {
 
 type LoadState = "idle" | "loading" | "error";
 
+const THINKING_MESSAGES = [
+  "Consultando o acervo do projeto",
+  "Analisando os trechos encontrados",
+  "Preparando uma resposta com fontes",
+];
+
+function ThinkingIndicator() {
+  const [messageIndex, setMessageIndex] = useState(0);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      setMessageIndex((current) => (current + 1) % THINKING_MESSAGES.length);
+    }, 2800);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  return (
+    <div className="chat-typing" role="status" aria-label="O assistente está preparando uma resposta">
+      <span className="chat-typing-dots" aria-hidden="true">
+        <i /><i /><i />
+      </span>
+      <span key={messageIndex} className="chat-typing-message" aria-hidden="true">
+        {THINKING_MESSAGES[messageIndex]}
+      </span>
+    </div>
+  );
+}
+
 export function ChatView() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
@@ -462,7 +490,7 @@ export function ChatView() {
               />
             ))}
 
-            {sending && <div className="chat-typing" role="status">Consultando o acervo<span aria-hidden="true">…</span></div>}
+            {sending && <ThinkingIndicator />}
           </div>
 
           {(sendError || failedMessage) && (

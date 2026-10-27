@@ -77,6 +77,29 @@ it('mantém perguntas sugeridas acima do chat e só preenche o campo ao selecion
   expect(screen.getByRole('textbox')).toHaveValue('Quais decisões já foram tomadas neste projeto?');
   expect(askQuestion).not.toHaveBeenCalled();
 });
+it('exibe status animado e alterna as mensagens enquanto aguarda o assistente',async()=>{
+  let finish!:(answer:ChatAnswer)=>void;
+  vi.mocked(listConversations).mockResolvedValue([]);
+  vi.mocked(listChatProjects).mockResolvedValue([{id:'project-a',nome:'Projeto A'}]);
+  vi.mocked(askQuestion).mockReturnValue(new Promise(resolve=>{finish=resolve;}));
+  render(<ChatView/>);
+  await screen.findByRole('option',{name:'Projeto A'});
+  fireEvent.change(screen.getByLabelText('Escopo da consulta'),{target:{value:'project-a'}});
+  fireEvent.change(screen.getByRole('textbox'),{target:{value:'Pergunta de teste'}});
+  vi.useFakeTimers();
+  fireEvent.click(screen.getByRole('button',{name:'Enviar'}));
+  const status=screen.getByRole('status',{name:'O assistente está preparando uma resposta'});
+  const statusText=()=>status.querySelector('.chat-typing-message')?.textContent;
+  expect(statusText()).toBe('Consultando o acervo do projeto');
+  expect(status.querySelectorAll('.chat-typing-dots i')).toHaveLength(3);
+  await act(async()=>{ vi.advanceTimersByTime(2800); });
+  expect(statusText()).toBe('Analisando os trechos encontrados');
+  await act(async()=>{ vi.advanceTimersByTime(2800); });
+  expect(statusText()).toBe('Preparando uma resposta com fontes');
+  await act(async()=>finish({conversa_id:'conversation-a',resposta:'Resposta pronta',fontes:[],origem:'assistente'}));
+  vi.useRealTimers();
+  expect(await screen.findByText('Resposta pronta')).toBeInTheDocument();
+});
 it('ao reabrir uma conversa, permite tentar novamente a última pergunta que falhou',async()=>{
   vi.mocked(listConversations).mockResolvedValue([{id:'conversation-a',titulo:'Conversa A',projeto_id:'project-a',projeto_nome:'Projeto A',updated_at:''}]);
   vi.mocked(listChatProjects).mockResolvedValue([{id:'project-a',nome:'Projeto A'}]);
