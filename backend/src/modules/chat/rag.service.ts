@@ -43,7 +43,10 @@ export class RagService {
     try {
       const vector=await this.embeddings.embed(parsed.data.pergunta);
       if(!Array.isArray(vector)||vector.length!==1024||vector.some(value=>!Number.isFinite(value))||vector.every(value=>value===0))throw Error('Embedding incompatível');
-      const rows=await this.search.hybridSearch({query:parsed.data.pergunta,projectId:projectIds[0],limit:5},vector,env.SEARCH_MIN_VECTOR_SIMILARITY,env.SEARCH_MIN_TEXT_RANK,projectIds);
+      let rows=await this.search.hybridSearch({query:parsed.data.pergunta,projectId:projectIds[0],limit:5},vector,env.SEARCH_MIN_VECTOR_SIMILARITY,env.SEARCH_MIN_TEXT_RANK,projectIds);
+      if(!rows.length) {
+        rows=await this.search.ragSearch(projectIds,vector,5,0.40);
+      }
       if(!rows.length)return empty;
       if(rows.some(row=>!projectIds.includes(row.project_id)))throw Error('Escopo incompatível');
       let remaining=20000;

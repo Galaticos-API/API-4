@@ -19,6 +19,7 @@ const envSchema = z.object({
   POSTGRES_PORT: z.coerce.number().default(5432),
   AI_SERVICE_TOKEN: z.string().default(""),
   AI_SERVICE_URL: z.string().default("http://localhost:8000"),
+  OLLAMA_BASE_URL: z.string().default("http://host.docker.internal:11434"),
   DOCUMENT_INGESTION_TOKEN: z.string().default(""),
   REPO_ANALYZER_URL: z.string().default('http://localhost:8000'),
   SEARCH_MIN_VECTOR_SIMILARITY: z.coerce.number().min(0).max(1).default(0.55),

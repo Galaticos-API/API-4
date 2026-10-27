@@ -199,7 +199,7 @@ export function ChatView() {
       : [...current, { id: pendingId, remetente: "user", conteudo: question, fontes: [], created_at: new Date().toISOString() }]);
     setDraft(current=>!retryId||current.trim()===question?'':current);
     try {
-      const answer = await askQuestion({ pergunta: question, conversaId: activeId, projetoId: activeId ? null : scopeId, mensagemId: retryId });
+      const answer = await askQuestion({ pergunta: question, conversaId: activeId, projetoId: activeId ? null : scopeId });
       if (!mounted.current) return;
       void loadConversations(false);
       if (revision !== conversationRevision.current) {
