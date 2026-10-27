@@ -3141,6 +3141,42 @@ paths:
         '404':
           description: Conversa (de outro usuário incluída) ou projeto não encontrado
 
+  /api/v1/chat/query/stream:
+    post:
+      summary: Envia pergunta com eventos de progresso do assistente
+      description: >
+        Usa Server-Sent Events para enviar somente mudanças de etapa reais (`searching`,
+        `synthesizing`, `validating`) e, ao final, a resposta completa após validação das
+        evidências e fontes. Tokens brutos do modelo não são transmitidos. O evento `error`
+        segue o envelope seguro da API. Projeto obrigatório para novas conversas; o escopo
+        de conversas existentes permanece imutável.
+      operationId: askChatQuestionWithProgress
+      security: [{cookieAuth: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [pergunta]
+              properties:
+                pergunta: {type: string, minLength: 1, maxLength: 2000, description: 'Texto Unicode válido, sem caractere nulo nem sequência UTF-16 incompleta'}
+                conversa_id: {type: string, format: uuid}
+                mensagem_id: {type: string, format: uuid, description: 'Mensagem que será repetida após falha'}
+                projeto_id: {type: string, format: uuid}
+      responses:
+        '200':
+          description: Fluxo SSE; somente `completed` contém a resposta depois da validação das fontes
+          content:
+            text/event-stream:
+              schema: {type: string, description: 'Eventos progress, completed ou error; heartbeat usa comentário SSE'}
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Conversa (de outro usuário incluída) ou projeto não encontrado; após abertura do fluxo, enviado como evento error
+
   /api/v1/projects/{projectId}/repo-analyses:
     parameters:
       - {name: projectId, in: path, required: true, schema: {type: string, format: uuid}}

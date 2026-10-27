@@ -11,6 +11,8 @@ export interface ChatSource {
 
 export type ChatOrigin = "assistente" | "busca_textual" | "sem_resultado";
 
+export type ChatProgressStage = "searching" | "synthesizing" | "validating";
+
 export interface Conversation {
   id: string;
   usuario_id: string;

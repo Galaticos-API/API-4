@@ -44,10 +44,12 @@ class Search extends SearchRepository {async hybridSearch(){return [row];}}
 class Revisions extends HarnessRepository {async current(){return {mode:'consulta' as const,version:0,schema_version:1 as const,config:defaultConfig('consulta'),created_at:null,created_by:null};}}
 test('RAG recupera contexto limitado, retorna evidências e revalida as fontes antes de responder',async()=>{
   const chats=new Chats();let calls=0;
+  const stages:string[]=[];
   const service=new RagService(chats,new Search(),{embed:async()=>Array(1024).fill(0.1)},new Revisions(),{
     generate:async(payload)=>{calls++;assert.deepEqual(payload.context,[{id:chunk,text:row.text}]);return {evidence:[{source_id:chunk.toUpperCase(),quote:row.text}]};},
   });
-  const answer=await service.answer(randomUUID(),'Como funciona o login?',[project]);
+  const answer=await service.answer(randomUUID(),'Como funciona o login?',[project],stage=>stages.push(stage));
+  assert.deepEqual(stages,['searching','synthesizing','validating']);
   assert.deepEqual(answer.evidencias,[{chunk_id:chunk,texto:row.text}]);assert.equal(answer.fontes.length,1);
   await assert.rejects(()=>service.answer(randomUUID(),'Login',[other]),/Projeto não encontrado/);assert.equal(calls,1);
   chats.allowed=false;
@@ -102,4 +104,24 @@ test('RAG respeita os limites de contexto mesmo com múltiplos trechos grandes',
   });
   const result=await service.answer(randomUUID(),'Consultar evidências',[project]);
   assert.ok(generated);assert.deepEqual(result.evidencias,[]);assert.deepEqual(result.fontes,[]);
+});
+test('RAG registra tempos por etapa sem incluir pergunta ou conteúdo dos documentos',async()=>{
+  const entries:unknown[][]=[];
+  const original=console.info;
+  console.info=(...args:unknown[])=>{entries.push(args);};
+  try {
+    const service=new RagService(new Chats(),new Search(),{embed:async()=>Array(1024).fill(0.1)},new Revisions(),{
+      generate:async()=>({evidence:[{source_id:chunk,quote:row.text}]}),
+    });
+    await service.answer(randomUUID(),'Pergunta confidencial',[project]);
+  } finally { console.info=original; }
+  assert.equal(entries.length,1);
+  assert.equal(entries[0][0],'[RAG] Request completed');
+  const event=entries[0][1] as Record<string,unknown>;
+  assert.equal(typeof event.duracao_total_ms,'number');
+  assert.equal(typeof event.diagnostico_id,'string');
+  assert.deepEqual(Object.keys(event.duracoes_ms as Record<string,number>).sort(),['busca_hibrida','embedding','geracao_e_validacao_harness','revalidacao_fontes']);
+  assert.equal(event.resultados_recuperados,1);
+  assert.equal(event.fontes_utilizadas,1);
+  assert.doesNotMatch(JSON.stringify(entries),/Pergunta confidencial|O login exige autenticação/);
 });

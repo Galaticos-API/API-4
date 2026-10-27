@@ -8,6 +8,7 @@ import {
   describeChatError,
   listConversations,
   listMessages,
+  type ChatProgressStage,
   type ChatConversation,
   type ChatMessage,
   type ChatOrigin,
@@ -30,19 +31,19 @@ interface ThreadMessage extends ChatMessage {
 
 type LoadState = "idle" | "loading" | "error";
 
-const THINKING_MESSAGES = [
-  "Consultando o acervo do projeto",
-  "Analisando os trechos encontrados",
-  "Preparando uma resposta com fontes",
-];
+const THINKING_MESSAGES: Record<ChatProgressStage, string> = {
+  searching: "Buscando evidências no acervo do projeto",
+  synthesizing: "Preparando resposta com os trechos encontrados",
+  validating: "Validando evidências e fontes",
+};
 
-function ThinkingIndicator() {
-  const [messageIndex, setMessageIndex] = useState(0);
+function ThinkingIndicator({ stage }: { stage: ChatProgressStage }) {
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const message = THINKING_MESSAGES[stage];
 
   useEffect(() => {
-    const timer = window.setInterval(() => {
-      setMessageIndex((current) => (current + 1) % THINKING_MESSAGES.length);
-    }, 2800);
+    const startedAt = Date.now();
+    const timer = window.setInterval(() => setElapsedSeconds(Math.floor((Date.now() - startedAt) / 1000)), 1000);
     return () => window.clearInterval(timer);
   }, []);
 
@@ -51,9 +52,10 @@ function ThinkingIndicator() {
       <span className="chat-typing-dots" aria-hidden="true">
         <i /><i /><i />
       </span>
-      <span key={messageIndex} className="chat-typing-message" aria-hidden="true">
-        {THINKING_MESSAGES[messageIndex]}
+      <span key={stage} className="chat-typing-message" aria-live="polite" aria-atomic="true">
+        {message}
       </span>
+      {elapsedSeconds >= 5 && <span className="chat-typing-elapsed" aria-hidden="true">· {elapsedSeconds}s</span>}
     </div>
   );
 }
@@ -71,6 +73,7 @@ export function ChatView() {
   const [messagesState, setMessagesState] = useState<LoadState>("idle");
   const [draft, setDraft] = useState("");
   const [pendingKeys, setPendingKeys] = useState<string[]>([]);
+  const [progressByKey, setProgressByKey] = useState<Partial<Record<string, ChatProgressStage>>>({});
   const [sendError, setSendError] = useState("");
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -287,6 +290,7 @@ export function ChatView() {
     sendLocks.current.add(sendKey);
     const revision = conversationRevision.current;
     setPendingKeys(current => [...current, sendKey]);
+    setProgressByKey(current => ({ ...current, [sendKey]: "searching" }));
     setSendError("");
     const pendingId = retryId ?? `local-${Date.now()}`;
     setMessages((current) => retryId
@@ -294,7 +298,9 @@ export function ChatView() {
       : [...current, { id: pendingId, remetente: "user", conteudo: question, fontes: [], created_at: new Date().toISOString() }]);
     setDraft(current=>!retryId||current.trim()===question?'':current);
     try {
-      const answer = await askQuestion({ pergunta: question, conversaId: activeId, projetoId: activeId ? null : scopeId, mensagemId: retryId });
+      const answer = await askQuestion({ pergunta: question, conversaId: activeId, projetoId: activeId ? null : scopeId, mensagemId: retryId }, undefined, (stage) => {
+        if (mounted.current) setProgressByKey(current => ({ ...current, [sendKey]: stage }));
+      });
       if (!mounted.current) return;
       void loadConversations(false);
       if (revision !== conversationRevision.current) {
@@ -324,7 +330,10 @@ export function ChatView() {
       setSendError(describeChatError(error));
     } finally {
       sendLocks.current.delete(sendKey);
-      if (mounted.current) setPendingKeys(current => current.filter(key => key !== sendKey));
+      if (mounted.current) {
+        setPendingKeys(current => current.filter(key => key !== sendKey));
+        setProgressByKey(current => { const next = { ...current }; delete next[sendKey]; return next; });
+      }
     }
   }, [activeId, scopeId, sendKey, loadConversations, loadMessages,messagesState]);
 
@@ -490,7 +499,7 @@ export function ChatView() {
               />
             ))}
 
-            {sending && <ThinkingIndicator />}
+            {sending && <ThinkingIndicator stage={progressByKey[sendKey] ?? "searching"} />}
           </div>
 
           {(sendError || failedMessage) && (

@@ -40,6 +40,20 @@ test('abreviar um título não divide um emoji nem altera a pergunta', async () 
   assert.ok(chats.titles[0].includes('😀'));
   assert.deepEqual(chats.questions, [question]);
 });
+test('ChatService propaga ao cliente somente os estágios de progresso definidos', async () => {
+  const stages: string[] = [];
+  const progressAssistant = {
+    ask: async (_question: string, _project: string | undefined, _user: string | undefined, onProgress?: (stage: 'searching' | 'synthesizing' | 'validating') => void) => {
+      onProgress?.('searching');
+      onProgress?.('synthesizing');
+      onProgress?.('validating');
+      return { resposta: NOT_FOUND_ANSWER, fontes: [] };
+    },
+  };
+  const service = new ChatService(new RecordingChats(), progressAssistant);
+  await service.query(randomUUID(), { pergunta: 'Consultar acervo', projetoId: randomUUID() }, stage => stages.push(stage));
+  assert.deepEqual(stages, ['searching', 'synthesizing', 'validating']);
+});
 test('título informado pelo usuário também preserva emojis e recusa texto inválido', async () => {
   const chats = new RecordingChats(), service = new ChatService(chats, assistant);
   await assert.rejects(() => service.createConversation(randomUUID(), { projetoId: randomUUID(), titulo: 'Título\u0000inválido' }), ValidationError);

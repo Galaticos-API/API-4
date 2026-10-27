@@ -2,6 +2,7 @@ import { ApiError, apiRequest } from "./api_auth";
 import { serverMessage } from "./api_errors";
 
 export type ChatOrigin = "assistente" | "busca_textual" | "sem_resultado";
+export type ChatProgressStage = "searching" | "synthesizing" | "validating";
 
 export interface ChatSource {
   id: string;
@@ -115,7 +116,9 @@ export async function listMessages(conversationId: string, signal?: AbortSignal)
 export async function askQuestion(
   input: { pergunta: string; conversaId?: string | null; projetoId?: string | null; mensagemId?: string | null },
   signal?: AbortSignal,
+  onProgress?: (stage: ChatProgressStage) => void,
 ): Promise<ChatAnswer> {
+  if (onProgress) return askQuestionWithProgress(input, onProgress, signal);
   const deadline = AbortSignal.timeout(QUERY_TIMEOUT_MS);
   const response = await apiRequest("/chat/query", {
     method: "POST",
@@ -127,12 +130,87 @@ export async function askQuestion(
     }),
     signal: signal ? AbortSignal.any([signal, deadline]) : deadline,
   }, QUERY_TIMEOUT_MS);
-  const data: unknown = await response.json();
+  return parseChatAnswer(await response.json());
+}
+
+function parseChatAnswer(data: unknown): ChatAnswer {
   if (!isRecord(data) || typeof data.conversa_id !== "string" || typeof data.resposta !== "string") {
     throw new Error("Resposta do assistente inválida");
   }
   const origem = ["assistente", "busca_textual", "sem_resultado"].includes(String(data.origem)) ? (data.origem as ChatOrigin) : "assistente";
   return { conversa_id: data.conversa_id, resposta: data.resposta, fontes: parseSources(data.fontes), origem };
+}
+
+export async function askQuestionWithProgress(
+  input: { pergunta: string; conversaId?: string | null; projetoId?: string | null; mensagemId?: string | null },
+  onProgress: (stage: ChatProgressStage) => void,
+  signal?: AbortSignal,
+): Promise<ChatAnswer> {
+  const deadline = AbortSignal.timeout(QUERY_TIMEOUT_MS);
+  const response = await apiRequest("/chat/query/stream", {
+    method: "POST",
+    body: JSON.stringify({
+      pergunta: input.pergunta,
+      conversa_id: input.conversaId || undefined,
+      mensagem_id: input.mensagemId || undefined,
+      projeto_id: input.projetoId || undefined,
+    }),
+    signal: signal ? AbortSignal.any([signal, deadline]) : deadline,
+  }, QUERY_TIMEOUT_MS);
+
+  // Compatibility fallback for proxies or servers that do not pass through SSE.
+  if (!response.headers.get("content-type")?.includes("text/event-stream")) {
+    return parseChatAnswer(await response.json());
+  }
+
+  const reader = response.body?.getReader();
+  if (!reader) throw new Error("O fluxo de resposta não está disponível neste navegador.");
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let answer: ChatAnswer | undefined;
+  const consumeFrame = (frame: string) => {
+    let event = "message";
+    const data: string[] = [];
+    for (const line of frame.split(/\r?\n/)) {
+      if (line.startsWith("event:")) event = line.slice(6).trim();
+      else if (line.startsWith("data:")) data.push(line.slice(5).trimStart());
+    }
+    if (!data.length) return;
+    const payload: unknown = JSON.parse(data.join("\n"));
+    if (event === "progress") {
+      if (isRecord(payload) && ["searching", "synthesizing", "validating"].includes(String(payload.stage))) {
+        onProgress(payload.stage as ChatProgressStage);
+      }
+      return;
+    }
+    if (event === "completed") { answer = parseChatAnswer(payload); return; }
+    if (event === "error") {
+      const status = isRecord(payload) && typeof payload.status === "number" ? payload.status : 503;
+      throw new ApiError(status, payload);
+    }
+  };
+
+  try {
+    while (true) {
+      const { value, done } = await reader.read();
+      buffer += decoder.decode(value, { stream: !done });
+      let boundary = /\r?\n\r?\n/.exec(buffer);
+      while (boundary) {
+        consumeFrame(buffer.slice(0, boundary.index));
+        buffer = buffer.slice(boundary.index + boundary[0].length);
+        boundary = /\r?\n\r?\n/.exec(buffer);
+      }
+      if (done) break;
+    }
+    if (buffer.trim()) consumeFrame(buffer);
+  } catch (error) {
+    await reader.cancel().catch(() => undefined);
+    throw error;
+  } finally {
+    reader.releaseLock();
+  }
+  if (!answer) throw new Error("O fluxo terminou sem uma resposta concluída.");
+  return answer;
 }
 
 export function describeChatError(error: unknown): string {

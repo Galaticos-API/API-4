@@ -1,5 +1,5 @@
 import {afterEach,expect,it,vi} from 'vitest';
-import {askQuestion,describeChatError,listChatProjects} from './api_chat';
+import {askQuestion,describeChatError,listChatProjects,type ChatProgressStage} from './api_chat';
 import {ApiError} from './api_auth';
 
 afterEach(()=>{vi.unstubAllGlobals();vi.restoreAllMocks();vi.clearAllTimers();vi.useRealTimers();});
@@ -33,6 +33,35 @@ it('preserva o cancelamento solicitado por quem iniciou a consulta',async()=>{
   const result=expect(askQuestion({pergunta:'Consultar evidências',projetoId:'project-a'},controller.signal)).rejects.toMatchObject({name:'AbortError'});
   controller.abort();
   await result;
+});
+
+it('processa eventos de progresso fragmentados e só resolve com a resposta concluída',async()=>{
+  const wire=[
+    'event: progress\ndata: {"stage":"searching"}\n\n',
+    'event: progress\ndata: {"stage":"synthesizing"}\n\n',
+    'event: progress\ndata: {"stage":"validating"}\n\n',
+    'event: completed\ndata: {"conversa_id":"conversation-a","resposta":"Resposta validada","fontes":[],"origem":"assistente"}\n\n',
+  ].join('');
+  const bytes=new TextEncoder().encode(wire);
+  const body=new ReadableStream<Uint8Array>({start(controller){
+    controller.enqueue(bytes.slice(0,29));
+    controller.enqueue(bytes.slice(29,88));
+    controller.enqueue(bytes.slice(88));
+    controller.close();
+  }});
+  vi.stubGlobal('fetch',vi.fn(async()=>new Response(body,{headers:{'Content-Type':'text/event-stream; charset=utf-8'}})));
+  const stages:ChatProgressStage[]=[];
+  const result=await askQuestion({pergunta:'Consultar evidências',projetoId:'project-a'},undefined,stage=>stages.push(stage));
+  expect(stages).toEqual(['searching','synthesizing','validating']);
+  expect(result.resposta).toBe('Resposta validada');
+  expect(vi.mocked(fetch)).toHaveBeenCalledWith(expect.stringContaining('/chat/query/stream'),expect.any(Object));
+});
+
+it('propaga erro seguro enviado como evento do fluxo',async()=>{
+  const wire='event: error\ndata: {"status":503,"error":"Falha no RAG","code":"CHAT_FAILED","details":{"diagnostico_id":"e8e57e2d-0b59-4cdc-b191-d1618381c6a2"}}\n\n';
+  vi.stubGlobal('fetch',vi.fn(async()=>new Response(wire,{headers:{'Content-Type':'text/event-stream'}})));
+  await expect(askQuestion({pergunta:'Consultar evidências',projetoId:'project-a'},undefined,()=>{}))
+    .rejects.toMatchObject({status:503,details:{code:'CHAT_FAILED'}});
 });
 
 it('mantém a navegação interna da fonte e descarta links externos ou malformados',async()=>{

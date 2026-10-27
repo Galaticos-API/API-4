@@ -10,7 +10,7 @@ import { SearchRepository } from '../search/search.repository.js';
 import { HttpSearchEmbeddingClient,type SearchEmbeddingClient } from '../search/search.service.js';
 import type { HybridSearchRow } from '../search/search.types.js';
 import { ChatRepository } from './chat.repository.js';
-import { NOT_FOUND_ANSWER,validChatText,type ChatSource } from './chat.types.js';
+import { NOT_FOUND_ANSWER,validChatText,type ChatProgressStage,type ChatSource } from './chat.types.js';
 
 export const ragInput=z.object({pergunta:z.string().trim().min(1).max(2000).refine(validChatText,'Use texto Unicode válido, sem caractere nulo.'),projeto_ids:z.array(z.string().uuid().transform(id=>id.toLowerCase())).min(1).max(50).optional()}).strict();
 
@@ -52,7 +52,7 @@ export class RagService {
     private readonly embeddings:SearchEmbeddingClient=new HttpSearchEmbeddingClient(),
     private readonly revisions=new HarnessRepository(),private readonly engine:HarnessEngine=new HttpHarnessEngine()){}
 
-  async answer(userId:string,question:string,requestedProjects?:string[]) {
+  async answer(userId:string,question:string,requestedProjects?:string[],onProgress?:(stage:ChatProgressStage)=>void) {
     const parsed=ragInput.safeParse({pergunta:question,...(requestedProjects?{projeto_ids:requestedProjects}:{})});
     if(!parsed.success)throw new ValidationError('Pergunta ou escopo inválido.');
     requestedProjects=parsed.data.projeto_ids;
@@ -63,13 +63,27 @@ export class RagService {
     if(!projectIds.length)return empty;
     const diagnosticId=randomUUID();
     const startedAt=performance.now();
+    const durations:Record<string,number>={};
+    const finishLog=(resultCount:number,sourceCount=0)=>console.info('[RAG] Request completed',{
+      diagnostico_id:diagnosticId,
+      duracao_total_ms:Math.round(performance.now()-startedAt),
+      duracoes_ms:durations,
+      resultados_recuperados:resultCount,
+      fontes_utilizadas:sourceCount,
+    });
+    const reportProgress=(progressStage:ChatProgressStage)=>{try{onProgress?.(progressStage);}catch{/* A conexão do cliente não deve interromper o RAG. */}};
     let stage:RagFailureStage='embedding';
     try {
+      reportProgress('searching');
+      let stageStarted=performance.now();
       const vector=await this.embeddings.embed(parsed.data.pergunta);
+      durations.embedding=Math.round(performance.now()-stageStarted);
       if(!Array.isArray(vector)||vector.length!==1024||vector.some(value=>!Number.isFinite(value))||vector.every(value=>value===0))throw Error('Embedding incompatível');
       stage='hybrid_search';
+      stageStarted=performance.now();
       const rows=await this.search.hybridSearch({query:parsed.data.pergunta,projectId:projectIds[0],limit:5},vector,env.SEARCH_MIN_VECTOR_SIMILARITY,env.SEARCH_MIN_TEXT_RANK,projectIds);
-      if(!rows.length)return empty;
+      durations.busca_hibrida=Math.round(performance.now()-stageStarted);
+      if(!rows.length){finishLog(0);return empty;}
       if(rows.some(row=>!projectIds.includes(row.project_id)))throw Error('Escopo incompatível');
       stage='context_build';
       let remaining=20000;
@@ -77,14 +91,20 @@ export class RagService {
         const text=row.text.slice(0,Math.min(8000,remaining));remaining-=text.length;
         return text.trim()?[{id:row.id,text}]:[];
       });
-      if(!context.length)return empty;
+      if(!context.length){finishLog(rows.length);return empty;}
       stage='harness';
+      reportProgress('synthesizing');
+      stageStarted=performance.now();
       const adapter=new EvidenceEngine(this.engine);
       const response=await new HarnessService(this.revisions,adapter,this.chats).run(projectIds[0],
         {mode:'consulta',operation:'responder',level:'pbi',fields:{pergunta:parsed.data.pergunta},context:[]},context,diagnosticId);
-      if(!adapter.evidence.length)return empty;
+      durations.geracao_e_validacao_harness=Math.round(performance.now()-stageStarted);
+      if(!adapter.evidence.length){finishLog(rows.length);return empty;}
       stage='source_revalidation';
+      reportProgress('validating');
+      stageStarted=performance.now();
       const current=await this.chats.currentRagChunks(userId,adapter.evidence.map(item=>item.source_id));
+      durations.revalidacao_fontes=Math.round(performance.now()-stageStarted);
       if(adapter.evidence.some(item=>{
         const source=rows.find(row=>row.id===item.source_id)!;
         const latest=current.find(row=>row.id===item.source_id);
@@ -98,7 +118,9 @@ export class RagService {
         const source=rows.find(row=>row.id===item.source_id)!;
         return `${escapeMarkdown(source.project_name)}: ${escapeMarkdown(item.quote)} [${item.source_id}]`;
       }).join('\n\n'):(response.result as {answer:string}).answer;
-      return {...empty,resposta:answer,fontes:usedSources(rows,adapter.evidence),
+      const sources=usedSources(rows,adapter.evidence);
+      finishLog(rows.length,sources.length);
+      return {...empty,resposta:answer,fontes:sources,
         evidencias:adapter.evidence.map(item=>({chunk_id:item.source_id,texto:item.quote}))};
     } catch (error) {
       const requestId=diagnosticIdFrom(error,diagnosticId);
@@ -109,6 +131,7 @@ export class RagService {
         etapa:stage,
         codigo:RAG_FAILURE_CODES[stage],
         duracao_ms:Math.round(performance.now()-startedAt),
+        duracoes_ms:durations,
       });
       throw new AppError('O assistente está indisponível ou não conseguiu validar as evidências. Sua pergunta foi preservada.',503,'RAG_UNAVAILABLE',{diagnostico_id:requestId});
     }

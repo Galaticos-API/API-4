@@ -13,6 +13,7 @@ import {
   validChatText,
   type AssistantAnswer,
   type ChatMessage,
+  type ChatProgressStage,
   type ChatSource,
   type Conversation,
   type QueryInput,
@@ -20,7 +21,7 @@ import {
 } from "./chat.types.js";
 
 export interface AssistantClient {
-  ask(pergunta: string, projetoId?: string,usuarioId?:string): Promise<AssistantAnswer>;
+  ask(pergunta: string, projetoId?: string,usuarioId?:string,onProgress?:(stage:ChatProgressStage)=>void): Promise<AssistantAnswer>;
 }
 
 export function sanitizeSources(value: unknown): ChatSource[] {
@@ -40,11 +41,11 @@ export function sanitizeSources(value: unknown): ChatSource[] {
 export class HttpAssistantClient implements AssistantClient {
   constructor(private readonly baseUrl: string = env.AI_SERVICE_URL, private readonly repository = new ChatRepository()) { }
 
-  async ask(pergunta: string, projetoId?: string,usuarioId?:string): Promise<AssistantAnswer> {
+  async ask(pergunta: string, projetoId?: string,usuarioId?:string,onProgress?:(stage:ChatProgressStage)=>void): Promise<AssistantAnswer> {
     if (!projetoId) throw new ValidationError("Escolha um projeto.");
     if(!usuarioId)throw new ValidationError('Autenticação necessária.');
     return new RagService(this.repository,new SearchRepository(),new HttpSearchEmbeddingClient(this.baseUrl),undefined,new HttpHarnessEngine(this.baseUrl))
-      .answer(usuarioId,pergunta,[projetoId]);
+      .answer(usuarioId,pergunta,[projetoId],onProgress);
   }
 }
 
@@ -122,7 +123,16 @@ export class ChatService {
     return this.repository.listMessages(conversaId,usuarioId);
   }
 
-  async query(usuarioId: string, input: QueryInput): Promise<QueryResult> {
+  async query(usuarioId: string, input: QueryInput, onProgress?:(stage:ChatProgressStage)=>void): Promise<QueryResult> {
+    const startedAt=performance.now();
+    const logCompleted=(result:QueryResult)=>{
+      console.info('[Chat] Request completed',{
+        duracao_total_ms:Math.round(performance.now()-startedAt),
+        origem:result.origem,
+        fontes_utilizadas:result.fontes.length,
+      });
+      return result;
+    };
     const pergunta = input.pergunta.trim();
     if (!pergunta) throw new ValidationError("Digite uma pergunta.");
     if (pergunta.length > MAX_QUESTION_LENGTH) throw new ValidationError(`A pergunta pode ter no máximo ${MAX_QUESTION_LENGTH} caracteres.`);
@@ -152,14 +162,14 @@ export class ChatService {
       if (isGreetingOnly(pergunta)) {
         const answer: AssistantAnswer = { resposta: GREETING_REPLY, fontes: [] };
         await this.repository.finishMessage(conversaId, messageId, answer.resposta, answer.fontes);
-        return { conversa_id: conversaId, resposta: answer.resposta, fontes: answer.fontes, origem: "assistente" };
+        return logCompleted({ conversa_id: conversaId, resposta: answer.resposta, fontes: answer.fontes, origem: "assistente" });
       }
 
-      const answer=await this.assistant.ask(pergunta,projetoId,usuarioId);
+      const answer=await this.assistant.ask(pergunta,projetoId,usuarioId,onProgress);
       const origem:QueryResult['origem']=answer.resposta===NOT_FOUND_ANSWER?'sem_resultado':'assistente';
 
       await this.repository.finishMessage(conversaId, messageId, answer.resposta, answer.fontes);
-      return { conversa_id: conversaId, resposta: answer.resposta, fontes: answer.fontes, origem,...(answer.evidencias?{evidencias:answer.evidencias}: {}) };
+      return logCompleted({ conversa_id: conversaId, resposta: answer.resposta, fontes: answer.fontes, origem,...(answer.evidencias?{evidencias:answer.evidencias}: {}) });
     } catch (error) {
       await this.repository.failMessage(messageId).catch(() => undefined);
       const causeDetails = error instanceof AppError && typeof error.details === "object" && error.details !== null

@@ -1,6 +1,6 @@
 import { Router, type NextFunction, type Request, type RequestHandler, type Response } from "express";
 import { requireAuth } from "../../middleware/requireAuth.js";
-import { ValidationError } from "../../shared/errors.js";
+import { AppError, ValidationError } from "../../shared/errors.js";
 import { ChatService } from "./chat.service.js";
 import { RagService,ragInput } from './rag.service.js';
 
@@ -83,6 +83,45 @@ export function createChatRouter(service: ChatService = new ChatService(), authe
       }));
     } catch (error) {
       next(error);
+    }
+  });
+
+  router.post("/query/stream", async (req: Request, res: Response, next: NextFunction) => {
+    const pergunta = req.body?.pergunta;
+    if (typeof pergunta !== "string") { next(new ValidationError("Pergunta é obrigatória.")); return; }
+
+    res.status(200).set({
+      "Content-Type": "text/event-stream; charset=utf-8",
+      "Cache-Control": "no-cache, no-transform",
+      Connection: "keep-alive",
+      "X-Accel-Buffering": "no",
+    });
+    res.flushHeaders();
+
+    const writeEvent = (event: string, data: unknown) => {
+      if (!res.destroyed && !res.writableEnded) res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+    };
+    const heartbeat = setInterval(() => {
+      if (!res.destroyed && !res.writableEnded) res.write(": keep-alive\n\n");
+    }, 15_000);
+
+    try {
+      const result = await service.query(userId(req), {
+        pergunta,
+        conversaId: text(req.body?.conversa_id),
+        mensagemId: text(req.body?.mensagem_id),
+        projetoId: text(req.body?.projeto_id),
+      }, (stage) => writeEvent("progress", { stage }));
+      writeEvent("completed", result);
+      res.end();
+    } catch (error) {
+      const payload = error instanceof AppError
+        ? { status: error.statusCode, error: error.message, code: error.code, details: error.details }
+        : { status: 500, error: "Erro interno do servidor.", code: "INTERNAL_SERVER_ERROR" };
+      writeEvent("error", payload);
+      res.end();
+    } finally {
+      clearInterval(heartbeat);
     }
   });
 
