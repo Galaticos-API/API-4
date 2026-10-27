@@ -14,10 +14,11 @@ import {
   type ChatOrigin,
 } from "../../api/api_chat";
 import { listChatProjects } from "../../api/api_chat";
-import { Check, Copy } from "lucide-react";
+import { ArrowUp, Check, CircleAlert, Copy, LoaderCircle, Mic, MicOff, Sparkles } from "lucide-react";
 import { ORIGIN_BADGE, SUGGESTED_PROMPTS, formatClock, formatRelative, remainingCharacters } from "../../models/chat";
 import { Alert, Badge, Button } from "../common/ui";
 import { Markdown } from "../common/Markdown";
+import { MessageContextMenu, type MessageContextAction } from "./MessageContextMenu";
 import "../../assets/styles/chat.css";
 
 interface ProjectOption {
@@ -27,6 +28,34 @@ interface ProjectOption {
 
 interface ThreadMessage extends ChatMessage {
   failed?: boolean;
+}
+
+interface SpeechResultLike {
+  isFinal: boolean;
+  0?: { transcript: string };
+}
+
+interface SpeechResultEventLike {
+  results: ArrayLike<SpeechResultLike>;
+}
+
+interface SpeechRecognitionLike {
+  lang: string;
+  continuous: boolean;
+  interimResults: boolean;
+  onresult: ((event: SpeechResultEventLike) => void) | null;
+  onerror: ((event: { error: string }) => void) | null;
+  onend: (() => void) | null;
+  start: () => void;
+  stop: () => void;
+  abort: () => void;
+}
+
+type SpeechRecognitionConstructor = new () => SpeechRecognitionLike;
+
+interface SpeechRecognitionWindow extends Window {
+  SpeechRecognition?: SpeechRecognitionConstructor;
+  webkitSpeechRecognition?: SpeechRecognitionConstructor;
 }
 
 type LoadState = "idle" | "loading" | "error";
@@ -75,15 +104,27 @@ export function ChatView() {
   const [pendingKeys, setPendingKeys] = useState<string[]>([]);
   const [progressByKey, setProgressByKey] = useState<Partial<Record<string, ChatProgressStage>>>({});
   const [sendError, setSendError] = useState("");
+  const [voiceRecording, setVoiceRecording] = useState(false);
+  const [voiceMessage, setVoiceMessage] = useState("");
+  const [voiceError, setVoiceError] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [copyFailedId, setCopyFailedId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [confirmDeleteConversationId, setConfirmDeleteConversationId] = useState<string | null>(null);
+  const [confirmDeleteConversationSource, setConfirmDeleteConversationSource] = useState<"sidebar" | "header" | null>(null);
+  const [conversationCopyStatus, setConversationCopyStatus] = useState("");
   const [deletingMessageId, setDeletingMessageId] = useState<string | null>(null);
   const [confirmDeleteMessageId, setConfirmDeleteMessageId] = useState<string | null>(null);
   const messagesViewport = useRef<HTMLDivElement>(null);
   const composer = useRef<HTMLTextAreaElement>(null);
+  const submitButton = useRef<HTMLButtonElement>(null);
+  const focusComposerAfterSend = useRef<number | null>(null);
+  const speechRecognition = useRef<SpeechRecognitionLike | null>(null);
+  const speechBaseDraft = useRef("");
   const mobileSidebarTrigger = useRef<HTMLButtonElement>(null);
   const mobileSidebarClose = useRef<HTMLButtonElement>(null);
   const mobileSidebarPanel = useRef<HTMLElement>(null);
+  const conversationActionTriggers = useRef(new Map<string, HTMLButtonElement>());
   const mounted = useRef(true);
   const messagesRequest = useRef(0);
   const conversationsRequest = useRef(0);
@@ -98,7 +139,16 @@ export function ChatView() {
 
   useEffect(() => {
     mounted.current = true;
-    return () => { mounted.current = false; };
+    return () => {
+      mounted.current = false;
+      if (speechRecognition.current) {
+        speechRecognition.current.onresult = null;
+        speechRecognition.current.onerror = null;
+        speechRecognition.current.onend = null;
+        try { speechRecognition.current.abort(); } catch { /* Best effort during unmount. */ }
+        speechRecognition.current = null;
+      }
+    };
   }, []);
 
   useEffect(() => {
@@ -213,45 +263,75 @@ export function ChatView() {
     viewport?.scrollTo?.({ top: viewport.scrollHeight, behavior: "smooth" });
   }, [messages, sending]);
 
+  useEffect(() => {
+    if (sending || focusComposerAfterSend.current === null) return;
+    const focusRevision = focusComposerAfterSend.current;
+    focusComposerAfterSend.current = null;
+    if (focusRevision === conversationRevision.current) composer.current?.focus({ preventScroll: true });
+  }, [sending, sendKey]);
+
+  useEffect(() => {
+    const input = composer.current;
+    if (!input) return;
+    input.style.height = "auto";
+    const maxHeight = 180;
+    input.style.height = `${Math.min(input.scrollHeight, maxHeight)}px`;
+    input.style.overflowY = input.scrollHeight > maxHeight ? "auto" : "hidden";
+  }, [draft]);
+
   const activeConversation = conversations.find((item) => item.id === activeId) ?? null;
   const scopeName = projects.find((project) => project.id === scopeId)?.nome ?? activeConversation?.projeto_nome ?? null;
   const scopeLocked = Boolean(activeId);
 
   const startNewConversation = () => {
+    cancelVoiceCapture();
+    focusComposerAfterSend.current = null;
     conversationRevision.current += 1;
     messagesRequest.current += 1;
     setActiveId(null);
     setMessages([]);
     setSendError("");
     setConfirmDeleteMessageId(null);
+    setConfirmDeleteConversationId(null);
+    setConfirmDeleteConversationSource(null);
     setDraft("");
     composer.current?.focus();
   };
 
   const openConversation = (conversation: ChatConversation) => {
     if (conversation.id === activeId) return;
+    cancelVoiceCapture();
+    focusComposerAfterSend.current = null;
     conversationRevision.current += 1;
     messagesRequest.current += 1;
     setMessages([]);
     setDraft("");
     setSendError("");
     setConfirmDeleteMessageId(null);
+    setConfirmDeleteConversationId(null);
+    setConfirmDeleteConversationSource(null);
     setActiveId(conversation.id);
     setScopeId(conversation.projeto_id ?? "");
   };
 
   const handleDeleteConversation = async (conversationId: string) => {
     if (deletingId) return;
-    const confirmed = window.confirm("Tem certeza que deseja excluir esta conversa? Todas as mensagens serão removidas permanentemente.");
-    if (!confirmed) return;
-
     setDeletingId(conversationId);
+    setSendError("");
     try {
       await deleteConversation(conversationId);
       if (!mounted.current) return;
       setConversations((current) => current.filter((c) => c.id !== conversationId));
+      setConfirmDeleteConversationId(null);
+      setConfirmDeleteConversationSource(null);
       if (activeId === conversationId) {
         startNewConversation();
+      } else {
+        window.setTimeout(() => {
+          const remainingConversation = conversations.find((item) => item.id !== conversationId);
+          if (remainingConversation) conversationActionTriggers.current.get(`sidebar:${remainingConversation.id}`)?.focus();
+          else document.querySelector<HTMLButtonElement>(".chat-new-conversation")?.focus();
+        }, 0);
       }
     } catch (error) {
       if (!mounted.current) return;
@@ -259,6 +339,29 @@ export function ChatView() {
     } finally {
       if (mounted.current) setDeletingId(null);
     }
+  };
+
+  const copyConversationTitle = async (conversation: ChatConversation) => {
+    try {
+      await navigator.clipboard.writeText(conversation.titulo);
+      setConversationCopyStatus(`Título da conversa “${conversation.titulo}” copiado.`);
+    } catch {
+      setConversationCopyStatus("Não foi possível copiar o título da conversa.");
+    }
+    window.setTimeout(() => setConversationCopyStatus(""), 2500);
+  };
+
+  const requestDeleteConversation = (conversationId: string, source: "sidebar" | "header" = "sidebar") => {
+    if (!deletingId) {
+      setConfirmDeleteConversationId(conversationId);
+      setConfirmDeleteConversationSource(source);
+    }
+  };
+
+  const restoreConversationActionFocus = (conversationId: string, source: "sidebar" | "header" = "sidebar") => {
+    setConfirmDeleteConversationId(null);
+    setConfirmDeleteConversationSource(null);
+    requestAnimationFrame(() => conversationActionTriggers.current.get(`${source}:${conversationId}`)?.focus());
   };
 
   const handleDeleteMessage = async (message: ThreadMessage) => {
@@ -272,6 +375,7 @@ export function ChatView() {
       setMessages(current => current.filter(item => item.id !== message.id));
       setConfirmDeleteMessageId(null);
       setCopiedId(current => current === message.id ? null : current);
+      setCopyFailedId(current => current === message.id ? null : current);
       void loadConversations(false);
     } catch (error) {
       if (mounted.current && selectedConversation.current === conversationId) setSendError(describeChatError(error));
@@ -284,11 +388,29 @@ export function ChatView() {
     if (!sending && !deletingMessageId) setConfirmDeleteMessageId(message.id);
   };
 
+  const cancelVoiceCapture = useCallback((message = "") => {
+    const recognition = speechRecognition.current;
+    if (recognition) {
+      recognition.onresult = null;
+      recognition.onerror = null;
+      recognition.onend = null;
+      try { recognition.abort(); } catch { /* Best effort when replacing dictated text. */ }
+      speechRecognition.current = null;
+    }
+    setVoiceRecording(false);
+    setVoiceError(false);
+    setVoiceMessage(message);
+  }, []);
+
   const send = useCallback(async (text: string, retryId?: string) => {
     const question = text.trim();
     if (!question || sendLocks.current.has(sendKey) || !scopeId || messagesState==='loading') return;
     sendLocks.current.add(sendKey);
     const revision = conversationRevision.current;
+    if (document.activeElement === composer.current || document.activeElement === submitButton.current) {
+      focusComposerAfterSend.current = revision;
+    }
+    if (speechRecognition.current) cancelVoiceCapture();
     setPendingKeys(current => [...current, sendKey]);
     setProgressByKey(current => ({ ...current, [sendKey]: "searching" }));
     setSendError("");
@@ -335,26 +457,111 @@ export function ChatView() {
         setProgressByKey(current => { const next = { ...current }; delete next[sendKey]; return next; });
       }
     }
-  }, [activeId, scopeId, sendKey, loadConversations, loadMessages,messagesState]);
+  }, [activeId, scopeId, sendKey, loadConversations, loadMessages, messagesState, cancelVoiceCapture]);
 
   const copy = async (message: ThreadMessage) => {
     try {
       await navigator.clipboard.writeText(message.conteudo);
       setCopiedId(message.id);
+      setCopyFailedId(null);
       window.setTimeout(() => setCopiedId((current) => (current === message.id ? null : current)), 2000);
     } catch {
       setCopiedId(null);
+      setCopyFailedId(message.id);
+      window.setTimeout(() => setCopyFailedId((current) => (current === message.id ? null : current)), 3000);
     }
   };
 
   const remaining = remainingCharacters(draft, MAX_QUESTION_LENGTH);
   const canSend = Boolean(scopeId) && draft.trim().length > 0 && remaining >= 0 && !sending && messagesState!=='loading';
+  const speechSupported = typeof window !== "undefined" && Boolean((window as SpeechRecognitionWindow).SpeechRecognition ?? (window as SpeechRecognitionWindow).webkitSpeechRecognition);
   const lastMessage = messages[messages.length - 1];
   const failedMessage = lastMessage?.remetente === 'user' && lastMessage.failed ? lastMessage : undefined;
 
   const editDraft = (value: string) => {
     if (!activeId && conversationRevision.current === 0) conversationRevision.current += 1;
     setDraft(value);
+  };
+
+  const handleDraftInput = (value: string) => {
+    if (speechRecognition.current) cancelVoiceCapture();
+    setVoiceMessage("");
+    editDraft(value);
+  };
+
+  const toggleVoiceInput = () => {
+    if (speechRecognition.current) {
+      setVoiceMessage("Concluindo a transcrição…");
+      try {
+        speechRecognition.current.stop();
+      } catch {
+        speechRecognition.current = null;
+        setVoiceRecording(false);
+        setVoiceError(true);
+        setVoiceMessage("Não foi possível concluir a transcrição. Tente novamente.");
+      }
+      return;
+    }
+
+    const browser = window as SpeechRecognitionWindow;
+    const Recognition = browser.SpeechRecognition ?? browser.webkitSpeechRecognition;
+    if (!Recognition) {
+      setVoiceError(false);
+      setVoiceMessage("Ditado por voz indisponível neste navegador.");
+      return;
+    }
+
+    try {
+      const recognition = new Recognition();
+      speechBaseDraft.current = draft.trim();
+      recognition.lang = "pt-BR";
+      recognition.continuous = true;
+      recognition.interimResults = true;
+      setVoiceError(false);
+      recognition.onresult = (event) => {
+        let finalTranscript = "";
+        let interimTranscript = "";
+        for (let index = 0; index < event.results.length; index++) {
+          const result = event.results[index];
+          const transcript = result?.[0]?.transcript.trim();
+          if (!transcript) continue;
+          if (result.isFinal) finalTranscript += `${finalTranscript ? " " : ""}${transcript}`;
+          else interimTranscript += `${interimTranscript ? " " : ""}${transcript}`;
+        }
+        editDraft([speechBaseDraft.current, finalTranscript, interimTranscript].filter(Boolean).join(" "));
+      };
+      recognition.onerror = (event) => {
+        recognition.onresult = null;
+        recognition.onend = null;
+        if (speechRecognition.current === recognition) speechRecognition.current = null;
+        setVoiceRecording(false);
+        if (event.error === "not-allowed" || event.error === "service-not-allowed") {
+          setVoiceError(true);
+          setVoiceMessage("Permita o acesso ao microfone nas configurações do navegador para ditar.");
+        } else if (event.error === "no-speech") {
+          setVoiceError(false);
+          setVoiceMessage("Não detectei fala. Toque no microfone para tentar novamente.");
+        } else {
+          setVoiceError(true);
+          setVoiceMessage("Não foi possível transcrever a fala. Tente novamente.");
+        }
+      };
+      recognition.onend = () => {
+        if (speechRecognition.current !== recognition) return;
+        setVoiceRecording(false);
+        setVoiceMessage((current) => current.startsWith("Ouvindo") || current.startsWith("Concluindo") ? "" : current);
+        speechRecognition.current = null;
+      };
+      speechRecognition.current = recognition;
+      recognition.start();
+      setVoiceMessage("Ouvindo… fale com naturalidade. Toque no microfone para concluir.");
+      setVoiceRecording(true);
+    } catch {
+      speechRecognition.current = null;
+      setVoiceRecording(false);
+      setVoiceError(true);
+      setVoiceMessage("Não foi possível iniciar o microfone. Verifique a permissão do navegador.");
+    }
   };
 
   return (
@@ -368,7 +575,7 @@ export function ChatView() {
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" /></svg>
             </button>
           </div>
-          <Button onClick={startNewConversation}>Nova conversa</Button>
+          <Button className="chat-new-conversation" onClick={startNewConversation}>Nova conversa</Button>
 
           <div className="ds-field">
             <label className="ds-label" htmlFor="chat-scope">Escopo da consulta</label>
@@ -377,7 +584,7 @@ export function ChatView() {
               className="ds-input"
               value={scopeId}
               disabled={scopeLocked}
-              onChange={(event) => { conversationRevision.current += 1; setMessages([]); setSendError(""); setScopeId(event.target.value); }}
+              onChange={(event) => { cancelVoiceCapture(); conversationRevision.current += 1; setMessages([]); setSendError(""); setScopeId(event.target.value); }}
               aria-describedby="chat-scope-help"
             >
               <option value="">Selecione um projeto</option>
@@ -408,17 +615,29 @@ export function ChatView() {
             <ul>
               {conversations.map((conversation) => (
                 <li key={conversation.id} className="chat-conversation-item">
-                  <button
-                    type="button"
-                    className="chat-conversation"
-                    aria-current={conversation.id === activeId}
-                    onClick={() => { openConversation(conversation); setMobileSidebarOpen(false); }}
+                  <MessageContextMenu
+                    ariaLabel={`Ações da conversa ${conversation.titulo}`}
+                    triggerLabel={`Ações da conversa: ${conversation.titulo}`}
+                    wrapperClassName="chat-conversation-context-wrapper"
+                    allowContextMenuOnButtons
+                    onTriggerRef={(node) => node ? conversationActionTriggers.current.set(`sidebar:${conversation.id}`, node) : conversationActionTriggers.current.delete(`sidebar:${conversation.id}`)}
+                    actions={[
+                      { id: "copy-title", label: "Copiar título", onSelect: () => void copyConversationTitle(conversation) },
+                      { id: "delete", label: "Excluir conversa", onSelect: () => requestDeleteConversation(conversation.id, "sidebar"), disabled: deletingId !== null, destructive: true },
+                    ]}
                   >
-                    <span className="chat-conversation-title">{conversation.titulo}</span>
-                    <span className="chat-conversation-meta">
-                      {conversation.projeto_nome ?? "Todos os projetos"} · {formatRelative(conversation.updated_at)}
-                    </span>
-                  </button>
+                    <button
+                      type="button"
+                      className="chat-conversation"
+                      aria-current={conversation.id === activeId}
+                      onClick={() => { openConversation(conversation); setMobileSidebarOpen(false); }}
+                    >
+                      <span className="chat-conversation-title">{conversation.titulo}</span>
+                      <span className="chat-conversation-meta">
+                        {conversation.projeto_nome ?? "Todos os projetos"} · {formatRelative(conversation.updated_at)}
+                      </span>
+                    </button>
+                  </MessageContextMenu>
                   <button
                     type="button"
                     className="chat-conversation-delete"
@@ -427,7 +646,7 @@ export function ChatView() {
                     disabled={deletingId === conversation.id}
                     onClick={(e) => {
                       e.stopPropagation();
-                      void handleDeleteConversation(conversation.id);
+                      requestDeleteConversation(conversation.id, "sidebar");
                     }}
                   >
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -437,6 +656,15 @@ export function ChatView() {
                       <line x1="14" y1="11" x2="14" y2="17" />
                     </svg>
                   </button>
+                  {confirmDeleteConversationId === conversation.id && confirmDeleteConversationSource === "sidebar" && (
+                    <div className="chat-conversation-confirm" role="group" aria-label={`Confirmar exclusão de ${conversation.titulo}`} onKeyDown={(event) => { if (event.key === "Escape") restoreConversationActionFocus(conversation.id, "sidebar"); }}>
+                      <span>Excluir “{conversation.titulo}” e todas as mensagens desta conversa permanentemente?</span>
+                      <div className="chat-conversation-confirm-actions">
+                        <Button variant="ghost" size="sm" autoFocus ref={(node) => { if (node) requestAnimationFrame(() => node.focus()); }} disabled={deletingId === conversation.id} onClick={() => restoreConversationActionFocus(conversation.id, "sidebar")}>Cancelar</Button>
+                        <Button variant="danger" size="sm" disabled={deletingId === conversation.id} onClick={() => void handleDeleteConversation(conversation.id)}>{deletingId === conversation.id ? "Excluindo…" : "Excluir"}</Button>
+                      </div>
+                    </div>
+                  )}
                 </li>
               ))}
             </ul>
@@ -451,7 +679,21 @@ export function ChatView() {
             <button ref={mobileSidebarTrigger} className="chat-sidebar-control chat-sidebar-control--mobile" type="button" aria-label="Abrir navegação de conversas" aria-expanded={mobileSidebarOpen} aria-controls="chat-sidebar" onClick={() => setMobileSidebarOpen(true)}>
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16" /></svg>
             </button>
-            <h2 className="chat-thread-title" title={activeConversation?.titulo ?? "Nova conversa"}>{activeConversation?.titulo ?? "Nova conversa"}</h2>
+            {activeConversation ? (
+              <MessageContextMenu
+                ariaLabel={`Ações da conversa ${activeConversation.titulo}`}
+                triggerLabel={`Ações da conversa: ${activeConversation.titulo}`}
+                wrapperClassName="chat-conversation-title-context"
+                allowContextMenuOnButtons
+                onTriggerRef={(node) => node ? conversationActionTriggers.current.set(`header:${activeConversation.id}`, node) : conversationActionTriggers.current.delete(`header:${activeConversation.id}`)}
+                actions={[
+                  { id: "copy-title", label: "Copiar título", onSelect: () => void copyConversationTitle(activeConversation) },
+                  { id: "delete", label: "Excluir conversa", onSelect: () => requestDeleteConversation(activeConversation.id, "header"), disabled: deletingId !== null, destructive: true },
+                ]}
+              >
+                <h2 className="chat-thread-title" title={activeConversation.titulo}>{activeConversation.titulo}</h2>
+              </MessageContextMenu>
+            ) : <h2 className="chat-thread-title" title="Nova conversa">Nova conversa</h2>}
             <div className="chat-thread-actions">
               <Badge tone={scopeName ? "brand" : "info"}>{scopeName ?? "Todos os projetos"}</Badge>
               {activeId && (
@@ -459,13 +701,23 @@ export function ChatView() {
                   variant="danger"
                   size="sm"
                   disabled={deletingId === activeId}
-                  onClick={() => void handleDeleteConversation(activeId)}
+                  onClick={() => requestDeleteConversation(activeId, "header")}
                   title="Excluir esta conversa"
                 >
                   {deletingId === activeId ? "Excluindo…" : "Excluir conversa"}
                 </Button>
               )}
+              {activeId && confirmDeleteConversationId === activeId && confirmDeleteConversationSource === "header" && (
+                <div className="chat-conversation-confirm" role="group" aria-label={`Confirmar exclusão de ${activeConversation?.titulo ?? "conversa"}`} onKeyDown={(event) => { if (event.key === "Escape") restoreConversationActionFocus(activeId, "header"); }}>
+                  <span>Excluir “{activeConversation?.titulo ?? "esta conversa"}” e todas as mensagens permanentemente?</span>
+                  <div className="chat-conversation-confirm-actions">
+                    <Button variant="ghost" size="sm" autoFocus ref={(node) => { if (node) requestAnimationFrame(() => node.focus()); }} disabled={deletingId === activeId} onClick={() => restoreConversationActionFocus(activeId, "header")}>Cancelar</Button>
+                    <Button variant="danger" size="sm" disabled={deletingId === activeId} onClick={() => void handleDeleteConversation(activeId)}>{deletingId === activeId ? "Excluindo…" : "Excluir"}</Button>
+                  </div>
+                </div>
+              )}
             </div>
+            {conversationCopyStatus && <span className="sr-only" role="status" aria-live="polite">{conversationCopyStatus}</span>}
           </div>
 
           <div ref={messagesViewport} className="chat-messages" role="log" aria-live="polite" aria-relevant="additions" aria-label="Mensagens da conversa" tabIndex={0}>
@@ -489,6 +741,7 @@ export function ChatView() {
                 key={message.id}
                 message={message}
                 copied={copiedId === message.id}
+                copyFailed={copyFailedId === message.id}
                 deleting={deletingMessageId === message.id}
                 deleteDisabled={sending || deletingMessageId !== null}
                 onCopy={() => void copy(message)}
@@ -496,21 +749,16 @@ export function ChatView() {
                 onRequestDelete={() => requestDeleteMessage(message)}
                 onCancelDelete={() => setConfirmDeleteMessageId(null)}
                 onDelete={() => void handleDeleteMessage(message)}
+                failureText={failedMessage?.id === message.id ? sendError || "A consulta anterior não foi concluída." : ""}
+                onRetry={() => void send(message.conteudo, message.id)}
               />
             ))}
 
             {sending && <ThinkingIndicator stage={progressByKey[sendKey] ?? "searching"} />}
           </div>
 
-          {(sendError || failedMessage) && (
-            <Alert tone="danger" role="alert" title="Não foi possível concluir">
-              {sendError || 'A última pergunta não foi concluída. Tente novamente.'}{" "}
-              {failedMessage && <Button variant="secondary" size="sm" disabled={sending||messagesState==='loading'} onClick={() => void send(failedMessage.conteudo, failedMessage.id)}>Tentar novamente</Button>}
-            </Alert>
-          )}
-
           <div className="chat-prompt-bar" role="group" aria-label="Perguntas sugeridas">
-            <span className="chat-prompt-label">Sugestões</span>
+            <span className="chat-prompt-label"><Sparkles size={14} aria-hidden="true" /> Sugestões</span>
             <div className="chat-prompt-list">
               {SUGGESTED_PROMPTS.map((prompt) => (
                 <button
@@ -519,7 +767,7 @@ export function ChatView() {
                   type="button"
                   aria-label={`Usar pergunta sugerida: ${prompt}`}
                   disabled={sending || messagesState === "loading"}
-                  onClick={() => { editDraft(prompt); composer.current?.focus(); }}
+                  onClick={() => { if (speechRecognition.current) cancelVoiceCapture(); editDraft(prompt); composer.current?.focus(); }}
                 >
                   {prompt}
                 </button>
@@ -528,31 +776,62 @@ export function ChatView() {
           </div>
 
           <form className="chat-composer" onSubmit={(event) => { event.preventDefault(); if (canSend) void send(draft); }}>
+            {sendError && !failedMessage && (
+              <Alert tone="danger" role="alert" title="Não foi possível concluir">
+                {sendError}
+              </Alert>
+            )}
             <label className="sr-only" htmlFor="chat-question">Sua pergunta</label>
-            <textarea
-              id="chat-question"
-              ref={composer}
-              className="ds-textarea"
-              rows={3}
-              placeholder="Escreva sua pergunta… (Enter envia, Shift+Enter quebra a linha)"
-              value={draft}
-              disabled={sending}
-              aria-describedby="chat-composer-help"
-              aria-invalid={remaining < 0}
-              onChange={(event) => editDraft(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) {
-                  event.preventDefault();
-                  if (canSend) void send(draft);
-                }
-              }}
-            />
-            <div className="chat-composer-footer">
-              <span id="chat-composer-help" className={`ds-help${remaining < 0 ? " ds-help--error" : ""}`}>
-                {remaining < 0 ? `Reduza ${-remaining} caractere(s).` : `${draft.length}/${MAX_QUESTION_LENGTH} · Respostas de IA podem conter erros; confira as fontes.`}
-              </span>
-              <Button type="submit" disabled={!canSend}>{sending ? "Enviando…" : "Enviar"}</Button>
+            <div className={`chat-composer-field${remaining < 0 ? " is-invalid" : ""}${voiceRecording ? " is-recording" : ""}`}>
+              <textarea
+                id="chat-question"
+                ref={composer}
+                className="chat-composer-textarea"
+                rows={1}
+                placeholder="Escreva sua mensagem…"
+                value={draft}
+                disabled={sending}
+                aria-describedby="chat-composer-help chat-composer-counter"
+                aria-invalid={remaining < 0}
+                onChange={(event) => handleDraftInput(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) {
+                    event.preventDefault();
+                    if (canSend) void send(draft);
+                  }
+                }}
+              />
+              <div className="chat-composer-toolbar">
+                <span id="chat-composer-counter" className={`chat-char-count${remaining < 0 ? " is-invalid" : ""}`} aria-live="off">
+                  {draft.length}/{MAX_QUESTION_LENGTH}
+                </span>
+                <div className="chat-composer-actions">
+                  <Button
+                    variant="ghost"
+                    className={`chat-voice-button${voiceRecording ? " is-recording" : ""}`}
+                    type="button"
+                    aria-label={voiceRecording ? "Parar ditado por voz" : speechSupported ? "Iniciar ditado por voz" : "Ditado por voz indisponível"}
+                    aria-describedby="chat-voice-description"
+                    aria-pressed={voiceRecording}
+                    title={speechSupported ? voiceRecording ? "Concluir ditado" : "Ditar por voz em português" : "Ditado por voz não suportado neste navegador"}
+                    disabled={sending}
+                    onClick={toggleVoiceInput}
+                  >
+                    {voiceRecording ? <MicOff size={17} aria-hidden="true" /> : <Mic size={17} aria-hidden="true" />}
+                  </Button>
+                  <Button ref={submitButton} variant="ghost" className={`chat-send-button${draft.trim() && remaining >= 0 ? " has-message" : ""}`} type="submit" disabled={!canSend} aria-label="Enviar" title={sending ? "Consultando…" : "Enviar mensagem"}>
+                    {sending ? <LoaderCircle className="chat-send-spinner" size={18} aria-hidden="true" /> : <ArrowUp size={19} aria-hidden="true" />}
+                  </Button>
+                </div>
+              </div>
             </div>
+            <div className="chat-composer-meta">
+              <span id="chat-composer-help" className={`chat-composer-help${remaining < 0 ? " is-invalid" : ""}${voiceMessage ? " is-voice-active" : ""}${voiceError ? " is-voice-error" : ""}`}>
+                {voiceMessage ? <span role="status" aria-live="polite">{voiceMessage}</span> : remaining < 0 ? `Reduza ${-remaining} caractere(s) para enviar.` : !scopeId ? "Selecione um projeto para habilitar o envio." : "Enter envia · Shift+Enter quebra a linha"}
+              </span>
+              <span className="chat-composer-disclaimer">A IA pode errar; confira as fontes citadas.</span>
+            </div>
+            <span id="chat-voice-description" className="sr-only">Ditado em português. O navegador pode enviar o áudio ao serviço de reconhecimento de fala configurado por ele.</span>
           </form>
         </section>
       </div>
@@ -560,9 +839,10 @@ export function ChatView() {
   );
 }
 
-function MessageBubble({ message, copied, deleting, deleteDisabled, confirmingDelete, onCopy, onRequestDelete, onCancelDelete, onDelete }: {
+function MessageBubble({ message, copied, copyFailed, deleting, deleteDisabled, confirmingDelete, onCopy, onRequestDelete, onCancelDelete, onDelete, failureText, onRetry }: {
   message: ThreadMessage;
   copied: boolean;
+  copyFailed: boolean;
   deleting: boolean;
   deleteDisabled: boolean;
   confirmingDelete: boolean;
@@ -570,12 +850,39 @@ function MessageBubble({ message, copied, deleting, deleteDisabled, confirmingDe
   onRequestDelete: () => void;
   onCancelDelete: () => void;
   onDelete: () => void;
+  failureText: string;
+  onRetry: () => void;
 }) {
   const isUser = message.remetente === "user";
   const originBadge = message.origem ? ORIGIN_BADGE[message.origem as ChatOrigin] : null;
+  const sourcesRef = useRef<HTMLDetailsElement>(null);
+  const hasSources = message.fontes.length > 0;
+  const actions: MessageContextAction[] = [
+    { id: "copy", label: isUser ? "Copiar pergunta" : "Copiar resposta", onSelect: onCopy },
+    ...(hasSources ? [{
+      id: "sources",
+      label: "Ver fontes e evidências",
+      onSelect: () => {
+        const details = sourcesRef.current;
+        if (!details) return;
+        details.open = true;
+        details.scrollIntoView?.({ behavior: "smooth", block: "center" });
+        details.querySelector("summary")?.focus();
+      },
+    }] : []),
+    ...(failureText ? [{ id: "retry", label: "Tentar novamente", onSelect: onRetry, disabled: deleteDisabled }] : []),
+    {
+      id: "delete",
+      label: isUser ? "Apagar pergunta" : "Apagar resposta",
+      onSelect: onRequestDelete,
+      disabled: deleteDisabled || deleting,
+      destructive: true,
+    },
+  ];
   return (
+    <MessageContextMenu ariaLabel={`Ações da mensagem de ${isUser ? "Você" : "Assistente Sinapse"}`} actions={actions}>
     <article className={`chat-message chat-message--${isUser ? "user" : "assistant"}${message.failed ? " is-failed" : ""}`} aria-label={isUser ? "Você" : "Assistente Sinapse"}>
-      <header>
+      <header className="chat-message-header">
         <b>{isUser ? "Você" : "Assistente Sinapse"}</b>
         <time dateTime={message.created_at ?? undefined}>{formatClock(message.created_at)}</time>
         {originBadge && <Badge tone="warning">{originBadge}</Badge>}
@@ -593,19 +900,33 @@ function MessageBubble({ message, copied, deleting, deleteDisabled, confirmingDe
       </Button>
       {message.failed && <p className="chat-message-failed" role="note">Não enviada</p>}
       {isUser ? <p className="chat-message-text">{message.conteudo}</p> : <Markdown source={message.conteudo} className="chat-message-body" />}
+      {failureText && (
+        <div className="chat-message-error" role="alert">
+          <span>{failureText}</span>
+          <Button variant="secondary" size="sm" disabled={deleteDisabled} onClick={onRetry}>Tentar novamente</Button>
+        </div>
+      )}
       {message.fontes.length > 0 && (
-        <details className="chat-sources">
-          <summary>Fontes citadas ({message.fontes.length})</summary>
+        <details ref={sourcesRef} className="chat-sources">
+          <summary>Fontes e evidências <span>{message.fontes.length}</span></summary>
           <ul>
             {message.fontes.map((source) => (
-              <li key={source.id}><Badge>{source.tipo}</Badge> {source.url?<a href={source.url}>{source.titulo}</a>:source.titulo}{source.projeto_nome?` · ${source.projeto_nome}`:''}</li>
+              <li key={source.id}>
+                <Badge>{source.tipo}</Badge>
+                {source.url ? <a href={source.url}>{source.titulo}</a> : <span>{source.titulo}</span>}
+                {source.projeto_nome && <span className="chat-source-project">{source.projeto_nome}</span>}
+              </li>
             ))}
           </ul>
         </details>
       )}
+      {!isUser && message.origem === "sem_resultado" && <p className="chat-sources-empty">Nenhuma evidência correspondente encontrada no acervo.</p>}
       {confirmingDelete && (
         <div className="chat-delete-confirm" role="group" aria-label="Confirmar exclusão da mensagem">
-          <span>Apagar esta mensagem?</span>
+          <span>
+            Apagar somente esta mensagem? A outra mensagem da conversa continuará no histórico.
+            {isUser && message.failed && " A pergunta será removida e não poderá ser tentada novamente."}
+          </span>
           <div>
             <Button variant="ghost" size="sm" disabled={deleting} onClick={onCancelDelete}>Cancelar</Button>
             <Button variant="danger" size="sm" disabled={deleting} onClick={onDelete}>{deleting ? "Apagando…" : "Apagar"}</Button>
@@ -616,12 +937,14 @@ function MessageBubble({ message, copied, deleting, deleteDisabled, confirmingDe
         variant="ghost"
         size="sm"
         className={`chat-message-copy${copied ? " is-copied" : ""}`}
-        aria-label={copied ? "Resposta copiada" : "Copiar resposta"}
-        title={copied ? "Copiado" : "Copiar resposta"}
+        aria-label={copyFailed ? "Não foi possível copiar a resposta" : copied ? "Resposta copiada" : "Copiar resposta"}
+        title={copyFailed ? "Não foi possível copiar" : copied ? "Copiado" : "Copiar resposta"}
         onClick={onCopy}
       >
-        {copied ? <Check aria-hidden="true" /> : <Copy aria-hidden="true" />}
+        {copyFailed ? <CircleAlert aria-hidden="true" /> : copied ? <Check aria-hidden="true" /> : <Copy aria-hidden="true" />}
       </Button>}
+      <span className="sr-only" role="status" aria-live="polite">{copyFailed ? "Não foi possível copiar a mensagem." : copied ? "Mensagem copiada." : ""}</span>
     </article>
+    </MessageContextMenu>
   );
 }

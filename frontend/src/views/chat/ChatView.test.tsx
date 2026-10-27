@@ -3,7 +3,20 @@ import {act,cleanup,fireEvent,render,screen,waitFor,within} from '@testing-libra
 import {ChatView} from './ChatView';
 import {askQuestion,deleteConversation,deleteMessage,listChatProjects,listConversations,listMessages,type ChatAnswer,type ChatConversation,type ChatProgressStage} from '../../api/api_chat';
 vi.mock('../../api/api_chat',()=>({MAX_QUESTION_LENGTH:2000,askQuestion:vi.fn(),deleteConversation:vi.fn(),deleteMessage:vi.fn(),listChatProjects:vi.fn(),listConversations:vi.fn(),listMessages:vi.fn(),describeChatError:()=> 'Assistente indisponível'}));
-afterEach(()=>{cleanup();vi.restoreAllMocks();vi.resetAllMocks();});
+const speechInstances: FakeSpeechRecognition[]=[];
+class FakeSpeechRecognition {
+  lang='';
+  continuous=false;
+  interimResults=false;
+  onresult:((event:{results:Array<{isFinal:boolean;0:{transcript:string}}>} )=>void)|null=null;
+  onerror:((event:{error:string})=>void)|null=null;
+  onend:(()=>void)|null=null;
+  start=vi.fn();
+  stop=vi.fn(()=>this.onend?.());
+  abort=vi.fn();
+  constructor(){speechInstances.push(this);}
+}
+afterEach(()=>{cleanup();vi.restoreAllMocks();vi.resetAllMocks();vi.unstubAllGlobals();speechInstances.length=0;});
 it('abre e fecha o histórico mobile com foco acessível e Escape',async()=>{
   vi.mocked(listConversations).mockResolvedValue([]);
   vi.mocked(listChatProjects).mockResolvedValue([]);
@@ -64,6 +77,118 @@ it('distingue ausência de projetos de falha de conexão',async()=>{
   expect(screen.queryByRole('button',{name:'Recarregar projetos'})).toBeNull();
   expect(screen.getByRole('button',{name:'Enviar'})).toBeDisabled();
 });
+it('orienta a escolher um projeto antes de enviar e mostra o limite de caracteres',async()=>{
+  vi.mocked(listConversations).mockResolvedValue([]);
+  vi.mocked(listChatProjects).mockResolvedValue([]);
+  render(<ChatView/>);
+  await screen.findByText('Selecione um projeto para habilitar o envio.');
+  expect(screen.getByText('0/2000')).toBeInTheDocument();
+  const send=screen.getByRole('button',{name:'Enviar'});
+  expect(send).toBeDisabled();
+  expect(send).toHaveClass('ds-button--ghost');
+  expect(send.textContent).toBe('');
+});
+it('destaca a seta com texto sem fundo e mantém o envio bloqueado sem projeto',async()=>{
+  vi.mocked(listConversations).mockResolvedValue([]);
+  vi.mocked(listChatProjects).mockResolvedValue([]);
+  render(<ChatView/>);
+  const field=screen.getByRole('textbox');
+  const send=screen.getByRole('button',{name:'Enviar'});
+  fireEvent.change(field,{target:{value:'Mensagem pronta'}});
+  expect(send).toHaveClass('has-message');
+  expect(send).toBeDisabled();
+  expect(send.textContent).toBe('');
+});
+it('ajusta a altura do campo até o limite e habilita rolagem para textos longos',async()=>{
+  vi.mocked(listConversations).mockResolvedValue([]);
+  vi.mocked(listChatProjects).mockResolvedValue([]);
+  render(<ChatView/>);
+  const field=screen.getByRole('textbox');
+  Object.defineProperty(field,'scrollHeight',{configurable:true,value:120});
+  fireEvent.change(field,{target:{value:'Mensagem com duas linhas'}});
+  await waitFor(()=>expect(field).toHaveStyle({height:'120px'}));
+  Object.defineProperty(field,'scrollHeight',{configurable:true,value:240});
+  fireEvent.change(field,{target:{value:'Mensagem muito longa '.repeat(30)}});
+  await waitFor(()=>expect(field).toHaveStyle({height:'180px',overflowY:'auto'}));
+});
+it('converte ditado em português em texto editável e permite encerrar a gravação',async()=>{
+  vi.stubGlobal('SpeechRecognition',FakeSpeechRecognition);
+  vi.mocked(listConversations).mockResolvedValue([]);
+  vi.mocked(listChatProjects).mockResolvedValue([]);
+  render(<ChatView/>);
+  const field=screen.getByRole('textbox');
+  fireEvent.change(field,{target:{value:'Pergunta inicial'}});
+  const microphone=screen.getByRole('button',{name:'Iniciar ditado por voz'});
+  expect(microphone).toHaveClass('ds-button--ghost');
+  expect(microphone.querySelector('svg')).toBeInTheDocument();
+  fireEvent.click(microphone);
+  const recognition=speechInstances[0];
+  expect(recognition.lang).toBe('pt-BR');
+  expect(recognition.start).toHaveBeenCalledOnce();
+  expect(screen.getByRole('button',{name:'Parar ditado por voz'})).toHaveAttribute('aria-pressed','true');
+  act(()=>recognition.onresult?.({results:[{isFinal:true,0:{transcript:'Quais decisões foram tomadas?'}}]}));
+  expect(field).toHaveValue('Pergunta inicial Quais decisões foram tomadas?');
+  fireEvent.click(screen.getByRole('button',{name:'Parar ditado por voz'}));
+  await waitFor(()=>expect(screen.getByRole('button',{name:'Iniciar ditado por voz'})).toHaveAttribute('aria-pressed','false'));
+  expect(recognition.stop).toHaveBeenCalledOnce();
+  expect(field).toHaveValue('Pergunta inicial Quais decisões foram tomadas?');
+});
+it('encerra o ditado antes de aceitar uma edição manual para não sobrescrever o texto',async()=>{
+  vi.stubGlobal('SpeechRecognition',FakeSpeechRecognition);
+  vi.mocked(listConversations).mockResolvedValue([]);
+  vi.mocked(listChatProjects).mockResolvedValue([]);
+  render(<ChatView/>);
+  fireEvent.click(screen.getByRole('button',{name:'Iniciar ditado por voz'}));
+  const recognition=speechInstances[0];
+  fireEvent.change(screen.getByRole('textbox'),{target:{value:'Texto editado manualmente'}});
+  expect(recognition.abort).toHaveBeenCalledOnce();
+  expect(recognition.onresult).toBeNull();
+  expect(screen.getByRole('textbox')).toHaveValue('Texto editado manualmente');
+  expect(screen.getByRole('button',{name:'Iniciar ditado por voz'})).toHaveAttribute('aria-pressed','false');
+});
+it('mostra erro de permissão do microfone com estado visual de erro',async()=>{
+  vi.stubGlobal('SpeechRecognition',FakeSpeechRecognition);
+  vi.mocked(listConversations).mockResolvedValue([]);
+  vi.mocked(listChatProjects).mockResolvedValue([]);
+  render(<ChatView/>);
+  fireEvent.click(screen.getByRole('button',{name:'Iniciar ditado por voz'}));
+  act(()=>speechInstances[0].onerror?.({error:'not-allowed'}));
+  expect(await screen.findByText('Permita o acesso ao microfone nas configurações do navegador para ditar.')).toBeInTheDocument();
+  expect(screen.getByText('Permita o acesso ao microfone nas configurações do navegador para ditar.').closest('.chat-composer-help')).toHaveClass('is-voice-error');
+});
+it('permite reiniciar o ditado depois de uma falha do serviço de voz',async()=>{
+  vi.stubGlobal('SpeechRecognition',FakeSpeechRecognition);
+  vi.mocked(listConversations).mockResolvedValue([]);
+  vi.mocked(listChatProjects).mockResolvedValue([]);
+  render(<ChatView/>);
+  fireEvent.click(screen.getByRole('button',{name:'Iniciar ditado por voz'}));
+  act(()=>speechInstances[0].onerror?.({error:'network'}));
+  expect(await screen.findByText('Não foi possível transcrever a fala. Tente novamente.')).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button',{name:'Iniciar ditado por voz'}));
+  expect(speechInstances).toHaveLength(2);
+  expect(speechInstances[1].start).toHaveBeenCalledOnce();
+});
+it('encerra a captura de voz ao iniciar uma nova conversa',async()=>{
+  vi.stubGlobal('SpeechRecognition',FakeSpeechRecognition);
+  vi.mocked(listConversations).mockResolvedValue([]);
+  vi.mocked(listChatProjects).mockResolvedValue([]);
+  render(<ChatView/>);
+  fireEvent.click(screen.getByRole('button',{name:'Iniciar ditado por voz'}));
+  const recognition=speechInstances[0];
+  fireEvent.click(screen.getByRole('button',{name:'Nova conversa'}));
+  expect(recognition.abort).toHaveBeenCalledOnce();
+  expect(recognition.onresult).toBeNull();
+  expect(screen.getByRole('button',{name:'Iniciar ditado por voz'})).toHaveAttribute('aria-pressed','false');
+});
+it('explica quando ditado por voz não é suportado pelo navegador',async()=>{
+  vi.stubGlobal('SpeechRecognition',undefined);
+  vi.stubGlobal('webkitSpeechRecognition',undefined);
+  vi.mocked(listConversations).mockResolvedValue([]);
+  vi.mocked(listChatProjects).mockResolvedValue([]);
+  render(<ChatView/>);
+  fireEvent.click(screen.getByRole('button',{name:'Ditado por voz indisponível'}));
+  expect(await screen.findByText('Ditado por voz indisponível neste navegador.')).toBeInTheDocument();
+});
 it('mantém perguntas sugeridas acima do chat e só preenche o campo ao selecionar',async()=>{
   vi.mocked(listConversations).mockResolvedValue([]);
   vi.mocked(listChatProjects).mockResolvedValue([{id:'project-a',nome:'Projeto Aurora'}]);
@@ -76,6 +201,39 @@ it('mantém perguntas sugeridas acima do chat e só preenche o campo ao selecion
   fireEvent.click(prompt);
   expect(screen.getByRole('textbox')).toHaveValue('Quais decisões já foram tomadas neste projeto?');
   expect(askQuestion).not.toHaveBeenCalled();
+});
+it('usa Enter para enviar e Shift+Enter para manter a quebra de linha',async()=>{
+  vi.mocked(listConversations).mockResolvedValue([]);
+  vi.mocked(listChatProjects).mockResolvedValue([{id:'project-a',nome:'Projeto A'}]);
+  vi.mocked(askQuestion).mockResolvedValue({conversa_id:'conversation-a',resposta:'Resposta enviada',fontes:[],origem:'assistente'});
+  render(<ChatView/>);
+  await screen.findByRole('option',{name:'Projeto A'});
+  fireEvent.change(screen.getByLabelText('Escopo da consulta'),{target:{value:'project-a'}});
+  const field=screen.getByRole('textbox');
+  fireEvent.change(field,{target:{value:'Pergunta por Enter'}});
+  field.focus();
+  fireEvent.keyDown(field,{key:'Enter',shiftKey:true});
+  expect(askQuestion).not.toHaveBeenCalled();
+  expect(field).toHaveValue('Pergunta por Enter');
+  fireEvent.keyDown(field,{key:'Enter',shiftKey:false});
+  await screen.findByText('Resposta enviada');
+  expect(askQuestion).toHaveBeenCalledTimes(1);
+  await waitFor(()=>expect(field).toHaveFocus());
+});
+it('devolve o foco ao campo depois do envio pelo botão',async()=>{
+  vi.mocked(listConversations).mockResolvedValue([]);
+  vi.mocked(listChatProjects).mockResolvedValue([{id:'project-a',nome:'Projeto A'}]);
+  vi.mocked(askQuestion).mockResolvedValue({conversa_id:'conversation-a',resposta:'Resposta concluída',fontes:[],origem:'assistente'});
+  render(<ChatView/>);
+  await screen.findByRole('option',{name:'Projeto A'});
+  fireEvent.change(screen.getByLabelText('Escopo da consulta'),{target:{value:'project-a'}});
+  fireEvent.change(screen.getByRole('textbox'),{target:{value:'Pergunta enviada pelo botão'}});
+  const field=screen.getByRole('textbox');
+  const submit=screen.getByRole('button',{name:'Enviar'});
+  submit.focus();
+  fireEvent.click(submit);
+  await screen.findByText('Resposta concluída');
+  await waitFor(()=>expect(field).toHaveFocus());
 });
 it('exibe status animado e alterna as mensagens enquanto aguarda o assistente',async()=>{
   let finish!:(answer:ChatAnswer)=>void;
@@ -111,9 +269,31 @@ it('ao reabrir uma conversa, permite tentar novamente a última pergunta que fal
   ]);
   vi.mocked(askQuestion).mockResolvedValue({conversa_id:'conversation-a',resposta:'Resposta da última pergunta',fontes:[],origem:'assistente'});
   render(<ChatView/>);
-  fireEvent.click(await screen.findByRole('button',{name:'Tentar novamente'}));
+  const retry=await screen.findByRole('button',{name:'Tentar novamente'});
+  expect(retry.closest('.chat-message')).toHaveTextContent('Não enviada');
+  expect(retry.closest('[role="alert"]')).toHaveTextContent('consulta anterior não foi concluída');
+  fireEvent.click(retry);
   await screen.findByText('Resposta da última pergunta');
   expect(askQuestion).toHaveBeenCalledWith({pergunta:'Última pergunta',conversaId:'conversation-a',projetoId:null,mensagemId:'latest-failed'},undefined,expect.any(Function));
+});
+it('informa quando uma resposta não encontrou evidências no acervo',async()=>{
+  vi.mocked(listConversations).mockResolvedValue([{id:'conversation-a',titulo:'Conversa A',projeto_id:'project-a',projeto_nome:'Projeto A',updated_at:''}]);
+  vi.mocked(listChatProjects).mockResolvedValue([{id:'project-a',nome:'Projeto A'}]);
+  vi.mocked(listMessages).mockResolvedValue([{id:'answer',remetente:'assistant',conteudo:'Informação não encontrada no acervo do projeto.',fontes:[],created_at:null,origem:'sem_resultado'}]);
+  render(<ChatView/>);
+  await screen.findByText('Informação não encontrada no acervo do projeto.');
+  expect(screen.getByText('Nenhuma evidência correspondente encontrada no acervo.')).toBeInTheDocument();
+});
+it('anuncia falha ao copiar uma resposta',async()=>{
+  vi.mocked(listConversations).mockResolvedValue([{id:'conversation-a',titulo:'Conversa A',projeto_id:'project-a',projeto_nome:'Projeto A',updated_at:''}]);
+  vi.mocked(listChatProjects).mockResolvedValue([{id:'project-a',nome:'Projeto A'}]);
+  vi.mocked(listMessages).mockResolvedValue([{id:'answer',remetente:'assistant',conteudo:'Resposta para copiar',fontes:[],created_at:null}]);
+  Object.defineProperty(navigator,'clipboard',{configurable:true,value:{writeText:vi.fn().mockRejectedValue(new Error('clipboard denied'))}});
+  render(<ChatView/>);
+  await screen.findByText('Resposta para copiar');
+  fireEvent.click(screen.getByRole('button',{name:'Copiar resposta'}));
+  expect(await screen.findByText('Não foi possível copiar a mensagem.')).toBeInTheDocument();
+  expect(screen.getByRole('button',{name:'Não foi possível copiar a resposta'})).toBeInTheDocument();
 });
 it('apaga uma mensagem após confirmação e atualiza a conversa sem recarregá-la',async()=>{
   vi.mocked(listConversations).mockResolvedValue([{id:'conversation-a',titulo:'Conversa A',projeto_id:'project-a',projeto_nome:'Projeto A',updated_at:''}]);
@@ -127,7 +307,7 @@ it('apaga uma mensagem após confirmação e atualiza a conversa sem recarregá-
   await screen.findByText('Resposta original');
   fireEvent.click(screen.getByRole('button',{name:'Apagar mensagem: Resposta original'}));
   const confirmation=screen.getByRole('group',{name:'Confirmar exclusão da mensagem'});
-  expect(confirmation).toHaveTextContent('Apagar esta mensagem?');
+  expect(confirmation).toHaveTextContent('Apagar somente esta mensagem? A outra mensagem da conversa continuará no histórico.');
   fireEvent.click(within(confirmation).getByRole('button',{name:'Apagar'}));
   await waitFor(()=>expect(deleteMessage).toHaveBeenCalledWith('conversation-a','assistant-message'));
   await waitFor(()=>expect(screen.queryByText('Resposta original')).toBeNull());
@@ -144,6 +324,71 @@ it('não apaga a mensagem se o usuário cancelar a confirmação',async()=>{
   fireEvent.click(within(confirmation).getByRole('button',{name:'Cancelar'}));
   expect(deleteMessage).not.toHaveBeenCalled();
   expect(screen.getByText('Pergunta original')).toBeInTheDocument();
+});
+it('abre ações da mensagem pelo botão acessível e copia o texto escolhido',async()=>{
+  vi.mocked(listConversations).mockResolvedValue([{id:'conversation-a',titulo:'Conversa A',projeto_id:'project-a',projeto_nome:'Projeto A',updated_at:''}]);
+  vi.mocked(listChatProjects).mockResolvedValue([{id:'project-a',nome:'Projeto A'}]);
+  vi.mocked(listMessages).mockResolvedValue([{id:'answer',remetente:'assistant',conteudo:'Resposta contextual',fontes:[],created_at:null}]);
+  const writeText=vi.fn().mockResolvedValue(undefined);
+  Object.defineProperty(navigator,'clipboard',{configurable:true,value:{writeText}});
+  render(<ChatView/>);
+  await screen.findByText('Resposta contextual');
+  fireEvent.click(screen.getByRole('button',{name:'Mais ações: Ações da mensagem de Assistente Sinapse'}));
+  const menu=screen.getByRole('menu',{name:'Ações da mensagem de Assistente Sinapse'});
+  fireEvent.click(within(menu).getByRole('menuitem',{name:'Copiar resposta'}));
+  await waitFor(()=>expect(writeText).toHaveBeenCalledWith('Resposta contextual'));
+  expect(await screen.findByText('Mensagem copiada.')).toBeInTheDocument();
+  expect(screen.queryByRole('menu')).toBeNull();
+});
+it('abre o menu por clique direito e por Shift+F10 e fecha com Escape devolvendo o foco',async()=>{
+  vi.mocked(listConversations).mockResolvedValue([{id:'conversation-a',titulo:'Conversa A',projeto_id:'project-a',projeto_nome:'Projeto A',updated_at:''}]);
+  vi.mocked(listChatProjects).mockResolvedValue([{id:'project-a',nome:'Projeto A'}]);
+  vi.mocked(listMessages).mockResolvedValue([{id:'answer',remetente:'assistant',conteudo:'Mensagem para ações',fontes:[],created_at:null}]);
+  render(<ChatView/>);
+  const text=await screen.findByText('Mensagem para ações');
+  const article=text.closest('article');
+  expect(article).not.toBeNull();
+  fireEvent.contextMenu(article!,{clientX:35,clientY:45});
+  expect(screen.getByRole('menu',{name:'Ações da mensagem de Assistente Sinapse'})).toBeInTheDocument();
+  fireEvent.keyDown(screen.getByRole('menu'),{key:'Escape'});
+  await waitFor(()=>expect(screen.queryByRole('menu')).toBeNull());
+  const copy=screen.getByRole('button',{name:'Copiar resposta'});
+  copy.focus();
+  fireEvent.keyDown(copy,{key:'F10',shiftKey:true});
+  const menu=screen.getByRole('menu',{name:'Ações da mensagem de Assistente Sinapse'});
+  fireEvent.keyDown(menu,{key:'Escape'});
+  await waitFor(()=>expect(screen.queryByRole('menu')).toBeNull());
+  await waitFor(()=>expect(screen.getByRole('button',{name:'Mais ações: Ações da mensagem de Assistente Sinapse'})).toHaveFocus());
+});
+it('mantém o menu nativo em links e oferece acesso direto às fontes',async()=>{
+  vi.mocked(listConversations).mockResolvedValue([{id:'conversation-a',titulo:'Conversa A',projeto_id:'project-a',projeto_nome:'Projeto A',updated_at:''}]);
+  vi.mocked(listChatProjects).mockResolvedValue([{id:'project-a',nome:'Projeto A'}]);
+  vi.mocked(listMessages).mockResolvedValue([{id:'answer',remetente:'assistant',conteudo:'Resposta com evidência',fontes:[{id:'source-a',tipo:'documento',titulo:'Documento de referência',url:'/documento'}],created_at:null}]);
+  render(<ChatView/>);
+  const link=await screen.findByRole('link',{name:'Documento de referência'});
+  fireEvent.contextMenu(link,{clientX:40,clientY:50});
+  expect(screen.queryByRole('menu')).toBeNull();
+  fireEvent.click(screen.getByRole('button',{name:'Mais ações: Ações da mensagem de Assistente Sinapse'}));
+  const menu=screen.getByRole('menu',{name:'Ações da mensagem de Assistente Sinapse'});
+  fireEvent.click(within(menu).getByRole('menuitem',{name:'Ver fontes e evidências'}));
+  expect(screen.getByText('Documento de referência')).toBeVisible();
+  expect(screen.getByText('Documento de referência').closest('details')).toHaveAttribute('open');
+  expect(screen.queryByRole('menu')).toBeNull();
+});
+it('o menu de uma mensagem falha só oferece retry quando ela é a última pergunta elegível',async()=>{
+  vi.mocked(listConversations).mockResolvedValue([{id:'conversation-a',titulo:'Conversa A',projeto_id:'project-a',projeto_nome:'Projeto A',updated_at:''}]);
+  vi.mocked(listChatProjects).mockResolvedValue([{id:'project-a',nome:'Projeto A'}]);
+  vi.mocked(listMessages).mockResolvedValue([
+    {id:'failed',remetente:'user',conteudo:'Pergunta pendente de nova tentativa',fontes:[],created_at:null,failed:true},
+  ]);
+  vi.mocked(askQuestion).mockResolvedValue({conversa_id:'conversation-a',resposta:'Resposta recuperada',fontes:[],origem:'assistente'});
+  render(<ChatView/>);
+  await screen.findByText('Pergunta pendente de nova tentativa');
+  fireEvent.click(screen.getByRole('button',{name:'Mais ações: Ações da mensagem de Você'}));
+  const menu=screen.getByRole('menu',{name:'Ações da mensagem de Você'});
+  fireEvent.click(within(menu).getByRole('menuitem',{name:'Tentar novamente'}));
+  await screen.findByText('Resposta recuperada');
+  expect(askQuestion).toHaveBeenCalledWith({pergunta:'Pergunta pendente de nova tentativa',conversaId:'conversation-a',projetoId:null,mensagemId:'failed'},undefined,expect.any(Function));
 });
 it('não oferece novamente uma falha antiga quando a conversa já teve resposta',async()=>{
   vi.mocked(listConversations).mockResolvedValue([{id:'conversation-a',titulo:'Conversa A',projeto_id:'project-a',projeto_nome:'Projeto A',updated_at:''}]);
@@ -223,7 +468,7 @@ it('repetir a consulta do histórico também não abre uma conversa sobre a perg
   fireEvent.change(screen.getByLabelText('Escopo da consulta'),{target:{value:'project-a'}});
   fireEvent.change(screen.getByRole('textbox'),{target:{value:'Pergunta em edição'}});
   fireEvent.click(await screen.findByRole('button',{name:'Tentar novamente'}));
-  await screen.findByRole('button',{name:/Conversa antiga B/});
+  await screen.findByText('Conversa antiga B');
   expect(screen.getByLabelText('Escopo da consulta')).toBeEnabled();
   expect(screen.getByRole('textbox')).toHaveValue('Pergunta em edição');
   expect(listMessages).not.toHaveBeenCalled();
@@ -295,7 +540,6 @@ it.each([
 });
 
 it('permite excluir uma conversa a partir da lista lateral após confirmação',async()=>{
-  vi.spyOn(window,'confirm').mockReturnValue(true);
   vi.mocked(deleteConversation).mockResolvedValue(undefined);
   vi.mocked(listChatProjects).mockResolvedValue([{id:'project-a',nome:'Projeto A'}]);
   vi.mocked(listConversations).mockResolvedValue([
@@ -307,14 +551,16 @@ it('permite excluir uma conversa a partir da lista lateral após confirmação',
   await screen.findByRole('heading',{name:'Conversa 1'});
   const deleteButtons=screen.getAllByRole('button',{name:'Excluir conversa'});
   fireEvent.click(deleteButtons[0]);
-  expect(window.confirm).toHaveBeenCalled();
+  const confirmation=screen.getByRole('group',{name:'Confirmar exclusão de Conversa 1'});
+  expect(confirmation).toHaveTextContent('Excluir “Conversa 1” e todas as mensagens desta conversa permanentemente?');
+  expect(deleteConversation).not.toHaveBeenCalled();
+  fireEvent.click(within(confirmation).getByRole('button',{name:'Excluir'}));
   expect(deleteConversation).toHaveBeenCalledWith('conv-1');
   await screen.findByText('Conversa 2');
   expect(screen.queryByRole('heading',{name:'Conversa 1'})).toBeNull();
 });
 
 it('permite excluir a conversa ativa a partir do cabeçalho e reseta o chat para nova conversa',async()=>{
-  vi.spyOn(window,'confirm').mockReturnValue(true);
   vi.mocked(deleteConversation).mockResolvedValue(undefined);
   vi.mocked(listChatProjects).mockResolvedValue([{id:'project-a',nome:'Projeto A'}]);
   vi.mocked(listConversations).mockResolvedValue([
@@ -325,12 +571,13 @@ it('permite excluir a conversa ativa a partir do cabeçalho e reseta o chat para
   await screen.findByRole('heading',{name:'Conversa Ativa'});
   const deleteBtn=screen.getByTitle('Excluir esta conversa');
   fireEvent.click(deleteBtn);
+  const confirmation=screen.getByRole('group',{name:'Confirmar exclusão de Conversa Ativa'});
+  fireEvent.click(within(confirmation).getByRole('button',{name:'Excluir'}));
   expect(deleteConversation).toHaveBeenCalledWith('conv-active');
   await screen.findByRole('heading',{name:'Nova conversa'});
 });
 
 it('não exclui a conversa caso o usuário cancele a confirmação',async()=>{
-  vi.spyOn(window,'confirm').mockReturnValue(false);
   vi.mocked(listChatProjects).mockResolvedValue([{id:'project-a',nome:'Projeto A'}]);
   vi.mocked(listConversations).mockResolvedValue([
     {id:'conv-1',titulo:'Conversa Permanente',projeto_id:'project-a',projeto_nome:'Projeto A',updated_at:''},
@@ -340,7 +587,55 @@ it('não exclui a conversa caso o usuário cancele a confirmação',async()=>{
   await screen.findByRole('heading',{name:'Conversa Permanente'});
   const deleteBtn=screen.getByTitle('Excluir esta conversa');
   fireEvent.click(deleteBtn);
-  expect(window.confirm).toHaveBeenCalled();
+  const confirmation=screen.getByRole('group',{name:'Confirmar exclusão de Conversa Permanente'});
+  fireEvent.click(within(confirmation).getByRole('button',{name:'Cancelar'}));
   expect(deleteConversation).not.toHaveBeenCalled();
   expect(screen.getByRole('heading',{name:'Conversa Permanente'})).toBeInTheDocument();
+});
+
+it('preserva a abertura em um clique e oferece ações na lista e no título ativo',async()=>{
+  vi.mocked(listChatProjects).mockResolvedValue([{id:'project-a',nome:'Projeto A'}]);
+  vi.mocked(listConversations).mockResolvedValue([
+    {id:'conv-1',titulo:'Conversa Um',projeto_id:'project-a',projeto_nome:'Projeto A',updated_at:''},
+    {id:'conv-2',titulo:'Conversa Dois',projeto_id:'project-a',projeto_nome:'Projeto A',updated_at:''},
+  ]);
+  vi.mocked(listMessages).mockResolvedValue([]);
+  const writeText=vi.fn().mockResolvedValue(undefined);
+  Object.defineProperty(navigator,'clipboard',{configurable:true,value:{writeText}});
+  render(<ChatView/>);
+  await screen.findByRole('heading',{name:'Conversa Um'});
+  const sidebarActions=within(document.querySelector('.chat-conversations')!).getAllByRole('button',{name:/Ações da conversa: Conversa/});
+  expect(sidebarActions).toHaveLength(2);
+  fireEvent.contextMenu(screen.getByRole('heading',{name:'Conversa Um'}),{clientX:30,clientY:40});
+  const titleMenu=screen.getByRole('menu',{name:'Ações da conversa Conversa Um'});
+  expect(titleMenu).toBeInTheDocument();
+  fireEvent.keyDown(titleMenu,{key:'Escape'});
+  fireEvent.click(screen.getByText('Conversa Dois'));
+  await screen.findByRole('heading',{name:'Conversa Dois'});
+  const otherSidebarAction=within(document.querySelector('.chat-conversations')!).getByRole('button',{name:'Ações da conversa: Conversa Dois'});
+  fireEvent.click(otherSidebarAction);
+  const sidebarMenu=screen.getByRole('menu',{name:'Ações da conversa Conversa Dois'});
+  fireEvent.click(within(sidebarMenu).getByRole('menuitem',{name:'Copiar título'}));
+  await waitFor(()=>expect(writeText).toHaveBeenCalledWith('Conversa Dois'));
+  expect(screen.getByRole('heading',{name:'Conversa Dois'})).toBeInTheDocument();
+});
+it('confirma exclusão pelo menu da conversa, sem confirmação nativa, e devolve o foco ao acionador ao cancelar',async()=>{
+  const nativeConfirm=vi.spyOn(window,'confirm');
+  vi.mocked(listChatProjects).mockResolvedValue([{id:'project-a',nome:'Projeto A'}]);
+  vi.mocked(listConversations).mockResolvedValue([{id:'conv-1',titulo:'Conversa Segura',projeto_id:'project-a',projeto_nome:'Projeto A',updated_at:''}]);
+  vi.mocked(listMessages).mockResolvedValue([]);
+  render(<ChatView/>);
+  await screen.findByRole('heading',{name:'Conversa Segura'});
+  const sidebar=within(document.querySelector('.chat-conversations')!);
+  fireEvent.contextMenu(sidebar.getByText('Conversa Segura'),{clientX:20,clientY:30});
+  const menu=screen.getByRole('menu',{name:'Ações da conversa Conversa Segura'});
+  fireEvent.click(within(menu).getByRole('menuitem',{name:'Excluir conversa'}));
+  const confirmation=sidebar.getByRole('group',{name:'Confirmar exclusão de Conversa Segura'});
+  const cancel=within(confirmation).getByRole('button',{name:'Cancelar'});
+  await waitFor(()=>expect(cancel).toHaveFocus());
+  expect(confirmation).toHaveTextContent('e todas as mensagens desta conversa permanentemente?');
+  expect(deleteConversation).not.toHaveBeenCalled();
+  fireEvent.click(cancel);
+  await waitFor(()=>expect(sidebar.getByRole('button',{name:'Ações da conversa: Conversa Segura'})).toHaveFocus());
+  expect(nativeConfirm).not.toHaveBeenCalled();
 });
