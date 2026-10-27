@@ -104,6 +104,22 @@ export class ChatService {
     if (!deleted) throw new NotFoundError("Conversa não encontrada.");
   }
 
+  async renameConversation(usuarioId: string, conversaId: string, titleInput: unknown): Promise<Conversation> {
+    validateUuid(conversaId, "ID da conversa");
+    if (typeof titleInput !== "string") throw new ValidationError("Informe um título para a conversa.");
+    const titulo = titleInput.trim();
+    if (!titulo) throw new ValidationError("O título da conversa não pode ficar vazio.");
+    if ([...titulo].length > 120) throw new ValidationError("O título da conversa deve ter no máximo 120 caracteres.");
+    if (!validChatText(titulo)) throw new ValidationError("Use texto Unicode válido, sem caractere nulo.");
+
+    const current = await this.repository.findOwnedConversation(conversaId, usuarioId);
+    if (!current) throw new NotFoundError("Conversa não encontrada.");
+    await this.requireProject(current.projeto_id ?? undefined, usuarioId);
+    const updated = await this.repository.renameConversation(conversaId, usuarioId, titulo);
+    if (!updated) throw new NotFoundError("Conversa não encontrada.");
+    return updated;
+  }
+
   async deleteMessage(usuarioId: string, conversaId: string, mensagemId: string): Promise<void> {
     validateUuid(conversaId, "ID da conversa");
     validateUuid(mensagemId, "ID da mensagem");

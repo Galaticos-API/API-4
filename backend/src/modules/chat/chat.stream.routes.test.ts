@@ -13,9 +13,14 @@ const USER = "10000000-0000-4000-8000-000000000001";
 let server: Server;
 let baseUrl: string;
 let fail = false;
+let renameCall: { user: string; id: string; title: unknown } | null = null;
 
 before(() => {
   const service = {
+    renameConversation: async (user: string, id: string, title: unknown) => {
+      renameCall = { user, id, title };
+      return { id, usuario_id: user, projeto_id: "30000000-0000-4000-8000-000000000001", titulo: String(title), created_at: "2026-10-27T00:00:00Z", updated_at: "2026-10-27T00:00:00Z" };
+    },
     query: async (_user: string, _input: unknown, onProgress?: (stage: ChatProgressStage) => void) => {
       onProgress?.("searching");
       onProgress?.("synthesizing");
@@ -37,6 +42,19 @@ before(() => {
 });
 
 after(() => server.close());
+
+test("PATCH renomeia uma conversa autenticada e devolve o título salvo", async () => {
+  const id = "20000000-0000-4000-8000-000000000001";
+  const response = await fetch(`${baseUrl}/chat/conversations/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ titulo: "Decisões arquiteturais" }),
+  });
+  assert.equal(response.status, 200);
+  const payload = await response.json() as { titulo: string };
+  assert.equal(payload.titulo, "Decisões arquiteturais");
+  assert.deepEqual(renameCall, { user: USER, id, title: "Decisões arquiteturais" });
+});
 
 test("SSE relata etapas reais e envia somente a resposta final concluída", async () => {
   fail = false;

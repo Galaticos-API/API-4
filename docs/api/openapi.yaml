@@ -3049,6 +3049,31 @@ paths:
           description: Projeto não encontrado
 
   /api/v1/chat/conversations/{id}:
+    patch:
+      summary: Renomeia uma conversa do usuário autenticado
+      description: A conversa deve pertencer ao usuário e continuar acessível no projeto associado. O título é aparado e deve conter de 1 a 120 caracteres Unicode válidos.
+      operationId: renameChatConversation
+      security: [{cookieAuth: []}]
+      parameters:
+        - {name: id, in: path, required: true, schema: {type: string, format: uuid}}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [titulo]
+              properties:
+                titulo: {type: string, minLength: 1, maxLength: 120, description: 'Título Unicode válido; espaços nas extremidades são removidos'}
+      responses:
+        '200':
+          description: Conversa renomeada
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Conversa ou projeto não encontrado
     delete:
       summary: Exclui uma conversa do usuário autenticado
       description: Conversa de outra pessoa ou inexistente retorna 404, sem revelar a existência. Exclui a conversa e todas as mensagens associadas.

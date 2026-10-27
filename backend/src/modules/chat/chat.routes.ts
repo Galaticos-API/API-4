@@ -44,6 +44,15 @@ export function createChatRouter(service: ChatService = new ChatService(), authe
     }
   });
 
+  router.patch("/conversations/:id", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const updated = await service.renameConversation(userId(req), String(req.params.id), req.body?.titulo);
+      res.json(updated);
+    } catch (error) {
+      next(error);
+    }
+  });
+
   router.delete("/conversations/:id", async (req: Request, res: Response, next: NextFunction) => {
     try {
       await service.deleteConversation(userId(req), String(req.params.id));

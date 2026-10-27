@@ -35,6 +35,9 @@
   transition: opacity 140ms ease, color 140ms ease, background-color 140ms ease, border-color 140ms ease;
 }
 
+/* The assistant bubble is capped at 92% of its wrapper; align the trigger to that edge. */
+.chat-message-context-wrapper:has(> .chat-message--assistant) > .chat-message-context-trigger { right: calc(8% + 6px); }
+
 .chat-message-context-wrapper:hover > .chat-message-context-trigger,
 .chat-message-context-wrapper:focus-within > .chat-message-context-trigger {
   opacity: 1;
@@ -102,6 +105,7 @@
 
 @media (max-width: 520px) {
   .chat-message-context-wrapper:has(> .chat-message--user) { max-width: 100%; }
+  .chat-message-context-wrapper:has(> .chat-message--assistant) > .chat-message-context-trigger { right: 6px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

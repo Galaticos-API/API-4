@@ -5,10 +5,12 @@ import { ChatService } from './chat.service.js';
 import { ChatRepository } from './chat.repository.js';
 import { ragInput } from './rag.service.js';
 import { NOT_FOUND_ANSWER } from './chat.types.js';
+import type { Conversation } from './chat.types.js';
 import { ConflictError, NotFoundError, ValidationError } from '../../shared/errors.js';
 
 class RecordingChats extends ChatRepository {
   titles: string[] = [];
+  renames: Array<{ conversation: string; user: string; title: string }> = [];
   questions: string[] = [];
   retries: Array<{ conversation: string; message: string; text: string }> = [];
   async projectExists() { return true; }
@@ -17,7 +19,11 @@ class RecordingChats extends ChatRepository {
   }
   async addMessage(_conversation: string, _sender: 'user' | 'assistant', text: string) { this.questions.push(text); return randomUUID(); }
   async retryMessage(conversation: string, message: string, text: string) { this.retries.push({ conversation, message, text }); return message; }
-  async findOwnedConversation(conversation: string, user: string) { return { id: conversation, usuario_id: user, projeto_id: randomUUID(), titulo: 'Retry', created_at: '2026-10-25T00:00:00Z', updated_at: '2026-10-25T00:00:00Z' }; }
+  async findOwnedConversation(conversation: string, user: string): Promise<Conversation | null> { return { id: conversation, usuario_id: user, projeto_id: randomUUID(), titulo: 'Retry', created_at: '2026-10-25T00:00:00Z', updated_at: '2026-10-25T00:00:00Z' }; }
+  async renameConversation(conversation: string, user: string, title: string) {
+    this.renames.push({ conversation, user, title });
+    return { id: conversation, usuario_id: user, projeto_id: randomUUID(), titulo: title, created_at: '2026-10-25T00:00:00Z', updated_at: '2026-10-25T00:00:00Z' };
+  }
   async finishMessage() { }
 }
 const assistant = { ask: async () => ({ resposta: NOT_FOUND_ANSWER, fontes: [] }) };
@@ -60,6 +66,42 @@ test('título informado pelo usuário também preserva emojis e recusa texto inv
   assert.equal(chats.titles.length, 0);
   await service.createConversation(randomUUID(), { projetoId: randomUUID(), titulo: 'x'.repeat(119) + '😀' + 'fim' });
   assert.equal(/[\uD800-\uDFFF]/u.test(chats.titles[0]), false); assert.ok(chats.titles[0].endsWith('😀'));
+});
+
+test('renomeação valida e normaliza o título sem dividir emojis', async () => {
+  const chats = new RecordingChats(), service = new ChatService(chats, assistant);
+  const conversationId = randomUUID();
+  const renamed = await service.renameConversation('user-1', conversationId, '  Revisão 😀  ');
+  assert.equal(renamed.titulo, 'Revisão 😀');
+  assert.deepEqual(chats.renames, [{ conversation: conversationId, user: 'user-1', title: 'Revisão 😀' }]);
+});
+
+test('renomeação rejeita título ausente, vazio, inválido ou acima do limite', async () => {
+  const chats = new RecordingChats(), service = new ChatService(chats, assistant);
+  const conversationId = randomUUID();
+  for (const invalid of [undefined, null, '', '   ', 'x'.repeat(121), 'Título\u0000inválido', 'Título\uD800inválido']) {
+    await assert.rejects(() => service.renameConversation('user-1', conversationId, invalid), ValidationError);
+  }
+  assert.deepEqual(chats.renames, []);
+});
+
+test('renomeação só permite conversa própria e projeto ainda acessível', async () => {
+  class RestrictedChats extends RecordingChats {
+    accessible = true;
+    existing = true;
+    async projectExists() { return this.accessible; }
+    async findOwnedConversation(conversation: string, user: string): Promise<Conversation | null> {
+      if (!this.existing) return null;
+      return { id: conversation, usuario_id: user, projeto_id: randomUUID(), titulo: 'Atual', created_at: '2026-10-25T00:00:00Z', updated_at: '2026-10-25T00:00:00Z' };
+    }
+  }
+  const chats = new RestrictedChats(), service = new ChatService(chats, assistant), id = randomUUID();
+  chats.existing = false;
+  await assert.rejects(() => service.renameConversation('user-1', id, 'Novo título'), NotFoundError);
+  chats.existing = true;
+  chats.accessible = false;
+  await assert.rejects(() => service.renameConversation('user-1', id, 'Novo título'), NotFoundError);
+  assert.deepEqual(chats.renames, []);
 });
 
 test('exclusão de conversa valida UUID e lança NotFoundError se inexistente', async () => {

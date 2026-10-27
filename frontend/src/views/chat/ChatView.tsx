@@ -1,5 +1,5 @@
 import { ApiError } from "../../api/api_auth";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import {
   MAX_QUESTION_LENGTH,
   askQuestion,
@@ -8,14 +8,15 @@ import {
   describeChatError,
   listConversations,
   listMessages,
+  renameConversation,
   type ChatProgressStage,
   type ChatConversation,
   type ChatMessage,
   type ChatOrigin,
 } from "../../api/api_chat";
 import { listChatProjects } from "../../api/api_chat";
-import { ArrowUp, Check, CircleAlert, Copy, LoaderCircle, Mic, MicOff, Sparkles } from "lucide-react";
-import { ORIGIN_BADGE, SUGGESTED_PROMPTS, formatClock, formatRelative, remainingCharacters } from "../../models/chat";
+import { ArrowUp, Check, CircleAlert, Copy, LoaderCircle, Mic, MicOff, Sparkles, Trash2 } from "lucide-react";
+import { ORIGIN_BADGE, SUGGESTED_PROMPTS, formatClockWithSeconds, formatRelative, remainingCharacters } from "../../models/chat";
 import { Alert, Badge, Button } from "../common/ui";
 import { Markdown } from "../common/Markdown";
 import { MessageContextMenu, type MessageContextAction } from "./MessageContextMenu";
@@ -113,6 +114,10 @@ export function ChatView() {
   const [confirmDeleteConversationId, setConfirmDeleteConversationId] = useState<string | null>(null);
   const [confirmDeleteConversationSource, setConfirmDeleteConversationSource] = useState<"sidebar" | "header" | null>(null);
   const [conversationCopyStatus, setConversationCopyStatus] = useState("");
+  const [renameConversationId, setRenameConversationId] = useState<string | null>(null);
+  const [renameDraft, setRenameDraft] = useState("");
+  const [renameError, setRenameError] = useState("");
+  const [renaming, setRenaming] = useState(false);
   const [deletingMessageId, setDeletingMessageId] = useState<string | null>(null);
   const [confirmDeleteMessageId, setConfirmDeleteMessageId] = useState<string | null>(null);
   const messagesViewport = useRef<HTMLDivElement>(null);
@@ -125,6 +130,10 @@ export function ChatView() {
   const mobileSidebarClose = useRef<HTMLButtonElement>(null);
   const mobileSidebarPanel = useRef<HTMLElement>(null);
   const conversationActionTriggers = useRef(new Map<string, HTMLButtonElement>());
+  const renameDialogRef = useRef<HTMLDivElement>(null);
+  const renameInput = useRef<HTMLInputElement>(null);
+  const renameReturnFocus = useRef<HTMLElement | null>(null);
+  const renamingRef = useRef(false);
   const mounted = useRef(true);
   const messagesRequest = useRef(0);
   const conversationsRequest = useRef(0);
@@ -183,6 +192,40 @@ export function ChatView() {
       mobileSidebarTrigger.current?.focus();
     };
   }, [mobileSidebarOpen]);
+
+  useEffect(() => {
+    if (!renameConversationId) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    requestAnimationFrame(() => renameInput.current?.focus());
+    const handleDialogKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        event.stopPropagation();
+        if (!renamingRef.current) setRenameConversationId(null);
+        return;
+      }
+      if (event.key !== "Tab") return;
+      const controls = renameDialogRef.current?.querySelectorAll<HTMLElement>("input:not(:disabled), button:not(:disabled)");
+      if (!controls?.length) return;
+      const first = controls[0];
+      const last = controls[controls.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    document.addEventListener("keydown", handleDialogKeyDown, true);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener("keydown", handleDialogKeyDown, true);
+      const target = renameReturnFocus.current;
+      if (target?.isConnected) requestAnimationFrame(() => target.focus());
+    };
+  }, [renameConversationId]);
 
   const loadConversations = useCallback(async (selectFirst: boolean) => {
     const request = ++conversationsRequest.current;
@@ -349,6 +392,52 @@ export function ChatView() {
       setConversationCopyStatus("Não foi possível copiar o título da conversa.");
     }
     window.setTimeout(() => setConversationCopyStatus(""), 2500);
+  };
+
+  const requestRenameConversation = (conversation: ChatConversation, source: "sidebar" | "header") => {
+    if (renaming) return;
+    renameReturnFocus.current = conversationActionTriggers.current.get(`${source}:${conversation.id}`) ?? null;
+    setRenameDraft(conversation.titulo);
+    setRenameError("");
+    setRenameConversationId(conversation.id);
+  };
+
+  const saveConversationRename = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!renameConversationId || renamingRef.current) return;
+    const titulo = renameDraft.trim();
+    if (!titulo) {
+      setRenameError("O título não pode ficar vazio.");
+      renameInput.current?.focus();
+      return;
+    }
+    if ([...titulo].length > 120) {
+      setRenameError("Use no máximo 120 caracteres.");
+      renameInput.current?.focus();
+      return;
+    }
+    const previousTitle = conversations.find((item) => item.id === renameConversationId)?.titulo;
+    if (titulo === previousTitle) {
+      setRenameConversationId(null);
+      return;
+    }
+
+    renamingRef.current = true;
+    setRenaming(true);
+    setRenameError("");
+    try {
+      const updated = await renameConversation(renameConversationId, titulo);
+      if (!mounted.current) return;
+      setConversations((current) => current.map((item) => item.id === updated.id ? { ...item, ...updated } : item));
+      setConversationCopyStatus(`Conversa renomeada para “${updated.titulo}”.`);
+      window.setTimeout(() => setConversationCopyStatus(""), 2500);
+      setRenameConversationId(null);
+    } catch (error) {
+      if (mounted.current) setRenameError(describeChatError(error));
+    } finally {
+      renamingRef.current = false;
+      if (mounted.current) setRenaming(false);
+    }
   };
 
   const requestDeleteConversation = (conversationId: string, source: "sidebar" | "header" = "sidebar") => {
@@ -541,6 +630,15 @@ export function ChatView() {
         } else if (event.error === "no-speech") {
           setVoiceError(false);
           setVoiceMessage("Não detectei fala. Toque no microfone para tentar novamente.");
+        } else if (event.error === "audio-capture") {
+          setVoiceError(true);
+          setVoiceMessage("Não foi possível acessar o microfone. Confira se ele está conectado e permitido para localhost:5173.");
+        } else if (event.error === "network") {
+          setVoiceError(true);
+          setVoiceMessage("O navegador não conseguiu acessar o serviço de transcrição. Verifique a conexão e os bloqueios de privacidade; tente novamente ou use Chrome/Edge.");
+        } else if (event.error === "language-not-supported") {
+          setVoiceError(true);
+          setVoiceMessage("O navegador não oferece transcrição em português neste dispositivo.");
         } else {
           setVoiceError(true);
           setVoiceMessage("Não foi possível transcrever a fala. Tente novamente.");
@@ -622,6 +720,7 @@ export function ChatView() {
                     allowContextMenuOnButtons
                     onTriggerRef={(node) => node ? conversationActionTriggers.current.set(`sidebar:${conversation.id}`, node) : conversationActionTriggers.current.delete(`sidebar:${conversation.id}`)}
                     actions={[
+                      { id: "rename", label: "Renomear conversa", onSelect: () => requestRenameConversation(conversation, "sidebar"), disabled: deletingId !== null || renaming },
                       { id: "copy-title", label: "Copiar título", onSelect: () => void copyConversationTitle(conversation) },
                       { id: "delete", label: "Excluir conversa", onSelect: () => requestDeleteConversation(conversation.id, "sidebar"), disabled: deletingId !== null, destructive: true },
                     ]}
@@ -638,24 +737,6 @@ export function ChatView() {
                       </span>
                     </button>
                   </MessageContextMenu>
-                  <button
-                    type="button"
-                    className="chat-conversation-delete"
-                    title={`Excluir conversa "${conversation.titulo}"`}
-                    aria-label={`Excluir conversa`}
-                    disabled={deletingId === conversation.id}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      requestDeleteConversation(conversation.id, "sidebar");
-                    }}
-                  >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                      <polyline points="3 6 5 6 21 6" />
-                      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                      <line x1="10" y1="11" x2="10" y2="17" />
-                      <line x1="14" y1="11" x2="14" y2="17" />
-                    </svg>
-                  </button>
                   {confirmDeleteConversationId === conversation.id && confirmDeleteConversationSource === "sidebar" && (
                     <div className="chat-conversation-confirm" role="group" aria-label={`Confirmar exclusão de ${conversation.titulo}`} onKeyDown={(event) => { if (event.key === "Escape") restoreConversationActionFocus(conversation.id, "sidebar"); }}>
                       <span>Excluir “{conversation.titulo}” e todas as mensagens desta conversa permanentemente?</span>
@@ -687,6 +768,7 @@ export function ChatView() {
                 allowContextMenuOnButtons
                 onTriggerRef={(node) => node ? conversationActionTriggers.current.set(`header:${activeConversation.id}`, node) : conversationActionTriggers.current.delete(`header:${activeConversation.id}`)}
                 actions={[
+                  { id: "rename", label: "Renomear conversa", onSelect: () => requestRenameConversation(activeConversation, "header"), disabled: deletingId !== null || renaming },
                   { id: "copy-title", label: "Copiar título", onSelect: () => void copyConversationTitle(activeConversation) },
                   { id: "delete", label: "Excluir conversa", onSelect: () => requestDeleteConversation(activeConversation.id, "header"), disabled: deletingId !== null, destructive: true },
                 ]}
@@ -700,11 +782,13 @@ export function ChatView() {
                 <Button
                   variant="danger"
                   size="sm"
+                  className="chat-conversation-delete-trigger"
                   disabled={deletingId === activeId}
                   onClick={() => requestDeleteConversation(activeId, "header")}
+                  aria-label={deletingId === activeId ? "Excluindo conversa" : "Excluir esta conversa"}
                   title="Excluir esta conversa"
                 >
-                  {deletingId === activeId ? "Excluindo…" : "Excluir conversa"}
+                  {deletingId === activeId ? <LoaderCircle aria-hidden="true" className="chat-icon-spin" /> : <Trash2 aria-hidden="true" />}
                 </Button>
               )}
               {activeId && confirmDeleteConversationId === activeId && confirmDeleteConversationSource === "header" && (
@@ -835,6 +919,35 @@ export function ChatView() {
           </form>
         </section>
       </div>
+      {renameConversationId && (
+        <div className="chat-rename-backdrop">
+          <section ref={renameDialogRef} className="chat-rename-dialog" role="dialog" aria-modal="true" aria-labelledby="chat-rename-title" aria-describedby="chat-rename-description">
+            <form onSubmit={(event) => void saveConversationRename(event)}>
+              <h2 id="chat-rename-title">Renomear conversa</h2>
+              <p id="chat-rename-description">Escolha um título claro para encontrar esta conversa depois.</p>
+              <label htmlFor="chat-rename-input">Título da conversa</label>
+              <input
+                ref={renameInput}
+                id="chat-rename-input"
+                type="text"
+                value={renameDraft}
+                aria-invalid={Boolean(renameError)}
+                aria-describedby={renameError ? "chat-rename-count chat-rename-error" : "chat-rename-count"}
+                onChange={(event) => { setRenameDraft(event.target.value); setRenameError(""); }}
+                disabled={renaming}
+              />
+              <div id="chat-rename-count" className="chat-rename-count">{[...renameDraft.trim()].length}/120</div>
+              {renameError && <p id="chat-rename-error" className="chat-rename-error" role="alert">{renameError}</p>}
+              <div className="chat-rename-actions">
+                <Button type="button" variant="ghost" disabled={renaming} onClick={() => setRenameConversationId(null)}>Cancelar</Button>
+                <Button type="submit" disabled={renaming || !renameDraft.trim() || [...renameDraft.trim()].length > 120}>
+                  {renaming ? "Salvando…" : "Salvar"}
+                </Button>
+              </div>
+            </form>
+          </section>
+        </div>
+      )}
     </div>
   );
 }
@@ -857,15 +970,17 @@ function MessageBubble({ message, copied, copyFailed, deleting, deleteDisabled, 
   const originBadge = message.origem ? ORIGIN_BADGE[message.origem as ChatOrigin] : null;
   const sourcesRef = useRef<HTMLDetailsElement>(null);
   const hasSources = message.fontes.length > 0;
+  const [sourcesOpen, setSourcesOpen] = useState(false);
   const actions: MessageContextAction[] = [
     { id: "copy", label: isUser ? "Copiar pergunta" : "Copiar resposta", onSelect: onCopy },
-    ...(hasSources ? [{
+    ...(hasSources && !sourcesOpen ? [{
       id: "sources",
       label: "Ver fontes e evidências",
       onSelect: () => {
         const details = sourcesRef.current;
         if (!details) return;
         details.open = true;
+        setSourcesOpen(true);
         details.scrollIntoView?.({ behavior: "smooth", block: "center" });
         details.querySelector("summary")?.focus();
       },
@@ -884,20 +999,9 @@ function MessageBubble({ message, copied, copyFailed, deleting, deleteDisabled, 
     <article className={`chat-message chat-message--${isUser ? "user" : "assistant"}${message.failed ? " is-failed" : ""}`} aria-label={isUser ? "Você" : "Assistente Sinapse"}>
       <header className="chat-message-header">
         <b>{isUser ? "Você" : "Assistente Sinapse"}</b>
-        <time dateTime={message.created_at ?? undefined}>{formatClock(message.created_at)}</time>
+        <time dateTime={message.created_at ?? undefined} title={formatClockWithSeconds(message.created_at)}>{formatClockWithSeconds(message.created_at)}</time>
         {originBadge && <Badge tone="warning">{originBadge}</Badge>}
       </header>
-      <Button
-        variant="ghost"
-        size="sm"
-        className="chat-message-delete"
-        aria-label={`Apagar mensagem: ${message.conteudo.slice(0, 80)}`}
-        title="Apagar mensagem"
-        disabled={deleteDisabled || deleting}
-        onClick={onRequestDelete}
-      >
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M10 11v6m4-6v6M5 7l1 13h12l1-13M9 7V4h6v3" /></svg>
-      </Button>
       {message.failed && <p className="chat-message-failed" role="note">Não enviada</p>}
       {isUser ? <p className="chat-message-text">{message.conteudo}</p> : <Markdown source={message.conteudo} className="chat-message-body" />}
       {failureText && (
@@ -907,7 +1011,7 @@ function MessageBubble({ message, copied, copyFailed, deleting, deleteDisabled, 
         </div>
       )}
       {message.fontes.length > 0 && (
-        <details ref={sourcesRef} className="chat-sources">
+        <details ref={sourcesRef} className="chat-sources" onToggle={(event) => setSourcesOpen(event.currentTarget.open)}>
           <summary>Fontes e evidências <span>{message.fontes.length}</span></summary>
           <ul>
             {message.fontes.map((source) => (

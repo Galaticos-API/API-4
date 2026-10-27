@@ -21,6 +21,12 @@ export function formatClock(value: string | null | undefined): string {
   return Number.isNaN(date.getTime()) ? "" : date.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
 }
 
+export function formatClockWithSeconds(value: string | null | undefined): string {
+  if (!value) return "";
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? "" : date.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+}
+
 export const ORIGIN_BADGE: Record<ChatOrigin, string | null> = {
   assistente: null,
   busca_textual: "Busca textual",

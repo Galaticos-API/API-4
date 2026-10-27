@@ -83,6 +83,19 @@ it('envia requisição DELETE com o id da conversa correto',async()=>{
   );
 });
 
+it('renomeia uma conversa com PATCH e retorna o título persistido',async()=>{
+  const conversation={id:'conv-123',titulo:'Título atualizado',projeto_id:'project-a',projeto_nome:'Projeto A',updated_at:'2026-10-27T12:00:00.000Z'};
+  const fetchMock=vi.fn(async()=>new Response(JSON.stringify(conversation),{headers:{'Content-Type':'application/json'}}));
+  vi.stubGlobal('fetch',fetchMock);
+  const {renameConversation}=await import('./api_chat');
+  const result=await renameConversation('conv-123','Título atualizado');
+  expect(fetchMock).toHaveBeenCalledWith(
+    expect.stringContaining('/chat/conversations/conv-123'),
+    expect.objectContaining({method:'PATCH',body:JSON.stringify({titulo:'Título atualizado'})})
+  );
+  expect(result.titulo).toBe('Título atualizado');
+});
+
 it('envia requisição DELETE para a mensagem da conversa correta',async()=>{
   const fetchMock=vi.fn(async()=>new Response(null,{status:204}));
   vi.stubGlobal('fetch',fetchMock);

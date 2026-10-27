@@ -63,6 +63,18 @@ export class ChatRepository {
     return (result.rowCount ?? 0) > 0;
   }
 
+  async renameConversation(conversaId: string, usuarioId: string, titulo: string): Promise<Conversation | null> {
+    const result = await this.pool.query<Conversation>(
+      `UPDATE conversa c SET titulo=$3
+       WHERE c.id=$1 AND c.usuario_id=$2 AND c.projeto_id IS NOT NULL
+         AND ${projectAccessSql("c.projeto_id", "$2")}
+       RETURNING c.id,c.usuario_id,c.projeto_id,c.titulo,c.created_at,c.updated_at,
+         (SELECT p.nome FROM projeto p WHERE p.id=c.projeto_id) AS projeto_nome`,
+      [conversaId, usuarioId, titulo],
+    );
+    return result.rows[0] ?? null;
+  }
+
   async deleteMessage(conversaId: string, mensagemId: string, usuarioId: string): Promise<boolean> {
     return withTransaction(this.pool, async client => {
       const message = await client.query<{ processing_status: string | null }>(

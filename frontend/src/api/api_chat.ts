@@ -100,6 +100,15 @@ export async function deleteConversation(conversationId: string, signal?: AbortS
   });
 }
 
+export async function renameConversation(conversationId: string, title: string, signal?: AbortSignal): Promise<ChatConversation> {
+  const response = await apiRequest(`/chat/conversations/${encodeURIComponent(conversationId)}`, {
+    method: "PATCH",
+    body: JSON.stringify({ titulo: title }),
+    signal,
+  });
+  return parseConversation(await response.json());
+}
+
 export async function deleteMessage(conversationId: string, messageId: string, signal?: AbortSignal): Promise<void> {
   await apiRequest(`/chat/conversations/${encodeURIComponent(conversationId)}/messages/${encodeURIComponent(messageId)}`, {
     method: "DELETE",

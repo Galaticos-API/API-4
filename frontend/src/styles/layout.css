@@ -517,11 +517,11 @@ h2 {
 .app-footer--hidden { display: none; }
 
 .mobile-menu-toggle { display: none; }
-.mobile-menu-icon { width: 22px; height: 22px; overflow: visible; }
-.mobile-menu-icon__line { fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; transform-origin: 12px 12px; transition: transform 360ms cubic-bezier(.22, 1, .36, 1), opacity 180ms ease, stroke-width 180ms ease; }
-.mobile-menu-toggle.is-open .mobile-menu-icon__line--top { transform: translateY(5px) rotate(45deg) scaleX(.82); stroke-width: 2.1; }
+.mobile-menu-icon { width: 24px; height: 24px; overflow: visible; }
+.mobile-menu-icon__line { fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; transform-box: view-box; transform-origin: 12px 12px; transition: transform 360ms cubic-bezier(.22, 1, .36, 1), opacity 180ms ease, stroke-width 180ms ease; }
+.mobile-menu-toggle.is-open .mobile-menu-icon__line--top { transform: translateY(5px) rotate(45deg) scaleX(.95); stroke-width: 2.2; }
 .mobile-menu-toggle.is-open .mobile-menu-icon__line--middle { opacity: 0; transform: scaleX(.25); }
-.mobile-menu-toggle.is-open .mobile-menu-icon__line--bottom { transform: translateY(-5px) rotate(-45deg) scaleX(.82); stroke-width: 2.1; }
+.mobile-menu-toggle.is-open .mobile-menu-icon__line--bottom { transform: translateY(-5px) rotate(-45deg) scaleX(.95); stroke-width: 2.2; }
 
 @media (min-width: 1600px) {
   .top-header {
@@ -544,14 +544,16 @@ h2 {
 
 @media (max-width: 960px) {
   .top-header {
-    height: 68px;
-    min-height: 68px;
+    height: 56px;
+    min-height: 56px;
     flex-wrap: nowrap;
     gap: 8px 16px;
-    padding: 8px 20px;
+    padding: 0 16px;
   }
 
-  .mobile-menu-toggle { display: inline-flex; flex: 0 0 50px; width: 50px; height: 50px; min-height: 50px; margin-left: auto; padding: 0; }
+  .top-header .brand { gap: 7px; font-size: 1.05rem; letter-spacing: .11em; }
+  .top-header .brand-mark { width: 22px; height: 30px; flex-basis: 22px; }
+  .mobile-menu-toggle { display: inline-flex; flex: 0 0 40px; width: 40px; height: 40px; min-height: 40px; margin-left: auto; padding: 0; }
   .top-header .user-menu-btn,
   .top-header .user-menu-label { display: none; }
   .top-header .app-user-actions { display: none; }
