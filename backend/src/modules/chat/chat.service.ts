@@ -44,8 +44,50 @@ export class HttpAssistantClient implements AssistantClient {
   async ask(pergunta: string, projetoId?: string,usuarioId?:string,onProgress?:(stage:ChatProgressStage)=>void): Promise<AssistantAnswer> {
     if (!projetoId) throw new ValidationError("Escolha um projeto.");
     if(!usuarioId)throw new ValidationError('Autenticação necessária.');
-    return new RagService(this.repository,new SearchRepository(),new HttpSearchEmbeddingClient(this.baseUrl),undefined,new HttpHarnessEngine(this.baseUrl))
+    const result = await new RagService(this.repository,new SearchRepository(),new HttpSearchEmbeddingClient(this.baseUrl),undefined,new HttpHarnessEngine(this.baseUrl))
       .answer(usuarioId,pergunta,[projetoId],onProgress);
+    if (result.resposta === NOT_FOUND_ANSWER || !result.evidencias?.length) {
+      return result;
+    }
+    try {
+      const evidenceText = result.evidencias.map(e => `${e.texto} [${e.chunk_id}]`).join('\n\n');
+      const prompt = `Você é o assistente Sinapse da fábrica de software PRO4TECH.
+Escreva uma resposta direta, fluida e concisa (máximo 2 a 3 frases) em português para a pergunta do usuário, baseando-se estritamente nas evidências fornecidas.
+Não repita os trechos brutos; sintetize com clareza em linguagem natural.
+Mantenha as citações das fontes [chunk_id] logo após as afirmações correspondentes.
+Nunca invente informações fora das evidências.
+
+Pergunta: ${pergunta}
+
+Evidências verificadas:
+${evidenceText}
+
+Resposta:`;
+
+      const response = await fetch(`${env.OLLAMA_BASE_URL}/api/generate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'qwen2.5:1.5b',
+          prompt,
+          stream: false,
+          options: {
+            temperature: 0.1,
+            num_predict: 250,
+          },
+        }),
+      });
+      if (response.ok) {
+        const data = await response.json() as { response?: string };
+        const synthesized = data.response?.trim();
+        if (synthesized && synthesized.length > 10) {
+          return { ...result, resposta: synthesized };
+        }
+      }
+    } catch {
+      // Em caso de falha transitória na síntese, retorna com segurança a resposta verificada extrativa
+    }
+    return result;
   }
 }
 

@@ -241,4 +241,64 @@ export class SearchRepository {
     );
     return result.rows;
   }
+
+  async ragSearch(projectIds: string[], embedding: number[], limit = 5, minimumSimilarity = 0.40): Promise<HybridSearchRow[]> {
+    const vector = `[${embedding.join(",")}]`;
+    const result = await this.pool.query<HybridSearchRow>(
+      `WITH scoped_chunks AS (
+         SELECT c.id, c.projeto_id, c.entidade_tipo, c.entidade_id, c.texto,
+                c.metadados_json, c.embedding, p.nome AS projeto_nome,
+                COALESCE(1 - (c.embedding <=> $2::vector), 0) AS similarity
+         FROM chunk c
+         JOIN projeto p ON p.id = c.projeto_id
+         WHERE c.projeto_id = ANY($1::uuid[])
+           AND p.status <> 'arquivado'
+           AND ${knowledgeSourceSql('c')}
+           AND c.embedding IS NOT NULL
+           AND (c.entidade_tipo <> 'analise_repositorio' OR EXISTS (SELECT 1 FROM analise_repositorio reviewed
+             WHERE reviewed.id=c.entidade_id AND reviewed.projeto_id=c.projeto_id
+             AND reviewed.aprovacao_hash=encode(sha256(convert_to(reviewed.relatorio_markdown,'UTF8')),'hex')
+             AND reviewed.status='concluido' AND reviewed.aprovado_por IS NOT NULL AND reviewed.aprovado_em IS NOT NULL))
+       )
+       SELECT c.id, c.projeto_id AS project_id, c.projeto_nome AS project_name,
+              c.entidade_tipo AS entity_type, c.entidade_id AS entity_id,
+              COALESCE(doc.nome, dec.titulo, e.titulo, f.titulo, b.titulo, ar.repositorio_url) AS title,
+              c.texto AS text, c.metadados_json AS metadata,
+              CASE c.entidade_tipo
+                WHEN 'documento' THEN '/projects/' || c.projeto_id::text || '/documents'
+                WHEN 'epico' THEN '/projects/' || c.projeto_id::text || '/epics/' || c.entidade_id::text
+                WHEN 'feature' THEN '/projects/' || c.projeto_id::text || '/epics/' || f.epico_id::text || '/features/' || c.entidade_id::text
+                WHEN 'pbi' THEN '/projects/' || c.projeto_id::text || '/epics/' || source_pbi_feature.epico_id::text
+                  || '/features/' || b.feature_id::text || '/pbis/' || c.entidade_id::text
+                WHEN 'decisao' THEN CASE dec.entidade_tipo
+                  WHEN 'projeto' THEN '/projects/' || c.projeto_id::text
+                  WHEN 'epico' THEN '/projects/' || c.projeto_id::text || '/epics/' || dec.entidade_id::text
+                  WHEN 'feature' THEN '/projects/' || c.projeto_id::text || '/epics/' || source_decision_feature.epico_id::text
+                    || '/features/' || dec.entidade_id::text
+                  WHEN 'pbi' THEN '/projects/' || c.projeto_id::text || '/epics/' || source_decision_pbi_feature.epico_id::text
+                    || '/features/' || source_decision_pbi.feature_id::text || '/pbis/' || dec.entidade_id::text
+                  ELSE NULL
+                END
+                WHEN 'analise_repositorio' THEN '/projects/' || c.projeto_id::text || '#repo-analyzer=' || c.entidade_id::text
+                ELSE NULL
+              END AS source_url,
+              c.similarity AS relevance_score
+       FROM scoped_chunks c
+       LEFT JOIN documento doc ON c.entidade_tipo = 'documento' AND doc.id = c.entidade_id
+       LEFT JOIN decisao dec ON c.entidade_tipo = 'decisao' AND dec.id = c.entidade_id
+       LEFT JOIN epico e ON c.entidade_tipo = 'epico' AND e.id = c.entidade_id
+       LEFT JOIN feature f ON c.entidade_tipo = 'feature' AND f.id = c.entidade_id
+       LEFT JOIN pbi b ON c.entidade_tipo = 'pbi' AND b.id = c.entidade_id
+       LEFT JOIN analise_repositorio ar ON c.entidade_tipo = 'analise_repositorio' AND ar.id = c.entidade_id
+       LEFT JOIN feature source_pbi_feature ON c.entidade_tipo = 'pbi' AND source_pbi_feature.id = b.feature_id
+       LEFT JOIN feature source_decision_feature ON c.entidade_tipo = 'decisao' AND dec.entidade_tipo = 'feature' AND source_decision_feature.id = dec.entidade_id
+       LEFT JOIN pbi source_decision_pbi ON c.entidade_tipo = 'decisao' AND dec.entidade_tipo = 'pbi' AND source_decision_pbi.id = dec.entidade_id
+       LEFT JOIN feature source_decision_pbi_feature ON source_decision_pbi_feature.id = source_decision_pbi.feature_id
+       WHERE c.similarity >= $3
+       ORDER BY c.similarity DESC, c.id
+       LIMIT $4`,
+      [projectIds, vector, minimumSimilarity, limit],
+    );
+    return result.rows;
+  }
 }
