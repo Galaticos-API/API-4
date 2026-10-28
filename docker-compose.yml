@@ -97,6 +97,7 @@ services:
       - SEARCH_MIN_TEXT_RANK=${SEARCH_MIN_TEXT_RANK:-0.05}
       - MIGRATIONS_DIR=/database/migrations
       - INIT_SQL_PATH=/database/init.sql
+      - RESET_DATABASE_ON_START=${RESET_DATABASE_ON_START:-true}
 
     volumes:
       - ./storage:/files
