@@ -311,6 +311,14 @@ O script `start-dev.ps1` orquestra a checagem do Docker, inicializa o Ollama loc
 .\start-dev.ps1
 ```
 
+Na inicialização, o script também carrega os três acervos fictícios de QA em seus projetos pela API de documentos e espera o processamento terminar. Para um ambiente iniciado diretamente com `docker compose up`, carregue-os depois que Backend, Frontend e serviço de IA estiverem disponíveis:
+
+```powershell
+.\scripts\seed-demo-acervos.ps1
+```
+
+O script é idempotente para documentos já processados, restringe o login à API local e usa `SINAPSE_DEMO_ADMIN_PASSWORD` do ambiente ou do `.env` (padrão local do seed: `Admin@123`). As fixtures são conteúdo sintético de demonstração; não representam decisões ou dados reais dos clientes.
+
 > **Controle de recursos e parâmetros:**
 > * `.\start-dev.ps1 -NoLlm`: Economiza memória RAM (~1 GB) desativando o download e execução do modelo LLM (`qwen2.5:1.5b`), mantendo apenas a busca vetorial e embeddings (`bge-m3`).
 > * `.\start-dev.ps1 -NoEmbeddings`: Desativa o modelo de embeddings (`bge-m3`), mantendo apenas o Copiloto/LLM.

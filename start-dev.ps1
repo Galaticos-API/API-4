@@ -80,6 +80,7 @@ try {
     $frontendPort = $compose.services.frontend.ports[0].published
     Wait-Service "http://localhost:$backendPort/health"
     Wait-Service "http://localhost:$frontendPort"
+    & (Join-Path $PSScriptRoot 'scripts/seed-demo-acervos.ps1') -ApiBaseUrl "http://localhost:$backendPort"
     Write-Host "Servicos disponiveis. Frontend: http://localhost:$frontendPort | Backend: http://localhost:$backendPort | IA: http://localhost:8000"
 } catch {
     if ($startedAI) { Stop-DevAIProcess }
