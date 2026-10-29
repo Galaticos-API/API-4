@@ -66,7 +66,7 @@ export function createHarnessModel(token) {
             const result = state.invalid
                 ? { questions: [], summary: "SEGREDO", extra: "proibido" }
                 : payload.format.properties.evidence
-                    ? {evidence:data.context.slice(0,2).map(chunk=>({source_id:chunk.id,quote:chunk.text.length<=1000?chunk.text:chunk.text.split('\n')[0]})).filter(item=>item.quote.length<=1000)}
+                    ? (evidence => ({evidence, coverage: evidence.length ? 'complete' : 'no_evidence'}))(data.context.slice(0,2).map(chunk=>({source_id:chunk.id,quote:chunk.text.length<=1000?chunk.text:chunk.text.split('\n')[0]})).filter(item=>item.quote.length<=1000))
                 : state.clarificationOnly && payload.format.properties.scenarios
                     ? { scenarios: [], questions: ["Qual o resultado esperado quando o pedido nao existir?"] }
                     : payload.format.properties.scenarios

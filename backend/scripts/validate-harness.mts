@@ -286,7 +286,7 @@ try {
   assert.equal(chat.status, 200, JSON.stringify(chat.body));
   const structured=await call('/chat/answer',0,'POST',{pergunta:'Consultar pedido',projeto_ids:[a,b]});
   assert.equal(structured.status,200,JSON.stringify(structured.body));
-  assert.equal(structured.body.contrato,'rag-extrativo-v1');
+  assert.equal(structured.body.contrato,'rag-conversacional-v1');
   assert.equal(structured.body.evidencias.length,2);
   assert.deepEqual(new Set(structured.body.fontes.map((source:any)=>source.projeto_id)),new Set([a,b]));
   assert.equal((await call('/chat/answer',null,'POST',{pergunta:'Consultar pedido'})).status,401);

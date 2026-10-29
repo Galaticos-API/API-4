@@ -271,7 +271,7 @@ export async function verifyCopilotBrowser({
     const historyGate=new Promise<void>(resolve=>{releaseHistory=resolve;});
     await ragPage.route('**/api/v1/chat/conversations',async(route:any)=>{await historyGate;await route.continue();},{times:1});
     await ragPage.goto('http://127.0.0.1:5189/chat');
-    await ragPage.getByLabel('Escopo da consulta').selectOption(projectId);
+    await ragPage.getByLabel('Escopo da consulta').selectOption('projeto:'+projectId);
     await ragPage.getByRole('textbox').fill('Pergunta mantida enquanto o histórico carrega');
     const pendingHistory=ragPage.waitForResponse(response=>response.url().endsWith('/api/v1/chat/conversations'));
     releaseHistory();
@@ -281,26 +281,27 @@ export async function verifyCopilotBrowser({
     assert.equal(await ragPage.getByLabel('Escopo da consulta').isEnabled(),true);
     assert.equal(await ragPage.getByRole('textbox').inputValue(),'Pergunta mantida enquanto o histórico carrega');
     await ragPage.getByRole('button',{name:'Nova conversa',exact:true}).click();
-    await ragPage.getByLabel('Escopo da consulta').selectOption(projectId);
+    await ragPage.getByLabel('Escopo da consulta').selectOption('projeto:'+projectId);
     const question=ragPage.getByRole('textbox');
     await question.fill('Consultar pedido');
     await ragPage.getByRole('button',{name:'Enviar',exact:true}).click();
-    await ragPage.getByText(/Fontes citadas \(/).last().click();
+    await ragPage.locator('.chat-sources summary').last().click();
     const source=ragPage.locator('.chat-sources a').last();await source.waitFor({state:'visible'});
     const href=await source.getAttribute('href');assert.ok(href?.startsWith('/projects/'+projectId));
     await source.click();await ragPage.waitForURL('**'+href);
     await ragPage.goto('http://127.0.0.1:5189/chat');
     await ragPage.waitForFunction(()=>document.querySelector<HTMLSelectElement>('#chat-scope')?.disabled===true);
     await ragPage.getByRole('button',{name:'Nova conversa',exact:true}).click();
-    await ragPage.getByLabel('Escopo da consulta').selectOption(projectId);
+    await ragPage.getByLabel('Escopo da consulta').selectOption('projeto:'+projectId);
     try {
       await setUnavailable(true);
       await ragPage.getByRole('textbox').fill('Consultar pedido durante indisponibilidade');
       await ragPage.getByRole('button',{name:'Enviar',exact:true}).click();
-      await ragPage.getByText(/Não foi possível falar com o assistente agora/).waitFor({state:'visible'});
+      // Com código de diagnóstico do backend a tela usa a mensagem específica; sem ele, a genérica.
+      await ragPage.getByText(/A consulta falhou, mas sua pergunta foi preservada|Não foi possível falar com o assistente agora/).waitFor({state:'visible'});
       assert.equal(await ragPage.getByRole('textbox').inputValue(),'Consultar pedido durante indisponibilidade');
       await setUnavailable(false);
-      const retry=ragPage.waitForResponse(response=>response.url().endsWith('/api/v1/chat/query')&&response.request().method()==='POST');
+      const retry=ragPage.waitForResponse(response=>/\/api\/v1\/chat\/query(\/stream)?$/.test(response.url())&&response.request().method()==='POST');
       await ragPage.getByRole('button',{name:'Tentar novamente',exact:true}).click();
       assert.equal((await retry).status(),200);
       assert.equal(await ragPage.getByRole('textbox').inputValue(),'');
