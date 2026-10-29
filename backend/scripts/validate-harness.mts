@@ -294,7 +294,9 @@ try {
   try {
     await control({invalid:true});
     const rejected=await call('/chat/answer',0,'POST',{pergunta:'Consultar pedido',projeto_ids:[a]});
-    assert.equal(rejected.status,503);assert.ok(!JSON.stringify(rejected.body).includes('SEGREDO'));
+    // Saída fora do schema (422 no serviço de IA) vira "sem evidência", não indisponibilidade.
+    assert.equal(rejected.status,200);assert.equal(rejected.body.cobertura,'no_evidence');assert.deepEqual(rejected.body.evidencias,[]);
+    assert.ok(!JSON.stringify(rejected.body).includes('SEGREDO'));
     await control({invalid:false,unavailable:true});
     const failed=await call('/chat/query',1,'POST',{pergunta:'Consultar pedido com IA indisponível',projeto_id:a});
     assert.equal(failed.status,503);

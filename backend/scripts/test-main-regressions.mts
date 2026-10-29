@@ -165,8 +165,10 @@ try {
   await db.query("UPDATE projeto SET status='ativo',archived_at=NULL WHERE id=$1", [project]);
   unsupportedClaim = true;
   const rejectedClaim = await request(`/qa-harness/projects/${project}/ai/requests`, adminToken, { mode: 'consulta', operation: 'responder', level: 'pbi', fields: { pergunta: 'arquitetura Aurora' } }, 'POST');
-  assert.equal(rejectedClaim.status, 503);
-  record('unsupported_claim_rejected', { status: rejectedClaim.status });
+  // Citação que não existe no trecho é descartada: a resposta vira "não encontrei", sem fonte nem o texto inventado.
+  assert.equal(rejectedClaim.status, 200); assert.deepEqual(rejectedClaim.body.result.sources, []);
+  assert.ok(!JSON.stringify(rejectedClaim.body).includes('COBOL'));
+  record('unsupported_claim_rejected', { status: rejectedClaim.status, sources: rejectedClaim.body.result.sources });
   unsupportedClaim = false;
   const supportedClaim = await request(`/qa-harness/projects/${project}/ai/requests`, adminToken, { mode: 'consulta', operation: 'responder', level: 'pbi', fields: { pergunta: 'arquitetura Aurora' } }, 'POST');
   assert.equal(supportedClaim.status, 200); assert.deepEqual(supportedClaim.body.result.sources, [chunk]);
