@@ -807,8 +807,9 @@ it('permite excluir uma conversa a partir da lista lateral após confirmação',
   expect(deleteConversation).not.toHaveBeenCalled();
   fireEvent.click(within(confirmation).getByRole('button',{name:'Excluir'}));
   expect(deleteConversation).toHaveBeenCalledWith('conv-1');
-  await screen.findByText('Conversa 2');
-  expect(screen.queryByRole('heading',{name:'Conversa 1'})).toBeNull();
+  // "Conversa 2" já está na lista lateral; esperar por ela não garante que a exclusão foi aplicada.
+  await waitFor(()=>expect(screen.queryByRole('heading',{name:'Conversa 1'})).toBeNull());
+  expect(screen.getByText('Conversa 2')).toBeInTheDocument();
 });
 
 it('permite excluir a conversa ativa a partir do cabeçalho e reseta o chat para nova conversa',async()=>{
