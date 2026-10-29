@@ -70,7 +70,15 @@ test('S2-24: busca híbrida, evidências, escopo transversal autorizado e revoga
       } finally {server.closeAllConnections();await new Promise<void>(resolve=>server.close(()=>resolve()));}
     });
     await t.test('modelo não pode citar um ID inventado',async()=>{
-      invalid=true;try{await assert.rejects(()=>service.answer(dev,'WhatsApp',[a]),/validar as evidências/);}finally{invalid=false;}
+      // A citação literal é reatribuída ao trecho que realmente a contém; o ID inventado nunca é publicado.
+      invalid=true;
+      try {
+        const answer=await service.answer(dev,'WhatsApp',[a]);
+        const real=new Set((await db.query('SELECT id FROM chunk WHERE projeto_id=$1',[a])).rows.map(row=>row.id));
+        assert.ok(answer.evidencias.length>0);
+        assert.ok(answer.evidencias.every(item=>real.has(item.chunk_id)));
+        assert.ok(answer.fontes.every(source=>source.chunk_ids!.every(id=>real.has(id))));
+      } finally{invalid=false;}
     });
     await t.test('ressalva acrescentada durante geração invalida o contexto antigo',async()=>{
       const original=(await db.query('SELECT texto FROM chunk WHERE id=$1',[chunkA])).rows[0].texto;
