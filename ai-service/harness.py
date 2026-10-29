@@ -8,7 +8,7 @@ from typing import Any, Literal
 from fastapi import APIRouter, HTTPException
 from jsonschema import Draft202012Validator, FormatChecker, ValidationError as OutputValidationError
 from pydantic import BaseModel, ConfigDict, Field
-from services.ollama_client import ollama_client
+from services.ollama_client import grammar_schema, ollama_client
 
 router = APIRouter()
 OPERATIONS = {"levantamento": {"questionar", "padronizar", "cenarios"}, "consulta": {"responder"}, "recomendacao": {"similares"}}
@@ -152,7 +152,7 @@ async def run_harness(req: HarnessRequest):
         elif req.mode == "recomendacao" and not req.context:
             result = {"items": []}
         else:
-            raw = await asyncio.wait_for(ollama_client.generate_response(prompt, system_prompt=system, temperature=0.1, output_schema=output_schema, max_tokens=2048 if req.operation == "cenarios" else 1024), req.config.timeout_ms / 1000)
+            raw = await asyncio.wait_for(ollama_client.generate_response(prompt, system_prompt=system, temperature=0.1, output_schema=grammar_schema(output_schema), max_tokens=2048 if req.operation == "cenarios" else 1024), req.config.timeout_ms / 1000)
             if len(raw) > 200000:
                 raise ValueError("Resposta excedeu o limite")
             result = json.loads(raw)
