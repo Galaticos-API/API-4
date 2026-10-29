@@ -156,8 +156,10 @@ test('chat RAG QA fictício: citação fabricada continua sendo recusada', async
   const service = makeService([expectedRow], async () => ({
     coverage: 'complete', evidence: [{ source_id: expectedRow.id, quote: 'O projeto usa pagamentos por PIX.' }],
   }));
-  await assert.rejects(
-    () => service.answer(randomUUID(), fixture.queries[0].variants[0], [fixture.project.id]),
-    /indisponível ou não conseguiu validar/,
-  );
+  // A citação inventada é descartada: o chat responde "sem evidência" em vez de falhar ou publicá-la.
+  const answer = await service.answer(randomUUID(), fixture.queries[0].variants[0], [fixture.project.id]);
+  assert.equal(answer.cobertura, 'no_evidence');
+  assert.deepEqual(answer.fontes, []);
+  assert.deepEqual(answer.evidencias, []);
+  assert.doesNotMatch(answer.resposta, /PIX/);
 });

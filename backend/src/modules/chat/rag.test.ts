@@ -1,12 +1,16 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
+import { createServer } from 'node:http';
+import type { AddressInfo } from 'node:net';
 import { validateEvidence,validateEvidenceResponse,evidenceOutputSchema,usedSources,RagService,splitCompoundQuestion,validateConversationalAnswer } from './rag.service.js';
 import { ChatRepository } from './chat.repository.js';
 import { SearchRepository } from '../search/search.repository.js';
 import { HarnessRepository } from '../harness/harness.repository.js';
-import { defaultConfig } from '../harness/harness.contract.js';
-import { PARTIAL_ANSWER_NOTICE } from './chat.types.js';
+import { defaultConfig,ModelOutputRejectedError } from '../harness/harness.contract.js';
+import { HttpHarnessEngine } from '../harness/harness.service.js';
+import { reconcileEvidenceResponse,resolveQuote,wholePassage } from './rag-evidence.js';
+import { PARTIAL_ANSWER_NOTICE,UNAVAILABLE_ASPECT_NOTICE } from './chat.types.js';
 import type { HybridSearchRow } from '../search/search.types.js';
 
 const project=randomUUID(),chunk=randomUUID(),other=randomUUID(),entity=randomUUID();
@@ -248,4 +252,94 @@ test('RAG bloqueia assunto explicitamente fora do escopo e não publica fontes',
   assert.match(answer.resposta,/Posso ajudar com requisitos, decisões técnicas/i);
   assert.deepEqual(answer.fontes,[]);
   assert.deepEqual(answer.evidencias,[]);
+});
+test('RAG tolera variação de espaço, caixa, acento e Markdown, mas publica a passagem literal',()=>{
+  const text='## Pagamento\n- A **confirmação** do PIX ocorre por webhook do PSP em até 5 segundos.\nO estorno não é automático.';
+  const context=[{id:chunk,text}];
+  const literal='- A **confirmação** do PIX ocorre por webhook do PSP em até 5 segundos.';
+  for(const quote of ['A confirmacao do PIX  ocorre por webhook do psp em até 5 segundos','“A confirmação do PIX ocorre por webhook do PSP em até 5 segundos.”'])
+    assert.deepEqual(resolveQuote(context,chunk,quote),{source_id:chunk,quote:literal});
+  // Recorte de frase vira a frase inteira, sem perder a negação.
+  assert.deepEqual(resolveQuote(context,chunk,'é automático'),undefined,'recorte curto demais não identifica a passagem');
+  assert.deepEqual(resolveQuote(context,chunk,'estorno não é automático'),{source_id:chunk,quote:'O estorno não é automático.'});
+  // Paráfrase e citação atribuída à fonte errada.
+  assert.equal(resolveQuote(context,chunk,'O PIX é confirmado por webhook em até 5 segundos.'),undefined);
+  assert.deepEqual(resolveQuote([{id:other,text:'Outro trecho.'},...context],other,'O estorno não é automático.'),{source_id:chunk,quote:'O estorno não é automático.'});
+  // Pergunta e título não afirmam fatos.
+  const faq=[{id:chunk,text:'## Perguntas úteis\n- Quantas tentativas inválidas acionam o bloqueio?'}];
+  assert.equal(resolveQuote(faq,chunk,'- Quantas tentativas inválidas acionam o bloqueio?'),undefined);
+  assert.equal(resolveQuote(faq,chunk,'## Perguntas úteis'),undefined);
+});
+test('RAG não publica citação que começa no meio de uma palavra na borda do chunk',()=>{
+  // Chunks se sobrepõem: o início de um pode cortar a frase que está inteira no anterior.
+  const previous={id:other,text:'Dado que os atributos do token são válidos, a aplicação aceita o acesso.'};
+  const cut={id:chunk,text:'ibutos do token são válidos, a aplicação aceita o acesso.'};
+  assert.equal(wholePassage(cut.text,cut.text),false);
+  assert.equal(resolveQuote([cut],chunk,cut.text),undefined);
+  assert.deepEqual(resolveQuote([cut,previous],chunk,cut.text),{source_id:other,quote:previous.text});
+  assert.equal(wholePassage('Linha completa.','Linha completa.'),true);
+});
+test('RAG reconcilia a resposta do modelo sem lançar e só rebaixa a cobertura',()=>{
+  const context=[{id:chunk,text:row.text}];
+  const valid={source_id:chunk,quote:row.text},invented={source_id:chunk,quote:'O login usa SMS e biometria facial.'};
+  assert.deepEqual(reconcileEvidenceResponse({coverage:'complete',evidence:[valid]},context),{coverage:'complete',evidence:[valid],adjusted:false});
+  assert.deepEqual(reconcileEvidenceResponse({coverage:'complete',evidence:[valid,invented]},context),{coverage:'partial',evidence:[valid],adjusted:true});
+  for(const value of [{coverage:'complete',evidence:[invented]},{coverage:'complete',evidence:[]},null,'texto livre',{coverage:'no_evidence',evidence:[valid]}])
+    assert.deepEqual(reconcileEvidenceResponse(value,context).evidence,[]);
+  assert.equal(reconcileEvidenceResponse({coverage:'out_of_scope',evidence:[valid]},context).coverage,'out_of_scope');
+});
+const evidenceCall=(payload:Record<string,unknown>)=>JSON.stringify(payload.output_schema)===JSON.stringify(evidenceOutputSchema);
+test('RAG responde com o aspecto válido quando a citação de outro aspecto é recusada',async()=>{
+  const question='Como funciona o login e qual o prazo de recuperação?';
+  const service=new RagService(new Chats(),new Search(),{embed:async()=>Array(1024).fill(0.1)},new Revisions(),{
+    generate:async payload=>{
+      if(!evidenceCall(payload))return {answer:`O login exige autenticação. [${chunk}]`,sources:[chunk]};
+      return /login/i.test((payload.fields as {pergunta:string}).pergunta)
+        ?{coverage:'complete',evidence:[{source_id:chunk,quote:row.text}]}
+        :{coverage:'complete',evidence:[{source_id:chunk,quote:'A recuperação leva 24 horas.'}]};
+    },
+  });
+  const answer=await service.answer(randomUUID(),question,[project]);
+  assert.equal(answer.cobertura,'partial');
+  assert.deepEqual(answer.evidencias,[{chunk_id:chunk,texto:row.text}]);
+  assert.doesNotMatch(answer.resposta,/24 horas/);
+});
+test('RAG só falha quando todos os aspectos ficam indisponíveis',async()=>{
+  const question='Como funciona o login e qual o prazo de recuperação?';
+  const unavailable=()=>{throw new Error('ECONNREFUSED');};
+  const partial=new RagService(new Chats(),new Search(),{embed:async()=>Array(1024).fill(0.1)},new Revisions(),{
+    generate:async payload=>{
+      if(!evidenceCall(payload))return {answer:`O login exige autenticação. [${chunk}]`,sources:[chunk]};
+      if(/prazo/i.test((payload.fields as {pergunta:string}).pergunta))unavailable();
+      return {coverage:'complete',evidence:[{source_id:chunk,quote:row.text}]};
+    },
+  });
+  const errors=console.error;console.error=()=>{};
+  try {
+    const answer=await partial.answer(randomUUID(),question,[project]);
+    assert.equal(answer.cobertura,'partial');
+    assert.ok(answer.resposta.endsWith(UNAVAILABLE_ASPECT_NOTICE));
+    const down=new RagService(new Chats(),new Search(),{embed:async()=>Array(1024).fill(0.1)},new Revisions(),{generate:async()=>unavailable()});
+    await assert.rejects(()=>down.answer(randomUUID(),question,[project]),/indisponível ou não conseguiu validar/);
+  } finally { console.error=errors; }
+});
+test('RAG trata saída do modelo fora do schema como sem evidência, não como indisponibilidade',async()=>{
+  const service=new RagService(new Chats(),new Search(),{embed:async()=>Array(1024).fill(0.1)},new Revisions(),{
+    generate:async()=>{throw new ModelOutputRejectedError('fora do schema');},
+  });
+  const warnings=console.warn;console.warn=()=>{};
+  try {
+    const answer=await service.answer(randomUUID(),'Como funciona o login?',[project]);
+    assert.equal(answer.cobertura,'no_evidence');
+    assert.deepEqual(answer.fontes,[]);
+  } finally { console.warn=warnings; }
+});
+test('Harness HTTP distingue saída rejeitada (422) de indisponibilidade',async()=>{
+  const server=createServer((req,res)=>{res.statusCode=req.url?.startsWith('/bad')?422:503;res.end('{}');});
+  await new Promise<void>(done=>server.listen(0,'127.0.0.1',done));
+  const {port}=server.address() as AddressInfo;
+  try {
+    await assert.rejects(()=>new HttpHarnessEngine(`http://127.0.0.1:${port}/bad`).generate({},2000),ModelOutputRejectedError);
+    await assert.rejects(()=>new HttpHarnessEngine(`http://127.0.0.1:${port}/down`).generate({},2000),(error:unknown)=>!(error instanceof ModelOutputRejectedError));
+  } finally { server.close(); }
 });

@@ -94,4 +94,5 @@ export const NO_CANDIDATES_ANSWER = "Não localizei registros que correspondam a
 export const NO_SUPPORT_ANSWER = "Encontrei registros relacionados, mas eles não apresentam evidências suficientes para responder com segurança.";
 export const SCOPE_LIMIT_ANSWER = "Se quiser, reformule usando o nome de uma funcionalidade, tecnologia, decisão ou regra de negócio. Também posso resumir requisitos e decisões registrados nos projetos selecionados.";
 export const OUT_OF_SCOPE_ANSWER = "Essa pergunta parece estar fora do contexto dos projetos consultados. Posso ajudar com requisitos, decisões técnicas, tecnologias, regras de negócio e histórico registrados neles.";
+export const UNAVAILABLE_ASPECT_NOTICE = "Não consegui analisar parte da pergunta agora; tente de novo em instantes para completar a resposta.";
 export const PARTIAL_ANSWER_NOTICE = "Consegui confirmar parte do que você perguntou; os outros pontos não aparecem nas evidências recuperadas.";
