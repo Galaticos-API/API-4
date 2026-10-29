@@ -10,6 +10,7 @@ export const PROJECT_B = "a0000000-0000-4000-8000-000000000002";
 export class FakeChatRepository extends ChatRepository {
   public conversations: Conversation[] = [];
   public messages: ChatMessage[] = [];
+  public allowedProjects = [{ id: PROJECT_A, nome: "A" }, { id: PROJECT_B, nome: "B" }];
   public chunks: Array<ChunkMatch & { projeto_id: string }> = [];
   public searches: Array<{ projetoId: string | null; patterns: string[] }> = [];
   private sequence = 0;
@@ -31,9 +32,9 @@ export class FakeChatRepository extends ChatRepository {
     return projetoId === PROJECT_A || projetoId === PROJECT_B;
   }
 
-  async createConversation(usuarioId: string, projetoId: string | null, titulo: string): Promise<Conversation> {
+  async createConversation(usuarioId: string, projetoId: string | null, titulo: string, scope: "projeto" | "todos_autorizados" = "projeto"): Promise<Conversation> {
     const now = new Date().toISOString();
-    const created: Conversation = { id: this.id("c"), usuario_id: usuarioId, projeto_id: projetoId, titulo, created_at: now, updated_at: now };
+    const created: Conversation = { id: this.id("c"), usuario_id: usuarioId, projeto_id: projetoId, escopo_tipo: scope, titulo, created_at: now, updated_at: now };
     this.conversations.push(created);
     return created;
   }
@@ -62,7 +63,9 @@ export class FakeChatRepository extends ChatRepository {
     return id;
   }
 
-  async accessibleProjects() { return [{id:PROJECT_A,nome:"A"},{id:PROJECT_B,nome:"B"}]; }
+  async accessibleProjects() { return this.allowedProjects; }
+  async unsafeGeneralConversationIds() { return []; }
+  async hasUnsafeGeneralSources() { return false; }
   async finishMessage(conversaId: string, messageId: string, conteudo: string, fontes: ChatSource[]) { await this.addMessage(conversaId, "assistant", conteudo, fontes); this.messages.find(m=>m.id===messageId)!.processing_status="completed"; }
   async failMessage(id: string) { this.messages.find(m=>m.id===id)!.processing_status="failed"; }
   async searchChunks(projetoId: string | null, patterns: string[], limit: number): Promise<ChunkMatch[]> {
@@ -77,11 +80,19 @@ export class FakeChatRepository extends ChatRepository {
 
 export class FakeAssistant implements AssistantClient {
   public calls: Array<{ pergunta: string; projetoId?: string }> = [];
+  public projectCalls: Array<{ pergunta: string; projetoIds: string[] }> = [];
   public available = true;
   public answer = { resposta: "Resposta do assistente", fontes: [{ id: "s1", titulo: "Decisão 1", tipo: "decisao" }] };
 
   async ask(pergunta: string, projetoId?: string) {
     this.calls.push({ pergunta, projetoId });
+    if (!this.available) throw new Error("indisponível");
+    return this.answer;
+  }
+
+  async askProjects(pergunta: string, projetoIds: string[]) {
+    this.projectCalls.push({ pergunta, projetoIds });
+    if (projetoIds.length === 1) this.calls.push({ pergunta, projetoId: projetoIds[0] });
     if (!this.available) throw new Error("indisponível");
     return this.answer;
   }

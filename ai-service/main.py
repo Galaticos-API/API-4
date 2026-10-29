@@ -1,4 +1,5 @@
 from harness import router as harness_router
+from query_planner import plan_queries
 import hmac
 import math
 from fastapi import Request
@@ -125,7 +126,24 @@ class RagQueryRequest(BaseModel):
     context_chunks: list[str] = Field(default_factory=list, description="Top-K trechos recuperados")
 
 
+class QueryPlanTurn(BaseModel):
+    role: Literal["user", "assistant"]
+    content: str = Field(..., min_length=1, max_length=1000)
+
+
+class QueryPlanRequest(BaseModel):
+    question: str = Field(..., min_length=1, max_length=2000, description="Pergunta para reformulação de consultas de recuperação")
+    history: list[QueryPlanTurn] = Field(default_factory=list, max_length=8, description="Mensagens recentes e concluídas da mesma conversa, limitadas para resolver referências")
+
+
 app.include_router(harness_router)
+
+
+@app.post("/rag/plan-query")
+async def plan_rag_query(req: QueryPlanRequest):
+    """Interpreta a intenção da pergunta e devolve consultas de busca, sem gerar respostas ou fatos."""
+    history = [turn.model_dump() for turn in req.history]
+    return await plan_queries(ollama_client, req.question, history)
 
 
 @app.get("/health")
@@ -366,7 +384,7 @@ async def query_rag(req: RagQueryRequest):
     if not req.project_id:
         raise HTTPException(status_code=422, detail="Projeto obrigatório")
     if not req.context_chunks:
-        return {"response": "Informação não encontrada no acervo do projeto.", "project_id": req.project_id}
+        return {"response": "Não encontrei informações que respondam a essa pergunta no acervo consultado.", "project_id": req.project_id}
     context_str = "\n\n---\n\n".join(req.context_chunks) if req.context_chunks else "Nenhum contexto recuperado."
     user_prompt = f"Contexto do Acervo:\n{context_str}\n\nPergunta do Product Owner:\n{req.query}"
     

@@ -52,6 +52,14 @@ test('busca híbrida: relevância, siglas, números e isolamento', { skip: !url 
       const expected = await seed('Autenticação com restrição de funcionalidades para operadores.', 0.46);
       assert.deepEqual((await search('Limitar a entrada de operadores no setor protegido')).map(row => row.id), [expected]);
     });
+    await t.test('perguntas em linguagem natural sobre banco recuperam fontes que citam o produto do banco', async () => {
+      await clean();
+      const expected = await seed('O projeto utiliza PostgreSQL como banco de dados relacional principal.', 0.4);
+      await seed('O banco libera crédito para clientes pessoa física.', 0.9);
+      for (const query of ['banco', 'banco de dados', 'Qual banco estamos usando?', 'Qual tecnologia de banco de dados foi escolhida?']) {
+        assert.ok((await search(query)).some(row => row.id === expected), `Não recuperou a fonte para: ${query}`);
+      }
+    });
     await t.test('inativação é recuperável como desabilitação de um cadastro', async () => {
       await clean();
       const expected = await seed('Permitir inativação de cadastro funcional.', 0.46);

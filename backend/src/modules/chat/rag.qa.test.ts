@@ -79,7 +79,13 @@ class FixtureRevisions extends HarnessRepository {
 function makeService(rows: HybridSearchRow[], generate: (payload: Record<string, unknown>) => Promise<unknown>, onEmbed?: (query: string) => void) {
   return new RagService(new FixtureChats(), new FixtureSearch(rows), {
     embed: async (query: string) => { onEmbed?.(query); return Array(1024).fill(0.1); },
-  }, new FixtureRevisions(), { generate: async (payload) => generate(payload) });
+  }, new FixtureRevisions(), { generate: async (payload) => {
+    const schema=payload.output_schema as {properties?:Record<string,unknown>};
+    if(schema.properties?.evidence) return generate(payload);
+    const context=payload.context as Array<{id:string;text:string}>;
+    const id=context[0]?.id;
+    return {answer:`Encontrei esta informação no acervo. [${id}]`,sources:id?[id]:[]};
+  }});
 }
 
 test('chat RAG QA fictício: fatos positivos e paráfrases devolvem citação da fonte esperada', async () => {
@@ -89,22 +95,24 @@ test('chat RAG QA fictício: fatos positivos e paráfrases devolvem citação da
   for (const query of cases) {
     const expectedRow = fixtureRows.find((row) => row.id === query.expected_chunk_id)!;
     for (const variant of query.variants) {
-      let embeddedQuestion = '';
+      const embeddedQuestions: string[] = [];
       let generationCalls = 0;
       const service = makeService([expectedRow], async (payload) => {
         generationCalls += 1;
         const context = payload.context as Array<{ id: string; text: string }>;
         assert.ok(context.some((item) => item.id === expectedRow.id));
-        return { evidence: [{ source_id: expectedRow.id, quote: query.expected_quote }] };
-      }, (question) => { embeddedQuestion = question; });
+        return { coverage: 'complete', evidence: [{ source_id: expectedRow.id, quote: query.expected_quote }] };
+      }, (question) => { embeddedQuestions.push(question); });
 
       const response = await service.answer(randomUUID(), variant, [fixture.project.id]);
-      assert.equal(embeddedQuestion, variant, `${query.id}: preserva a pergunta enviada`);
+      assert.ok(embeddedQuestions.includes(variant), `${query.id}: preserva a pergunta original junto à consulta interpretada`);
       assert.equal(generationCalls, 1, `${query.id}: gera resposta com evidência`);
       assert.deepEqual(response.evidencias, [{ chunk_id: expectedRow.id, texto: query.expected_quote }]);
+      assert.ok(response.resposta.includes(`[${expectedRow.id}]`), `${query.id}: cita o chunk literal recuperado`);
       assert.equal(response.fontes.length, 1);
       assert.equal(response.fontes[0].projeto_id, fixture.project.id);
       assert.ok(response.fontes[0].chunk_ids?.includes(expectedRow.id));
+      assert.deepEqual(new Set(response.fontes.flatMap((source) => source.chunk_ids ?? [])), new Set(response.evidencias.map((evidence) => evidence.chunk_id)));
       testedVariants += 1;
     }
   }
@@ -116,11 +124,13 @@ test('chat RAG QA fictício: fatos positivos e paráfrases devolvem citação da
 test('chat RAG QA fictício: pergunta sem evidência se abstém e não chama o gerador', async () => {
   const query = fixture.queries.find((item) => item.kind === 'negative')!;
   let generationCalls = 0;
-  const service = makeService([], async () => { generationCalls += 1; return { evidence: [] }; });
+  const service = makeService([], async () => { generationCalls += 1; return { coverage: 'no_evidence', evidence: [] }; });
 
   for (const variant of query.variants) {
     const response = await service.answer(randomUUID(), variant, [fixture.project.id]);
-    assert.equal(response.resposta, NOT_FOUND_ANSWER);
+  assert.match(response.resposta,/Não localizei registros que correspondam/i);
+    assert.match(response.resposta,/Se quiser, reformule usando o nome de uma funcionalidade/i);
+    assert.match(response.resposta,/Também posso resumir requisitos e decisões/i);
     assert.deepEqual(response.fontes, []);
     assert.deepEqual(response.evidencias, []);
   }
@@ -132,19 +142,19 @@ test('chat RAG QA fictício: nega projeto não autorizado antes de embedding e r
   const question = fixture.queries[0].variants[0];
   const unauthorized = new RagService(new FixtureChats(), new FixtureSearch([fixtureRows[0]]), {
     embed: async () => { embeddingCalls += 1; return Array(1024).fill(0.1); },
-  }, new FixtureRevisions(), { generate: async () => ({ evidence: [] }) });
+  }, new FixtureRevisions(), { generate: async () => ({ coverage: 'no_evidence', evidence: [] }) });
   await assert.rejects(() => unauthorized.answer(randomUUID(), question, ['a1000000-0000-4000-8000-000000000099']), /Projeto não encontrado/);
   assert.equal(embeddingCalls, 0);
 
   const foreignProjectRow = { ...fixtureRows[0], project_id: 'a1000000-0000-4000-8000-000000000099' };
-  const leaking = makeService([foreignProjectRow], async () => ({ evidence: [] }));
+  const leaking = makeService([foreignProjectRow], async () => ({ coverage: 'no_evidence', evidence: [] }));
   await assert.rejects(() => leaking.answer(randomUUID(), question, [fixture.project.id]), /indisponível ou não conseguiu validar/);
 });
 
 test('chat RAG QA fictício: citação fabricada continua sendo recusada', async () => {
   const expectedRow = fixtureRows[0];
   const service = makeService([expectedRow], async () => ({
-    evidence: [{ source_id: expectedRow.id, quote: 'O projeto usa pagamentos por PIX.' }],
+    coverage: 'complete', evidence: [{ source_id: expectedRow.id, quote: 'O projeto usa pagamentos por PIX.' }],
   }));
   await assert.rejects(
     () => service.answer(randomUUID(), fixture.queries[0].variants[0], [fixture.project.id]),

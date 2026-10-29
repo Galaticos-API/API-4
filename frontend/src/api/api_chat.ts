@@ -2,12 +2,28 @@ import { ApiError, apiRequest } from "./api_auth";
 import { serverMessage } from "./api_errors";
 
 export type ChatOrigin = "assistente" | "busca_textual" | "sem_resultado";
+export type ChatScopeType = "projeto" | "todos_autorizados" | "indisponivel";
 export type ChatProgressStage = "searching" | "synthesizing" | "validating";
+export type ProjectKnowledgeState = "ready" | "partial" | "pending" | "failed" | "empty";
+
+export interface ChatProject {
+  id: string;
+  nome: string;
+  documentos_total?: number;
+  documentos_processados?: number;
+  documentos_pendentes?: number;
+  documentos_com_falha?: number;
+  trechos_elegiveis?: number;
+  trechos_com_embedding?: number;
+  ultimo_trecho_em?: string | null;
+  prontidao?: ProjectKnowledgeState;
+}
 
 export interface ChatSource {
   id: string;
   titulo: string;
   tipo: string;
+  projeto_id?: string;
   projeto_nome?: string;
   url?: string | null;
 }
@@ -17,6 +33,7 @@ export interface ChatConversation {
   titulo: string;
   projeto_id: string | null;
   projeto_nome: string | null;
+  escopo_tipo?: ChatScopeType;
   updated_at: string;
 }
 
@@ -27,11 +44,13 @@ export interface ChatMessage {
   fontes: ChatSource[];
   created_at: string | null;
   origem?: ChatOrigin;
+  processing?: boolean;
   failed?: boolean;
 }
 
 export interface ChatAnswer {
   conversa_id: string;
+  escopo_tipo?: Exclude<ChatScopeType, "indisponivel">;
   resposta: string;
   fontes: ChatSource[];
   origem: ChatOrigin;
@@ -53,6 +72,7 @@ function parseSources(value: unknown): ChatSource[] {
       id: item.id,
       titulo: typeof item.titulo === "string" && item.titulo ? item.titulo : item.id,
       tipo: typeof item.tipo === "string" ? item.tipo : "documento",
+      projeto_id: typeof item.projeto_id === "string" ? item.projeto_id : undefined,
       projeto_nome: typeof item.projeto_nome==='string'?item.projeto_nome:undefined,
       url: typeof item.url==='string'&&item.url.startsWith('/projects/')&&!/[\\\s]/.test(item.url)?item.url:null,
     }];
@@ -68,6 +88,7 @@ function parseConversation(value: unknown): ChatConversation {
     titulo: value.titulo,
     projeto_id: typeof value.projeto_id === "string" ? value.projeto_id : null,
     projeto_nome: typeof value.projeto_nome === "string" ? value.projeto_nome : null,
+    escopo_tipo: value.escopo_tipo === "projeto" || value.escopo_tipo === "todos_autorizados" || value.escopo_tipo === "indisponivel" ? value.escopo_tipo : "indisponivel",
     updated_at: typeof value.updated_at === "string" ? value.updated_at : "",
   };
 }
@@ -81,6 +102,7 @@ function parseMessage(value: unknown): ChatMessage {
     id: value.id,
     remetente: value.remetente as ChatMessage["remetente"],
     conteudo: value.conteudo,
+    processing: value.processing_status === "pending",
     failed: value.processing_status === "failed",
     fontes: parseSources(value.fontes_json ?? value.fontes),
     created_at: typeof value.created_at === "string" ? value.created_at : null,
@@ -123,11 +145,12 @@ export async function listMessages(conversationId: string, signal?: AbortSignal)
 }
 
 export async function askQuestion(
-  input: { pergunta: string; conversaId?: string | null; projetoId?: string | null; mensagemId?: string | null },
+  input: { pergunta: string; conversaId?: string | null; projetoId?: string | null; mensagemId?: string | null; escopo?: Exclude<ChatScopeType, "indisponivel"> },
   signal?: AbortSignal,
   onProgress?: (stage: ChatProgressStage) => void,
+  onConversation?: (conversation: ChatConversation) => void,
 ): Promise<ChatAnswer> {
-  if (onProgress) return askQuestionWithProgress(input, onProgress, signal);
+  if (onProgress) return askQuestionWithProgress(input, onProgress, signal, onConversation);
   const deadline = AbortSignal.timeout(QUERY_TIMEOUT_MS);
   const response = await apiRequest("/chat/query", {
     method: "POST",
@@ -136,6 +159,7 @@ export async function askQuestion(
       conversa_id: input.conversaId || undefined,
       mensagem_id: input.mensagemId || undefined,
       projeto_id: input.projetoId || undefined,
+      escopo: input.escopo,
     }),
     signal: signal ? AbortSignal.any([signal, deadline]) : deadline,
   }, QUERY_TIMEOUT_MS);
@@ -147,13 +171,15 @@ function parseChatAnswer(data: unknown): ChatAnswer {
     throw new Error("Resposta do assistente inválida");
   }
   const origem = ["assistente", "busca_textual", "sem_resultado"].includes(String(data.origem)) ? (data.origem as ChatOrigin) : "assistente";
-  return { conversa_id: data.conversa_id, resposta: data.resposta, fontes: parseSources(data.fontes), origem };
+  const escopo_tipo = data.escopo_tipo === "projeto" || data.escopo_tipo === "todos_autorizados" ? data.escopo_tipo : undefined;
+  return { conversa_id: data.conversa_id, escopo_tipo, resposta: data.resposta, fontes: parseSources(data.fontes), origem };
 }
 
 export async function askQuestionWithProgress(
-  input: { pergunta: string; conversaId?: string | null; projetoId?: string | null; mensagemId?: string | null },
+  input: { pergunta: string; conversaId?: string | null; projetoId?: string | null; mensagemId?: string | null; escopo?: Exclude<ChatScopeType, "indisponivel"> },
   onProgress: (stage: ChatProgressStage) => void,
   signal?: AbortSignal,
+  onConversation?: (conversation: ChatConversation) => void,
 ): Promise<ChatAnswer> {
   const deadline = AbortSignal.timeout(QUERY_TIMEOUT_MS);
   const response = await apiRequest("/chat/query/stream", {
@@ -163,6 +189,7 @@ export async function askQuestionWithProgress(
       conversa_id: input.conversaId || undefined,
       mensagem_id: input.mensagemId || undefined,
       projeto_id: input.projetoId || undefined,
+      escopo: input.escopo,
     }),
     signal: signal ? AbortSignal.any([signal, deadline]) : deadline,
   }, QUERY_TIMEOUT_MS);
@@ -186,6 +213,10 @@ export async function askQuestionWithProgress(
     }
     if (!data.length) return;
     const payload: unknown = JSON.parse(data.join("\n"));
+    if (event === "conversation") {
+      onConversation?.(parseConversation(payload));
+      return;
+    }
     if (event === "progress") {
       if (isRecord(payload) && ["searching", "synthesizing", "validating"].includes(String(payload.stage))) {
         onProgress(payload.stage as ChatProgressStage);
@@ -193,6 +224,7 @@ export async function askQuestionWithProgress(
       return;
     }
     if (event === "completed") { answer = parseChatAnswer(payload); return; }
+    if (event === "cancelled") throw new DOMException("Consulta interrompida.", "AbortError");
     if (event === "error") {
       const status = isRecord(payload) && typeof payload.status === "number" ? payload.status : 503;
       throw new ApiError(status, payload);
@@ -240,12 +272,30 @@ export function describeChatError(error: unknown): string {
   return "Não foi possível falar com o assistente agora. Verifique a conexão e tente novamente.";
 }
 
-export async function listChatProjects(signal?: AbortSignal): Promise<Array<{id: string; nome: string}>> {
+export async function listChatProjects(signal?: AbortSignal): Promise<ChatProject[]> {
   const data: unknown = await (await apiRequest("/chat/projects", {signal})).json();
   if (!isRecord(data) || !Array.isArray(data.items)) throw new Error("Projetos inválidos");
   return data.items.map(item => {
     if (!isRecord(item) || typeof item.id !== 'string' || !item.id.trim()
       || typeof item.nome !== 'string' || !item.nome.trim()) throw new Error('Projeto inválido');
-    return {id: item.id, nome: item.nome};
+    const count = (key: string) => {
+      const value = item[key];
+      return typeof value === "number" && Number.isSafeInteger(value) && value >= 0 ? value : undefined;
+    };
+    const readiness = ["ready", "partial", "pending", "failed", "empty"].includes(String(item.prontidao))
+      ? item.prontidao as ProjectKnowledgeState
+      : undefined;
+    return {
+      id: item.id,
+      nome: item.nome,
+      documentos_total: count("documentos_total"),
+      documentos_processados: count("documentos_processados"),
+      documentos_pendentes: count("documentos_pendentes"),
+      documentos_com_falha: count("documentos_com_falha"),
+      trechos_elegiveis: count("trechos_elegiveis"),
+      trechos_com_embedding: count("trechos_com_embedding"),
+      ultimo_trecho_em: typeof item.ultimo_trecho_em === "string" ? item.ultimo_trecho_em : null,
+      prontidao: readiness,
+    };
   });
 }

@@ -106,6 +106,14 @@ A versão zero é distribuída no código; as demais revisões são acrescentada
 backend com autoria e data. O teste `npm run test:integration:harness` aplica a
 migration em PostgreSQL descartável e verifica concorrência e atualização sem
 reinício. Consulte [S2-09](../../docs/S2-09-HARNESS.md) para configuração e execução.
+
+## Escopo explícito do chat
+
+`026_chat_scope.sql` registra se a conversa consulta um projeto ou todos os
+projetos atualmente autorizados ao usuário. Conversas legadas sem projeto são
+marcadas como `indisponivel`, evitando ampliar o escopo ou expor histórico sem
+proveniência verificável. O modo geral recalcula os projetos autorizados a cada
+consulta e valida as fontes persistidas antes de reexibir o histórico.
 ## 023 — Versões de especificações (S2-16)
 
 `023_item_versions.sql` acrescenta snapshots de épicos/features/PBIs na transação da auditoria. Inclui campos, critérios e tecnologias. A referência inicial dos itens existentes não presume autoria histórica; o histórico anterior permanece preservado. Consultas paginadas e comparação exigem acesso ao projeto. Detalhes e testes em `docs/S2-16-versoes.md`.

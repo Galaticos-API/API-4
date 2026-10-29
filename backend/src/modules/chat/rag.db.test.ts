@@ -10,7 +10,7 @@ import { HttpHarnessEngine } from '../harness/harness.service.js';
 import { HttpSearchEmbeddingClient } from '../search/search.service.js';
 import { SearchRepository } from '../search/search.repository.js';
 import { HarnessRepository } from '../harness/harness.repository.js';
-import { NOT_FOUND_ANSWER } from './chat.types.js';
+import { NO_CANDIDATES_ANSWER,NOT_FOUND_ANSWER,PARTIAL_ANSWER_NOTICE,SCOPE_LIMIT_ANSWER } from './chat.types.js';
 
 test('S2-24: busca híbrida, evidências, escopo transversal autorizado e revogação em PostgreSQL',{skip:!process.env.QUALITY_TEST_DATABASE_URL},async t=>{
   const db=new Pool({connectionString:validateTarget(process.env.QUALITY_TEST_DATABASE_URL,'test')});
@@ -24,7 +24,7 @@ test('S2-24: busca híbrida, evidências, escopo transversal autorizado e revoga
     if(revoke)await db.query('DELETE FROM alocacao WHERE desenvolvedor_id=$1',[developer]);
     if(invalidate)await db.query("UPDATE documento SET status_processamento='falha' WHERE id=$1",[docA]);
     if(changeContent)await db.query("UPDATE chunk SET texto=texto || ' Regra anterior revogada: a integração foi desativada.' WHERE id=$1",[chunkA]);
-    return {evidence:context.map(row=>({source_id:invalid?randomUUID():row.id,quote:row.text}))};
+    return {coverage:'complete',evidence:context.map(row=>({source_id:invalid?randomUUID():row.id,quote:row.text}))};
   }};
   const service=new RagService(new ChatRepository(db),new SearchRepository(db),{embed:async text=>{
     calls++;return text==='assunto inexistente'?[0,1,...Array(1022).fill(0)]:vector;
@@ -50,7 +50,7 @@ test('S2-24: busca híbrida, evidências, escopo transversal autorizado e revoga
     });
     await t.test('sem recuperação pertinente não aciona geração',async()=>{
       const previous=modelCalls;const result=await service.answer(admin,'assunto inexistente',[a,b]);
-      assert.equal(result.resposta,NOT_FOUND_ANSWER);assert.deepEqual(result.fontes,[]);assert.equal(modelCalls,previous);
+      assert.ok(result.resposta.startsWith(NO_CANDIDATES_ANSWER));assert.ok(result.resposta.includes(SCOPE_LIMIT_ANSWER));assert.deepEqual(result.fontes,[]);assert.equal(modelCalls,previous);
     });
     await t.test('HTTP recusa perguntas e títulos inválidos sem criar conversas órfãs',async()=>{
       const {app}=await import('../../app.js');
@@ -95,10 +95,24 @@ test('S2-24: busca híbrida, evidências, escopo transversal autorizado e revoga
         assert.ok(answer.evidencias.length>0,'O modelo real não selecionou a evidência conhecida.');
         assert.ok(answer.fontes.every(source=>source.projeto_id===a));
         assert.ok(answer.evidencias.every(evidence=>evidence.chunk_id===chunkA));
+        assert.equal(answer.cobertura,'complete');
+        const partial=await real.answer(dev,'Para que o projeto A integra WhatsApp e qual sistema de pagamentos usa?',[a]);
+        assert.equal(partial.cobertura,'partial','O modelo deve distinguir o aspecto sem evidência da parte respondida.');
+        assert.ok(partial.resposta.includes(PARTIAL_ANSWER_NOTICE));
+        assert.deepEqual(partial.evidencias.map(evidence=>evidence.chunk_id),[chunkA]);
+        assert.doesNotMatch(partial.resposta,/pix|cartão|boleto/i);
         const transversal=await real.answer(admin,'Quais usos do WhatsApp existem nos projetos?',[a,b]);
         assert.deepEqual(new Set(transversal.fontes.map(source=>source.projeto_id)),new Set([a,b]));
         const missing=await real.answer(dev,'Qual política de autenticação biométrica foi definida?',[a]);
-        assert.equal(missing.resposta,NOT_FOUND_ANSWER);assert.deepEqual(missing.fontes,[]);
+        assert.ok(missing.resposta.startsWith(NO_CANDIDATES_ANSWER));assert.deepEqual(missing.fontes,[]);
+        assert.equal(missing.cobertura,'no_evidence');
+
+        const offTopic=new RagService(new ChatRepository(db),new SearchRepository(db),embeddings,new HarnessRepository(db),new HttpHarnessEngine(process.env.RAG_REAL_AI_URL!));
+        const refusal=await offTopic.answer(dev,'Qual é a capital da França?',[a]);
+        assert.ok(refusal.cobertura==='out_of_scope'||refusal.cobertura==='no_evidence',`Pergunta fora do domínio não deve receber evidência: ${JSON.stringify(refusal)}`);
+        assert.deepEqual(refusal.evidencias,[]);
+        assert.deepEqual(refusal.fontes,[]);
+        assert.doesNotMatch(refusal.resposta,/Paris|capital da França/i);
       } finally {await db.query('UPDATE chunk SET embedding=$2::vector WHERE id=ANY($1::uuid[])',[[chunkA,chunkB],JSON.stringify(vector)]);}
     });
     await t.test('revogação entre autorização e leitura não divulga mensagens do histórico',async()=>{

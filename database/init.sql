@@ -185,6 +185,7 @@ CREATE TABLE IF NOT EXISTS conversa (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     usuario_id UUID NOT NULL REFERENCES usuario(id) ON DELETE CASCADE,
     projeto_id UUID REFERENCES projeto(id) ON DELETE SET NULL,
+    escopo_tipo VARCHAR(32) NOT NULL DEFAULT 'projeto' CHECK (escopo_tipo IN ('projeto', 'todos_autorizados', 'indisponivel')),
     titulo VARCHAR(255) NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP

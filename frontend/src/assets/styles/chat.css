@@ -146,6 +146,28 @@
 .chat-message--assistant { align-self: flex-start; }
 .chat-message.is-failed { border-style: dashed; border-color: var(--status-danger); }
 .chat-message-failed { margin: 0; color: var(--status-danger); font-size: 12px; font-weight: 600; }
+.chat-message-processing { display: inline-flex; align-items: center; gap: 6px; margin: 0; color: var(--text-secondary); font-size: 12px; }
+.chat-message-processing svg { animation: chat-send-spin .9s linear infinite; }
+.chat-queue { width: 100%; max-width: 900px; max-height: min(220px, 26vh); margin: 5px auto 0; overflow: hidden; border: 1px solid var(--border-subtle); border-radius: 11px; background: color-mix(in srgb, var(--bg-tertiary) 76%, transparent); }
+.chat-queue.is-paused { border-color: color-mix(in srgb, var(--status-warning, #f59e0b) 42%, var(--border-subtle)); }
+.chat-queue-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 38px; padding: 7px 11px; border-bottom: 1px solid var(--border-subtle); }
+.chat-queue-heading { display: flex; align-items: center; gap: 8px; min-width: 0; color: var(--text-secondary); font-size: 11px; }
+.chat-queue-heading strong { color: var(--text-primary); font-size: 12px; font-weight: 650; }
+.chat-queue-indicator { width: 7px; height: 7px; flex: 0 0 7px; border-radius: 50%; background: var(--brand-primary); box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand-primary) 14%, transparent); }
+.chat-queue.is-paused .chat-queue-indicator { background: var(--status-warning, #f59e0b); box-shadow: 0 0 0 3px color-mix(in srgb, var(--status-warning, #f59e0b) 14%, transparent); }
+.chat-queue-count { display: inline-grid; place-items: center; min-width: 19px; height: 19px; padding: 0 5px; border-radius: 999px; background: var(--bg-secondary); color: var(--text-primary); font-size: 10px; font-variant-numeric: tabular-nums; }
+.chat-queue-caption { overflow: hidden; color: var(--text-muted); text-overflow: ellipsis; white-space: nowrap; }
+.chat-queue-clear { flex: 0 0 auto; padding: 4px 6px; border: 0; border-radius: 5px; background: transparent; color: var(--text-muted); font: inherit; font-size: 10px; cursor: pointer; }
+.chat-queue-clear:hover, .chat-queue-clear:focus-visible { color: var(--status-danger); background: color-mix(in srgb, var(--status-danger) 9%, transparent); }
+.chat-queue-list { display: grid; gap: 1px; max-height: 176px; margin: 0; padding: 3px 6px 6px; overflow: auto; list-style: none; }
+.chat-queue-item { display: flex; align-items: center; gap: 9px; min-width: 0; min-height: 34px; padding: 4px 5px; border-radius: 7px; }
+.chat-queue-item:hover { background: color-mix(in srgb, var(--text-primary) 4%, transparent); }
+.chat-queue-position { display: inline-grid; place-items: center; width: 20px; height: 20px; flex: 0 0 20px; border: 1px solid var(--border-subtle); border-radius: 6px; color: var(--text-muted); font-size: 10px; font-variant-numeric: tabular-nums; }
+.chat-queue-question { flex: 1; min-width: 0; overflow: hidden; color: var(--text-secondary); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+.chat-queue-remove { display: inline-grid; place-items: center; flex: 0 0 26px; width: 26px; height: 26px; padding: 0; border: 0; border-radius: 6px; color: var(--text-muted); background: transparent; cursor: pointer; }
+.chat-queue-remove:hover, .chat-queue-remove:focus-visible { color: var(--status-danger); background: color-mix(in srgb, var(--status-danger) 10%, transparent); }
+.chat-stop-button { color: var(--status-danger); }
+.chat-stop-button:hover:not(:disabled) { color: var(--text-primary); background: color-mix(in srgb, var(--status-danger) 14%, transparent); }
 .chat-message-text { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.65; }
 .chat-message-body { min-width: 0; color: var(--text-primary); font-size: 15px; line-height: 1.72; }
 .chat-message-body > * + * { margin-top: 10px; }

@@ -4,7 +4,29 @@ import { withTransaction } from "../../database/transaction.js";
 import { ConflictError } from "../../shared/errors.js";
 import { Pool } from "pg";
 import { pool } from "../../database/db.js";
-import type { ChatMessage, ChatSource, ChunkMatch, Conversation } from "./chat.types.js";
+import type { ChatMessage, ChatSource, ChunkMatch, Conversation, ProjectKnowledgeReadiness } from "./chat.types.js";
+
+function unsafeGeneralTranscriptSql(conversationAlias: string, userParameter: string): string {
+  return `EXISTS (
+    SELECT 1 FROM mensagem assistant_message
+    WHERE assistant_message.conversa_id=${conversationAlias}.id AND assistant_message.remetente='assistant'
+      AND (
+        jsonb_typeof(COALESCE(assistant_message.fontes_json, '[]'::jsonb)) IS DISTINCT FROM 'array'
+        OR EXISTS (
+          SELECT 1 FROM jsonb_array_elements(
+            CASE WHEN jsonb_typeof(COALESCE(assistant_message.fontes_json, '[]'::jsonb))='array'
+              THEN COALESCE(assistant_message.fontes_json, '[]'::jsonb) ELSE '[]'::jsonb END
+          ) AS source(value)
+          WHERE jsonb_typeof(source.value) IS DISTINCT FROM 'object'
+            OR NOT EXISTS (
+              SELECT 1 FROM projeto source_project
+              WHERE source_project.id::text = source.value->>'projeto_id'
+                AND ${projectAccessSql("source_project.id", userParameter)}
+            )
+        )
+      )
+  )`;
+}
 
 export class ChatRepository {
   private readonly pool: Pool;
@@ -15,7 +37,7 @@ export class ChatRepository {
 
   async listConversations(usuarioId: string): Promise<Conversation[]> {
     const result = await this.pool.query<Conversation>(
-      `SELECT c.id, c.usuario_id, c.projeto_id, c.titulo, c.created_at, c.updated_at, p.nome AS projeto_nome
+      `SELECT c.id, c.usuario_id, c.projeto_id, c.escopo_tipo, c.titulo, c.created_at, c.updated_at, p.nome AS projeto_nome
        FROM conversa c
        LEFT JOIN projeto p ON p.id = c.projeto_id
        WHERE c.usuario_id = $1
@@ -23,6 +45,25 @@ export class ChatRepository {
       [usuarioId],
     );
     return result.rows;
+  }
+
+  async unsafeGeneralConversationIds(usuarioId: string): Promise<string[]> {
+    const result = await this.pool.query<{ id: string }>(
+      `SELECT c.id FROM conversa c
+       WHERE c.usuario_id=$1 AND c.escopo_tipo='todos_autorizados'
+         AND ${unsafeGeneralTranscriptSql("c", "$1")}`,
+      [usuarioId],
+    );
+    return result.rows.map(row => row.id);
+  }
+
+  async hasUnsafeGeneralSources(conversaId: string, usuarioId: string): Promise<boolean> {
+    const result = await this.pool.query<{ unsafe: boolean }>(
+      `SELECT ${unsafeGeneralTranscriptSql("c", "$2")} AS unsafe
+       FROM conversa c WHERE c.id=$1 AND c.usuario_id=$2 AND c.escopo_tipo='todos_autorizados'`,
+      [conversaId, usuarioId],
+    );
+    return result.rows[0]?.unsafe ?? false;
   }
 
   async projectExists(projetoId: string, usuarioId: string): Promise<boolean> {
@@ -36,18 +77,49 @@ export class ChatRepository {
     return result.rows;
   }
 
-  async createConversation(usuarioId: string, projetoId: string | null, titulo: string): Promise<Conversation> {
+  async accessibleProjectsWithKnowledgeReadiness(usuarioId: string): Promise<ProjectKnowledgeReadiness[]> {
+    const result = await this.pool.query<ProjectKnowledgeReadiness>(
+      `SELECT p.id,p.nome,
+        COUNT(DISTINCT d.id)::int AS documentos_total,
+        COUNT(DISTINCT d.id) FILTER (WHERE d.status_processamento='processado')::int AS documentos_processados,
+        COUNT(DISTINCT d.id) FILTER (WHERE d.status_processamento IN ('pendente','processando'))::int AS documentos_pendentes,
+        COUNT(DISTINCT d.id) FILTER (WHERE d.status_processamento='falha')::int AS documentos_com_falha,
+        COUNT(DISTINCT c.id) FILTER (WHERE ${knowledgeSourceSql('c')})::int AS trechos_elegiveis,
+        COUNT(DISTINCT c.id) FILTER (WHERE ${knowledgeSourceSql('c')} AND c.embedding IS NOT NULL)::int AS trechos_com_embedding,
+        MAX(c.created_at) FILTER (WHERE ${knowledgeSourceSql('c')}) AS ultimo_trecho_em,
+        CASE
+          WHEN COUNT(DISTINCT c.id) FILTER (WHERE ${knowledgeSourceSql('c')}) > 0
+            AND (COUNT(DISTINCT c.id) FILTER (WHERE ${knowledgeSourceSql('c')} AND c.embedding IS NOT NULL)
+              < COUNT(DISTINCT c.id) FILTER (WHERE ${knowledgeSourceSql('c')})
+              OR COUNT(DISTINCT d.id) FILTER (WHERE d.status_processamento<>'processado') > 0) THEN 'partial'
+          WHEN COUNT(DISTINCT c.id) FILTER (WHERE ${knowledgeSourceSql('c')}) > 0 THEN 'ready'
+          WHEN COUNT(DISTINCT d.id) FILTER (WHERE d.status_processamento IN ('pendente','processando')) > 0 THEN 'pending'
+          WHEN COUNT(DISTINCT d.id) FILTER (WHERE d.status_processamento='falha') > 0 THEN 'failed'
+          ELSE 'empty'
+        END AS prontidao
+       FROM projeto p
+       LEFT JOIN documento d ON d.projeto_id=p.id
+       LEFT JOIN chunk c ON c.projeto_id=p.id
+       WHERE ${projectAccessSql('p.id','$1')}
+       GROUP BY p.id,p.nome
+       ORDER BY p.nome,p.id`,
+      [usuarioId],
+    );
+    return result.rows;
+  }
+
+  async createConversation(usuarioId: string, projetoId: string | null, titulo: string, scope: "projeto" | "todos_autorizados" = "projeto"): Promise<Conversation> {
     const result = await this.pool.query<Conversation>(
-      `INSERT INTO conversa (usuario_id, projeto_id, titulo) VALUES ($1, $2, $3)
-       RETURNING id, usuario_id, projeto_id, titulo, created_at, updated_at`,
-      [usuarioId, projetoId, titulo],
+      `INSERT INTO conversa (usuario_id, projeto_id, escopo_tipo, titulo) VALUES ($1, $2, $3, $4)
+       RETURNING id, usuario_id, projeto_id, escopo_tipo, titulo, created_at, updated_at`,
+      [usuarioId, projetoId, scope, titulo],
     );
     return result.rows[0];
   }
 
   async findOwnedConversation(conversaId: string, usuarioId: string): Promise<Conversation | null> {
     const result = await this.pool.query<Conversation>(
-      `SELECT c.id, c.usuario_id, c.projeto_id, c.titulo, c.created_at, c.updated_at, p.nome AS projeto_nome
+      `SELECT c.id, c.usuario_id, c.projeto_id, c.escopo_tipo, c.titulo, c.created_at, c.updated_at, p.nome AS projeto_nome
        FROM conversa c LEFT JOIN projeto p ON p.id = c.projeto_id
        WHERE c.id = $1 AND c.usuario_id = $2`,
       [conversaId, usuarioId],
@@ -66,9 +138,11 @@ export class ChatRepository {
   async renameConversation(conversaId: string, usuarioId: string, titulo: string): Promise<Conversation | null> {
     const result = await this.pool.query<Conversation>(
       `UPDATE conversa c SET titulo=$3
-       WHERE c.id=$1 AND c.usuario_id=$2 AND c.projeto_id IS NOT NULL
-         AND ${projectAccessSql("c.projeto_id", "$2")}
-       RETURNING c.id,c.usuario_id,c.projeto_id,c.titulo,c.created_at,c.updated_at,
+       WHERE c.id=$1 AND c.usuario_id=$2 AND (
+         (c.escopo_tipo='projeto' AND c.projeto_id IS NOT NULL AND ${projectAccessSql("c.projeto_id", "$2")})
+         OR (c.escopo_tipo='todos_autorizados' AND EXISTS (SELECT 1 FROM projeto p WHERE ${projectAccessSql("p.id", "$2")}))
+       )
+       RETURNING c.id,c.usuario_id,c.projeto_id,c.escopo_tipo,c.titulo,c.created_at,c.updated_at,
          (SELECT p.nome FROM projeto p WHERE p.id=c.projeto_id) AS projeto_nome`,
       [conversaId, usuarioId, titulo],
     );
@@ -80,7 +154,9 @@ export class ChatRepository {
       const message = await client.query<{ processing_status: string | null }>(
         `SELECT m.processing_status FROM mensagem m JOIN conversa c ON c.id=m.conversa_id
          WHERE m.id=$1 AND m.conversa_id=$2 AND c.usuario_id=$3
-           AND ${projectAccessSql("c.projeto_id", "$3")}
+         AND ((c.escopo_tipo='projeto' AND c.projeto_id IS NOT NULL AND ${projectAccessSql("c.projeto_id", "$3")})
+           OR (c.escopo_tipo='todos_autorizados' AND EXISTS (SELECT 1 FROM projeto p WHERE ${projectAccessSql("p.id", "$3")})))
+         AND NOT (c.escopo_tipo='todos_autorizados' AND ${unsafeGeneralTranscriptSql("c", "$3")})
          FOR UPDATE OF m`,
         [mensagemId, conversaId, usuarioId],
       );
@@ -102,8 +178,13 @@ export class ChatRepository {
     const result = await this.pool.query<ChatMessage>(
       `SELECT id, conversa_id, remetente, conteudo, COALESCE(fontes_json, '[]'::jsonb) AS fontes_json, CASE WHEN processing_status='pending' AND created_at < CURRENT_TIMESTAMP - INTERVAL '2 minutes' THEN 'failed' ELSE processing_status END AS processing_status, created_at
        FROM mensagem WHERE conversa_id = $1
-       AND EXISTS (SELECT 1 FROM conversa scope WHERE scope.id=mensagem.conversa_id AND scope.usuario_id=$2
-         AND ${projectAccessSql('scope.projeto_id','$2')})
+       AND EXISTS (SELECT 1 FROM conversa scope WHERE scope.id=mensagem.conversa_id AND scope.usuario_id=$2 AND (
+         (scope.escopo_tipo='projeto' AND scope.projeto_id IS NOT NULL AND ${projectAccessSql('scope.projeto_id','$2')})
+         OR (scope.escopo_tipo='todos_autorizados' AND EXISTS (SELECT 1 FROM projeto p WHERE ${projectAccessSql('p.id','$2')}))
+       )) AND NOT EXISTS (
+         SELECT 1 FROM conversa global_scope WHERE global_scope.id=$1 AND global_scope.escopo_tipo='todos_autorizados'
+           AND ${unsafeGeneralTranscriptSql("global_scope", "$2")}
+       )
        ORDER BY created_at ASC, id ASC`,
       [conversaId,usuarioId],
     );

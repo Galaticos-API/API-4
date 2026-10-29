@@ -21,7 +21,7 @@ PBI: título com verbo no infinitivo e história em historia_como_um, historia_e
 Épico: transformação ampla, objetivo, descrição, escopo macro e resultado esperado; nunca detalhes de telas ou campos.
 Feature: capacidade funcional, descrição e objetivo; não detalhar cliques nem campos de tela.
 Expresse resultados de produto em vez de implementação. Não substitua necessidade funcional por tecnologia.
-Se não houver evidência na consulta, answer deve ser exatamente: Informação não encontrada no acervo do projeto.
+Se não houver evidência na consulta, answer deve ser exatamente: Não encontrei informações que respondam a essa pergunta no acervo consultado.
 As seis dimensões são categorias para avaliar, não uma obrigação de gerar seis perguntas. Pergunte APENAS sobre lacunas relevantes ainda não respondidas nos campos ou critérios.
 """
 
@@ -148,7 +148,7 @@ async def run_harness(req: HarnessRequest):
         system += "\nQuando uma lacuna impedir cenários verificáveis, retorne scenarios vazio e perguntas para esclarecê-la. Nesse caso não é obrigatório incluir cenários; não invente regras."
     try:
         if req.mode == "consulta" and not req.context:
-            result = {"answer": "Informação não encontrada no acervo do projeto.", "sources": []}
+            result = {"answer": "Não encontrei informações que respondam a essa pergunta no acervo consultado.", "sources": []}
         elif req.mode == "recomendacao" and not req.context:
             result = {"items": []}
         else:

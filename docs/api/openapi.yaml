@@ -17,13 +17,14 @@ servers:
 paths:
   /api/v1/chat/answer:
     post:
-      summary: Recuperar evidências e responder por extração literal em projetos autorizados
+      summary: Recuperar evidências e responder conversacionalmente em projetos autorizados
       description: >-
-        Contrato rag-extrativo-v1. Sem projeto_ids, consulta todos os projetos permitidos ao usuário.
+        Contrato rag-conversacional-v1. Sem projeto_ids, consulta todos os projetos permitidos ao usuário.
         A seleção explícita de qualquer projeto não autorizado retorna 404 antes da recuperação.
         O modelo seleciona até cinco passagens literais; o backend verifica cada passagem contra o contexto
-        enviado e revalida acesso e elegibilidade antes de devolver a resposta.
-        Não há síntese livre ou fonte adicionada sem evidência. Este endpoint não persiste conversa.
+        enviado e revalida acesso e elegibilidade. A síntese pode parafrasear somente essas evidências e
+        cada afirmação deve citar uma fonte verificada. Se a síntese falhar, o backend responde com trechos
+        literais verificados. Este endpoint não persiste conversa.
       tags: [Chat]
       security: [{bearerAuth: []}]
       requestBody:
@@ -39,15 +40,16 @@ paths:
                 projeto_ids: {type: array, minItems: 1, maxItems: 50, items: {type: string, format: uuid}}
       responses:
         '200':
-          description: Resposta extrativa e somente as fontes utilizadas; sem evidência retorna mensagem padrão e listas vazias
+          description: Resposta em linguagem natural sustentada por evidências verificadas; sem evidência retorna orientação de escopo e listas de fontes vazias
           content:
             application/json:
               schema:
                 type: object
-                required: [contrato, resposta, fontes, evidencias, escopo]
+                required: [contrato, resposta, fontes, evidencias, escopo, cobertura]
                 properties:
-                  contrato: {type: string, enum: [rag-extrativo-v1]}
+                  contrato: {type: string, enum: [rag-conversacional-v1]}
                   resposta: {type: string}
+                  cobertura: {type: string, enum: [complete, partial, no_evidence, out_of_scope], description: 'Indica se as evidências cobrem a pergunta, cobrem somente parte, não foram encontradas ou se o assunto está claramente fora do escopo'}
                   escopo: {type: array, items: {type: string, format: uuid}}
                   evidencias:
                     type: array
@@ -361,7 +363,8 @@ paths:
         válidas são levantamento/questionar,padronizar,cenarios; consulta/responder; recomendacao/similares.
         Cenários detalhados são exclusivos de PBI e exigem a história completa (COMO UM, EU QUERO
         e PARA QUE); sem ela a resposta é 400 HISTORIA_INCOMPLETA e o modelo não é consultado.
-        Consulta/responder usa evidências literais validadas pelo mesmo contrato extrativo do RAG.
+        Consulta/responder usa evidências literais verificadas pelo backend; a resposta conversacional
+        subsequente só pode usar essas evidências e precisa citar as fontes autorizadas.
         Uma afirmação ou citação sem apoio no trecho recuperado é recusada com 503.
         Cada cenário sugerido tem nome, tipo (caminho_principal, acesso_nao_autorizado ou alternativo),
         dado, quando e entao. Há sempre um caminho_principal e, quando a história ou as regras citam
@@ -2997,7 +3000,17 @@ paths:
       operationId: listChatProjects
       security: [{cookieAuth: []}]
       responses:
-        '200': {description: Lista items com id e nome dos projetos}
+        '200':
+          description: Projetos permitidos e prontidão do conteúdo para consulta no chat
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: {$ref: '#/components/schemas/ChatProjectReadiness'}
         '401': {$ref: '#/components/responses/Unauthorized'}
   /api/v1/projects/{projectId}/documents/{documentId}/reprocess:
     parameters:
@@ -3027,7 +3040,7 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
     post:
-      summary: Cria uma conversa (opcionalmente escopada a um projeto)
+      summary: Cria uma conversa para um projeto ou para todos os projetos autorizados
       operationId: createChatConversation
       security: [{cookieAuth: []}]
       requestBody:
@@ -3038,6 +3051,7 @@ paths:
               properties:
                 titulo: {type: string, maxLength: 120, description: 'Texto Unicode válido; a abreviação preserva caracteres completos'}
                 projeto_id: {type: string, format: uuid}
+                escopo: {type: string, enum: [projeto, todos_autorizados], description: 'Use projeto com projeto_id ou todos_autorizados para pesquisar todos os projetos acessíveis ao usuário'}
       responses:
         '201':
           description: Conversa criada
@@ -3113,8 +3127,11 @@ paths:
     post:
       summary: Envia uma pergunta ao assistente e registra a troca
       description: >
-        Projeto obrigatório em novas conversas; em conversas existentes o projeto é imutável.
-        Somente admin/PO ou desenvolvedor com alocação ativa pode consultar o projeto.
+        Em uma conversa nova, informe `escopo: projeto` com `projeto_id` ou
+        `escopo: todos_autorizados` para consultar todos os projetos aos quais
+        o usuário autenticado tem acesso. O servidor resolve e verifica esses
+        projetos em cada consulta. Em conversas existentes o escopo persistido
+        é imutável; revogação de acesso não amplia o histórico nem a busca.
         Sem evidência no acervo, responde "Informação não encontrada no acervo
         do projeto." sem inventar fontes. `origem` informa se a resposta veio
         do assistente, de busca textual (assistente indisponível) ou sem resultado.
@@ -3131,6 +3148,7 @@ paths:
                 pergunta: {type: string, minLength: 1, maxLength: 2000, description: 'Texto Unicode válido, sem caractere nulo nem sequência UTF-16 incompleta'}
                 conversa_id: {type: string, format: uuid}
                 projeto_id: {type: string, format: uuid}
+                escopo: {type: string, enum: [projeto, todos_autorizados]}
       responses:
         '200':
           description: Resposta com fontes
@@ -3138,9 +3156,10 @@ paths:
             application/json:
               schema:
                 type: object
-                required: [conversa_id, resposta, fontes, origem]
+                required: [conversa_id, escopo_tipo, resposta, fontes, origem]
                 properties:
                   conversa_id: {type: string, format: uuid}
+                  escopo_tipo: {type: string, enum: [projeto, todos_autorizados]}
                   resposta: {type: string}
                   fontes:
                     type: array
@@ -3150,6 +3169,8 @@ paths:
                         id: {type: string}
                         titulo: {type: string}
                         tipo: {type: string}
+                        projeto_id: {type: string, format: uuid, description: Projeto de origem da evidência}
+                        projeto_nome: {type: string, description: Nome do projeto de origem}
                   origem: {type: string, enum: [assistente, busca_textual, sem_resultado]}
                   evidencias:
                     type: array
@@ -3173,8 +3194,11 @@ paths:
         Usa Server-Sent Events para enviar somente mudanças de etapa reais (`searching`,
         `synthesizing`, `validating`) e, ao final, a resposta completa após validação das
         evidências e fontes. Tokens brutos do modelo não são transmitidos. O evento `error`
-        segue o envelope seguro da API. Projeto obrigatório para novas conversas; o escopo
-        de conversas existentes permanece imutável.
+        segue o envelope seguro da API. A conversa nova pode consultar um projeto ou
+        todos os projetos atualmente autorizados; o escopo de conversas existentes
+        permanece imutável. Fechar a conexão SSE interrompe a consulta e a pergunta fica
+        como falha recuperável. Mensagens enviadas enquanto outra consulta está ativa
+        são enfileiradas pelo cliente em ordem FIFO.
       operationId: askChatQuestionWithProgress
       security: [{cookieAuth: []}]
       requestBody:
@@ -3189,9 +3213,10 @@ paths:
                 conversa_id: {type: string, format: uuid}
                 mensagem_id: {type: string, format: uuid, description: 'Mensagem que será repetida após falha'}
                 projeto_id: {type: string, format: uuid}
+                escopo: {type: string, enum: [projeto, todos_autorizados]}
       responses:
         '200':
-          description: Fluxo SSE; somente `completed` contém a resposta depois da validação das fontes
+          description: Fluxo SSE; somente `completed` contém a resposta depois da validação das fontes. Fechar a conexão interrompe a consulta ativa.
           content:
             text/event-stream:
               schema: {type: string, description: 'Eventos progress, completed ou error; heartbeat usa comentário SSE'}
@@ -4044,6 +4069,20 @@ components:
       name: sinapse_session
 
   schemas:
+    ChatProjectReadiness:
+      type: object
+      required: [id, nome, documentos_total, documentos_processados, documentos_pendentes, documentos_com_falha, trechos_elegiveis, trechos_com_embedding, ultimo_trecho_em, prontidao]
+      properties:
+        id: {type: string, format: uuid}
+        nome: {type: string}
+        documentos_total: {type: integer, minimum: 0}
+        documentos_processados: {type: integer, minimum: 0}
+        documentos_pendentes: {type: integer, minimum: 0}
+        documentos_com_falha: {type: integer, minimum: 0}
+        trechos_elegiveis: {type: integer, minimum: 0}
+        trechos_com_embedding: {type: integer, minimum: 0}
+        ultimo_trecho_em: {type: string, format: date-time, nullable: true}
+        prontidao: {type: string, enum: [ready, partial, pending, failed, empty]}
     IndexEvent:
       type: object
       properties:

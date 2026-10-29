@@ -13,23 +13,44 @@ import {
   type ChatConversation,
   type ChatMessage,
   type ChatOrigin,
+  type ChatProject,
+  type ChatScopeType,
 } from "../../api/api_chat";
 import { listChatProjects } from "../../api/api_chat";
-import { ArrowUp, Check, CircleAlert, Copy, LoaderCircle, Mic, MicOff, Sparkles, Trash2 } from "lucide-react";
-import { ORIGIN_BADGE, SUGGESTED_PROMPTS, formatClockWithSeconds, formatRelative, remainingCharacters } from "../../models/chat";
+import { ArrowUp, Check, CircleAlert, Copy, LoaderCircle, Mic, MicOff, Sparkles, Square, Trash2, X } from "lucide-react";
+import { ORIGIN_BADGE, suggestedPromptsForContext, formatClockWithSeconds, formatRelative, remainingCharacters } from "../../models/chat";
 import { Alert, Badge, Button } from "../common/ui";
 import { Markdown } from "../common/Markdown";
 import { MessageContextMenu, type MessageContextAction } from "./MessageContextMenu";
 import "../../assets/styles/chat.css";
 
-interface ProjectOption {
-  id: string;
-  nome: string;
+type ProjectOption = ChatProject;
+
+function projectReadinessLabel(project: ProjectOption): string {
+  switch (project.prontidao) {
+    case "partial": return " — acervo parcial";
+    case "pending": return " — indexação pendente";
+    case "failed": return " — falha na indexação";
+    case "empty": return " — sem conteúdo indexado";
+    default: return "";
+  }
+}
+
+function projectReadinessHelp(project: ProjectOption): string | null {
+  switch (project.prontidao) {
+    case "partial": return "Parte do acervo ainda está pendente, falhou ou não tem embedding. Vou responder somente com as fontes elegíveis disponíveis.";
+    case "pending": return "Há documentos aguardando processamento. A consulta continua usando os registros que já estão indexados.";
+    case "failed": return "A indexação de documentos falhou. O chat ainda pode consultar outros registros elegíveis deste projeto.";
+    case "empty": return "Ainda não há conteúdo indexado para consulta neste projeto. Adicione documentos ou registre informações no acervo.";
+    default: return null;
+  }
 }
 
 interface ThreadMessage extends ChatMessage {
   failed?: boolean;
 }
+
+interface QueuedQuestion { id: string; text: string }
 
 interface SpeechResultLike {
   isFinal: boolean;
@@ -44,6 +65,7 @@ interface SpeechRecognitionLike {
   lang: string;
   continuous: boolean;
   interimResults: boolean;
+  onstart: (() => void) | null;
   onresult: ((event: SpeechResultEventLike) => void) | null;
   onerror: ((event: { error: string }) => void) | null;
   onend: (() => void) | null;
@@ -61,9 +83,15 @@ interface SpeechRecognitionWindow extends Window {
 
 type LoadState = "idle" | "loading" | "error";
 
+function selectionForConversation(conversation: ChatConversation): string {
+  if (conversation.escopo_tipo === "todos_autorizados") return "todos_autorizados";
+  if ((conversation.escopo_tipo === "projeto" || !conversation.escopo_tipo) && conversation.projeto_id) return `projeto:${conversation.projeto_id}`;
+  return "escopo_indisponivel";
+}
+
 const THINKING_MESSAGES: Record<ChatProgressStage, string> = {
-  searching: "Buscando evidências no acervo do projeto",
-  synthesizing: "Preparando resposta com os trechos encontrados",
+  searching: "Interpretando sua pergunta e buscando evidências",
+  synthesizing: "Preparando uma resposta com base nos registros",
   validating: "Validando evidências e fontes",
 };
 
@@ -96,13 +124,16 @@ export function ChatView() {
   const [conversations, setConversations] = useState<ChatConversation[]>([]);
   const [conversationsState, setConversationsState] = useState<LoadState>("loading");
   const [projects, setProjects] = useState<ProjectOption[]>([]);
-  const [projectsState, setProjectsState] = useState<LoadState>('loading');
+  const [projectsState, setProjectsState] = useState<LoadState>("loading");
   const [activeId, setActiveId] = useState<string | null>(null);
-  const [scopeId, setScopeId] = useState("");
+  const [scopeId, setScopeId] = useState("todos_autorizados");
   const [messages, setMessages] = useState<ThreadMessage[]>([]);
   const [messagesState, setMessagesState] = useState<LoadState>("idle");
   const [draft, setDraft] = useState("");
   const [pendingKeys, setPendingKeys] = useState<string[]>([]);
+  const [queuedQuestions, setQueuedQuestions] = useState<QueuedQuestion[]>([]);
+  const [queuePaused, setQueuePaused] = useState(false);
+  const [waitingOnExistingQuery, setWaitingOnExistingQuery] = useState(false);
   const [progressByKey, setProgressByKey] = useState<Partial<Record<string, ChatProgressStage>>>({});
   const [sendError, setSendError] = useState("");
   const [voiceRecording, setVoiceRecording] = useState(false);
@@ -126,6 +157,8 @@ export function ChatView() {
   const focusComposerAfterSend = useRef<number | null>(null);
   const speechRecognition = useRef<SpeechRecognitionLike | null>(null);
   const speechBaseDraft = useRef("");
+  const speechHasResult = useRef(false);
+  const speechStartTimer = useRef<number | null>(null);
   const mobileSidebarTrigger = useRef<HTMLButtonElement>(null);
   const mobileSidebarClose = useRef<HTMLButtonElement>(null);
   const mobileSidebarPanel = useRef<HTMLElement>(null);
@@ -139,17 +172,22 @@ export function ChatView() {
   const conversationsRequest = useRef(0);
   const projectsRequest = useRef(0);
   const sendLocks = useRef(new Set<string>());
+  const queueDispatching = useRef(false);
+  const activeRequestController = useRef<AbortController | null>(null);
+  const activeRequestConversationId = useRef<string | null>(null);
   const skipReload = useRef<string | null>(null);
   const conversationRevision = useRef(0);
   const selectedConversation = useRef(activeId);
   selectedConversation.current = activeId;
   const sendKey = activeId ?? `draft-${conversationRevision.current}`;
-  const sending = pendingKeys.includes(sendKey);
+  const activeSendKey = pendingKeys[0] ?? sendKey;
+  const sending = pendingKeys.length > 0;
 
   useEffect(() => {
     mounted.current = true;
     return () => {
       mounted.current = false;
+      activeRequestController.current?.abort();
       if (speechRecognition.current) {
         speechRecognition.current.onresult = null;
         speechRecognition.current.onerror = null;
@@ -157,6 +195,7 @@ export function ChatView() {
         try { speechRecognition.current.abort(); } catch { /* Best effort during unmount. */ }
         speechRecognition.current = null;
       }
+      if (speechStartTimer.current !== null) window.clearTimeout(speechStartTimer.current);
     };
   }, []);
 
@@ -238,7 +277,7 @@ export function ChatView() {
       setConversationsState("idle");
       if (selectFirst && items.length > 0 && revision===0 && revision===conversationRevision.current) {
         setActiveId((current) => current ?? items[0].id);
-        setScopeId((current) => current || items[0].projeto_id || "");
+        setScopeId(selectionForConversation(items[0]));
       }
     } catch {
       if (mounted.current && request === conversationsRequest.current) setConversationsState("error");
@@ -252,8 +291,8 @@ export function ChatView() {
       const timeout = AbortSignal.timeout(15000);
       const page = await listChatProjects(signal ? AbortSignal.any([signal, timeout]) : timeout);
       if (!mounted.current || request !== projectsRequest.current) return;
-      setProjects(page.map(project => ({ id: project.id, nome: project.nome })));
-      setProjectsState('idle');
+      setProjects(page);
+      setProjectsState("idle");
     } catch {
       if (mounted.current && request === projectsRequest.current) setProjectsState('error');
     }
@@ -266,9 +305,9 @@ export function ChatView() {
     return () => controller.abort();
   }, [loadConversations, loadProjects]);
 
-  const loadMessages = useCallback(async (conversationId: string) => {
+  const loadMessages = useCallback(async (conversationId: string, silent = false) => {
     const request = ++messagesRequest.current;
-    setMessagesState("loading");
+    if (!silent) setMessagesState("loading");
     try {
       const items = await listMessages(conversationId);
       if (!mounted.current || request !== messagesRequest.current) return;
@@ -280,13 +319,21 @@ export function ChatView() {
         return answered ? [item.id] : [];
       }));
       setMessages(items.filter((item) => !supersededFailures.has(item.id)));
-      setMessagesState("idle");
+      if (!silent) setMessagesState("idle");
     } catch {
       if (!mounted.current || request !== messagesRequest.current) return;
-      setMessages([]);
-      setMessagesState("error");
+      if (!silent) {
+        setMessages([]);
+        setMessagesState("error");
+      }
     }
   }, []);
+
+  useEffect(() => {
+    if (!activeId || !messages.some(message => message.processing)) return;
+    const timer = window.setInterval(() => void loadMessages(activeId, true), 3000);
+    return () => window.clearInterval(timer);
+  }, [activeId, messages, loadMessages]);
 
   useEffect(() => {
     if (!activeId) {
@@ -323,7 +370,24 @@ export function ChatView() {
   }, [draft]);
 
   const activeConversation = conversations.find((item) => item.id === activeId) ?? null;
-  const scopeName = projects.find((project) => project.id === scopeId)?.nome ?? activeConversation?.projeto_nome ?? null;
+  const selectedScopeType: ChatScopeType | null = scopeId === "todos_autorizados"
+    ? "todos_autorizados"
+    : scopeId.startsWith("projeto:") ? "projeto" : scopeId === "escopo_indisponivel" ? "indisponivel" : null;
+  const requestScopeType: Exclude<ChatScopeType, "indisponivel"> | null = selectedScopeType === "indisponivel" ? null : selectedScopeType;
+  const selectedProjectId = selectedScopeType === "projeto" ? scopeId.slice("projeto:".length) : null;
+  const selectedProject = projects.find((project) => project.id === (activeConversation?.projeto_id ?? selectedProjectId));
+  const selectedProjectReadiness = selectedProject ? projectReadinessHelp(selectedProject) : null;
+  const limitedCorpusProjects = projects.filter((project) => projectReadinessHelp(project) !== null);
+  const conversationScope = activeId ? activeConversation?.escopo_tipo ?? selectedScopeType : selectedScopeType;
+  const scopeName = conversationScope === "todos_autorizados"
+    ? "Todos os projetos permitidos"
+    : conversationScope === "projeto"
+      ? projects.find((project) => project.id === (activeConversation?.projeto_id ?? selectedProjectId))?.nome ?? activeConversation?.projeto_nome ?? null
+      : null;
+  const scopeValid = conversationScope === "todos_autorizados"
+    ? projectsState === "idle" && projects.length > 0
+    : conversationScope === "projeto" && Boolean((activeConversation?.projeto_id ?? selectedProjectId)
+      && projects.some((project) => project.id === (activeConversation?.projeto_id ?? selectedProjectId)));
   const scopeLocked = Boolean(activeId);
 
   const startNewConversation = () => {
@@ -332,6 +396,7 @@ export function ChatView() {
     conversationRevision.current += 1;
     messagesRequest.current += 1;
     setActiveId(null);
+    setScopeId("todos_autorizados");
     setMessages([]);
     setSendError("");
     setConfirmDeleteMessageId(null);
@@ -354,7 +419,7 @@ export function ChatView() {
     setConfirmDeleteConversationId(null);
     setConfirmDeleteConversationSource(null);
     setActiveId(conversation.id);
-    setScopeId(conversation.projeto_id ?? "");
+    setScopeId(selectionForConversation(conversation));
   };
 
   const handleDeleteConversation = async (conversationId: string) => {
@@ -478,8 +543,13 @@ export function ChatView() {
   };
 
   const cancelVoiceCapture = useCallback((message = "") => {
+    if (speechStartTimer.current !== null) {
+      window.clearTimeout(speechStartTimer.current);
+      speechStartTimer.current = null;
+    }
     const recognition = speechRecognition.current;
     if (recognition) {
+      recognition.onstart = null;
       recognition.onresult = null;
       recognition.onerror = null;
       recognition.onend = null;
@@ -491,11 +561,12 @@ export function ChatView() {
     setVoiceMessage(message);
   }, []);
 
-  const send = useCallback(async (text: string, retryId?: string) => {
+  const send = useCallback(async (text: string, retryId?: string, queuedId?: string) => {
     const question = text.trim();
-    if (!question || sendLocks.current.has(sendKey) || !scopeId || messagesState==='loading') return;
+    if (!question || sendLocks.current.has(sendKey) || !scopeValid || messagesState==='loading') return;
     sendLocks.current.add(sendKey);
     const revision = conversationRevision.current;
+    activeRequestConversationId.current = activeId;
     if (document.activeElement === composer.current || document.activeElement === submitButton.current) {
       focusComposerAfterSend.current = revision;
     }
@@ -503,14 +574,29 @@ export function ChatView() {
     setPendingKeys(current => [...current, sendKey]);
     setProgressByKey(current => ({ ...current, [sendKey]: "searching" }));
     setSendError("");
-    const pendingId = retryId ?? `local-${Date.now()}`;
+    const pendingId = retryId ?? queuedId ?? `local-${Date.now()}`;
     setMessages((current) => retryId
-      ? current.map((item) => (item.id === retryId ? { ...item, failed: false } : item))
-      : [...current, { id: pendingId, remetente: "user", conteudo: question, fontes: [], created_at: new Date().toISOString() }]);
-    setDraft(current=>!retryId||current.trim()===question?'':current);
+      ? current.map((item) => (item.id === retryId ? { ...item, failed: false, processing: true } : item))
+      : [...current, { id: pendingId, remetente: "user", conteudo: question, fontes: [], created_at: new Date().toISOString(), ...(queuedId ? { processing: true } : {}) }]);
+    if (!queuedId) setDraft(current=>!retryId||current.trim()===question?'':current);
+    const controller = new AbortController();
+    activeRequestController.current = controller;
     try {
-      const answer = await askQuestion({ pergunta: question, conversaId: activeId, projetoId: activeId ? null : scopeId, mensagemId: retryId }, undefined, (stage) => {
+      const answer = await askQuestion({
+        pergunta: question,
+        conversaId: activeId,
+        projetoId: activeId ? null : selectedProjectId,
+        escopo: activeId ? undefined : requestScopeType ?? undefined,
+        mensagemId: retryId,
+      }, controller.signal, (stage) => {
         if (mounted.current) setProgressByKey(current => ({ ...current, [sendKey]: stage }));
+      }, (conversation) => {
+        if (!mounted.current) return;
+        activeRequestConversationId.current = conversation.id;
+        skipReload.current = conversation.id;
+        setConversations(current => [conversation, ...current.filter(item => item.id !== conversation.id)]);
+        setScopeId(selectionForConversation(conversation));
+        setActiveId(conversation.id);
       });
       if (!mounted.current) return;
       void loadConversations(false);
@@ -518,6 +604,7 @@ export function ChatView() {
         if (selectedConversation.current === answer.conversa_id) void loadMessages(answer.conversa_id);
         return;
       }
+      setMessages(current => current.map(item => item.id === pendingId ? { ...item, processing: false, queued: false } : item));
       setMessages((current) => [
         ...current,
         { id: `assistant-${Date.now()}`, remetente: "assistant", conteudo: answer.resposta, fontes: answer.fontes, created_at: new Date().toISOString(), origem: answer.origem },
@@ -526,13 +613,49 @@ export function ChatView() {
         skipReload.current = answer.conversa_id;
         setActiveId(answer.conversa_id);
       }
+      if (retryId) setQueuePaused(false);
+      setWaitingOnExistingQuery(false);
     } catch (error) {
       if (!mounted.current) return;
       if (revision !== conversationRevision.current) {
         if (activeId && selectedConversation.current === activeId) void loadMessages(activeId);
         return;
       }
-      setMessages((current) => current.map((item) => (item.id === pendingId ? { ...item, failed: true } : item)));
+      if (error instanceof DOMException && error.name === "AbortError") {
+        setQueuePaused(true);
+        setWaitingOnExistingQuery(false);
+        setMessages(current => current.map(item => item.id === pendingId ? { ...item, failed: true, processing: false, queued: false } : item));
+        if (!queuedId) setDraft(current=>current||question);
+        setSendError("Consulta interrompida. A pergunta ficou disponível para nova tentativa; a fila aguardará.");
+        const conversationId = activeRequestConversationId.current ?? activeId;
+        if (conversationId) {
+          void loadMessages(conversationId);
+          void loadConversations(false);
+        } else {
+          void loadConversations(false);
+        }
+        return;
+      }
+      if (error instanceof ApiError && error.status === 409) {
+        setQueuePaused(true);
+        setWaitingOnExistingQuery(true);
+        setDraft(current=>current||question);
+        setSendError("Esta pergunta já está sendo processada nesta conversa. Atualizei o histórico; aguarde a resposta antes de tentar novamente.");
+        if (activeId) void loadMessages(activeId);
+        else setMessages(current => current.map(item => item.id === pendingId ? { ...item, failed: false, processing: true } : item));
+        const detail = error.details && typeof error.details === "object" && "details" in error.details
+          ? error.details.details as { conversa_id?: string }
+          : undefined;
+        if (detail?.conversa_id) {
+          setActiveId(detail.conversa_id);
+          void loadMessages(detail.conversa_id);
+          void loadConversations(false);
+        }
+        return;
+      }
+      setQueuePaused(true);
+      setWaitingOnExistingQuery(false);
+      setMessages((current) => current.map((item) => (item.id === pendingId ? { ...item, failed: true, processing: false } : item)));
       setDraft(current=>current||question);
       if (error instanceof ApiError && error.details && typeof error.details === "object" && "details" in error.details) {
         const detail = error.details.details as { conversa_id?: string };
@@ -540,13 +663,49 @@ export function ChatView() {
       }
       setSendError(describeChatError(error));
     } finally {
+      if (activeRequestController.current === controller) activeRequestController.current = null;
+      activeRequestConversationId.current = null;
       sendLocks.current.delete(sendKey);
       if (mounted.current) {
         setPendingKeys(current => current.filter(key => key !== sendKey));
         setProgressByKey(current => { const next = { ...current }; delete next[sendKey]; return next; });
       }
     }
-  }, [activeId, scopeId, sendKey, loadConversations, loadMessages, messagesState, cancelVoiceCapture]);
+  }, [activeId, requestScopeType, selectedProjectId, scopeValid, sendKey, loadConversations, loadMessages, messagesState, cancelVoiceCapture]);
+
+  useEffect(() => {
+    if (!waitingOnExistingQuery || messagesState !== "idle" || messages.some(message => message.processing)) return;
+    setWaitingOnExistingQuery(false);
+    setQueuePaused(false);
+    setSendError("");
+  }, [messages, messagesState, waitingOnExistingQuery]);
+
+  const enqueueOrSend = useCallback((text: string) => {
+    const question = text.trim();
+    if (!question || !scopeValid || remainingCharacters(question, MAX_QUESTION_LENGTH) < 0 || messagesState === "loading") return;
+    if (sending || queuedQuestions.length > 0 || queuePaused) {
+      const item = { id: `queued-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, text: question };
+      setQueuedQuestions(current => [...current, item]);
+      setDraft(current => current.trim() === question ? "" : current);
+      setSendError("");
+      return;
+    }
+    void send(question);
+  }, [messagesState, queuePaused, queuedQuestions.length, scopeValid, send, sending]);
+
+  const removeQueuedQuestion = (messageId: string) => {
+    setQueuedQuestions(current => current.filter(item => item.id !== messageId));
+  };
+
+  const clearQueuedQuestions = () => setQueuedQuestions([]);
+
+  useEffect(() => {
+    if (sending || queuePaused || !queuedQuestions.length || queueDispatching.current || !scopeValid || messagesState === "loading") return;
+    const next = queuedQuestions[0];
+    queueDispatching.current = true;
+    setQueuedQuestions(current => current[0]?.id === next.id ? current.slice(1) : current);
+    void send(next.text, undefined, next.id).finally(() => { queueDispatching.current = false; });
+  }, [messagesState, queuePaused, queuedQuestions, scopeValid, send, sending]);
 
   const copy = async (message: ThreadMessage) => {
     try {
@@ -562,10 +721,13 @@ export function ChatView() {
   };
 
   const remaining = remainingCharacters(draft, MAX_QUESTION_LENGTH);
-  const canSend = Boolean(scopeId) && draft.trim().length > 0 && remaining >= 0 && !sending && messagesState!=='loading';
+  const canSend = scopeValid && (!activeId || conversationScope !== "indisponivel") && draft.trim().length > 0 && remaining >= 0 && messagesState!=='loading' && !queuePaused;
   const speechSupported = typeof window !== "undefined" && Boolean((window as SpeechRecognitionWindow).SpeechRecognition ?? (window as SpeechRecognitionWindow).webkitSpeechRecognition);
-  const lastMessage = messages[messages.length - 1];
-  const failedMessage = lastMessage?.remetente === 'user' && lastMessage.failed ? lastMessage : undefined;
+  const latestRetryableFailure = [...messages].reverse().find((message) => {
+    if (message.remetente !== "user" || !message.failed) return false;
+    const index = messages.indexOf(message);
+    return !messages.slice(index + 1).some(later => later.remetente === "assistant");
+  });
 
   const editDraft = (value: string) => {
     if (!activeId && conversationRevision.current === 0) conversationRevision.current += 1;
@@ -603,10 +765,19 @@ export function ChatView() {
     try {
       const recognition = new Recognition();
       speechBaseDraft.current = draft.trim();
+      speechHasResult.current = false;
       recognition.lang = "pt-BR";
       recognition.continuous = true;
       recognition.interimResults = true;
       setVoiceError(false);
+      recognition.onstart = () => {
+        if (speechRecognition.current !== recognition) return;
+        if (speechStartTimer.current !== null) {
+          window.clearTimeout(speechStartTimer.current);
+          speechStartTimer.current = null;
+        }
+        setVoiceMessage("Ouvindo… fale com naturalidade. Toque no microfone para concluir.");
+      };
       recognition.onresult = (event) => {
         let finalTranscript = "";
         let interimTranscript = "";
@@ -617,9 +788,15 @@ export function ChatView() {
           if (result.isFinal) finalTranscript += `${finalTranscript ? " " : ""}${transcript}`;
           else interimTranscript += `${interimTranscript ? " " : ""}${transcript}`;
         }
+        if (finalTranscript || interimTranscript) speechHasResult.current = true;
         editDraft([speechBaseDraft.current, finalTranscript, interimTranscript].filter(Boolean).join(" "));
       };
       recognition.onerror = (event) => {
+        if (speechStartTimer.current !== null) {
+          window.clearTimeout(speechStartTimer.current);
+          speechStartTimer.current = null;
+        }
+        recognition.onstart = null;
         recognition.onresult = null;
         recognition.onend = null;
         if (speechRecognition.current === recognition) speechRecognition.current = null;
@@ -646,15 +823,43 @@ export function ChatView() {
       };
       recognition.onend = () => {
         if (speechRecognition.current !== recognition) return;
+        if (speechStartTimer.current !== null) {
+          window.clearTimeout(speechStartTimer.current);
+          speechStartTimer.current = null;
+        }
         setVoiceRecording(false);
-        setVoiceMessage((current) => current.startsWith("Ouvindo") || current.startsWith("Concluindo") ? "" : current);
+        setVoiceMessage((current) => {
+          if (current.startsWith("Concluindo")) {
+            return speechHasResult.current
+              ? "Ditado concluído. Revise o texto antes de enviar."
+              : "Não detectei fala. Toque no microfone para tentar novamente.";
+          }
+          return current.startsWith("Ouvindo") || current.startsWith("Solicitando") ? "" : current;
+        });
+        recognition.onstart = null;
         speechRecognition.current = null;
       };
       speechRecognition.current = recognition;
       recognition.start();
-      setVoiceMessage("Ouvindo… fale com naturalidade. Toque no microfone para concluir.");
+      setVoiceMessage("Solicitando acesso ao microfone…");
       setVoiceRecording(true);
+      speechStartTimer.current = window.setTimeout(() => {
+        if (speechRecognition.current !== recognition) return;
+        recognition.onstart = null;
+        recognition.onerror = null;
+        recognition.onend = null;
+        try { recognition.abort(); } catch { /* Best effort after start timeout. */ }
+        speechRecognition.current = null;
+        speechStartTimer.current = null;
+        setVoiceRecording(false);
+        setVoiceError(true);
+        setVoiceMessage("O navegador não confirmou o acesso ao microfone. Verifique a permissão e tente novamente.");
+      }, 20000);
     } catch {
+      if (speechStartTimer.current !== null) {
+        window.clearTimeout(speechStartTimer.current);
+        speechStartTimer.current = null;
+      }
       speechRecognition.current = null;
       setVoiceRecording(false);
       setVoiceError(true);
@@ -673,7 +878,7 @@ export function ChatView() {
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" /></svg>
             </button>
           </div>
-          <Button className="chat-new-conversation" onClick={startNewConversation}>Nova conversa</Button>
+          <Button className="chat-new-conversation" disabled={sending || queuedQuestions.length > 0} onClick={startNewConversation}>Nova conversa</Button>
 
           <div className="ds-field">
             <label className="ds-label" htmlFor="chat-scope">Escopo da consulta</label>
@@ -681,24 +886,33 @@ export function ChatView() {
               id="chat-scope"
               className="ds-input"
               value={scopeId}
-              disabled={scopeLocked}
+              disabled={scopeLocked || sending || queuedQuestions.length > 0}
               onChange={(event) => { cancelVoiceCapture(); conversationRevision.current += 1; setMessages([]); setSendError(""); setScopeId(event.target.value); }}
               aria-describedby="chat-scope-help"
             >
-              <option value="">Selecione um projeto</option>
-              {projects.map((project) => <option key={project.id} value={project.id}>{project.nome}</option>)}
+              <option value="todos_autorizados">Todos os projetos permitidos</option>
+              {projects.map((project) => <option key={project.id} value={`projeto:${project.id}`}>{project.nome}{projectReadinessLabel(project)}</option>)}
+              {scopeId === "escopo_indisponivel" && <option value="escopo_indisponivel">Escopo indisponível</option>}
             </select>
             <span id="chat-scope-help" className="ds-help">
-              {scopeLocked ? "O escopo é definido ao iniciar a conversa. Crie uma nova para mudar." : "Escolha o projeto que o assistente deve consultar."}
+              {scopeLocked
+                ? conversationScope === "indisponivel" ? "Não foi possível confirmar o escopo desta conversa antiga. Crie uma nova para continuar com segurança." : "O escopo é definido ao iniciar a conversa. Crie uma nova para mudar."
+                : "Por padrão, a consulta usa todos os projetos permitidos. Você pode restringi-la a um projeto."}
             </span>
-            {projectsState === 'loading' && <span className="ds-help" role="status">Carregando projetos…</span>}
-            {projectsState === 'error' && (
+            {conversationScope === "projeto" && selectedProjectReadiness && <span className="ds-help chat-project-readiness" role="status">{selectedProjectReadiness}</span>}
+            {conversationScope === "todos_autorizados" && limitedCorpusProjects.length > 0 && (
+              <span className="ds-help chat-project-readiness" role="status">
+                Acervo vazio ou incompleto em: {limitedCorpusProjects.map((project) => project.nome).join(", ")}. A consulta continua usando as fontes elegíveis dos projetos disponíveis.
+              </span>
+            )}
+            {projectsState === "loading" && <span className="ds-help" role="status">Carregando projetos…</span>}
+            {projectsState === "error" && (
               <Alert tone="danger" role="alert">
                 Não foi possível carregar os projetos.{' '}
                 <Button variant="secondary" size="sm" onClick={() => void loadProjects()}>Recarregar projetos</Button>
               </Alert>
             )}
-            {projectsState === 'idle' && projects.length === 0 && <span className="ds-help">Nenhum projeto disponível para consulta.</span>}
+            {projectsState === "idle" && projects.length === 0 && <span className="ds-help">Nenhum projeto disponível para consulta.</span>}
           </div>
 
           <nav className="chat-conversations" aria-label="Histórico de conversas">
@@ -729,11 +943,16 @@ export function ChatView() {
                       type="button"
                       className="chat-conversation"
                       aria-current={conversation.id === activeId}
+                      disabled={sending || queuedQuestions.length > 0}
                       onClick={() => { openConversation(conversation); setMobileSidebarOpen(false); }}
                     >
                       <span className="chat-conversation-title">{conversation.titulo}</span>
                       <span className="chat-conversation-meta">
-                        {conversation.projeto_nome ?? "Todos os projetos"} · {formatRelative(conversation.updated_at)}
+                        {(conversation.escopo_tipo === "todos_autorizados"
+                          ? "Todos os projetos permitidos"
+                          : conversation.escopo_tipo === "projeto" && conversation.projeto_id
+                            ? conversation.projeto_nome ?? "Projeto"
+                            : "Escopo indisponível")} · {formatRelative(conversation.updated_at)}
                       </span>
                     </button>
                   </MessageContextMenu>
@@ -777,7 +996,7 @@ export function ChatView() {
               </MessageContextMenu>
             ) : <h2 className="chat-thread-title" title="Nova conversa">Nova conversa</h2>}
             <div className="chat-thread-actions">
-              <Badge tone={scopeName ? "brand" : "info"}>{scopeName ?? "Todos os projetos"}</Badge>
+              <Badge tone={scopeName ? "brand" : "info"}>{scopeName ?? "Escopo indisponível"}</Badge>
               {activeId && (
                 <Button
                   variant="danger"
@@ -805,6 +1024,11 @@ export function ChatView() {
           </div>
 
           <div ref={messagesViewport} className="chat-messages" role="log" aria-live="polite" aria-relevant="additions" aria-label="Mensagens da conversa" tabIndex={0}>
+            {activeConversation?.escopo_tipo === "indisponivel" && (
+              <Alert tone="warning" role="status" title="Escopo indisponível">
+                Não é possível confirmar os projetos consultados nesta conversa antiga. Ela permanece no histórico, mas não pode ser continuada com segurança. Inicie uma nova conversa.
+              </Alert>
+            )}
             {messagesState === "loading" && <p className="help" role="status">Carregando mensagens…</p>}
             {messagesState === "error" && activeId && (
               <Alert tone="danger" role="alert">
@@ -813,10 +1037,10 @@ export function ChatView() {
               </Alert>
             )}
 
-            {messagesState === "idle" && messages.length === 0 && (
+            {messagesState === "idle" && messages.length === 0 && activeConversation?.escopo_tipo !== "indisponivel" && (
               <div className="chatx-welcome">
                 <h3>Como posso ajudar?</h3>
-                <p>Faça uma pergunta sobre {scopeName ? `o projeto ${scopeName}` : "os seus projetos"} ou escolha uma sugestão abaixo.</p>
+                <p>Faça uma pergunta sobre {scopeName === "Todos os projetos permitidos" ? "os projetos aos quais você tem acesso" : scopeName ? `o projeto ${scopeName}` : "o escopo escolhido"} ou escolha uma sugestão abaixo.</p>
               </div>
             )}
 
@@ -833,18 +1057,18 @@ export function ChatView() {
                 onRequestDelete={() => requestDeleteMessage(message)}
                 onCancelDelete={() => setConfirmDeleteMessageId(null)}
                 onDelete={() => void handleDeleteMessage(message)}
-                failureText={failedMessage?.id === message.id ? sendError || "A consulta anterior não foi concluída." : ""}
+                failureText={latestRetryableFailure?.id === message.id ? sendError || "A consulta anterior não foi concluída." : ""}
                 onRetry={() => void send(message.conteudo, message.id)}
               />
             ))}
 
-            {sending && <ThinkingIndicator stage={progressByKey[sendKey] ?? "searching"} />}
+            {sending && <ThinkingIndicator stage={progressByKey[activeSendKey] ?? "searching"} />}
           </div>
 
           <div className="chat-prompt-bar" role="group" aria-label="Perguntas sugeridas">
             <span className="chat-prompt-label"><Sparkles size={14} aria-hidden="true" /> Sugestões</span>
             <div className="chat-prompt-list">
-              {SUGGESTED_PROMPTS.map((prompt) => (
+              {suggestedPromptsForContext(messages).map((prompt) => (
                 <button
                   key={prompt}
                   className="chat-prompt-chip"
@@ -859,8 +1083,31 @@ export function ChatView() {
             </div>
           </div>
 
-          <form className="chat-composer" onSubmit={(event) => { event.preventDefault(); if (canSend) void send(draft); }}>
-            {sendError && !failedMessage && (
+          {queuedQuestions.length > 0 && (
+            <section className={`chat-queue${queuePaused ? " is-paused" : ""}`} aria-label="Fila de mensagens">
+              <header className="chat-queue-header">
+                <div className="chat-queue-heading">
+                  <span className="chat-queue-indicator" aria-hidden="true" />
+                  <strong>{queuePaused ? "Fila pausada" : "Próximas mensagens"}</strong>
+                  <span className="chat-queue-count">{queuedQuestions.length}</span>
+                  <span className="chat-queue-caption">{queuePaused ? "Retome a pergunta atual para continuar" : "Serão enviadas em ordem"}</span>
+                </div>
+                <button type="button" className="chat-queue-clear" onClick={clearQueuedQuestions}>Limpar fila</button>
+              </header>
+              <ol className="chat-queue-list">
+                {queuedQuestions.map((item, index) => (
+                  <li className="chat-queue-item" key={item.id}>
+                    <span className="chat-queue-position" aria-label={`Posição ${index + 1}`}>{index + 1}</span>
+                    <span className="chat-queue-question">{item.text}</span>
+                    <button type="button" className="chat-queue-remove" aria-label={`Remover pergunta ${index + 1} da fila`} title="Remover da fila" onClick={() => removeQueuedQuestion(item.id)}><X size={15} aria-hidden="true" /></button>
+                  </li>
+                ))}
+              </ol>
+            </section>
+          )}
+
+          <form className="chat-composer" onSubmit={(event) => { event.preventDefault(); if (canSend) enqueueOrSend(draft); }}>
+            {sendError && !latestRetryableFailure && (
               <Alert tone="danger" role="alert" title="Não foi possível concluir">
                 {sendError}
               </Alert>
@@ -872,16 +1119,15 @@ export function ChatView() {
                 ref={composer}
                 className="chat-composer-textarea"
                 rows={1}
-                placeholder="Escreva sua mensagem…"
+                placeholder={sending ? "Digite para adicionar à fila…" : "Escreva sua mensagem…"}
                 value={draft}
-                disabled={sending}
                 aria-describedby="chat-composer-help chat-composer-counter"
                 aria-invalid={remaining < 0}
                 onChange={(event) => handleDraftInput(event.target.value)}
                 onKeyDown={(event) => {
                   if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) {
                     event.preventDefault();
-                    if (canSend) void send(draft);
+                    if (canSend) enqueueOrSend(draft);
                   }
                 }}
               />
@@ -903,15 +1149,15 @@ export function ChatView() {
                   >
                     {voiceRecording ? <MicOff size={17} aria-hidden="true" /> : <Mic size={17} aria-hidden="true" />}
                   </Button>
-                  <Button ref={submitButton} variant="ghost" className={`chat-send-button${draft.trim() && remaining >= 0 ? " has-message" : ""}`} type="submit" disabled={!canSend} aria-label="Enviar" title={sending ? "Consultando…" : "Enviar mensagem"}>
-                    {sending ? <LoaderCircle className="chat-send-spinner" size={18} aria-hidden="true" /> : <ArrowUp size={19} aria-hidden="true" />}
-                  </Button>
+                  {sending
+                    ? <Button ref={submitButton} variant="ghost" className="chat-send-button chat-stop-button" type="button" aria-label="Interromper consulta" title="Interromper consulta" onClick={() => activeRequestController.current?.abort()}><Square size={16} aria-hidden="true" /></Button>
+                    : <Button ref={submitButton} variant="ghost" className={`chat-send-button${draft.trim() && remaining >= 0 ? " has-message" : ""}`} type="submit" disabled={!canSend} aria-label="Enviar" title="Enviar mensagem"><ArrowUp size={19} aria-hidden="true" /></Button>}
                 </div>
               </div>
             </div>
             <div className="chat-composer-meta">
               <span id="chat-composer-help" className={`chat-composer-help${remaining < 0 ? " is-invalid" : ""}${voiceMessage ? " is-voice-active" : ""}${voiceError ? " is-voice-error" : ""}`}>
-                {voiceMessage ? <span role="status" aria-live="polite">{voiceMessage}</span> : remaining < 0 ? `Reduza ${-remaining} caractere(s) para enviar.` : !scopeId ? "Selecione um projeto para habilitar o envio." : "Enter envia · Shift+Enter quebra a linha"}
+                {voiceMessage ? <span role="status" aria-live="polite">{voiceMessage}</span> : remaining < 0 ? `Reduza ${-remaining} caractere(s) para enviar.` : !scopeValid ? projectsState === "loading" ? "Carregando o escopo dos projetos…" : projectsState === "error" ? "Não foi possível validar os projetos permitidos." : "Nenhum projeto disponível para consulta." : sending ? "Enter adiciona à fila · o botão interrompe a consulta" : queuePaused ? "A fila está pausada; tente novamente a pergunta pendente." : "Enter envia · Shift+Enter quebra a linha"}
               </span>
               <span className="chat-composer-disclaimer">A IA pode errar; confira as fontes citadas.</span>
             </div>
@@ -1003,6 +1249,7 @@ function MessageBubble({ message, copied, copyFailed, deleting, deleteDisabled, 
         {originBadge && <Badge tone="warning">{originBadge}</Badge>}
       </header>
       {message.failed && <p className="chat-message-failed" role="note">Não enviada</p>}
+      {message.processing && <p className="chat-message-processing" role="status"><LoaderCircle aria-hidden="true" size={14} />Em processamento</p>}
       {isUser ? <p className="chat-message-text">{message.conteudo}</p> : <Markdown source={message.conteudo} className="chat-message-body" />}
       {failureText && (
         <div className="chat-message-error" role="alert">

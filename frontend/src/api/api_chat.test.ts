@@ -25,6 +25,17 @@ it.each([{id:42,nome:'Projeto'},{id:'project-a',nome:{texto:'Inválido'}}])('rej
   await expect(listChatProjects()).rejects.toThrow();
 });
 
+it('preserva o estado e as contagens de prontidão do acervo por projeto', async () => {
+  vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({items:[{
+    id:'project-a',nome:'Projeto A',documentos_total:2,documentos_processados:1,
+    documentos_pendentes:1,documentos_com_falha:0,trechos_elegiveis:4,
+    trechos_com_embedding:4,ultimo_trecho_em:'2026-10-28T12:00:00.000Z',prontidao:'partial',
+  }]}))));
+  await expect(listChatProjects()).resolves.toMatchObject([{
+    id:'project-a',nome:'Projeto A',documentos_total:2,trechos_elegiveis:4,prontidao:'partial',
+  }]);
+});
+
 it('preserva o cancelamento solicitado por quem iniciou a consulta',async()=>{
   vi.stubGlobal('fetch',vi.fn((_url:string,init:RequestInit)=>new Promise<Response>((_resolve,reject)=>{
     init.signal?.addEventListener('abort',()=>reject(new DOMException('Consulta cancelada','AbortError')),{once:true});
@@ -33,6 +44,17 @@ it('preserva o cancelamento solicitado por quem iniciou a consulta',async()=>{
   const result=expect(askQuestion({pergunta:'Consultar evidências',projetoId:'project-a'},controller.signal)).rejects.toMatchObject({name:'AbortError'});
   controller.abort();
   await result;
+});
+
+it('envia o escopo geral explicitamente sem exigir um id de projeto',async()=>{
+  const fetchMock=vi.fn(async(_url:string,_init?:RequestInit)=>new Response(JSON.stringify({
+    conversa_id:'conversation-general',escopo_tipo:'todos_autorizados',resposta:'Resposta geral',fontes:[],origem:'assistente',
+  }),{headers:{'Content-Type':'application/json'}}));
+  vi.stubGlobal('fetch',fetchMock);
+  await askQuestion({pergunta:'Pesquisar todos os projetos',escopo:'todos_autorizados'});
+  const request=fetchMock.mock.calls[0][1] as RequestInit;
+  expect(JSON.parse(String(request.body))).toMatchObject({pergunta:'Pesquisar todos os projetos',escopo:'todos_autorizados'});
+  expect(JSON.parse(String(request.body))).not.toHaveProperty('projeto_id');
 });
 
 it('processa eventos de progresso fragmentados e só resolve com a resposta concluída',async()=>{

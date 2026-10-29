@@ -64,7 +64,8 @@ export class SearchRepository {
                 (SELECT string_agg(lower(left(token, 1)), '' ORDER BY position)
                  FROM ts_debug('portuguese', $2) WITH ORDINALITY
                    AS words(alias, description, token, dictionaries, dictionary, lexemes, position)
-                 WHERE alias IN ('asciiword', 'word') AND cardinality(lexemes) > 0) AS initials
+                 WHERE alias IN ('asciiword', 'word') AND cardinality(lexemes) > 0) AS initials,
+                $2 ~* '\\m(banco(s)?(\\s+de\\s+dados)?|database(s)?|postgres(ql)?|sql|mysql|mariadb|oracle|mongodb)\\M' AS database_intent
        ),
        concept_aliases AS (
          SELECT ':' || groups.id AS concept,
@@ -130,8 +131,11 @@ export class SearchRepository {
                 ) AS acronym_match,
                 COALESCE(partial.matches, 0) >= 2 AND
                   COALESCE(1 - (c.embedding <=> $3::vector), 0) >=
-                    CASE WHEN partial.synonym_support THEN $14::double precision ELSE $13::double precision END AS partial_match
-         FROM scoped_chunks c CROSS JOIN query_terms q
+                    CASE WHEN partial.synonym_support THEN $14::double precision ELSE $13::double precision END AS partial_match,
+                q.database_intent AND ':database' = ANY(query_concepts.terms)
+                  AND ':database' = ANY(source_concepts.terms) AS database_match
+         FROM scoped_chunks c CROSS JOIN query_terms q CROSS JOIN query_concepts
+         JOIN source_concepts ON source_concepts.id = c.id
          LEFT JOIN partial_signals partial ON partial.id = c.id
        ),
        exact_identifier AS (
@@ -147,6 +151,7 @@ export class SearchRepository {
             OR c.search_vector @@ websearch_to_tsquery('portuguese', $2)
             OR c.similarity >= $11
             OR c.partial_match
+            OR c.database_match
             OR 0.6 * GREATEST(c.similarity, 0) + 0.4 * GREATEST(c.coverage, c.acronym_match::integer * 0.75) >= $10
             OR NOT EXISTS (
               SELECT 1 FROM search_signals signal
@@ -161,7 +166,7 @@ export class SearchRepository {
          FROM (
            SELECT id,
                   CASE WHEN metadata_locator_match THEN 10.0
-                       WHEN acronym_match OR partial_match THEN 1.0
+                       WHEN acronym_match OR partial_match OR database_match THEN 1.0
                        ELSE ts_rank_cd(search_vector, websearch_to_tsquery('portuguese', $2)) END AS rank
            FROM eligible_signals
            CROSS JOIN LATERAL (
@@ -171,6 +176,7 @@ export class SearchRepository {
            WHERE metadata_locator_match
               OR (acronym_match AND NOT (SELECT is_identifier_query FROM exact_identifier))
               OR (partial_match AND NOT (SELECT is_identifier_query FROM exact_identifier))
+              OR (database_match AND NOT (SELECT is_identifier_query FROM exact_identifier))
               OR (NOT (SELECT is_identifier_query FROM exact_identifier)
                   AND search_vector @@ websearch_to_tsquery('portuguese', $2))
 

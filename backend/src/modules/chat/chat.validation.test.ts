@@ -4,7 +4,7 @@ import { randomUUID } from 'node:crypto';
 import { ChatService } from './chat.service.js';
 import { ChatRepository } from './chat.repository.js';
 import { ragInput } from './rag.service.js';
-import { NOT_FOUND_ANSWER } from './chat.types.js';
+import { NOT_FOUND_ANSWER, type AssistantAnswer } from './chat.types.js';
 import type { Conversation } from './chat.types.js';
 import { ConflictError, NotFoundError, ValidationError } from '../../shared/errors.js';
 
@@ -13,6 +13,7 @@ class RecordingChats extends ChatRepository {
   renames: Array<{ conversation: string; user: string; title: string }> = [];
   questions: string[] = [];
   retries: Array<{ conversation: string; message: string; text: string }> = [];
+  failedMessageIds: string[] = [];
   async projectExists() { return true; }
   async createConversation(user: string, project: string | null, title: string) {
     this.titles.push(title); return { id: randomUUID(), usuario_id: user, projeto_id: project, titulo: title, created_at: '2026-10-25T00:00:00Z', updated_at: '2026-10-25T00:00:00Z' };
@@ -25,6 +26,7 @@ class RecordingChats extends ChatRepository {
     return { id: conversation, usuario_id: user, projeto_id: randomUUID(), titulo: title, created_at: '2026-10-25T00:00:00Z', updated_at: '2026-10-25T00:00:00Z' };
   }
   async finishMessage() { }
+  async failMessage(messageId: string) { this.failedMessageIds.push(messageId); }
 }
 const assistant = { ask: async () => ({ resposta: NOT_FOUND_ANSWER, fontes: [] }) };
 
@@ -46,6 +48,38 @@ test('abreviar um título não divide um emoji nem altera a pergunta', async () 
   assert.ok(chats.titles[0].includes('😀'));
   assert.deepEqual(chats.questions, [question]);
 });
+test('ChatService preserva a cobertura e classifica ausência/fora de escopo sem citar fontes', async () => {
+  const cases = [
+    { cobertura: 'no_evidence' as const, resposta: 'Informação não encontrada no acervo do projeto. O assistente responde somente com base nas evidências do acervo do projeto.' },
+    { cobertura: 'out_of_scope' as const, resposta: 'Esse assunto está fora do escopo do acervo do projeto.' },
+  ];
+  for (const answer of cases) {
+    const service = new ChatService(new RecordingChats(), { ask: async () => ({ ...answer, fontes: [], evidencias: [] }) });
+    const result = await service.query(randomUUID(), { pergunta: 'Pergunta sem resposta', projetoId: randomUUID() });
+    assert.equal(result.origem, 'sem_resultado');
+    assert.equal(result.resposta, answer.resposta);
+    assert.deepEqual(result.fontes, []);
+    assert.deepEqual(result.evidencias, []);
+  }
+});
+
+test('ChatService mantém resposta parcial como assistida e suas fontes verificadas', async () => {
+  const evidence = { chunk_id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', texto: 'O projeto integra WhatsApp para avisos.' };
+  const source = { id: evidence.chunk_id, titulo: 'Decisão', tipo: 'decisao' };
+  const answer = {
+    cobertura: 'partial' as const,
+    resposta: `${evidence.texto} [${evidence.chunk_id}]\n\nA resposta é parcial: o acervo não contém evidências suficientes para todos os aspectos da pergunta.`,
+    fontes: [source],
+    evidencias: [evidence],
+  };
+  const service = new ChatService(new RecordingChats(), { ask: async () => answer });
+  const result = await service.query(randomUUID(), { pergunta: 'Pergunta com dois aspectos', projetoId: randomUUID() });
+
+  assert.equal(result.origem, 'assistente');
+  assert.equal(result.resposta, answer.resposta);
+  assert.deepEqual(result.fontes, [source]);
+  assert.deepEqual(result.evidencias, [evidence]);
+});
 test('ChatService propaga ao cliente somente os estágios de progresso definidos', async () => {
   const stages: string[] = [];
   const progressAssistant = {
@@ -59,6 +93,21 @@ test('ChatService propaga ao cliente somente os estágios de progresso definidos
   const service = new ChatService(new RecordingChats(), progressAssistant);
   await service.query(randomUUID(), { pergunta: 'Consultar acervo', projetoId: randomUUID() }, stage => stages.push(stage));
   assert.deepEqual(stages, ['searching', 'synthesizing', 'validating']);
+});
+test('ChatService marca a pergunta como recuperável quando a consulta é interrompida', async () => {
+  const chats = new RecordingChats();
+  const assistantWithAbort = {
+    ask: async () => ({ resposta: NOT_FOUND_ANSWER, fontes: [] }),
+    askProjects: async (_question: string, _projects: string[], _user: string, _progress?: (stage: 'searching' | 'synthesizing' | 'validating') => void, signal?: AbortSignal) =>
+      new Promise<AssistantAnswer>((_resolve, reject) => signal?.addEventListener('abort', () => reject(new DOMException('cancelled', 'AbortError')), { once: true })),
+  };
+  const service = new ChatService(chats, assistantWithAbort);
+  const controller = new AbortController();
+  const pending = service.query(randomUUID(), { pergunta: 'Consultar decisões', projetoId: randomUUID() }, undefined, controller.signal);
+  controller.abort();
+  await assert.rejects(pending, (error: unknown) => error instanceof Error && 'code' in error && error.code === 'CHAT_CANCELLED');
+  assert.equal(chats.failedMessageIds.length, 1);
+  assert.deepEqual(chats.questions, ['Consultar decisões']);
 });
 test('título informado pelo usuário também preserva emojis e recusa texto inválido', async () => {
   const chats = new RecordingChats(), service = new ChatService(chats, assistant);

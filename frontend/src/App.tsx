@@ -1,19 +1,18 @@
 import { SearchOriginFocus } from "./views/knowledge/SearchOriginFocus";
-import "./assets/styles/knowledge.css";
 import { Button } from "./views/common/ui";
 import React, { useState, useEffect } from "react";
 import { ArrowRight, BookOpenText, FolderKanban, Layers3, LogOut, MessageCircle, ShieldCheck } from "lucide-react";
 import { isProjectPath, navigate, routes } from "./models/navigation";
 import { useAuth } from "./viewmodels/useAuthViewModel";
-import { ProjectsView } from "./views/projects/ProjectsView";
-import { LandingPageView } from "./views/landing/LandingPageView";
-import { DeveloperDashboardView } from "./views/dashboard/DeveloperDashboardView";
-import { DocumentsView } from "./views/documents/DocumentsView";
-import { KnowledgeView } from "./views/knowledge/KnowledgeView";
-import { ChatView } from "./views/chat/ChatView";
-import { AdminView } from "./views/admin/AdminView";
-import { IngestionObservabilityView } from "./views/admin/IngestionObservabilityView";
-import { RequirementsView } from "./views/backlog/RequirementsView";
+const ProjectsView = React.lazy(() => import("./views/projects/ProjectsView").then(module => ({ default: module.ProjectsView })));
+const LandingPageView = React.lazy(() => import("./views/landing/LandingPageView").then(module => ({ default: module.LandingPageView })));
+const DeveloperDashboardView = React.lazy(() => import("./views/dashboard/DeveloperDashboardView").then(module => ({ default: module.DeveloperDashboardView })));
+const DocumentsView = React.lazy(() => import("./views/documents/DocumentsView").then(module => ({ default: module.DocumentsView })));
+const KnowledgeView = React.lazy(() => import("./views/knowledge/KnowledgeView").then(module => ({ default: module.KnowledgeView })));
+const ChatView = React.lazy(() => import("./views/chat/ChatView").then(module => ({ default: module.ChatView })));
+const AdminView = React.lazy(() => import("./views/admin/AdminView").then(module => ({ default: module.AdminView })));
+const IngestionObservabilityView = React.lazy(() => import("./views/admin/IngestionObservabilityView").then(module => ({ default: module.IngestionObservabilityView })));
+const RequirementsView = React.lazy(() => import("./views/backlog/RequirementsView").then(module => ({ default: module.RequirementsView })));
 
 export const App: React.FC = () => {
   const { session, logout } = useAuth();
@@ -234,28 +233,30 @@ export const App: React.FC = () => {
 
       {/* Main Content Area */}
       <main className={`app-content${isChatPage ? " app-content--chat" : ""}`}>
-        <SearchOriginFocus pathname={pathname} />
-        {activeTab === "projects" && <ProjectsView key={pathname} pathname={pathname} canCreate={session.user?.role === "po" || session.user?.role === "admin"} />}
-        {activeTab === "requirements" && <RequirementsView canCreate={session.user?.role === "po" || session.user?.role === "admin"} />}
-        {activeTab === "documents" && <DocumentsView />}
-        {activeTab === "knowledge" && <KnowledgeView />}
-        {(activeTab === "chat" || activeTab === "rag") && <ChatView />}
-        {activeTab === "admin" && (isAdmin ? <AdminView /> : (
-          <section className="page-container" role="alert" aria-labelledby="admin-access-title">
-            <h1 id="admin-access-title">Acesso restrito</h1>
-            <p>Esta área está disponível somente para administradores.</p>
-            <Button variant="secondary" onClick={() => navigate("/projects")}>Voltar para projetos</Button>
-          </section>
-        ))}
-        {activeTab === "ingestion" && (isAdmin ? <IngestionObservabilityView /> : (
-          <section className="page-container" role="alert" aria-labelledby="ingestion-access-title">
-            <h1 id="ingestion-access-title">Acesso restrito</h1>
-            <p>O pipeline de ingestão é visível somente para administradores.</p>
-            <Button variant="secondary" onClick={() => navigate("/projects")}>Voltar para projetos</Button>
-          </section>
-        ))}
-        {activeTab === "architecture" && <DeveloperDashboardView />}
-        {activeTab === "landing" && <LandingPageView />}
+        <React.Suspense fallback={<div className="page-container" role="status" aria-live="polite">Carregando tela…</div>}>
+          <SearchOriginFocus pathname={pathname} />
+          {activeTab === "projects" && <ProjectsView key={pathname} pathname={pathname} canCreate={session.user?.role === "po" || session.user?.role === "admin"} />}
+          {activeTab === "requirements" && <RequirementsView canCreate={session.user?.role === "po" || session.user?.role === "admin"} />}
+          {activeTab === "documents" && <DocumentsView />}
+          {activeTab === "knowledge" && <KnowledgeView />}
+          {(activeTab === "chat" || activeTab === "rag") && <ChatView />}
+          {activeTab === "admin" && (isAdmin ? <AdminView /> : (
+            <section className="page-container" role="alert" aria-labelledby="admin-access-title">
+              <h1 id="admin-access-title">Acesso restrito</h1>
+              <p>Esta área está disponível somente para administradores.</p>
+              <Button variant="secondary" onClick={() => navigate("/projects")}>Voltar para projetos</Button>
+            </section>
+          ))}
+          {activeTab === "ingestion" && (isAdmin ? <IngestionObservabilityView /> : (
+            <section className="page-container" role="alert" aria-labelledby="ingestion-access-title">
+              <h1 id="ingestion-access-title">Acesso restrito</h1>
+              <p>O pipeline de ingestão é visível somente para administradores.</p>
+              <Button variant="secondary" onClick={() => navigate("/projects")}>Voltar para projetos</Button>
+            </section>
+          ))}
+          {activeTab === "architecture" && <DeveloperDashboardView />}
+          {activeTab === "landing" && <LandingPageView />}
+        </React.Suspense>
       </main>
 
       {/* Footer */}

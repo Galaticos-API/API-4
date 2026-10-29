@@ -13,6 +13,12 @@ function text(value: unknown): string | undefined {
   return typeof value === "string" && value.trim() ? value.trim() : undefined;
 }
 
+function scope(value: unknown): "projeto" | "todos_autorizados" | undefined {
+  if (value === undefined) return undefined;
+  if (value === "projeto" || value === "todos_autorizados") return value;
+  throw new ValidationError("Escopo da conversa inválido.");
+}
+
 export function createChatRouter(service: ChatService = new ChatService(), authentication: RequestHandler = requireAuth): Router {
   const router = Router();
   router.use(authentication);
@@ -24,7 +30,7 @@ export function createChatRouter(service: ChatService = new ChatService(), authe
     } catch(error){next(error);}
   });
 
-  router.get("/projects", async (req, res, next) => { try { res.json({ items: await service.accessibleProjects(userId(req)) }); } catch (error) { next(error); } });
+  router.get("/projects", async (req, res, next) => { try { res.json({ items: await service.accessibleProjectsWithKnowledgeReadiness(userId(req)) }); } catch (error) { next(error); } });
 
   router.get("/conversations", async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -37,7 +43,7 @@ export function createChatRouter(service: ChatService = new ChatService(), authe
 
   router.post("/conversations", async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const created = await service.createConversation(userId(req), { titulo: req.body?.titulo, projetoId: text(req.body?.projeto_id) });
+      const created = await service.createConversation(userId(req), { titulo: req.body?.titulo, projetoId: text(req.body?.projeto_id), escopo: scope(req.body?.escopo) });
       res.status(201).json(created);
     } catch (error) {
       next(error);
@@ -89,6 +95,7 @@ export function createChatRouter(service: ChatService = new ChatService(), authe
         conversaId: text(req.body?.conversa_id),
         mensagemId: text(req.body?.mensagem_id),
         projetoId: text(req.body?.projeto_id),
+        escopo: scope(req.body?.escopo),
       }));
     } catch (error) {
       next(error);
@@ -106,6 +113,10 @@ export function createChatRouter(service: ChatService = new ChatService(), authe
       "X-Accel-Buffering": "no",
     });
     res.flushHeaders();
+    const controller = new AbortController();
+    res.on("close", () => {
+      if (!res.writableEnded) controller.abort();
+    });
 
     const writeEvent = (event: string, data: unknown) => {
       if (!res.destroyed && !res.writableEnded) res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
@@ -120,10 +131,23 @@ export function createChatRouter(service: ChatService = new ChatService(), authe
         conversaId: text(req.body?.conversa_id),
         mensagemId: text(req.body?.mensagem_id),
         projetoId: text(req.body?.projeto_id),
-      }, (stage) => writeEvent("progress", { stage }));
+        escopo: scope(req.body?.escopo),
+      }, (stage) => writeEvent("progress", { stage }), controller.signal, (conversation) => writeEvent("conversation", {
+        id: conversation.id,
+        titulo: conversation.titulo,
+        projeto_id: conversation.projeto_id,
+        projeto_nome: conversation.projeto_nome,
+        escopo_tipo: conversation.escopo_tipo,
+        updated_at: conversation.updated_at,
+      }));
       writeEvent("completed", result);
       res.end();
     } catch (error) {
+      if (controller.signal.aborted || (error instanceof AppError && error.code === "CHAT_CANCELLED")) {
+        writeEvent("cancelled", { error: "Consulta interrompida." });
+        if (!res.writableEnded) res.end();
+        return;
+      }
       const payload = error instanceof AppError
         ? { status: error.statusCode, error: error.message, code: error.code, details: error.details }
         : { status: 500, error: "Erro interno do servidor.", code: "INTERNAL_SERVER_ERROR" };

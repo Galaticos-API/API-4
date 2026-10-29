@@ -9,6 +9,7 @@ import {
   validarTituloInfinitivo,
 } from "../quality/quality.rules.js";
 import { ChatRepository } from "../chat/chat.repository.js";
+import { NOT_FOUND_ANSWER } from "../chat/chat.types.js";
 import { searchPatterns } from "./search-patterns.js";
 import { HarnessRepository } from "./harness.repository.js";
 import {
@@ -25,15 +26,16 @@ import {
 } from "./harness.contract.js";
 
 export interface HarnessEngine {
-  generate(payload: Record<string, unknown>, timeout: number): Promise<unknown>;
+  generate(payload: Record<string, unknown>, timeout: number, signal?: AbortSignal): Promise<unknown>;
 }
 export class HttpHarnessEngine implements HarnessEngine {
   constructor(private readonly baseUrl = env.AI_SERVICE_URL) {}
-  async generate(payload: Record<string, unknown>, timeout: number) {
+  async generate(payload: Record<string, unknown>, timeout: number, signal?: AbortSignal) {
     const response = await axios.post(this.baseUrl + "/harness/run", payload, {
       headers: serviceHeaders(),
       timeout,
       maxContentLength: 200000,
+      signal,
     });
     if (
       response.data?.mode !== payload.mode ||
@@ -76,7 +78,7 @@ export function validateGuide(
       throw Error("Fonte inválida");
     if (
       !result.sources.length &&
-      result.answer !== "Informação não encontrada no acervo do projeto."
+      result.answer !== NOT_FOUND_ANSWER
     )
       throw Error("Resposta sem fundamento");
   }
@@ -200,6 +202,7 @@ export class HarnessService {
     input: HarnessInput,
     trustedContext?: HarnessInput["context"],
     diagnosticId = randomUUID(),
+    signal?: AbortSignal,
   ) {
     if (
       !(OPERATIONS[input.mode] as readonly string[]).includes(input.operation)
@@ -251,6 +254,7 @@ export class HarnessService {
             context,
           },
           config.timeout_ms,
+          signal,
         );
       stage = 'output_validation';
       const result = parseOutput(scoped, generated);
@@ -271,7 +275,8 @@ export class HarnessService {
         level: input.level,
         result,
       };
-    } catch {
+    } catch (error) {
+      if (signal?.aborted) throw new DOMException("Consulta interrompida.", "AbortError");
       // Não propaga o erro do provedor: ele pode incluir prompt, resposta ou credenciais.
       console.error('[AI Harness] Request failed', {
         diagnostico_id: diagnosticId,

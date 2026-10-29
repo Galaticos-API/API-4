@@ -129,7 +129,7 @@ export function defaultConfig(mode: HarnessMode): HarnessConfig {
     levantamento:
       "Questione lacunas antes de sugerir conteúdo. Se a informação não foi fornecida, pergunte. Não invente regras, atores ou condições. Reconheça quando não houver lacunas relevantes.",
     consulta:
-      "Responda somente a partir dos trechos do projeto fornecidos e cite seus identificadores. Sem evidência, informe: Informação não encontrada no acervo do projeto.",
+      "Responda somente a partir dos trechos do projeto fornecidos e cite seus identificadores. Sem evidência, informe: Não encontrei informações que respondam a essa pergunta no acervo consultado.",
     recomendacao:
       "Recomende apenas origens fornecidas como candidatas no contexto. Não force recomendações quando não houver relação demonstrável.",
   };
