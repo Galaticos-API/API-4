@@ -67,6 +67,9 @@ export function sanitizeSources(value: unknown): ChatSource[] {
       tipo: typeof source.tipo === "string" ? source.tipo.slice(0, 50) : "documento",
       ...(typeof source.projeto_id === "string" && UUID_REGEX.test(source.projeto_id) ? { projeto_id: source.projeto_id } : {}),
       ...(typeof source.projeto_nome === "string" ? { projeto_nome: source.projeto_nome.slice(0, 200) } : {}),
+      ...(typeof source.entidade_id === "string" && UUID_REGEX.test(source.entidade_id) ? { entidade_id: source.entidade_id } : {}),
+      ...(typeof source.url === "string" && source.url.startsWith("/projects/") && !/[\\\s]/.test(source.url) ? { url: source.url.slice(0, 500) } : {}),
+      ...(Array.isArray(source.chunk_ids) ? { chunk_ids: source.chunk_ids.filter((id): id is string => typeof id === "string" && UUID_REGEX.test(id)).slice(0, 20) } : {}),
     }];
   });
 }

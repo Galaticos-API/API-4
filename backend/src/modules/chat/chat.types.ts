@@ -89,7 +89,7 @@ export interface AssistantAnswer {
 
 export const MAX_QUESTION_LENGTH = 2000;
 export const validChatText = (text:string) => !/[\u0000\uD800-\uDFFF]/u.test(text);
-export const NOT_FOUND_ANSWER = "Não encontrei informações que respondam a essa pergunta no acervo consultado.";
+export const NOT_FOUND_ANSWER = "Informação não encontrada no acervo do projeto.";
 export const NO_CANDIDATES_ANSWER = "Não localizei registros que correspondam a essa pergunta no escopo consultado.";
 export const NO_SUPPORT_ANSWER = "Encontrei registros relacionados, mas eles não apresentam evidências suficientes para responder com segurança.";
 export const SCOPE_LIMIT_ANSWER = "Se quiser, reformule usando o nome de uma funcionalidade, tecnologia, decisão ou regra de negócio. Também posso resumir requisitos e decisões registrados nos projetos selecionados.";

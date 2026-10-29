@@ -3,7 +3,9 @@ import {act,cleanup,fireEvent,render,screen,waitFor,within} from '@testing-libra
 import {ChatView} from './ChatView';
 import {askQuestion,deleteConversation,deleteMessage,listChatProjects,listConversations,listMessages,renameConversation,type ChatAnswer,type ChatConversation,type ChatProgressStage} from '../../api/api_chat';
 import {ApiError} from '../../api/api_auth';
+import {readDocumentText} from '../../api/api_knowledge';
 vi.mock('../../api/api_chat',()=>({MAX_QUESTION_LENGTH:2000,askQuestion:vi.fn(),deleteConversation:vi.fn(),deleteMessage:vi.fn(),listChatProjects:vi.fn(),listConversations:vi.fn(),listMessages:vi.fn(),renameConversation:vi.fn(),describeChatError:()=> 'Assistente indisponível'}));
+vi.mock('../../api/api_knowledge',()=>({readDocumentText:vi.fn()}));
 const speechInstances: FakeSpeechRecognition[]=[];
 class FakeSpeechRecognition {
   lang='';
@@ -464,22 +466,31 @@ it('abre o menu por clique direito e por Shift+F10 e fecha com Escape devolvendo
   await waitFor(()=>expect(screen.queryByRole('menu')).toBeNull());
   await waitFor(()=>expect(screen.getByRole('button',{name:'Mais ações: Ações da mensagem de Assistente Sinapse'})).toHaveFocus());
 });
-it('mantém o menu nativo em links e oferece acesso direto às fontes',async()=>{
+it('abre fontes em modal e formata o conteúdo Markdown do documento',async()=>{
   vi.mocked(listConversations).mockResolvedValue([{id:'conversation-a',titulo:'Conversa A',projeto_id:'project-a',projeto_nome:'Projeto A',updated_at:''}]);
   vi.mocked(listChatProjects).mockResolvedValue([{id:'project-a',nome:'Projeto A'}]);
-  vi.mocked(listMessages).mockResolvedValue([{id:'answer',remetente:'assistant',conteudo:'Resposta com evidência',fontes:[{id:'source-a',tipo:'documento',titulo:'Documento de referência',url:'/documento'}],created_at:null}]);
+  vi.mocked(readDocumentText).mockResolvedValue({document:{id:'22222222-2222-4222-8222-222222222222',name:'Documento de referência.md',project_id:'11111111-1111-4111-8111-111111111111'},items:[{id:'44444444-4444-4444-8444-444444444444',text:'# Contexto anterior\n\nTrecho complementar.',index:0},{id:'33333333-3333-4333-8333-333333333333',text:'# Prazo de análise\n\n- Até **4 horas úteis**.',index:1}],offset:0,total:2,next_offset:null});
+  vi.mocked(listMessages).mockResolvedValue([{id:'answer',remetente:'assistant',conteudo:'Resposta com evidência',fontes:[{id:'33333333-3333-4333-8333-333333333333',tipo:'documento',titulo:'Documento de referência.md',projeto_id:'11111111-1111-4111-8111-111111111111',projeto_nome:'Projeto A',entidade_id:'22222222-2222-4222-8222-222222222222',chunk_ids:['33333333-3333-4333-8333-333333333333'],url:'/projects/11111111-1111-4111-8111-111111111111/documents'}],created_at:null}]);
+  Object.defineProperty(HTMLDialogElement.prototype,'showModal',{configurable:true,value:function(this:HTMLDialogElement){this.setAttribute('open','');}});
+  Object.defineProperty(HTMLDialogElement.prototype,'close',{configurable:true,value:function(this:HTMLDialogElement){this.removeAttribute('open');}});
   render(<ChatView/>);
-  const link=await screen.findByRole('link',{name:'Documento de referência'});
-  fireEvent.contextMenu(link,{clientX:40,clientY:50});
-  expect(screen.queryByRole('menu')).toBeNull();
+  await screen.findByText('Resposta com evidência');
   fireEvent.click(screen.getByRole('button',{name:'Mais ações: Ações da mensagem de Assistente Sinapse'}));
   const menu=screen.getByRole('menu',{name:'Ações da mensagem de Assistente Sinapse'});
   fireEvent.click(within(menu).getByRole('menuitem',{name:'Ver fontes e evidências'}));
-  expect(screen.getByText('Documento de referência')).toBeVisible();
-  expect(screen.getByText('Documento de referência').closest('details')).toHaveAttribute('open');
+  const dialog=await screen.findByRole('dialog',{name:'Fontes e evidências'});
+  expect(dialog).toBeVisible();
+  expect(await within(dialog).findByRole('heading',{name:'Prazo de análise'})).toBeInTheDocument();
+  expect(within(dialog).getByText('4 horas úteis')).toBeInTheDocument();
+  expect(within(dialog).getByText('4 horas úteis').tagName).toBe('STRONG');
+  expect(within(dialog).getByRole('heading',{name:'Contexto anterior'}).closest('details')).not.toHaveAttribute('open');
+  fireEvent.click(within(dialog).getByText('Contexto do documento'));
+  expect(within(dialog).getByRole('heading',{name:'Contexto anterior'}).closest('details')).toHaveAttribute('open');
+  expect(await within(dialog).findByRole('heading',{name:'Contexto anterior'})).toBeInTheDocument();
   expect(screen.queryByRole('menu')).toBeNull();
-  fireEvent.click(screen.getByRole('button',{name:'Mais ações: Ações da mensagem de Assistente Sinapse'}));
-  expect(screen.queryByRole('menuitem',{name:'Ver fontes e evidências'})).toBeNull();
+  expect(readDocumentText).toHaveBeenCalledWith(expect.objectContaining({project_id:'11111111-1111-4111-8111-111111111111',entity_id:'22222222-2222-4222-8222-222222222222'}),undefined,expect.any(AbortSignal));
+  fireEvent.click(within(dialog).getByRole('button',{name:'Fechar fontes'}));
+  await waitFor(()=>expect(screen.queryByRole('dialog',{name:'Fontes e evidências'})).toBeNull());
 });
 it('mantém nome e horário completo na mesma linha em todas as mensagens',async()=>{
   vi.mocked(listConversations).mockResolvedValue([{id:'conversation-a',titulo:'Conversa A',projeto_id:'project-a',projeto_nome:'Projeto A',updated_at:''}]);

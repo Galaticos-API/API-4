@@ -78,7 +78,11 @@ export class ChatRepository {
   }
 
   async accessibleProjectsWithKnowledgeReadiness(usuarioId: string): Promise<ProjectKnowledgeReadiness[]> {
-    const result = await this.pool.query<ProjectKnowledgeReadiness>(
+    return withTransaction(this.pool, async (client) => {
+      // The repeated evidence checks generate an oversized JIT plan for this small project list.
+      // Keep JIT disabled only for this read-only snapshot so the UI stays within its request timeout.
+      await client.query("SET LOCAL jit = off");
+      const result = await client.query<ProjectKnowledgeReadiness>(
       `SELECT p.id,p.nome,
         COUNT(DISTINCT d.id)::int AS documentos_total,
         COUNT(DISTINCT d.id) FILTER (WHERE d.status_processamento='processado')::int AS documentos_processados,
@@ -104,8 +108,9 @@ export class ChatRepository {
        GROUP BY p.id,p.nome
        ORDER BY p.nome,p.id`,
       [usuarioId],
-    );
-    return result.rows;
+      );
+      return result.rows;
+    }, "snapshot");
   }
 
   async createConversation(usuarioId: string, projetoId: string | null, titulo: string, scope: "projeto" | "todos_autorizados" = "projeto"): Promise<Conversation> {

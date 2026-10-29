@@ -34,10 +34,13 @@ VALUES
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO competencia (id, desenvolvedor_id, tecnologia_id, nivel, evidencia)
-VALUES
-  ('31000000-0000-4000-8000-000000000001', '30000000-0000-4000-8000-000000000001', '20000000-0000-4000-8000-000000000001', 'especialista', 'Implementação da suíte de backend e barramento de eventos'),
-  ('31000000-0000-4000-8000-000000000002', '30000000-0000-4000-8000-000000000001', '20000000-0000-4000-8000-000000000003', 'avancado', 'Modelagem relacional e vetorial com PostgreSQL e pgvector'),
-  ('31000000-0000-4000-8000-000000000003', '30000000-0000-4000-8000-000000000001', '20000000-0000-4000-8000-000000000006', 'intermediario', 'Integração de embeddings bge-m3 e inferência local via Ollama')
+SELECT seed.id, seed.desenvolvedor_id, tecnologia.id, seed.nivel, seed.evidencia
+FROM (VALUES
+  ('31000000-0000-4000-8000-000000000001'::uuid, '30000000-0000-4000-8000-000000000001'::uuid, 'TypeScript', 'especialista', 'Implementação da suíte de backend e barramento de eventos'),
+  ('31000000-0000-4000-8000-000000000002'::uuid, '30000000-0000-4000-8000-000000000001'::uuid, 'PostgreSQL', 'avancado', 'Modelagem relacional e vetorial com PostgreSQL e pgvector'),
+  ('31000000-0000-4000-8000-000000000003'::uuid, '30000000-0000-4000-8000-000000000001'::uuid, 'Ollama / Qwen2.5', 'intermediario', 'Integração de embeddings bge-m3 e inferência local via Ollama')
+) AS seed(id, desenvolvedor_id, tecnologia_nome, nivel, evidencia)
+JOIN tecnologia ON tecnologia.nome = seed.tecnologia_nome
 ON CONFLICT (id) DO NOTHING;
 
 -- 4. Projetos no Acervo
@@ -94,11 +97,14 @@ ON CONFLICT (id) DO NOTHING;
 
 -- 10. Tags de Tecnologias nas Entidades
 INSERT INTO entidade_tecnologia (id, entidade_tipo, entidade_id, tecnologia_id)
-VALUES
-  ('21000000-0000-4000-8000-000000000001', 'projeto', '40000000-0000-4000-8000-000000000001', '20000000-0000-4000-8000-000000000001'),
-  ('21000000-0000-4000-8000-000000000002', 'projeto', '40000000-0000-4000-8000-000000000001', '20000000-0000-4000-8000-000000000004'),
-  ('21000000-0000-4000-8000-000000000003', 'pbi', '70000000-0000-4000-8000-000000000002', '20000000-0000-4000-8000-000000000004'),
-  ('21000000-0000-4000-8000-000000000004', 'pbi', '70000000-0000-4000-8000-000000000002', '20000000-0000-4000-8000-000000000006')
+SELECT seed.id, seed.entidade_tipo, seed.entidade_id, tecnologia.id
+FROM (VALUES
+  ('21000000-0000-4000-8000-000000000001'::uuid, 'projeto', '40000000-0000-4000-8000-000000000001'::uuid, 'TypeScript'),
+  ('21000000-0000-4000-8000-000000000002'::uuid, 'projeto', '40000000-0000-4000-8000-000000000001'::uuid, 'pgvector'),
+  ('21000000-0000-4000-8000-000000000003'::uuid, 'pbi', '70000000-0000-4000-8000-000000000002'::uuid, 'pgvector'),
+  ('21000000-0000-4000-8000-000000000004'::uuid, 'pbi', '70000000-0000-4000-8000-000000000002'::uuid, 'Ollama / Qwen2.5')
+) AS seed(id, entidade_tipo, entidade_id, tecnologia_nome)
+JOIN tecnologia ON tecnologia.nome = seed.tecnologia_nome
 ON CONFLICT (id) DO NOTHING;
 
 -- 11. Decisões Arquiteturais

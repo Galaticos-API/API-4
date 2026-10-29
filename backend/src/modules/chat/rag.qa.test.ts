@@ -128,9 +128,7 @@ test('chat RAG QA fictício: pergunta sem evidência se abstém e não chama o g
 
   for (const variant of query.variants) {
     const response = await service.answer(randomUUID(), variant, [fixture.project.id]);
-  assert.match(response.resposta,/Não localizei registros que correspondam/i);
-    assert.match(response.resposta,/Se quiser, reformule usando o nome de uma funcionalidade/i);
-    assert.match(response.resposta,/Também posso resumir requisitos e decisões/i);
+    assert.equal(response.resposta, NOT_FOUND_ANSWER);
     assert.deepEqual(response.fontes, []);
     assert.deepEqual(response.evidencias, []);
   }

@@ -22,6 +22,7 @@ import { ORIGIN_BADGE, suggestedPromptsForContext, formatClockWithSeconds, forma
 import { Alert, Badge, Button } from "../common/ui";
 import { Markdown } from "../common/Markdown";
 import { MessageContextMenu, type MessageContextAction } from "./MessageContextMenu";
+import { ChatSourcesDialog } from "./ChatSourcesDialog";
 import "../../assets/styles/chat.css";
 
 type ProjectOption = ChatProject;
@@ -1214,7 +1215,6 @@ function MessageBubble({ message, copied, copyFailed, deleting, deleteDisabled, 
 }) {
   const isUser = message.remetente === "user";
   const originBadge = message.origem ? ORIGIN_BADGE[message.origem as ChatOrigin] : null;
-  const sourcesRef = useRef<HTMLDetailsElement>(null);
   const hasSources = message.fontes.length > 0;
   const [sourcesOpen, setSourcesOpen] = useState(false);
   const actions: MessageContextAction[] = [
@@ -1222,14 +1222,7 @@ function MessageBubble({ message, copied, copyFailed, deleting, deleteDisabled, 
     ...(hasSources && !sourcesOpen ? [{
       id: "sources",
       label: "Ver fontes e evidências",
-      onSelect: () => {
-        const details = sourcesRef.current;
-        if (!details) return;
-        details.open = true;
-        setSourcesOpen(true);
-        details.scrollIntoView?.({ behavior: "smooth", block: "center" });
-        details.querySelector("summary")?.focus();
-      },
+      onSelect: () => setSourcesOpen(true),
     }] : []),
     ...(failureText ? [{ id: "retry", label: "Tentar novamente", onSelect: onRetry, disabled: deleteDisabled }] : []),
     {
@@ -1258,19 +1251,11 @@ function MessageBubble({ message, copied, copyFailed, deleting, deleteDisabled, 
         </div>
       )}
       {message.fontes.length > 0 && (
-        <details ref={sourcesRef} className="chat-sources" onToggle={(event) => setSourcesOpen(event.currentTarget.open)}>
-          <summary>Fontes e evidências <span>{message.fontes.length}</span></summary>
-          <ul>
-            {message.fontes.map((source) => (
-              <li key={source.id}>
-                <Badge>{source.tipo}</Badge>
-                {source.url ? <a href={source.url}>{source.titulo}</a> : <span>{source.titulo}</span>}
-                {source.projeto_nome && <span className="chat-source-project">{source.projeto_nome}</span>}
-              </li>
-            ))}
-          </ul>
-        </details>
+        <Button variant="ghost" size="sm" className="chat-sources-trigger" onClick={() => setSourcesOpen(true)}>
+          Fontes e evidências <span>{message.fontes.length}</span>
+        </Button>
       )}
+      {sourcesOpen && <ChatSourcesDialog sources={message.fontes} onClose={() => setSourcesOpen(false)} />}
       {!isUser && message.origem === "sem_resultado" && <p className="chat-sources-empty">Nenhuma evidência correspondente encontrada no acervo.</p>}
       {confirmingDelete && (
         <div className="chat-delete-confirm" role="group" aria-label="Confirmar exclusão da mensagem">

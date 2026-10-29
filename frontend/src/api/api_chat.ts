@@ -25,6 +25,8 @@ export interface ChatSource {
   tipo: string;
   projeto_id?: string;
   projeto_nome?: string;
+  entidade_id?: string;
+  chunk_ids?: string[];
   url?: string | null;
 }
 
@@ -74,10 +76,14 @@ function parseSources(value: unknown): ChatSource[] {
       tipo: typeof item.tipo === "string" ? item.tipo : "documento",
       projeto_id: typeof item.projeto_id === "string" ? item.projeto_id : undefined,
       projeto_nome: typeof item.projeto_nome==='string'?item.projeto_nome:undefined,
+      entidade_id: typeof item.entidade_id === "string" && UUID_PATTERN.test(item.entidade_id) ? item.entidade_id : undefined,
+      chunk_ids: Array.isArray(item.chunk_ids) ? item.chunk_ids.filter((id): id is string => typeof id === "string" && UUID_PATTERN.test(id)).slice(0, 20) : undefined,
       url: typeof item.url==='string'&&item.url.startsWith('/projects/')&&!/[\\\s]/.test(item.url)?item.url:null,
     }];
   });
 }
+
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 function parseConversation(value: unknown): ChatConversation {
   if (!isRecord(value) || typeof value.id !== "string" || typeof value.titulo !== "string") {

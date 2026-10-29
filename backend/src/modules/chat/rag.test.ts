@@ -10,7 +10,7 @@ import { HarnessRepository } from '../harness/harness.repository.js';
 import { defaultConfig,ModelOutputRejectedError } from '../harness/harness.contract.js';
 import { HttpHarnessEngine } from '../harness/harness.service.js';
 import { reconcileEvidenceResponse,resolveQuote,wholePassage } from './rag-evidence.js';
-import { PARTIAL_ANSWER_NOTICE,UNAVAILABLE_ASPECT_NOTICE } from './chat.types.js';
+import { NOT_FOUND_ANSWER,PARTIAL_ANSWER_NOTICE,UNAVAILABLE_ASPECT_NOTICE } from './chat.types.js';
 import type { HybridSearchRow } from '../search/search.types.js';
 
 const project=randomUUID(),chunk=randomUUID(),other=randomUUID(),entity=randomUUID();
@@ -102,11 +102,52 @@ test('RAG diferencia busca sem candidatos de candidatos sem evidência útil',as
   const embeddings={embed:async()=>Array(1024).fill(0.1)};
   const noCandidates=await new RagService(new Chats(),new EmptySearch(),embeddings,new Revisions(),{generate:async()=>{throw Error('não deve chamar o harness sem candidatos');}})
     .answer(randomUUID(),'Pergunta sem correspondência',[project]);
-  assert.match(noCandidates.resposta,/Não localizei registros que correspondam/i);
+  assert.equal(noCandidates.resposta,NOT_FOUND_ANSWER);
 
   const unsupported=await new RagService(new Chats(),new Search(),embeddings,new Revisions(),{generate:async()=>({coverage:'no_evidence',evidence:[]})})
     .answer(randomUUID(),'Pergunta sem evidência',[project]);
   assert.match(unsupported.resposta,/Encontrei registros relacionados, mas eles não apresentam evidências suficientes/i);
+});
+test('RAG amplia pedidos de visão geral para trechos do projeto e mantém citações',async()=>{
+  const overviewText='O login exige autenticação.\n\nA senha deve ter 12 caracteres.';
+  const overviewRow={...row,text:overviewText};
+  class OverviewSearch extends SearchRepository {
+    async hybridSearch(){return [];}
+    async ragSearch(projectIds:string[],_embedding:number[],limit:number,minimumSimilarity:number){
+      assert.deepEqual(projectIds,[project]);assert.equal(limit,5);assert.equal(minimumSimilarity,-1);
+      return [overviewRow,{...overviewRow,id:other}];
+    }
+  }
+  class OverviewChats extends Chats {async currentRagChunks(){return [{...currentRow(overviewText),id:chunk},{...currentRow(overviewText),id:other}];}}
+  let plannerCalls=0;
+  const service=new RagService(new OverviewChats(),new OverviewSearch(),{
+    embed:async()=>Array(1024).fill(0.1),
+    planQuery:async()=>{plannerCalls++;return {queries:[],resolvedQuestion:'fale sobre o projeto',aspects:['fale sobre o projeto']};},
+  },new Revisions(),{
+    generate:async payload=>{
+      const config=payload.config as {operation_instructions:Record<string,string>};
+      assert.match(config.operation_instructions.responder,/cubra cada fato distinto nas evidências/);
+      assert.deepEqual(payload.context,[{id:chunk,text:'O login exige autenticação.'},{id:chunk,text:'A senha deve ter 12 caracteres.'}]);
+      return {answer:`O login exige autenticação. [${chunk}] A senha deve ter 12 caracteres. [${chunk}]`,sources:[chunk]};
+    },
+  });
+  for(const question of ['Fale sobre o projeto','Resuma o cenário de demonstração e as regras registradas no documento.']) {
+    const answer=await service.answer(randomUUID(),question,[project]);
+    assert.match(answer.resposta,/login exige autenticação/);assert.match(answer.resposta,/senha deve ter 12 caracteres/);assert.equal(answer.fontes.length,1);
+    assert.deepEqual(answer.evidencias,[{chunk_id:chunk,texto:'O login exige autenticação.'},{chunk_id:chunk,texto:'A senha deve ter 12 caracteres.'}]);
+  }
+  assert.equal(plannerCalls,0,'Pedidos de visão geral não devem perder tempo em uma reescrita sem contexto.');
+});
+test('RAG mantém a abstenção exata quando uma visão geral não tem trechos no projeto',async()=>{
+  class EmptyOverviewSearch extends SearchRepository {
+    async hybridSearch(){return [];}
+    async ragSearch(){return [];}
+  }
+  let generated=false;
+  const answer=await new RagService(new Chats(),new EmptyOverviewSearch(),{embed:async()=>Array(1024).fill(0.1)},new Revisions(),{
+    generate:async()=>{generated=true;return {};},
+  }).answer(randomUUID(),'Fale sobre o projeto',[project]);
+  assert.equal(answer.resposta,NOT_FOUND_ANSWER);assert.deepEqual(answer.fontes,[]);assert.equal(generated,false);
 });
 test('RAG usa pergunta resolvida no harness e síntese, sem encaminhar histórico bruto',async()=>{
   const original='E por que escolheram esse banco?';
