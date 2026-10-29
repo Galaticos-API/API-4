@@ -1,7 +1,7 @@
 import unittest
 import json
 
-from query_planner import _clean_queries, deterministic_query, plan_queries
+from query_planner import QUERY_PLAN_SCHEMA, _clean_queries, deterministic_query, plan_queries
 
 
 class FakeClient:
@@ -74,6 +74,15 @@ class QueryPlannerTests(unittest.IsolatedAsyncioTestCase):
         client = FakeClient('{"queries":["finalidade integração WhatsApp", "sistema de pagamentos"],"resolved_question":"Para que o projeto integra WhatsApp e qual sistema de pagamentos usa?","aspects":["Para que o projeto integra WhatsApp?", "Qual sistema de pagamentos o projeto usa?"]}')
         result = await plan_queries(client, "Para que o projeto integra WhatsApp e qual sistema de pagamentos usa?")
         self.assertEqual(result["aspects"], ["Para que o projeto integra WhatsApp?", "Qual sistema de pagamentos o projeto usa?"])
+
+    async def test_sends_grammar_without_max_length_and_still_bounds_the_plan(self):
+        # O Ollama 0.32 não compila a gramática com maxLength 2000; os limites ficam no _clean_plan.
+        long_aspect = "Como funciona a confirmação de pagamento PIX " * 20
+        client = FakeClient(json.dumps({"queries":["confirmação pagamento PIX"],"resolved_question":"Como funciona a confirmação de pagamento PIX?","aspects":[long_aspect]}))
+        result = await plan_queries(client, "Como funciona a confirmação de pagamento PIX?")
+        self.assertNotIn("maxLength", json.dumps(client.calls[0][1]["output_schema"]))
+        self.assertIn("maxLength", json.dumps(QUERY_PLAN_SCHEMA))
+        self.assertLessEqual(len(result["aspects"][0]), 500)
 
 
 if __name__ == "__main__":

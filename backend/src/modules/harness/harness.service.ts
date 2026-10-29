@@ -16,6 +16,7 @@ import {
   configSchema,
   DENIAL_PATTERN,
   FIELDS,
+  ModelOutputRejectedError,
   OPERATIONS,
   outputSchema,
   parseOutput,
@@ -36,6 +37,10 @@ export class HttpHarnessEngine implements HarnessEngine {
       timeout,
       maxContentLength: 200000,
       signal,
+    }).catch((error: unknown) => {
+      if (axios.isAxiosError(error) && error.response?.status === 422)
+        throw new ModelOutputRejectedError("Saída do modelo fora do contrato");
+      throw error;
     });
     if (
       response.data?.mode !== payload.mode ||

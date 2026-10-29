@@ -10,7 +10,7 @@ import { SearchRepository } from '../search/search.repository.js';
 import { fallbackSearchQuery,HttpSearchEmbeddingClient,type SearchEmbeddingClient } from '../search/search.service.js';
 import type { HybridSearchRow } from '../search/search.types.js';
 import { ChatRepository } from './chat.repository.js';
-import { NO_CANDIDATES_ANSWER,NO_SUPPORT_ANSWER,NOT_FOUND_ANSWER,OUT_OF_SCOPE_ANSWER,PARTIAL_ANSWER_NOTICE,SCOPE_LIMIT_ANSWER,validChatText,type AssistantAnswer,type ChatProgressStage,type ChatSource,type ConversationTurn } from './chat.types.js';
+import { NO_CANDIDATES_ANSWER,NO_SUPPORT_ANSWER,NOT_FOUND_ANSWER,OUT_OF_SCOPE_ANSWER,PARTIAL_ANSWER_NOTICE,SCOPE_LIMIT_ANSWER,UNAVAILABLE_ASPECT_NOTICE,validChatText,type AssistantAnswer,type ChatProgressStage,type ChatSource,type ConversationTurn } from './chat.types.js';
 
 export const ragInput=z.object({pergunta:z.string().trim().min(1).max(2000).refine(validChatText,'Use texto Unicode válido, sem caractere nulo.'),projeto_ids:z.array(z.string().uuid().transform(id=>id.toLowerCase())).min(1).max(50).optional()}).strict();
 type RagFailureStage = 'embedding' | 'hybrid_search' | 'context_build' | 'harness' | 'source_revalidation' | 'response_assembly';
@@ -174,13 +174,25 @@ export class RagService {
       reportProgress('synthesizing');
       stageStarted=performance.now();
       const selections:Array<{aspect:string;adapter:EvidenceEngine}> = [];
+      // Cada aspecto falha sozinho: citação inválida vira "sem evidência" dentro do EvidenceEngine,
+      // e indisponibilidade de um aspecto só derruba o chat quando todos os aspectos falham.
+      let failedAspects=0,lastFailure:unknown;
       for (const [index,context] of facetContexts.entries()) {
         if (!context.length) continue;
         const adapter=new EvidenceEngine(this.engine);
-        await new HarnessService(this.revisions,adapter,this.chats).run(projectIds[0],
-          {mode:'consulta',operation:'responder',level:'pbi',fields:{pergunta:safeAspects.length===1?resolvedQuestion:safeAspects[index]},context:[]},context,diagnosticId,signal);
+        try {
+          await new HarnessService(this.revisions,adapter,this.chats).run(projectIds[0],
+            {mode:'consulta',operation:'responder',level:'pbi',fields:{pergunta:safeAspects.length===1?resolvedQuestion:safeAspects[index]},context:[]},context,diagnosticId,signal);
+        } catch(error) {
+          if(signal?.aborted)throw error;
+          failedAspects++;lastFailure=error;
+          continue;
+        }
+        if(adapter.outcome!=='accepted')console.warn('[RAG] Evidence adjusted',{diagnostico_id:diagnosticId,aspecto:index,resultado:adapter.outcome,citacoes_validas:adapter.evidence.length});
         selections.push({aspect:safeAspects[index],adapter});
       }
+      if(!selections.length&&failedAspects)throw lastFailure;
+      const notice=failedAspects?UNAVAILABLE_ASPECT_NOTICE:PARTIAL_ANSWER_NOTICE;
       const selectedEvidence=selections.flatMap(selection=>selection.adapter.evidence)
         .filter((item,index,all)=>all.findIndex(other=>other.source_id===item.source_id&&other.quote===item.quote)===index).slice(0,5);
       const evidenceCoverage:NonNullable<AssistantAnswer['cobertura']> = selections.length===safeAspects.length
@@ -191,7 +203,7 @@ export class RagService {
       durations.geracao_e_validacao_harness=Math.round(performance.now()-stageStarted);
       if(!selectedEvidence.length){
         finishLog(rows.length);
-        return {...empty,resposta:evidenceCoverage==='out_of_scope'?OUT_OF_SCOPE_ANSWER:`${NO_SUPPORT_ANSWER} ${SCOPE_LIMIT_ANSWER}`,cobertura:evidenceCoverage};
+        return {...empty,resposta:evidenceCoverage==='out_of_scope'?OUT_OF_SCOPE_ANSWER:failedAspects?`${NO_SUPPORT_ANSWER} ${UNAVAILABLE_ASPECT_NOTICE}`:`${NO_SUPPORT_ANSWER} ${SCOPE_LIMIT_ANSWER}`,cobertura:evidenceCoverage};
       }
       stage='source_revalidation';
       reportProgress('validating');
@@ -228,7 +240,7 @@ export class RagService {
         const source=evidence&&rows.find(row=>row.id===evidence.source_id);
         return source?`${escapeMarkdown(source.project_name)} ${match}`:match;
       });
-      const answer=evidenceCoverage==='partial'?`${conversationalAnswer}\n\n${PARTIAL_ANSWER_NOTICE}`:conversationalAnswer;
+      const answer=evidenceCoverage==='partial'?`${conversationalAnswer}\n\n${notice}`:conversationalAnswer;
       const sources=usedSources(rows,usedEvidence);
       finishLog(rows.length,sources.length);
       return {...empty,resposta:answer,fontes:sources,cobertura:evidenceCoverage,

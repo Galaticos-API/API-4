@@ -63,6 +63,9 @@ export const PERMISSION_TERMS = [
   "somente o proprietário",
   "apenas o proprietário",
 ] as const;
+// O serviço de IA respondeu, mas a saída do modelo não seguiu o JSON/schema pedido (HTTP 422).
+// Diferente de indisponibilidade: quem chama pode tratar como "sem resultado" em vez de erro.
+export class ModelOutputRejectedError extends Error {}
 // ENTÃO de um cenário de acesso não autorizado precisa descrever a recusa.
 // A verificação é lexical: garante que a recusa está escrita, não que a regra está correta.
 export const DENIAL_PATTERN =

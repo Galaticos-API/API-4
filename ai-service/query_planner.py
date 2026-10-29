@@ -5,6 +5,8 @@ import re
 import unicodedata
 from typing import Any
 
+from services.ollama_client import grammar_schema
+
 
 QUERY_PLAN_SCHEMA: dict[str, Any] = {
     "type": "object",
@@ -103,7 +105,7 @@ async def plan_queries(client: Any, question: str, history: list[dict[str, str]]
                 prompt,
                 system_prompt=SYSTEM_PROMPT,
                 temperature=0,
-                output_schema=QUERY_PLAN_SCHEMA,
+                output_schema=grammar_schema(QUERY_PLAN_SCHEMA),
                 max_tokens=320,
             ),
             timeout=15,
