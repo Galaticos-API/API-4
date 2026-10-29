@@ -3,6 +3,20 @@ from typing import Any
 from config import settings
 
 
+def grammar_schema(schema: Any) -> Any:
+    """Copia do schema sem maxLength, para uso como gramática do Ollama.
+
+    Versões recentes do Ollama não compilam a gramática quando um texto tem
+    maxLength acima de cerca de 2.000 ("failed to parse grammar"). Os limites
+    continuam valendo: quem chama valida a resposta com o schema original.
+    """
+    if isinstance(schema, dict):
+        return {key: grammar_schema(value) for key, value in schema.items() if key != "maxLength"}
+    if isinstance(schema, list):
+        return [grammar_schema(item) for item in schema]
+    return schema
+
+
 class OllamaClient:
     """Async client for interacting with the local Ollama runtime."""
 

@@ -80,7 +80,9 @@ try {
   const harness = new HarnessService(new HarnessRepository(db), { async generate(payload: any) {
     sentContext = payload.context;
     if (archiveDuringGeneration) await db.query("UPDATE projeto SET status='arquivado',archived_at=CURRENT_TIMESTAMP WHERE id=$1", [project]);
-    return { evidence: payload.context.map((c: any) => ({ source_id: c.id, quote: unsupportedClaim ? 'O projeto utiliza COBOL em produção e possui 99 servidores.' : c.text })) };
+    const evidence = payload.context.map((c: any) => ({ source_id: c.id, quote: unsupportedClaim ? 'O projeto utiliza COBOL em produção e possui 99 servidores.' : c.text }));
+    // O contrato de evidências (2f70f6b) exige coverage coerente com a lista de citações.
+    return { evidence, coverage: evidence.length ? 'complete' : 'no_evidence' };
   } }, new ChatRepository(db));
   review.use('/qa-harness', createProjectAccessRouter(new ProjectAccess(db)));
   review.use('/qa-harness/projects/:projectId/ai/requests', createHarnessRunRouter(harness));
