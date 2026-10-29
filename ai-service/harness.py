@@ -169,10 +169,11 @@ async def run_harness(req: HarnessRequest):
         return {"mode": req.mode, "version": req.version, "schema_version": req.schema_version, "result": result}
     except asyncio.TimeoutError:
         raise HTTPException(503, "Tempo limite da IA local excedido") from None
+    # 422: o modelo respondeu, mas fora do contrato. O backend distingue isso de indisponibilidade (503).
     except json.JSONDecodeError:
-        raise HTTPException(503, "A IA local retornou JSON incompleto ou inválido") from None
+        raise HTTPException(422, "A IA local retornou JSON incompleto ou inválido") from None
     except OutputValidationError:
-        raise HTTPException(503, "Resposta da IA fora do schema") from None
+        raise HTTPException(422, "Resposta da IA fora do schema") from None
     except Exception:
         # Erros de validação/modelo podem conter o texto completo: não registrar nem retornar.
         raise HTTPException(503, "IA indisponível ou resposta fora do schema") from None

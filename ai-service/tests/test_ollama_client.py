@@ -47,7 +47,7 @@ class GrammarSchemaTests(unittest.IsolatedAsyncioTestCase):
         self.assertFalse(has_max_length(model.call_args.kwargs["output_schema"]))
         # Sem maxLength na gramática, o limite do schema original continua barrando a resposta.
         response, _ = await post({"scenarios":[{**scenario, "nome":"x" * 256}], "questions":[]})
-        self.assertEqual(response.status_code, 503)
+        self.assertEqual(response.status_code, 422)
 
     async def test_other_callers_keep_their_schema_unchanged(self):
         response = MagicMock(json=lambda: {"response": "{}"}, raise_for_status=lambda: None)
