@@ -3,6 +3,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { ApiError } from "../../api/api_auth";
 import { useAuth } from "../../viewmodels/useAuthViewModel";
 import { loginDestination, navigate, safeDestination } from "../../models/navigation";
+import { Eye, EyeOff } from "lucide-react";
 
 type Particle = { x: number; y: number; vx: number; vy: number; radius: number };
 
@@ -16,6 +17,7 @@ function LoginGraphBackground() {
     if (!context) return;
 
     const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const compactViewport = window.matchMedia("(max-width: 600px)");
     const pointer = { x: -1000, y: -1000 };
     const isDocumentHidden = () => document.visibilityState === "hidden";
     let particles: Particle[] = [];
@@ -43,8 +45,8 @@ function LoginGraphBackground() {
 
     const resize = () => {
       const bounds = canvas.getBoundingClientRect();
-      width = bounds.width;
-      height = bounds.height;
+      width = compactViewport.matches ? window.innerWidth : bounds.width;
+      height = compactViewport.matches ? window.innerHeight : bounds.height;
       pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
       const configuredBrandColor = window.getComputedStyle(canvas).getPropertyValue("--brand-primary").trim();
       const [red, green, blue] = parseColor(configuredBrandColor || "#ed6a32");
@@ -54,22 +56,37 @@ function LoginGraphBackground() {
       canvas.width = Math.floor(width * pixelRatio);
       canvas.height = Math.floor(height * pixelRatio);
       context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
-      const count = Math.max(34, Math.min(78, Math.floor((width * height) / 15500)));
+      const count = compactViewport.matches
+        ? Math.max(14, Math.min(30, Math.floor((width * height) / 26000)))
+        : Math.max(34, Math.min(78, Math.floor((width * height) / 15500)));
       const columns = Math.max(5, Math.ceil(Math.sqrt(count * width / Math.max(height, 1))));
       const rows = Math.ceil(count / columns);
-      particles = Array.from({ length: count }, (_, index) => ({
-        x: ((index % columns) + .5 + ((index * 17) % 7 - 3) * .045) * width / columns,
-        y: (Math.floor(index / columns) + .5 + ((index * 11) % 7 - 3) * .045) * height / rows,
-        vx: (index % 2 ? 1 : -1) * (0.08 + (index % 4) * 0.025),
-        vy: (index % 3 ? 1 : -1) * (0.06 + (index % 5) * 0.018),
-        radius: index % 7 === 0 ? 2.6 : 1.5,
-      }));
+      particles = Array.from({ length: count }, (_, index) => {
+        const row = Math.floor(index / columns);
+        const column = index % columns;
+        const itemsInRow = Math.min(columns, count - row * columns);
+        const x = compactViewport.matches
+          ? width * (.035 + .93 * (itemsInRow === 1 ? .5 : column / (itemsInRow - 1)))
+          : ((column + .5 + ((index * 17) % 7 - 3) * .045) * width) / columns;
+        const y = compactViewport.matches
+          ? height * (.035 + .93 * (rows === 1 ? .5 : row / (rows - 1)))
+          : ((row + .5 + ((index * 11) % 7 - 3) * .045) * height) / rows;
+        return {
+          x,
+          y,
+          vx: (index % 2 ? 1 : -1) * (0.08 + (index % 4) * 0.025),
+          vy: (index % 3 ? 1 : -1) * (0.06 + (index % 5) * 0.018),
+          radius: index % 7 === 0 ? 2.6 : 1.5,
+        };
+      });
     };
 
     const drawScene = (advanceParticles: boolean) => {
       context.clearRect(0, 0, width, height);
-      const linkDistance = Math.min(180, Math.max(135, width * 0.22));
-      const pointerRadius = 190;
+      const linkDistance = compactViewport.matches
+        ? Math.min(128, Math.max(92, width * 0.22))
+        : Math.min(180, Math.max(135, width * 0.22));
+      const pointerRadius = compactViewport.matches ? 120 : 190;
       const pointerActive = advanceParticles && pointer.x > -500;
 
       if (pointerActive) {
@@ -295,6 +312,7 @@ export function LoginOnCard() {
   const { login, notice } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -330,7 +348,19 @@ export function LoginOnCard() {
         <input id="login-email" type="email" autoComplete="username" required value={email} onChange={e => setEmail(e.target.value)} disabled={busy} placeholder="seu.email@empresa.com" />
 
         <label htmlFor="login-password" style={{ fontSize: "0.85rem", fontWeight: 600 }}>Senha</label>
-        <input id="login-password" type="password" autoComplete="current-password" required value={password} onChange={e => setPassword(e.target.value)} disabled={busy} placeholder="••••••••" />
+        <div className="auth-password-field">
+          <input id="login-password" type={showPassword ? "text" : "password"} autoComplete="current-password" required value={password} onChange={e => setPassword(e.target.value)} disabled={busy} placeholder="••••••••" />
+          <button
+            className="auth-password-toggle"
+            type="button"
+            aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}
+            aria-pressed={showPassword}
+            onClick={() => setShowPassword(visible => !visible)}
+            disabled={busy}
+          >
+            {showPassword ? <EyeOff aria-hidden="true" size={18} /> : <Eye aria-hidden="true" size={18} />}
+          </button>
+        </div>
 
         {error && <p role="alert">{error}</p>}
         <Button variant="primary" disabled={busy} type="submit">

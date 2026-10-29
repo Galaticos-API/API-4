@@ -5,12 +5,13 @@
 .auth-shell {
   position: relative;
   isolation: isolate;
-  min-height: 100vh;
-  min-height: 100dvh;
+  height: 100vh;
+  height: 100dvh;
+  min-height: 0;
   display: grid;
   place-items: center;
   padding: 24px;
-  overflow-x: clip;
+  overflow: clip;
   background:
     radial-gradient(circle at 50% 44%, color-mix(in srgb, var(--brand-primary) 8%, transparent), transparent 38%),
     var(--surface-base);
@@ -59,12 +60,19 @@
   z-index: 1;
   width: 100%;
   max-width: 440px;
+  max-height: calc(100vh - 48px);
+  max-height: calc(100dvh - 48px);
   padding: 32px;
   display: grid;
   gap: 18px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
   box-shadow: 0 24px 80px rgba(0, 0, 0, .34), 0 0 0 1px color-mix(in srgb, var(--brand-primary) 12%, transparent);
   backdrop-filter: blur(18px);
 }
+
+.auth-card::-webkit-scrollbar { display: none; }
 
 .auth-card h1 {
   font-size: 1.6rem;
@@ -90,6 +98,40 @@
   font: inherit;
 }
 
+.auth-password-field {
+  position: relative;
+}
+
+.auth-password-field input {
+  padding-right: 48px;
+}
+
+.auth-password-toggle {
+  position: absolute;
+  top: 50%;
+  right: 8px;
+  display: grid;
+  width: 36px;
+  height: 36px;
+  place-items: center;
+  padding: 0;
+  transform: translateY(-50%);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.auth-password-toggle:hover:not(:disabled) {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+.auth-password-toggle:disabled {
+  cursor: not-allowed;
+}
+
 .auth-card [role="alert"] {
   color: var(--status-danger);
 }
@@ -100,12 +142,41 @@
   }
 
   .auth-card {
-    padding: 24px;
+    max-height: calc(100vh - 32px);
+    max-height: calc(100dvh - 32px);
+    padding: 20px;
+    gap: 14px;
+  }
+
+  .auth-shell::before,
+  .auth-shell::after {
+    width: 58vw;
+    filter: blur(56px);
+    opacity: .12;
+  }
+
+  .auth-shell::before {
+    top: 4%;
+    left: -26%;
+  }
+
+  .auth-shell::after {
+    right: -26%;
+    bottom: 4%;
   }
 
   .auth-graph {
-    inset: -8% -28%;
-    opacity: .7;
+    position: fixed;
+    top: 0;
+    right: auto;
+    bottom: auto;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    opacity: .42;
+    background:
+      radial-gradient(circle at 8% 16%, color-mix(in srgb, var(--brand-primary) 8%, transparent), transparent 52%),
+      radial-gradient(circle at 92% 84%, color-mix(in srgb, var(--brand-primary) 7%, transparent), transparent 54%);
   }
 }
 
