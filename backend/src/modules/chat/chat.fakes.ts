@@ -66,7 +66,7 @@ export class FakeChatRepository extends ChatRepository {
   async accessibleProjects() { return this.allowedProjects; }
   async unsafeGeneralConversationIds() { return []; }
   async hasUnsafeGeneralSources() { return false; }
-  async finishMessage(conversaId: string, messageId: string, conteudo: string, fontes: ChatSource[]) { await this.addMessage(conversaId, "assistant", conteudo, fontes); this.messages.find(m=>m.id===messageId)!.processing_status="completed"; }
+  async finishMessage(conversaId: string, messageId: string, conteudo: string, fontes: ChatSource[], origem: ChatMessage["origem"] = "assistente") { await this.addMessage(conversaId, "assistant", conteudo, fontes); const reply=this.messages.at(-1)!; reply.origem=origem; this.messages.find(m=>m.id===messageId)!.processing_status="completed"; }
   async failMessage(id: string) { this.messages.find(m=>m.id===id)!.processing_status="failed"; }
   async searchChunks(projetoId: string | null, patterns: string[], limit: number): Promise<ChunkMatch[]> {
     this.searches.push({ projetoId, patterns });

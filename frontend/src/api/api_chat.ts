@@ -27,6 +27,7 @@ export interface ChatSource {
   projeto_nome?: string;
   entidade_id?: string;
   chunk_ids?: string[];
+  evidencias?: Array<{ chunk_id: string; texto: string }>;
   url?: string | null;
 }
 
@@ -70,6 +71,12 @@ function parseSources(value: unknown): ChatSource[] {
   if (!Array.isArray(value)) return [];
   return value.flatMap((item) => {
     if (!isRecord(item) || typeof item.id !== "string") return [];
+    const chunkIds = Array.isArray(item.chunk_ids) ? item.chunk_ids.filter((id): id is string => typeof id === "string" && UUID_PATTERN.test(id)).slice(0, 20) : [];
+    const evidencias = Array.isArray(item.evidencias) ? item.evidencias.flatMap((value) => {
+      if (!isRecord(value) || typeof value.chunk_id !== "string" || !UUID_PATTERN.test(value.chunk_id)
+        || !chunkIds.includes(value.chunk_id) || typeof value.texto !== "string" || !value.texto.trim() || value.texto.length > 1000) return [];
+      return [{ chunk_id: value.chunk_id, texto: value.texto }];
+    }).slice(0, 5) : [];
     return [{
       id: item.id,
       titulo: typeof item.titulo === "string" && item.titulo ? item.titulo : item.id,
@@ -77,7 +84,8 @@ function parseSources(value: unknown): ChatSource[] {
       projeto_id: typeof item.projeto_id === "string" ? item.projeto_id : undefined,
       projeto_nome: typeof item.projeto_nome==='string'?item.projeto_nome:undefined,
       entidade_id: typeof item.entidade_id === "string" && UUID_PATTERN.test(item.entidade_id) ? item.entidade_id : undefined,
-      chunk_ids: Array.isArray(item.chunk_ids) ? item.chunk_ids.filter((id): id is string => typeof id === "string" && UUID_PATTERN.test(id)).slice(0, 20) : undefined,
+      chunk_ids: chunkIds.length ? chunkIds : undefined,
+      evidencias: evidencias.length ? evidencias : undefined,
       url: typeof item.url==='string'&&item.url.startsWith('/projects/')&&!/[\\\s]/.test(item.url)?item.url:null,
     }];
   });
@@ -112,6 +120,7 @@ function parseMessage(value: unknown): ChatMessage {
     failed: value.processing_status === "failed",
     fontes: parseSources(value.fontes_json ?? value.fontes),
     created_at: typeof value.created_at === "string" ? value.created_at : null,
+    origem: value.origem === "assistente" || value.origem === "busca_textual" || value.origem === "sem_resultado" ? value.origem : undefined,
   };
 }
 

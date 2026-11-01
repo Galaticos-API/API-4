@@ -70,8 +70,35 @@ export function sanitizeSources(value: unknown): ChatSource[] {
       ...(typeof source.entidade_id === "string" && UUID_REGEX.test(source.entidade_id) ? { entidade_id: source.entidade_id } : {}),
       ...(typeof source.url === "string" && source.url.startsWith("/projects/") && !/[\\\s]/.test(source.url) ? { url: source.url.slice(0, 500) } : {}),
       ...(Array.isArray(source.chunk_ids) ? { chunk_ids: source.chunk_ids.filter((id): id is string => typeof id === "string" && UUID_REGEX.test(id)).slice(0, 20) } : {}),
+      ...(Array.isArray(source.evidencias) ? { evidencias: source.evidencias.flatMap((value) => {
+        if (typeof value !== "object" || value === null) return [];
+        const evidence = value as Record<string, unknown>;
+        const chunkIds = Array.isArray(source.chunk_ids) ? source.chunk_ids : [source.id];
+        if (typeof evidence.chunk_id !== "string" || !UUID_REGEX.test(evidence.chunk_id)
+          || !chunkIds.includes(evidence.chunk_id) || typeof evidence.texto !== "string"
+          || !evidence.texto.trim() || evidence.texto.length > 1000 || !validChatText(evidence.texto)) return [];
+        return [{ chunk_id: evidence.chunk_id, texto: evidence.texto }];
+      }).slice(0, 5) } : {}),
     }];
   });
+}
+
+function attachValidatedEvidence(sources: ChatSource[], evidence: AssistantAnswer["evidencias"], allowedProjectIds: string[]): ChatSource[] {
+  if (!evidence?.length) return sanitizeSources(sources);
+  const allowedProjects = new Set(allowedProjectIds);
+  const evidenceByChunk = new Map(evidence.map(item => [item.chunk_id.toLowerCase(), item.texto]));
+  const scopedSources = sources.map(source => {
+    const chunkIds = source.chunk_ids?.length ? source.chunk_ids : [source.id];
+    const evidencias = chunkIds.flatMap(chunkId => {
+      const texto = evidenceByChunk.get(chunkId.toLowerCase());
+      return texto && texto.length <= 1000 && validChatText(texto) ? [{ chunk_id: chunkId, texto }] : [];
+    });
+    if (evidencias.length && (!source.projeto_id || !allowedProjects.has(source.projeto_id))) {
+      throw new Error("Fonte sem projeto autorizado");
+    }
+    return evidencias.length ? { ...source, evidencias } : source;
+  });
+  return sanitizeSources(scopedSources);
 }
 
 export class HttpAssistantClient implements AssistantClient {
@@ -273,7 +300,7 @@ export class ChatService {
 
       if (isGreetingOnly(pergunta)) {
         const answer: AssistantAnswer = { resposta: GREETING_REPLY, fontes: [] };
-        await this.repository.finishMessage(conversaId, messageId, answer.resposta, answer.fontes);
+        await this.repository.finishMessage(conversaId, messageId, answer.resposta, answer.fontes, "assistente");
         return logCompleted({ conversa_id: conversaId, escopo_tipo: scope, resposta: answer.resposta, fontes: answer.fontes, origem: "assistente" });
       }
 
@@ -287,9 +314,10 @@ export class ChatService {
           : (() => { throw new ValidationError("Este assistente não suporta consultas em múltiplos projetos."); })();
       if(signal?.aborted)throw new DOMException("Consulta interrompida.","AbortError");
       const origem:QueryResult['origem']=answer.cobertura==='no_evidence'||answer.cobertura==='out_of_scope'||answer.resposta.startsWith(NOT_FOUND_ANSWER)?'sem_resultado':'assistente';
+      const fontes = attachValidatedEvidence(answer.fontes, answer.evidencias, projectIds);
 
-      await this.repository.finishMessage(conversaId, messageId, answer.resposta, answer.fontes);
-      return logCompleted({ conversa_id: conversaId, escopo_tipo: scope, resposta: answer.resposta, fontes: answer.fontes, origem,...(answer.evidencias?{evidencias:answer.evidencias}: {}) });
+      await this.repository.finishMessage(conversaId, messageId, answer.resposta, fontes, origem);
+      return logCompleted({ conversa_id: conversaId, escopo_tipo: scope, resposta: answer.resposta, fontes, origem,...(answer.evidencias?{evidencias:answer.evidencias}: {}) });
     } catch (error) {
       await this.repository.failMessage(messageId).catch(() => undefined);
       if(signal?.aborted)throw new AppError("Consulta interrompida pelo usuário.",409,"CHAT_CANCELLED",{conversa_id:conversaId,mensagem_id:messageId});

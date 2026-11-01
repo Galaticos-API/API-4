@@ -198,6 +198,7 @@ CREATE TABLE IF NOT EXISTS mensagem (
     remetente VARCHAR(50) NOT NULL, -- 'user', 'assistant', 'system'
     conteudo TEXT NOT NULL,
     fontes_json JSONB DEFAULT '[]'::jsonb,
+    origem VARCHAR(32) CHECK (origem IS NULL OR origem IN ('assistente', 'busca_textual', 'sem_resultado')),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 

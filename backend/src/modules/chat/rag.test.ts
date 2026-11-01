@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { createServer } from 'node:http';
 import type { AddressInfo } from 'node:net';
-import { validateEvidence,validateEvidenceResponse,evidenceOutputSchema,usedSources,RagService,splitCompoundQuestion,validateConversationalAnswer } from './rag.service.js';
+import { validateEvidence,validateEvidenceResponse,evidenceOutputSchema,formatVerifiedEvidence,usedSources,RagService,splitCompoundQuestion } from './rag.service.js';
 import { ChatRepository } from './chat.repository.js';
 import { SearchRepository } from '../search/search.repository.js';
 import { HarnessRepository } from '../harness/harness.repository.js';
@@ -40,6 +40,12 @@ test('RAG recusa recortar uma negação ou publicar fragmento incompleto de fras
   for(const quote of ['exige SMS.','não exige SMS.','A senha é'])assert.throws(()=>validateEvidence({evidence:[{source_id:chunk,quote}]},context));
   assert.equal(validateEvidence({evidence:[{source_id:chunk,quote:'A senha é obrigatória.'}]},context).length,1);
 });
+test('RAG aceita passagem literal completa no início de um chunk mesmo em minúscula',()=>{
+  const text='token expirado bloqueia a sessão.';
+  assert.equal(wholePassage(text,text),true);
+  assert.deepEqual(resolveQuote([{id:chunk,text}],chunk,text),{source_id:chunk,quote:text});
+  assert.deepEqual(validateEvidence({evidence:[{source_id:chunk,quote:text}]},[{id:chunk,text}]),[{source_id:chunk,quote:text}]);
+});
 test('RAG valida cobertura parcial e exige consistência entre classificação e evidências',()=>{
   const citation={source_id:chunk,quote:row.text};
   const context=[{id:chunk,text:row.text}];
@@ -56,10 +62,10 @@ test('RAG valida cobertura parcial e exige consistência entre classificação e
     {coverage:'out_of_scope',evidence:[],answer:'Conteúdo não verificado.'},
   ]) assert.throws(()=>validateEvidenceResponse(invalid,context));
 });
-test('RAG aceita síntese natural somente quando cita as evidências autorizadas',()=>{
-  assert.equal(validateConversationalAnswer({result:{answer:`O login exige autenticação. [${chunk}]`,sources:[chunk]}},[chunk]),`O login exige autenticação. [${chunk}]`);
-  assert.throws(()=>validateConversationalAnswer({result:{answer:`O login usa SMS. [${other}]`,sources:[other]}},[chunk]));
-  assert.throws(()=>validateConversationalAnswer({result:{answer:'O login exige autenticação.',sources:[chunk]}},[chunk]));
+test('resposta final é montada somente com o trecho literal validado e seu UUID',()=>{
+  assert.equal(formatVerifiedEvidence([{source_id:chunk,quote:row.text}]),`Trecho literal encontrado no acervo: O login exige autenticação\\. [${chunk}]`);
+  assert.equal(formatVerifiedEvidence([{source_id:chunk,quote:row.text},{source_id:other,quote:'A senha deve ter 12 caracteres.'}]),
+    `Trechos literais encontrados no acervo:\n\n- O login exige autenticação\\. [${chunk}]\n- A senha deve ter 12 caracteres\\. [${other}]`);
 });
 test('RAG separa perguntas coordenadas sem dividir termos nominais',()=>{
   assert.deepEqual(splitCompoundQuestion('Para que o projeto integra WhatsApp e qual sistema de pagamentos usa?'),[
@@ -86,14 +92,15 @@ test('RAG recupera contexto limitado, retorna evidências e revalida as fontes a
         assert.match(config.operation_instructions.responder,/complete.*partial.*no_evidence.*out_of_scope/);
         return {coverage:'complete',evidence:[{source_id:chunk.toUpperCase(),quote:row.text}]};
       }
-      return {answer:`O login exige autenticação. [${chunk}]`,sources:[chunk]};
+      return {answer:`O login usa SMS. [${chunk}]`,sources:[chunk]};
     },
   });
   const answer=await service.answer(randomUUID(),'Como funciona o login?',[project],stage=>stages.push(stage));
   assert.deepEqual(stages,['searching','synthesizing','validating','synthesizing']);
   assert.deepEqual(answer.evidencias,[{chunk_id:chunk,texto:row.text}]);assert.equal(answer.fontes.length,1);
   assert.match(answer.resposta,/O login exige autenticação/);
-  await assert.rejects(()=>service.answer(randomUUID(),'Login',[other]),/Projeto não encontrado/);assert.equal(calls,2);
+  assert.doesNotMatch(answer.resposta,/SMS/);
+  await assert.rejects(()=>service.answer(randomUUID(),'Login',[other]),/Projeto não encontrado/);assert.equal(calls,1);
   chats.allowed=false;
   await assert.rejects(()=>service.answer(randomUUID(),'Login',[project]),/validar as evidências/);
 });
@@ -108,7 +115,7 @@ test('RAG diferencia busca sem candidatos de candidatos sem evidência útil',as
     .answer(randomUUID(),'Pergunta sem evidência',[project]);
   assert.match(unsupported.resposta,/Encontrei registros relacionados, mas eles não apresentam evidências suficientes/i);
 });
-test('RAG amplia pedidos de visão geral para trechos do projeto e mantém citações',async()=>{
+test('RAG amplia pedidos de visão geral usando apenas trechos literais do projeto',async()=>{
   const overviewText='O login exige autenticação.\n\nA senha deve ter 12 caracteres.';
   const overviewRow={...row,text:overviewText};
   class OverviewSearch extends SearchRepository {
@@ -119,16 +126,14 @@ test('RAG amplia pedidos de visão geral para trechos do projeto e mantém cita�
     }
   }
   class OverviewChats extends Chats {async currentRagChunks(){return [{...currentRow(overviewText),id:chunk},{...currentRow(overviewText),id:other}];}}
-  let plannerCalls=0;
+  let plannerCalls=0,generateCalls=0;
   const service=new RagService(new OverviewChats(),new OverviewSearch(),{
     embed:async()=>Array(1024).fill(0.1),
     planQuery:async()=>{plannerCalls++;return {queries:[],resolvedQuestion:'fale sobre o projeto',aspects:['fale sobre o projeto']};},
   },new Revisions(),{
-    generate:async payload=>{
-      const config=payload.config as {operation_instructions:Record<string,string>};
-      assert.match(config.operation_instructions.responder,/cubra cada fato distinto nas evidências/);
-      assert.deepEqual(payload.context,[{id:chunk,text:'O login exige autenticação.'},{id:chunk,text:'A senha deve ter 12 caracteres.'}]);
-      return {answer:`O login exige autenticação. [${chunk}] A senha deve ter 12 caracteres. [${chunk}]`,sources:[chunk]};
+    generate:async()=>{
+      generateCalls++;
+      return {answer:`O sistema usa SMS. [${chunk}]`,sources:[chunk]};
     },
   });
   for(const question of ['Fale sobre o projeto','Resuma o cenário de demonstração e as regras registradas no documento.']) {
@@ -137,6 +142,7 @@ test('RAG amplia pedidos de visão geral para trechos do projeto e mantém cita�
     assert.deepEqual(answer.evidencias,[{chunk_id:chunk,texto:'O login exige autenticação.'},{chunk_id:chunk,texto:'A senha deve ter 12 caracteres.'}]);
   }
   assert.equal(plannerCalls,0,'Pedidos de visão geral não devem perder tempo em uma reescrita sem contexto.');
+  assert.equal(generateCalls,0,'A resposta final da visão geral é formada pelas passagens validadas, sem síntese livre.');
 });
 test('RAG mantém a abstenção exata quando uma visão geral não tem trechos no projeto',async()=>{
   class EmptyOverviewSearch extends SearchRepository {
@@ -149,7 +155,7 @@ test('RAG mantém a abstenção exata quando uma visão geral não tem trechos n
   }).answer(randomUUID(),'Fale sobre o projeto',[project]);
   assert.equal(answer.resposta,NOT_FOUND_ANSWER);assert.deepEqual(answer.fontes,[]);assert.equal(generated,false);
 });
-test('RAG usa pergunta resolvida no harness e síntese, sem encaminhar histórico bruto',async()=>{
+test('RAG usa pergunta resolvida na extração e resposta sem encaminhar histórico bruto',async()=>{
   const original='E por que escolheram esse banco?';
   const resolved='Por que o projeto escolheu PostgreSQL como banco de dados?';
   const history=[{role:'user' as const,content:'Qual banco de dados o projeto usa?'},{role:'assistant' as const,content:'O projeto usa PostgreSQL.'}];
@@ -168,7 +174,8 @@ test('RAG usa pergunta resolvida no harness e síntese, sem encaminhar históric
   });
   const answer=await service.answer(randomUUID(),original,[project],undefined,undefined,history);
   assert.deepEqual(planHistory,history);
-  assert.match(answer.resposta,/O projeto usa PostgreSQL/);
+  assert.match(answer.resposta,/O login exige autenticação/);
+  assert.doesNotMatch(answer.resposta,/O projeto usa PostgreSQL/);
 });
 test('RAG mede cobertura por aspecto e marca parcial quando só um pedido encontra evidência',async()=>{
   class AspectSearch extends SearchRepository {
@@ -266,16 +273,14 @@ test('RAG registra tempos por etapa sem incluir pergunta ou conteúdo dos docume
   const event=entries[0][1] as Record<string,unknown>;
   assert.equal(typeof event.duracao_total_ms,'number');
   assert.equal(typeof event.diagnostico_id,'string');
-  assert.deepEqual(Object.keys(event.duracoes_ms as Record<string,number>).sort(),['busca_hibrida','embedding','geracao_e_validacao_harness','interpretacao_pergunta','revalidacao_fontes','sintese_conversacional']);
+  assert.deepEqual(Object.keys(event.duracoes_ms as Record<string,number>).sort(),['busca_hibrida','embedding','geracao_e_validacao_harness','interpretacao_pergunta','montagem_resposta','revalidacao_fontes']);
   assert.equal(event.resultados_recuperados,1);
   assert.equal(event.fontes_utilizadas,1);
   assert.doesNotMatch(JSON.stringify(entries),/Pergunta confidencial|O login exige autenticação/);
 });
 test('RAG explicita que a resposta parcial não cobre toda a pergunta',async()=>{
   const service=new RagService(new Chats(),new Search(),{embed:async()=>Array(1024).fill(0.1)},new Revisions(),{
-    generate:async payload=>JSON.stringify(payload.output_schema)===JSON.stringify(evidenceOutputSchema)
-      ?({coverage:'partial',evidence:[{source_id:chunk,quote:row.text}]})
-      :({answer:`O login exige autenticação, mas não há prazo de recuperação documentado. [${chunk}]`,sources:[chunk]}),
+    generate:async()=>({coverage:'partial',evidence:[{source_id:chunk,quote:row.text}]}),
   });
   const answer=await service.answer(randomUUID(),'Como funciona o login e qual o prazo de recuperação?',[project]);
   assert.equal(answer.cobertura,'partial');
@@ -312,29 +317,49 @@ test('RAG tolera variação de espaço, caixa, acento e Markdown, mas publica a 
   assert.equal(resolveQuote(faq,chunk,'## Perguntas úteis'),undefined);
 });
 test('RAG não publica citação que começa no meio de uma palavra na borda do chunk',()=>{
-  // Chunks se sobrepõem: o início de um pode cortar a frase que está inteira no anterior.
-  const previous={id:other,text:'Dado que os atributos do token são válidos, a aplicação aceita o acesso.'};
-  const cut={id:chunk,text:'ibutos do token são válidos, a aplicação aceita o acesso.'};
-  assert.equal(wholePassage(cut.text,cut.text),false);
-  assert.equal(resolveQuote([cut],chunk,cut.text),undefined);
-  assert.deepEqual(resolveQuote([cut,previous],chunk,cut.text),{source_id:other,quote:previous.text});
+  // Chunking real: o anterior termina no overlap de 150 caracteres do próximo.
+  const overlap='ibutos do token são válidos, a aplicação aceita o acesso. '.repeat(4).slice(0,150);
+  const previous={id:other,text:`${'x'.repeat(850)}atr${overlap}`};
+  const cut={id:chunk,text:`${overlap}\nLogin exige autenticação.`};
+  assert.ok(cut.text.length>150);
+  assert.ok(previous.text.endsWith(cut.text.slice(0,150)));
+  assert.equal(wholePassage(cut.text,cut.text),true,'sem o chunk vizinho, uma passagem lowercase completa é indistinguível de um corte');
+  assert.equal(resolveQuote([cut],chunk,cut.text)?.source_id,chunk);
+  assert.equal(resolveQuote([cut,previous],chunk,cut.text),undefined,'o overlap mostra que o início do chunk cortou a palavra `atributos`');
+  assert.throws(()=>validateEvidence({evidence:[{source_id:chunk,quote:cut.text}]},[cut,previous]));
+  assert.deepEqual(resolveQuote([cut,previous],chunk,'Login exige autenticação.'),{source_id:chunk,quote:'Login exige autenticação.'});
+  assert.deepEqual(validateEvidence({evidence:[{source_id:chunk,quote:'Login exige autenticação.'}]},[cut,previous]),
+    [{source_id:chunk,quote:'Login exige autenticação.'}]);
   assert.equal(wholePassage('Linha completa.','Linha completa.'),true);
 });
 test('RAG reconcilia a resposta do modelo sem lançar e só rebaixa a cobertura',()=>{
   const context=[{id:chunk,text:row.text}];
   const valid={source_id:chunk,quote:row.text},invented={source_id:chunk,quote:'O login usa SMS e biometria facial.'};
-  assert.deepEqual(reconcileEvidenceResponse({coverage:'complete',evidence:[valid]},context),{coverage:'complete',evidence:[valid],adjusted:false});
-  assert.deepEqual(reconcileEvidenceResponse({coverage:'complete',evidence:[valid,invented]},context),{coverage:'partial',evidence:[valid],adjusted:true});
-  for(const value of [{coverage:'complete',evidence:[invented]},{coverage:'complete',evidence:[]},null,'texto livre',{coverage:'no_evidence',evidence:[valid]}])
+  assert.deepEqual(reconcileEvidenceResponse({coverage:'complete',evidence:[valid]},context),{coverage:'complete',evidence:[valid],coverageConflict:false,adjusted:false});
+  assert.deepEqual(reconcileEvidenceResponse({coverage:'complete',evidence:[valid,invented]},context),{coverage:'partial',evidence:[valid],coverageConflict:false,adjusted:true});
+  for(const value of [{coverage:'complete',evidence:[invented]},{coverage:'complete',evidence:[]},null,'texto livre'])
     assert.deepEqual(reconcileEvidenceResponse(value,context).evidence,[]);
-  assert.equal(reconcileEvidenceResponse({coverage:'out_of_scope',evidence:[valid]},context).coverage,'out_of_scope');
+  for(const coverage of ['no_evidence','out_of_scope'] as const) {
+    const result=reconcileEvidenceResponse({coverage,evidence:[valid]},context);
+    assert.deepEqual(result,{coverage:'partial',evidence:[valid],coverageConflict:true,adjusted:true});
+  }
 });
-const evidenceCall=(payload:Record<string,unknown>)=>JSON.stringify(payload.output_schema)===JSON.stringify(evidenceOutputSchema);
+test('RAG preserva citações verificadas quando a cobertura declarada as contradiz, sem inventar resposta',async()=>{
+  const service=new RagService(new Chats(),new Search(),{embed:async()=>Array(1024).fill(0.1)},new Revisions(),{
+    generate:async()=>({coverage:'no_evidence',evidence:[{source_id:chunk,quote:row.text}]}),
+  });
+  const answer=await service.answer(randomUUID(),'Como funciona o login?',[project]);
+  assert.equal(answer.cobertura,'partial');
+  assert.match(answer.resposta,/Trecho literal encontrado no acervo/);
+  assert.match(answer.resposta,/não consegui confirmar se respondem a todos os pontos/i);
+  assert.match(answer.resposta,/O login exige autenticação/);
+  assert.doesNotMatch(answer.resposta,/usa SMS/i);
+  assert.deepEqual(answer.evidencias,[{chunk_id:chunk,texto:row.text}]);
+});
 test('RAG responde com o aspecto válido quando a citação de outro aspecto é recusada',async()=>{
   const question='Como funciona o login e qual o prazo de recuperação?';
   const service=new RagService(new Chats(),new Search(),{embed:async()=>Array(1024).fill(0.1)},new Revisions(),{
     generate:async payload=>{
-      if(!evidenceCall(payload))return {answer:`O login exige autenticação. [${chunk}]`,sources:[chunk]};
       return /login/i.test((payload.fields as {pergunta:string}).pergunta)
         ?{coverage:'complete',evidence:[{source_id:chunk,quote:row.text}]}
         :{coverage:'complete',evidence:[{source_id:chunk,quote:'A recuperação leva 24 horas.'}]};
@@ -350,7 +375,6 @@ test('RAG só falha quando todos os aspectos ficam indisponíveis',async()=>{
   const unavailable=()=>{throw new Error('ECONNREFUSED');};
   const partial=new RagService(new Chats(),new Search(),{embed:async()=>Array(1024).fill(0.1)},new Revisions(),{
     generate:async payload=>{
-      if(!evidenceCall(payload))return {answer:`O login exige autenticação. [${chunk}]`,sources:[chunk]};
       if(/prazo/i.test((payload.fields as {pergunta:string}).pergunta))unavailable();
       return {coverage:'complete',evidence:[{source_id:chunk,quote:row.text}]};
     },

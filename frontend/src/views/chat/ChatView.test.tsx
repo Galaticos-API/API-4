@@ -492,6 +492,24 @@ it('abre fontes em modal e formata o conteúdo Markdown do documento',async()=>{
   fireEvent.click(within(dialog).getByRole('button',{name:'Fechar fontes'}));
   await waitFor(()=>expect(screen.queryByRole('dialog',{name:'Fontes e evidências'})).toBeNull());
 });
+it('mostra evidência salva de fontes que não são documentos sem tentar acessar o endpoint de documento',async()=>{
+  vi.mocked(listConversations).mockResolvedValue([{id:'conversation-a',titulo:'Conversa A',projeto_id:'project-a',projeto_nome:'Projeto A',updated_at:''}]);
+  vi.mocked(listChatProjects).mockResolvedValue([{id:'project-a',nome:'Projeto A'}]);
+  vi.mocked(listMessages).mockResolvedValue([{id:'answer',remetente:'assistant',conteudo:'A decisão foi usar PostgreSQL.',fontes:[{
+    id:'33333333-3333-4333-8333-333333333333',tipo:'decisao',titulo:'Banco de dados',projeto_id:'11111111-1111-4111-8111-111111111111',
+    chunk_ids:['33333333-3333-4333-8333-333333333333'],evidencias:[{chunk_id:'33333333-3333-4333-8333-333333333333',texto:'Decisão registrada: usar PostgreSQL para persistência transacional.'}],
+  }],created_at:null}]);
+  Object.defineProperty(HTMLDialogElement.prototype,'showModal',{configurable:true,value:function(this:HTMLDialogElement){this.setAttribute('open','');}});
+  Object.defineProperty(HTMLDialogElement.prototype,'close',{configurable:true,value:function(this:HTMLDialogElement){this.removeAttribute('open');}});
+  render(<ChatView/>);
+  await screen.findByText('A decisão foi usar PostgreSQL.');
+  fireEvent.click(screen.getByRole('button',{name:'Mais ações: Ações da mensagem de Assistente Sinapse'}));
+  const menu=screen.getByRole('menu',{name:'Ações da mensagem de Assistente Sinapse'});
+  fireEvent.click(within(menu).getByRole('menuitem',{name:'Ver fontes e evidências'}));
+  const dialog=await screen.findByRole('dialog',{name:'Fontes e evidências'});
+  expect(within(dialog).getByText('Decisão registrada: usar PostgreSQL para persistência transacional.')).toBeInTheDocument();
+  expect(readDocumentText).not.toHaveBeenCalled();
+});
 it('mantém nome e horário completo na mesma linha em todas as mensagens',async()=>{
   vi.mocked(listConversations).mockResolvedValue([{id:'conversation-a',titulo:'Conversa A',projeto_id:'project-a',projeto_nome:'Projeto A',updated_at:''}]);
   vi.mocked(listChatProjects).mockResolvedValue([{id:'project-a',nome:'Projeto A'}]);

@@ -7,6 +7,7 @@ export interface ChatSource {
   entidade_id?: string;
   url?: string | null;
   chunk_ids?: string[];
+  evidencias?: Array<{ chunk_id: string; texto: string }>;
 }
 
 export type ChatOrigin = "assistente" | "busca_textual" | "sem_resultado";
@@ -45,6 +46,7 @@ export interface ChatMessage {
   remetente: "user" | "assistant" | "system";
   conteudo: string;
   fontes_json: ChatSource[];
+  origem?: ChatOrigin | null;
   processing_status?: "pending" | "completed" | "failed";
   created_at: string;
 }

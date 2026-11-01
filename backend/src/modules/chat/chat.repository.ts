@@ -181,7 +181,7 @@ export class ChatRepository {
 
   async listMessages(conversaId: string, usuarioId: string): Promise<ChatMessage[]> {
     const result = await this.pool.query<ChatMessage>(
-      `SELECT id, conversa_id, remetente, conteudo, COALESCE(fontes_json, '[]'::jsonb) AS fontes_json, CASE WHEN processing_status='pending' AND created_at < CURRENT_TIMESTAMP - INTERVAL '2 minutes' THEN 'failed' ELSE processing_status END AS processing_status, created_at
+      `SELECT id, conversa_id, remetente, conteudo, COALESCE(fontes_json, '[]'::jsonb) AS fontes_json, origem, CASE WHEN processing_status='pending' AND created_at < CURRENT_TIMESTAMP - INTERVAL '2 minutes' THEN 'failed' ELSE processing_status END AS processing_status, created_at
        FROM mensagem WHERE conversa_id = $1
        AND EXISTS (SELECT 1 FROM conversa scope WHERE scope.id=mensagem.conversa_id AND scope.usuario_id=$2 AND (
          (scope.escopo_tipo='projeto' AND scope.projeto_id IS NOT NULL AND ${projectAccessSql('scope.projeto_id','$2')})
@@ -207,12 +207,12 @@ export class ChatRepository {
     });
   }
 
-  async finishMessage(conversaId: string, messageId: string, conteudo: string, fontes: ChatSource[]): Promise<void> {
+  async finishMessage(conversaId: string, messageId: string, conteudo: string, fontes: ChatSource[], origem: ChatMessage["origem"] = "assistente"): Promise<void> {
     await withTransaction(this.pool, async client => {
       await client.query("SELECT id FROM conversa WHERE id=$1 FOR UPDATE", [conversaId]);
       const result = await client.query("UPDATE mensagem SET processing_status='completed' WHERE id=$1 AND conversa_id=$2 AND processing_status='pending' RETURNING id", [messageId, conversaId]);
       if (!result.rowCount) throw new ConflictError("A pergunta não está mais em processamento.");
-      await client.query("INSERT INTO mensagem(conversa_id,remetente,conteudo,fontes_json) VALUES ($1,'assistant',$2,$3::jsonb)", [conversaId, conteudo, JSON.stringify(fontes)]);
+      await client.query("INSERT INTO mensagem(conversa_id,remetente,conteudo,fontes_json,origem) VALUES ($1,'assistant',$2,$3::jsonb,$4)", [conversaId, conteudo, JSON.stringify(fontes), origem ?? "assistente"]);
       await client.query("UPDATE conversa SET updated_at=CURRENT_TIMESTAMP WHERE id=$1", [conversaId]);
     });
   }

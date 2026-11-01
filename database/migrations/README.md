@@ -125,3 +125,7 @@ consulta e valida as fontes persistidas antes de reexibir o histórico.
 ## 025 — Definições de Preparado e Pronto (S2-20)
 
 `025_work_definitions.sql` cria DoR e DoD descritivas por nível, com versão e autoria, inicialmente sem condições. As revisões são auditadas pelo backend. Não altera o motor de qualidade nem as conclusões. Detalhes em `docs/S2-20-dor-dod.md`.
+
+## 027 — Origem das mensagens do chat
+
+`027_chat_message_origin.sql` persiste a classificação da resposta do assistente (`assistente`, `busca_textual` ou `sem_resultado`) para restaurar o estado visual ao reabrir conversas. Mensagens antigas ficam sem origem quando ela não pode ser reconstruída com segurança. Evidências literais já validadas são guardadas junto das fontes em `fontes_json`, associadas aos IDs dos chunks citados e protegidas pelo escopo de projeto da conversa.

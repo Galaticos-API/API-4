@@ -3116,6 +3116,49 @@ paths:
       responses:
         '200':
           description: Mensagens em ordem cronológica
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, total]
+                properties:
+                  total: {type: integer, minimum: 0}
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      required: [id, conversa_id, remetente, conteudo, fontes_json, processing_status, created_at]
+                      properties:
+                        id: {type: string, format: uuid}
+                        conversa_id: {type: string, format: uuid}
+                        remetente: {type: string, enum: [user, assistant, system]}
+                        conteudo: {type: string}
+                        fontes_json:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              id: {type: string}
+                              titulo: {type: string}
+                              tipo: {type: string}
+                              projeto_id: {type: string, format: uuid}
+                              chunk_ids: {type: array, maxItems: 20, items: {type: string, format: uuid}}
+                              evidencias:
+                                type: array
+                                maxItems: 5
+                                items:
+                                  type: object
+                                  required: [chunk_id, texto]
+                                  properties:
+                                    chunk_id: {type: string, format: uuid}
+                                    texto: {type: string, maxLength: 1000}
+                        origem:
+                          type: string
+                          nullable: true
+                          enum: [assistente, busca_textual, sem_resultado]
+                          description: Ausente em mensagens legadas quando a origem não pode ser determinada com segurança.
+                        processing_status: {type: string, enum: [pending, completed, failed]}
+                        created_at: {type: string, format: date-time}
         '400':
           $ref: '#/components/responses/ValidationError'
         '401':
@@ -3171,6 +3214,16 @@ paths:
                         tipo: {type: string}
                         projeto_id: {type: string, format: uuid, description: Projeto de origem da evidência}
                         projeto_nome: {type: string, description: Nome do projeto de origem}
+                        chunk_ids: {type: array, maxItems: 20, items: {type: string, format: uuid}}
+                        evidencias:
+                          type: array
+                          maxItems: 5
+                          items:
+                            type: object
+                            required: [chunk_id, texto]
+                            properties:
+                              chunk_id: {type: string, format: uuid}
+                              texto: {type: string, maxLength: 1000}
                   origem: {type: string, enum: [assistente, busca_textual, sem_resultado]}
                   evidencias:
                     type: array

@@ -40,6 +40,10 @@ function SourceExcerpt({ source }: { source: ChatSource }) {
   const markdown = /\.md(?:own)?$/i.test(source.titulo);
   const citedExcerpt = page?.items.find(item => item.id === chunkId);
   const contextExcerpts = page?.items.filter(item => item.id !== chunkId) ?? [];
+  const savedEvidence = (source.evidencias ?? []).filter(item =>
+    source.chunk_ids?.includes(item.chunk_id) || item.chunk_id === source.id,
+  );
+  const citedText = citedExcerpt?.text ?? savedEvidence.find(item => item.chunk_id === chunkId)?.texto;
   return <section className="chat-source-card" aria-label={`Fonte: ${source.titulo}`}>
     <header className="chat-source-card-header"><div className="chat-source-file-icon" aria-hidden="true"><FileText size={20} /></div>
       <div className="chat-source-file-info"><div className="chat-source-meta"><span className="chat-source-type">{source.tipo}</span>{markdown && <span className="chat-source-format">Markdown</span>}</div>
@@ -48,14 +52,13 @@ function SourceExcerpt({ source }: { source: ChatSource }) {
       </div>
       {source.url && <a className="chat-source-open-link" href={source.url}>Abrir documento <ExternalLink size={14} aria-hidden="true" /></a>}
     </header>
-    {failed ? <div role="alert" className="chat-source-status chat-source-error"><span>Não foi possível carregar a evidência deste documento.</span>
-      <button type="button" onClick={() => setAttempt(value => value + 1)}><RotateCcw size={14} aria-hidden="true" /> Tentar novamente</button></div>
-      : canLoad && !page ? <p role="status" className="chat-source-status"><LoaderCircle className="chat-source-spinner" size={16} aria-hidden="true" />Carregando evidência…</p>
-        : page && citedExcerpt ? <div className="chat-source-excerpts">
-          <article className="is-matched">
+    {savedEvidence.length > 0 || citedText ? <div className="chat-source-excerpts">
+          {(savedEvidence.length ? savedEvidence : citedText ? [{ chunk_id: chunkId ?? source.id, texto: citedText }] : []).map((item, index) => <article className="is-matched" key={`${item.chunk_id}:${index}`}>
             <h4>Evidência citada</h4>
-            {markdown ? <Markdown source={citedExcerpt.text} className="chat-source-markdown" /> : <p className="chat-source-plain">{citedExcerpt.text}</p>}
-          </article>
+            {markdown ? <Markdown source={item.texto} className="chat-source-markdown" /> : <p className="chat-source-plain">{item.texto}</p>}
+          </article>)}
+          {failed && canLoad && <div role="alert" className="chat-source-status chat-source-error"><span>Não foi possível carregar o contexto adicional do documento.</span>
+            <button type="button" onClick={() => setAttempt(value => value + 1)}><RotateCcw size={14} aria-hidden="true" /> Tentar novamente</button></div>}
           {contextExcerpts.length > 0 && <details className="chat-source-context">
             <summary><span>Contexto do documento</span><span>{contextExcerpts.length} {contextExcerpts.length === 1 ? "trecho" : "trechos"}</span></summary>
             <div>{contextExcerpts.map(item => <article key={item.id}>
@@ -64,7 +67,13 @@ function SourceExcerpt({ source }: { source: ChatSource }) {
             </article>)}</div>
           </details>}
         </div>
-          : <p className="chat-source-status">O trecho detalhado não está disponível para esta fonte.</p>}
+      : failed ? <div role="alert" className="chat-source-status chat-source-error"><span>Não foi possível carregar a evidência deste documento.</span>
+        <button type="button" onClick={() => setAttempt(value => value + 1)}><RotateCcw size={14} aria-hidden="true" /> Tentar novamente</button></div>
+        : canLoad && !page ? <p role="status" className="chat-source-status"><LoaderCircle className="chat-source-spinner" size={16} aria-hidden="true" />Carregando evidência…</p>
+          : page && citedExcerpt ? <div className="chat-source-excerpts"><article className="is-matched"><h4>Evidência citada</h4>
+            {markdown ? <Markdown source={citedExcerpt.text} className="chat-source-markdown" /> : <p className="chat-source-plain">{citedExcerpt.text}</p>}
+          </article></div>
+          : <p className="chat-source-status">O trecho citado não foi salvo nesta mensagem antiga.</p>}
   </section>;
 }
 

@@ -1,5 +1,5 @@
 import {afterEach,expect,it,vi} from 'vitest';
-import {askQuestion,describeChatError,listChatProjects,type ChatProgressStage} from './api_chat';
+import {askQuestion,describeChatError,listChatProjects,listMessages,type ChatProgressStage} from './api_chat';
 import {ApiError} from './api_auth';
 
 afterEach(()=>{vi.unstubAllGlobals();vi.restoreAllMocks();vi.clearAllTimers();vi.useRealTimers();});
@@ -92,6 +92,18 @@ it('mantém a navegação interna da fonte e descarta links externos ou malforma
   const result=await askQuestion({pergunta:'Consultar evidências',projetoId:'project-a'});
   expect(result.fontes.map(source=>source.url)).toEqual([urls[0],null,null,null,null]);
   expect(result.fontes[0].projeto_nome).toBe('Projeto A');
+});
+
+it('restaura origem sem resultado e evidência validada ao reabrir o histórico',async()=>{
+  const chunkId='33333333-3333-4333-8333-333333333333';
+  vi.stubGlobal('fetch',vi.fn(async()=>new Response(JSON.stringify({items:[{
+    id:'message-a',remetente:'assistant',conteudo:'Informação não encontrada no acervo do projeto.',origem:'sem_resultado',
+    fontes_json:[{id:chunkId,tipo:'pbi',titulo:'PBI',projeto_id:'11111111-1111-4111-8111-111111111111',chunk_ids:[chunkId],
+      evidencias:[{chunk_id:chunkId,texto:'Trecho registrado no PBI.'},{chunk_id:'44444444-4444-4444-8444-444444444444',texto:'Trecho de outro chunk.'}]}],created_at:null,
+  }]}))));
+  await expect(listMessages('conversation-a')).resolves.toMatchObject([{
+    origem:'sem_resultado',fontes:[{id:chunkId,evidencias:[{chunk_id:chunkId,texto:'Trecho registrado no PBI.'}] }],
+  }]);
 });
 
 it('envia requisição DELETE com o id da conversa correto',async()=>{

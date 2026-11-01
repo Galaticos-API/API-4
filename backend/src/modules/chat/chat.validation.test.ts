@@ -14,6 +14,7 @@ class RecordingChats extends ChatRepository {
   questions: string[] = [];
   retries: Array<{ conversation: string; message: string; text: string }> = [];
   failedMessageIds: string[] = [];
+  finished: Array<{ fontes: unknown[]; origem?: string | null }> = [];
   async projectExists() { return true; }
   async createConversation(user: string, project: string | null, title: string) {
     this.titles.push(title); return { id: randomUUID(), usuario_id: user, projeto_id: project, titulo: title, created_at: '2026-10-25T00:00:00Z', updated_at: '2026-10-25T00:00:00Z' };
@@ -25,7 +26,7 @@ class RecordingChats extends ChatRepository {
     this.renames.push({ conversation, user, title });
     return { id: conversation, usuario_id: user, projeto_id: randomUUID(), titulo: title, created_at: '2026-10-25T00:00:00Z', updated_at: '2026-10-25T00:00:00Z' };
   }
-  async finishMessage() { }
+  async finishMessage(_conversation: string, _message: string, _content: string, fontes: unknown[], origem?: string | null) { this.finished.push({ fontes, origem }); }
   async failMessage(messageId: string) { this.failedMessageIds.push(messageId); }
 }
 const assistant = { ask: async () => ({ resposta: NOT_FOUND_ANSWER, fontes: [] }) };
@@ -65,20 +66,36 @@ test('ChatService preserva a cobertura e classifica ausência/fora de escopo sem
 
 test('ChatService mantém resposta parcial como assistida e suas fontes verificadas', async () => {
   const evidence = { chunk_id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', texto: 'O projeto integra WhatsApp para avisos.' };
-  const source = { id: evidence.chunk_id, titulo: 'Decisão', tipo: 'decisao' };
+  const projectId = randomUUID();
+  const source = { id: evidence.chunk_id, titulo: 'Decisão', tipo: 'decisao', projeto_id: projectId, chunk_ids: [evidence.chunk_id] };
   const answer = {
     cobertura: 'partial' as const,
     resposta: `${evidence.texto} [${evidence.chunk_id}]\n\nA resposta é parcial: o acervo não contém evidências suficientes para todos os aspectos da pergunta.`,
     fontes: [source],
     evidencias: [evidence],
   };
-  const service = new ChatService(new RecordingChats(), { ask: async () => answer });
-  const result = await service.query(randomUUID(), { pergunta: 'Pergunta com dois aspectos', projetoId: randomUUID() });
+  const chats = new RecordingChats();
+  const service = new ChatService(chats, { ask: async () => answer });
+  const result = await service.query(randomUUID(), { pergunta: 'Pergunta com dois aspectos', projetoId: projectId });
 
   assert.equal(result.origem, 'assistente');
   assert.equal(result.resposta, answer.resposta);
-  assert.deepEqual(result.fontes, [source]);
+  assert.deepEqual(result.fontes, [{ ...source, evidencias: [evidence] }]);
   assert.deepEqual(result.evidencias, [evidence]);
+  assert.deepEqual(chats.finished, [{ fontes: [{ ...source, evidencias: [evidence] }], origem: 'assistente' }]);
+});
+test('ChatService recusa persistir evidência de projeto fora do escopo autorizado', async () => {
+  const projectId = randomUUID();
+  const chunkId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+  const chats = new RecordingChats();
+  const service = new ChatService(chats, { ask: async () => ({
+    resposta: 'Resposta com referência [aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa]',
+    fontes: [{ id: chunkId, titulo: 'Fonte fora do escopo', tipo: 'pbi', projeto_id: randomUUID(), chunk_ids: [chunkId] }],
+    evidencias: [{ chunk_id: chunkId, texto: 'Texto de outro projeto.' }],
+  }) });
+
+  await assert.rejects(() => service.query(randomUUID(), { pergunta: 'Consultar evidência', projetoId: projectId }));
+  assert.deepEqual(chats.finished, []);
 });
 test('ChatService propaga ao cliente somente os estágios de progresso definidos', async () => {
   const stages: string[] = [];

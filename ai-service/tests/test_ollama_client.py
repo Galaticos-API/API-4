@@ -48,6 +48,11 @@ class GrammarSchemaTests(unittest.IsolatedAsyncioTestCase):
         # Sem maxLength na gramática, o limite do schema original continua barrando a resposta.
         response, _ = await post({"scenarios":[{**scenario, "nome":"x" * 256}], "questions":[]})
         self.assertEqual(response.status_code, 422)
+        # JSON/schema válido, mas sem cenários nem esclarecimento, é erro de contrato
+        # produzido pelo modelo e não indisponibilidade do serviço.
+        response, _ = await post({"scenarios":[], "questions":[]})
+        self.assertEqual(response.status_code, 422)
+        self.assertEqual(response.json()["detail"], "A IA local não retornou cenários nem perguntas de esclarecimento")
 
     async def test_other_callers_keep_their_schema_unchanged(self):
         response = MagicMock(json=lambda: {"response": "{}"}, raise_for_status=lambda: None)

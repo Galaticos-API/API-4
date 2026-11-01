@@ -14,9 +14,12 @@ export function wholePassage(text:string,quote:string) {
   let start=text.indexOf(quote);
   while(start>=0) {
     const before=text.slice(0,start),after=text.slice(start+quote.length);
-    // O início do trecho só conta como fronteira se não cortar uma palavra: chunks com sobreposição
-    // podem começar no meio da frase ("ibutos do token...").
-    const begins=(/^\s*$/u.test(before)&&/^[\p{Lu}\p{N}#>|*-]/u.test(quote))||/[\r\n][ \t]*$|[.!?]\s+$/u.test(before);
+    // Sem o chunk anterior, qualquer texto literal no início pode ser frase completa ou corte.
+    // A validação contextual abaixo resolve os cortes quando o trecho vizinho está disponível.
+    const atChunkStart=/^\s*$/u.test(before);
+    // A fronteira do próprio chunk é válida para qualquer caixa. Fragmentos cortados
+    // são detectados com os chunks vizinhos, que validateEvidence/resolveQuote conhecem.
+    const begins=atChunkStart||/[\r\n][ \t]*$|[.!?]\s+$/u.test(before);
     const ends=/^\s*$|^[ \t]*[\r\n]/u.test(after)||(/[.!?]$/u.test(quote)&&/^\s/u.test(after));
     if(begins&&ends)return true;
     start=text.indexOf(quote,start+1);
@@ -24,12 +27,29 @@ export function wholePassage(text:string,quote:string) {
   return false;
 }
 
+const MINIMUM_CHUNK_OVERLAP_CHARS=80;
+function startsAtWordContinuation(text:string,quote:string,context:Array<{id:string;text:string}>,minimumOverlap=MINIMUM_CHUNK_OVERLAP_CHARS) {
+  const start=text.indexOf(quote);
+  if(start<0||!/^\s*$/u.test(text.slice(0,start))||! /^[\p{Ll}]/u.test(quote))return false;
+  return context.some(row=>{
+    if(row.text===text)return false;
+    const maxOverlap=Math.min(row.text.length,text.length);
+    for(let overlap=maxOverlap;overlap>=minimumOverlap;overlap--) {
+      const sharedPrefix=text.slice(0,overlap);
+      if(!row.text.endsWith(sharedPrefix))continue;
+      const preceding=row.text[row.text.length-overlap-1]??'';
+      if(/[\p{L}\p{N}]/u.test(preceding))return true;
+    }
+    return false;
+  });
+}
+
 export function validateEvidence(value:unknown,context:Array<{id:string;text:string}>) {
   const parsed=z.object({evidence:z.array(evidenceItemSchema).max(5)}).strict().parse(value);
   const byId=new Map(context.map(row=>[row.id,row.text]));
   for(const item of parsed.evidence) {
     const text=byId.get(item.source_id);
-    if(!text||!wholePassage(text,item.quote))throw Error('Evidência fora do contexto ou incompleta');
+    if(!text||!wholePassage(text,item.quote)||startsAtWordContinuation(text,item.quote,context))throw Error('Evidência fora do contexto ou incompleta');
   }
   return parsed.evidence.filter((item,index,all)=>all.findIndex(other=>other.source_id===item.source_id&&other.quote===item.quote)===index);
 }
@@ -85,7 +105,7 @@ const assertsFact=(passage:string)=>!/\?\s*$/u.test(passage)&&!/^#{1,6}\s[^\n]*$
 const acceptable=(text:string,passage:string)=>passage.length<=MAX_QUOTE&&assertsFact(passage)&&wholePassage(text,passage);
 export function resolveQuote(context:Array<{id:string;text:string}>,sourceId:string,quote:string) {
   const candidates=[...context.filter(row=>row.id===sourceId),...context.filter(row=>row.id!==sourceId)];
-  for(const row of candidates)if(acceptable(row.text,quote))return {source_id:row.id,quote};
+  for(const row of candidates)if(acceptable(row.text,quote)&&!startsAtWordContinuation(row.text,quote,context))return {source_id:row.id,quote};
   const needle=foldQuote(quote);
   // Recortes muito curtos (uma ou duas palavras) não identificam uma passagem com segurança.
   if(needle.length<15||needle.split(' ').length<3)return undefined;
@@ -94,7 +114,7 @@ export function resolveQuote(context:Array<{id:string;text:string}>,sourceId:str
     for(let at=folded.indexOf(needle);at>=0;at=folded.indexOf(needle,at+1)) {
       const last=index[at+needle.length-1];
       const passage=passageAround(row.text,index[at],last+String.fromCodePoint(row.text.codePointAt(last)!).length);
-      if(acceptable(row.text,passage))return {source_id:row.id,quote:passage};
+      if(acceptable(row.text,passage)&&!startsAtWordContinuation(row.text,passage,context))return {source_id:row.id,quote:passage};
     }
   }
   return undefined;
@@ -117,11 +137,13 @@ export function reconcileEvidenceResponse(value:unknown,context:Array<{id:string
     if(resolved.source_id!==sourceId||resolved.quote!==parsed.data!.quote.trim())normalized++;
     if(!evidence.some(other=>other.source_id===resolved.source_id&&other.quote===resolved.quote))evidence.push(resolved);
   }
-  const coverage:EvidenceCoverage=declared.success&&(declared.data==='no_evidence'||declared.data==='out_of_scope')?declared.data
-    :!evidence.length?'no_evidence':declared.success&&declared.data==='complete'&&!dropped?'complete':'partial';
-  const kept=coverage==='complete'||coverage==='partial'?evidence:[];
-  return {coverage,evidence:kept,adjusted:!evidenceSchema.safeParse(value).success||dropped>0||normalized>0
-    ||kept.length!==evidence.length||coverage!==declared.data};
+  const coverageConflict=evidence.length>0&&declared.success&&(declared.data==='no_evidence'||declared.data==='out_of_scope');
+  const coverage:EvidenceCoverage=!evidence.length
+    ?declared.success&&declared.data==='out_of_scope'?'out_of_scope':'no_evidence'
+    :coverageConflict?'partial'
+    :declared.success&&declared.data==='complete'&&!dropped?'complete':'partial';
+  return {coverage,evidence,coverageConflict,adjusted:!evidenceSchema.safeParse(value).success||dropped>0||normalized>0
+    ||coverageConflict||coverage!==declared.data};
 }
 
 export type EvidenceOutcome='accepted'|'adjusted'|'rejected';
@@ -129,6 +151,7 @@ export type EvidenceOutcome='accepted'|'adjusted'|'rejected';
 export class EvidenceEngine implements HarnessEngine {
   evidence:ReturnType<typeof validateEvidence>=[];
   coverage:EvidenceCoverage='no_evidence';
+  coverageConflict=false;
   /** accepted: saída válida como veio; adjusted: citações descartadas ou normalizadas; rejected: saída fora do contrato. */
   outcome:EvidenceOutcome='accepted';
   constructor(private readonly engine:HarnessEngine){}
@@ -148,6 +171,7 @@ export class EvidenceEngine implements HarnessEngine {
     if(this.outcome!=='rejected'&&reconciled.adjusted)this.outcome='adjusted';
     this.evidence=reconciled.evidence;
     this.coverage=reconciled.coverage;
+    this.coverageConflict=reconciled.coverageConflict;
     return {answer:this.evidence.length?this.evidence.map(item=>`${escapeMarkdown(item.quote)} [${item.source_id}]`).join('\n\n'):NOT_FOUND_ANSWER,
       sources:[...new Set(this.evidence.map(item=>item.source_id))]};
   }

@@ -158,7 +158,7 @@ async def run_harness(req: HarnessRequest):
             result = json.loads(raw)
         validator.validate(result)
         if req.operation == "cenarios" and not result["scenarios"] and not result["questions"]:
-            raise ValueError("Cenários ausentes sem esclarecimento")
+            raise HTTPException(422, "A IA local não retornou cenários nem perguntas de esclarecimento")
         if req.operation == "questionar":
             question = measurable_time_question(fields, editing_context, req.config.rules)
             if question and not any(item["dimension"] == "validacoes" and re.search(r"tempo|prazo|latência|rápid|rapidez|duração", item["question"], re.IGNORECASE) for item in result["questions"]):
@@ -174,6 +174,8 @@ async def run_harness(req: HarnessRequest):
         raise HTTPException(422, "A IA local retornou JSON incompleto ou inválido") from None
     except OutputValidationError:
         raise HTTPException(422, "Resposta da IA fora do schema") from None
+    except HTTPException:
+        raise
     except Exception:
         # Erros de validação/modelo podem conter o texto completo: não registrar nem retornar.
         raise HTTPException(503, "IA indisponível ou resposta fora do schema") from None
