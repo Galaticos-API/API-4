@@ -113,6 +113,7 @@ export function createChatRouter(service: ChatService = new ChatService(), authe
       "X-Accel-Buffering": "no",
     });
     res.flushHeaders();
+    const startedAt = performance.now();
     const controller = new AbortController();
     res.on("close", () => {
       if (!res.writableEnded) controller.abort();
@@ -141,6 +142,13 @@ export function createChatRouter(service: ChatService = new ChatService(), authe
         updated_at: conversation.updated_at,
       }));
       writeEvent("completed", result);
+      // Emit timing information for how long the assistant thought
+      const elapsedMs = Math.round(performance.now() - startedAt);
+      const totalSeconds = Math.floor(elapsedMs / 1000);
+      const minutes = Math.floor(totalSeconds / 60);
+      const seconds = totalSeconds % 60;
+      const timeLabel = minutes > 0 ? `${minutes}min${seconds}s` : `${seconds}s`;
+      writeEvent("timing", { duration_ms: elapsedMs, message: `Pensou por ${timeLabel}` });
       res.end();
     } catch (error) {
       if (controller.signal.aborted || (error instanceof AppError && error.code === "CHAT_CANCELLED")) {
