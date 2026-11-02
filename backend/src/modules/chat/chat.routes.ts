@@ -1,8 +1,10 @@
 import { Router, type NextFunction, type Request, type RequestHandler, type Response } from "express";
+import { randomUUID } from "crypto";
 import { requireAuth } from "../../middleware/requireAuth.js";
 import { AppError, ValidationError } from "../../shared/errors.js";
 import { ChatService } from "./chat.service.js";
 import { RagService,ragInput } from './rag.service.js';
+import { performance } from 'perf_hooks';
 
 function userId(req: Request): string {
   if (!req.auth?.id) throw new ValidationError("Autenticação necessária.");
@@ -102,9 +104,15 @@ export function createChatRouter(service: ChatService = new ChatService(), authe
     }
   });
 
+  // Import crypto at top if not already imported
+  // (Will add import line separately)
   router.post("/query/stream", async (req: Request, res: Response, next: NextFunction) => {
+    // Generate a diagnostic ID for tracing failures
+    const diagnosticId = randomUUID();
     const pergunta = req.body?.pergunta;
     if (typeof pergunta !== "string") { next(new ValidationError("Pergunta é obrigatória.")); return; }
+
+
 
     res.status(200).set({
       "Content-Type": "text/event-stream; charset=utf-8",
@@ -157,8 +165,8 @@ export function createChatRouter(service: ChatService = new ChatService(), authe
         return;
       }
       const payload = error instanceof AppError
-        ? { status: error.statusCode, error: error.message, code: error.code, details: error.details }
-        : { status: 500, error: "Erro interno do servidor.", code: "INTERNAL_SERVER_ERROR" };
+        ? { status: error.statusCode, error: error.message, code: error.code, details: error.details, diagnostic_id: diagnosticId }
+        : { status: 500, error: "Erro interno do servidor.", code: "INTERNAL_SERVER_ERROR", diagnostic_id: diagnosticId };
       writeEvent("error", payload);
       res.end();
     } finally {
