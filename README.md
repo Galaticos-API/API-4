@@ -266,6 +266,7 @@ A arquitetura também permite a integração com recursos de IA para consultas e
 * 🐳 Docker Desktop
 * Git
 * Docker Compose v2
+* PowerShell 5.1 ou superior (para execução dos scripts automatizados no Windows)
 
 Para executar os serviços diretamente no sistema:
 
