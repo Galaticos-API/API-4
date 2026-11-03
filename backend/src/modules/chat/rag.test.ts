@@ -443,3 +443,30 @@ for(const scenario of ['authorized','unauthorized','revoked','irrelevant'] as co
     assert.equal(searched.some(ids=>ids.includes(alternate)),scenario!=='unauthorized');
   });
 }
+
+test('S3-03: comparação tenta contextos separados quando o modelo não cita no contexto conjunto',async()=>{
+  const alternate=randomUUID();
+  const textB='O login usa autenticação por token.';
+  const second={...row,id:other,project_id:alternate,project_name:'Projeto B',text:textB};
+  class ComparisonChats extends Chats {
+    async accessibleProjects(){return [{id:project,nome:'Projeto A'},{id:alternate,nome:'Projeto B'}];}
+    async currentRagChunks(){return [currentRow(),{...currentRow(textB),id:other,projeto_id:alternate}];}
+  }
+  class ComparisonSearch extends SearchRepository {
+    async hybridSearch(){return [row,second];}
+  }
+  const sizes:number[]=[];
+  const service=new RagService(new ComparisonChats(),new ComparisonSearch(),{embed:async()=>Array(1024).fill(0.1)},new Revisions(),{
+    generate:async payload=>{
+      const context=payload.context as Array<{id:string;text:string}>;
+      sizes.push(context.length);
+      return context.length>1?{coverage:'no_evidence',evidence:[]}:{
+        coverage:'complete',evidence:context.map(item=>({source_id:item.id,quote:item.text})),
+      };
+    },
+  });
+  const result=await service.answer(randomUUID(),'Como os projetos autenticam o login?',[project,alternate]);
+  assert.deepEqual(sizes,[2,1,1]);
+  assert.deepEqual(new Set(result.fontes.map(source=>source.projeto_id)),new Set([project,alternate]));
+  assert.equal(result.cobertura,'partial');
+});

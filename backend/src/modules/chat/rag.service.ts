@@ -209,6 +209,29 @@ export class RagService {
           failedAspects++;lastFailure=error;
           continue;
         }
+        const aspect=safeAspects.length===1?resolvedQuestion:safeAspects[index];
+        if(!adapter.evidence.length&&adapter.coverage==='no_evidence'
+          && /\b(?:projetos|compare|compara[çc][ãa]o)\b/iu.test(aspect)) {
+          const byProject=new Map<string,typeof context>();
+          for(const item of context) {
+            const owner=rows.find(row=>row.id===item.id)?.project_id;
+            if(owner)byProject.set(owner,[...(byProject.get(owner)??[]),item]);
+          }
+          if(byProject.size>1) {
+            for(const [owner,projectContext] of byProject) {
+              if(signal?.aborted)throw new DOMException('Consulta interrompida.','AbortError');
+              const retry=new EvidenceEngine(this.engine);
+              try {
+                await new HarnessService(this.revisions,retry,this.chats).run(owner,
+                  {mode:'consulta',operation:'responder',level:'pbi',fields:{pergunta:`${aspect.slice(0,1900)} Responda apenas sobre o projeto representado nestes trechos.`},context:[]},projectContext,diagnosticId,signal);
+                adapter.evidence.push(...retry.evidence);
+              } catch(error) {
+                if(signal?.aborted)throw error;
+              }
+            }
+            if(adapter.evidence.length)adapter.coverage='partial';
+          }
+        }
         if(adapter.outcome!=='accepted')console.warn('[RAG] Evidence adjusted',{diagnostico_id:diagnosticId,aspecto:index,resultado:adapter.outcome,citacoes_validas:adapter.evidence.length});
         hasCoverageConflict ||= adapter.coverageConflict;
         selections.push({aspect:safeAspects[index],adapter});
