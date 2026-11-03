@@ -95,7 +95,7 @@ export class RagService {
     private readonly embeddings:SearchEmbeddingClient=new HttpSearchEmbeddingClient(),
     private readonly revisions=new HarnessRepository(),private readonly engine:HarnessEngine=new HttpHarnessEngine()){}
 
-  async answer(userId:string,question:string,requestedProjects?:string[],onProgress?:(stage:ChatProgressStage)=>void,signal?:AbortSignal,history:ConversationTurn[] = []) {
+  async answer(userId:string,question:string,requestedProjects?:string[],onProgress?:(stage:ChatProgressStage)=>void,signal?:AbortSignal,history:ConversationTurn[] = [],checkBroaderScope=true): Promise<AssistantAnswer & {contrato:string;escopo:string[];evidencias:NonNullable<AssistantAnswer["evidencias"]>}> {
     const parsed=ragInput.safeParse({pergunta:question,...(requestedProjects?{projeto_ids:requestedProjects}:{})});
     if(!parsed.success)throw new ValidationError('Pergunta ou escopo inválido.');
     requestedProjects=parsed.data.projeto_ids;
@@ -104,6 +104,25 @@ export class RagService {
     const projectIds=[...new Set(requestedProjects??accessible.map(project=>project.id))];
     const empty={contrato:'rag-conversacional-v1',resposta:NOT_FOUND_ANSWER,fontes:[] as ChatSource[],evidencias:[] as Array<{chunk_id:string;texto:string}>,escopo:projectIds,cobertura:'no_evidence' as const};
     if(!projectIds.length)return empty;
+    const offerBroaderScope=async<T extends AssistantAnswer>(answer:T):Promise<T>=>{
+      if(!checkBroaderScope||requestedProjects?.length!==1||answer.cobertura!=='no_evidence'||signal?.aborted)return answer;
+      const otherProjects=[...new Set(accessible.map(project=>project.id))].filter(id=>!projectIds.includes(id)).slice(0,50);
+      if(!otherProjects.length)return answer;
+      try {
+        const deadline=AbortSignal.timeout(20_000);
+        const probeSignal=signal?AbortSignal.any([signal,deadline]):deadline;
+        const candidate=await this.answer(userId,question,otherProjects,undefined,probeSignal,history,false);
+        if(!probeSignal.aborted&&candidate.evidencias?.length&&candidate.fontes.length) {
+          const stillAllowed=new Set((await this.chats.accessibleProjects(userId)).map(project=>project.id));
+          if(!probeSignal.aborted&&candidate.fontes.every(source=>source.projeto_id!==undefined&&stillAllowed.has(source.projeto_id)&&otherProjects.includes(source.projeto_id))) {
+            return {...answer,resposta:`${answer.resposta}\n\nAmpliar a busca pode ajudar. Abra uma nova conversa e selecione **Todos os projetos permitidos** para consultar o acervo autorizado.`};
+          }
+        }
+      } catch {
+        // Uma falha na consulta auxiliar não altera a resposta do escopo selecionado.
+      }
+      return answer;
+    };
     const diagnosticId=randomUUID();
     const startedAt=performance.now();
     const durations:Record<string,number>={};
@@ -158,7 +177,7 @@ export class RagService {
         return index>=0?fuseQueryResults([resultSets[index]]):[];
       });
       durations.busca_hibrida=Math.round(performance.now()-stageStarted);
-      if(!rows.length){finishLog(0);return empty;}
+      if(!rows.length){finishLog(0);return offerBroaderScope(empty);}
       if(rows.some(row=>!projectIds.includes(row.project_id)))throw Error('Escopo incompatível');
       stage='context_build';
       let remaining=20000;
@@ -170,7 +189,7 @@ export class RagService {
         return text.trim()?[{id:row.id,text}]:[];
         });
       });
-      if(!overviewRequest&&!facetContexts.some(context=>context.length)){finishLog(rows.length);return {...empty,resposta:`${NO_SUPPORT_ANSWER} ${SCOPE_LIMIT_ANSWER}`};}
+      if(!overviewRequest&&!facetContexts.some(context=>context.length)){finishLog(rows.length);return offerBroaderScope({...empty,resposta:`${NO_SUPPORT_ANSWER} ${SCOPE_LIMIT_ANSWER}`});}
       stage='harness';
       reportProgress('synthesizing');
       stageStarted=performance.now();
@@ -212,7 +231,8 @@ export class RagService {
       durations.geracao_e_validacao_harness=Math.round(performance.now()-stageStarted);
       if(!selectedEvidence.length){
         finishLog(rows.length);
-        return {...empty,resposta:overviewRequest?NOT_FOUND_ANSWER:evidenceCoverage==='out_of_scope'?OUT_OF_SCOPE_ANSWER:failedAspects?`${NO_SUPPORT_ANSWER} ${UNAVAILABLE_ASPECT_NOTICE}`:`${NO_SUPPORT_ANSWER} ${SCOPE_LIMIT_ANSWER}`,cobertura:evidenceCoverage};
+        const refusal={...empty,resposta:overviewRequest?NOT_FOUND_ANSWER:evidenceCoverage==='out_of_scope'?OUT_OF_SCOPE_ANSWER:failedAspects?`${NO_SUPPORT_ANSWER} ${UNAVAILABLE_ASPECT_NOTICE}`:`${NO_SUPPORT_ANSWER} ${SCOPE_LIMIT_ANSWER}`,cobertura:evidenceCoverage};
+        return failedAspects?refusal:offerBroaderScope(refusal);
       }
       stage='source_revalidation';
       reportProgress('validating');

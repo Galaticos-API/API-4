@@ -408,3 +408,38 @@ test('Harness HTTP distingue saída rejeitada (422) de indisponibilidade',async(
     await assert.rejects(()=>new HttpHarnessEngine(`http://127.0.0.1:${port}/down`).generate({},2000),(error:unknown)=>!(error instanceof ModelOutputRejectedError));
   } finally { server.close(); }
 });
+
+for(const scenario of ['authorized','unauthorized','revoked','irrelevant'] as const) {
+  test(`S3-03: sugestão de ampliação com projeto alternativo ${scenario}`,async()=>{
+    const alternate=randomUUID(), forbidden=randomUUID();
+    const searched:string[][]=[];
+    let authorizationChecks=0;
+    class ScopedChats extends Chats {
+      async accessibleProjects(){
+        authorizationChecks++;
+        const allowed=scenario!=='unauthorized'&&!(scenario==='revoked'&&authorizationChecks>=3);
+        return [{id:project,nome:'Projeto A'},...(allowed?[{id:alternate,nome:'Projeto reservado'}]:[])];
+      }
+      async currentRagChunks(){return [{...currentRow(),projeto_id:alternate}];}
+    }
+    class ScopedSearch extends SearchRepository {
+      async hybridSearch(...args:Parameters<SearchRepository['hybridSearch']>){
+        const ids=args[4]??[];
+        searched.push(ids);
+        return ids.includes(alternate)?[{...row,project_id:alternate,project_name:'Projeto reservado'}]:[];
+      }
+    }
+    const service=new RagService(new ScopedChats(),new ScopedSearch(),{embed:async()=>Array(1024).fill(0.1)},new Revisions(),{
+      generate:async()=>scenario==='irrelevant'?{coverage:'no_evidence',evidence:[]}:{coverage:'complete',evidence:[{source_id:chunk,quote:row.text}]},
+    });
+    const result=await service.answer(randomUUID(),'Como funciona o login?',[project]);
+    assert.equal(result.cobertura,'no_evidence');
+    assert.deepEqual(result.escopo,[project]);
+    assert.deepEqual(result.fontes,[]);
+    assert.deepEqual(result.evidencias,[]);
+    assert.equal(result.resposta.includes('Ampliar a busca pode ajudar'),scenario==='authorized');
+    assert.doesNotMatch(result.resposta,/Projeto reservado|O login exige autenticação/);
+    assert.ok(searched.every(ids=>!ids.includes(forbidden)));
+    assert.equal(searched.some(ids=>ids.includes(alternate)),scenario!=='unauthorized');
+  });
+}
