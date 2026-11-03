@@ -94,6 +94,7 @@ export function createChatRouter(service: ChatService = new ChatService(), authe
         pergunta,
         conversaId: text(req.body?.conversa_id),
         mensagemId: text(req.body?.mensagem_id),
+        attemptId: text(req.body?.tentativa_id),
         projetoId: text(req.body?.projeto_id),
         escopo: scope(req.body?.escopo),
       }));
@@ -130,6 +131,7 @@ export function createChatRouter(service: ChatService = new ChatService(), authe
         pergunta,
         conversaId: text(req.body?.conversa_id),
         mensagemId: text(req.body?.mensagem_id),
+        attemptId: text(req.body?.tentativa_id),
         projetoId: text(req.body?.projeto_id),
         escopo: scope(req.body?.escopo),
       }, (stage) => writeEvent("progress", { stage }), controller.signal, (conversation) => writeEvent("conversation", {
@@ -139,7 +141,7 @@ export function createChatRouter(service: ChatService = new ChatService(), authe
         projeto_nome: conversation.projeto_nome,
         escopo_tipo: conversation.escopo_tipo,
         updated_at: conversation.updated_at,
-      }));
+      }), id => writeEvent("message_persisted", { id }));
       writeEvent("completed", result);
       res.end();
     } catch (error) {

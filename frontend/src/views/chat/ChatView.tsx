@@ -119,6 +119,14 @@ function ThinkingIndicator({ stage }: { stage: ChatProgressStage }) {
   );
 }
 
+function createAttemptId(): string {
+  if (typeof crypto.randomUUID === "function") return crypto.randomUUID();
+  const bytes = crypto.getRandomValues(new Uint8Array(16));
+  bytes[6] = (bytes[6] & 15) | 64;
+  bytes[8] = (bytes[8] & 63) | 128;
+  const hex = Array.from(bytes, byte => byte.toString(16).padStart(2, "0")).join("");
+  return [hex.slice(0, 8), hex.slice(8, 12), hex.slice(12, 16), hex.slice(16, 20), hex.slice(20)].join("-");
+}
 export function ChatView() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
@@ -160,6 +168,7 @@ export function ChatView() {
   const speechBaseDraft = useRef("");
   const speechHasResult = useRef(false);
   const speechStartTimer = useRef<number | null>(null);
+  const desktopSidebarTrigger = useRef<HTMLButtonElement>(null);
   const mobileSidebarTrigger = useRef<HTMLButtonElement>(null);
   const mobileSidebarClose = useRef<HTMLButtonElement>(null);
   const mobileSidebarPanel = useRef<HTMLElement>(null);
@@ -173,7 +182,10 @@ export function ChatView() {
   const conversationsRequest = useRef(0);
   const projectsRequest = useRef(0);
   const sendLocks = useRef(new Set<string>());
-  const queueDispatching = useRef(false);
+  const queueDispatching = useRef(new Set<string>());
+  const requestKeysByConversation = useRef(new Map<string, string>());
+  const attemptIds = useRef(new Map<string, string>());
+  const requestControllers = useRef(new Map<string, AbortController>());
   const activeRequestController = useRef<AbortController | null>(null);
   const activeRequestConversationId = useRef<string | null>(null);
   const skipReload = useRef<string | null>(null);
@@ -181,14 +193,23 @@ export function ChatView() {
   const selectedConversation = useRef(activeId);
   selectedConversation.current = activeId;
   const sendKey = activeId ?? `draft-${conversationRevision.current}`;
-  const activeSendKey = pendingKeys[0] ?? sendKey;
-  const sending = pendingKeys.length > 0;
+  const draftKey = `draft-${conversationRevision.current}`;
+  const activeSendKey = (activeId && requestKeysByConversation.current.get(activeId)) || (pendingKeys.includes(draftKey) ? draftKey : sendKey);
+  const sending = pendingKeys.includes(activeSendKey);
+
+  const modalOpen = mobileSidebarOpen || Boolean(renameConversationId);
+  useEffect(() => {
+    if (!modalOpen) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = previousOverflow; };
+  }, [modalOpen]);
 
   useEffect(() => {
     mounted.current = true;
     return () => {
       mounted.current = false;
-      activeRequestController.current?.abort();
+      requestControllers.current.forEach(controller => controller.abort());
       if (speechRecognition.current) {
         speechRecognition.current.onresult = null;
         speechRecognition.current.onerror = null;
@@ -202,8 +223,11 @@ export function ChatView() {
 
   useEffect(() => {
     if (!mobileSidebarOpen) return;
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
+    const desktop = window.matchMedia?.("(min-width: 901px)");
+    const closeOnDesktop = (event: MediaQueryListEvent) => {
+      if (event.matches) setMobileSidebarOpen(false);
+    };
+    desktop?.addEventListener("change", closeOnDesktop);
     mobileSidebarClose.current?.focus();
     const closeOnEscape = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
@@ -227,16 +251,14 @@ export function ChatView() {
     };
     document.addEventListener("keydown", closeOnEscape);
     return () => {
-      document.body.style.overflow = previousOverflow;
+      desktop?.removeEventListener("change", closeOnDesktop);
       document.removeEventListener("keydown", closeOnEscape);
-      mobileSidebarTrigger.current?.focus();
+      if (!renameDialogRef.current) (desktop?.matches ? desktopSidebarTrigger : mobileSidebarTrigger).current?.focus();
     };
   }, [mobileSidebarOpen]);
 
   useEffect(() => {
     if (!renameConversationId) return;
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
     requestAnimationFrame(() => renameInput.current?.focus());
     const handleDialogKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
@@ -247,7 +269,16 @@ export function ChatView() {
       }
       if (event.key !== "Tab") return;
       const controls = renameDialogRef.current?.querySelectorAll<HTMLElement>("input:not(:disabled), button:not(:disabled)");
-      if (!controls?.length) return;
+      if (!controls?.length) {
+        event.preventDefault();
+        renameDialogRef.current?.focus();
+        return;
+      }
+      if (!Array.from(controls).some(control => control === document.activeElement)) {
+        event.preventDefault();
+        controls[event.shiftKey ? controls.length - 1 : 0].focus();
+        return;
+      }
       const first = controls[0];
       const last = controls[controls.length - 1];
       if (event.shiftKey && document.activeElement === first) {
@@ -260,10 +291,12 @@ export function ChatView() {
     };
     document.addEventListener("keydown", handleDialogKeyDown, true);
     return () => {
-      document.body.style.overflow = previousOverflow;
       document.removeEventListener("keydown", handleDialogKeyDown, true);
       const target = renameReturnFocus.current;
-      if (target?.isConnected) requestAnimationFrame(() => target.focus());
+      requestAnimationFrame(() => {
+        if (target?.isConnected && (!window.matchMedia?.("(min-width: 901px)").matches || !mobileSidebarPanel.current?.contains(target) || target.getClientRects().length > 0)) target.focus();
+        else (window.matchMedia?.("(min-width: 901px)").matches ? desktopSidebarTrigger : mobileSidebarTrigger).current?.focus();
+      });
     };
   }, [renameConversationId]);
 
@@ -383,11 +416,11 @@ export function ChatView() {
   const scopeName = conversationScope === "todos_autorizados"
     ? "Todos os projetos permitidos"
     : conversationScope === "projeto"
-      ? projects.find((project) => project.id === (activeConversation?.projeto_id ?? selectedProjectId))?.nome ?? activeConversation?.projeto_nome ?? null
+      ? projects.find((project) => project.id === (activeConversation?.projeto_id ?? selectedProjectId))?.nome ?? null
       : null;
   const scopeValid = conversationScope === "todos_autorizados"
     ? projectsState === "idle" && projects.length > 0
-    : conversationScope === "projeto" && Boolean((activeConversation?.projeto_id ?? selectedProjectId)
+    : projectsState === "idle" && conversationScope === "projeto" && Boolean((activeConversation?.projeto_id ?? selectedProjectId)
       && projects.some((project) => project.id === (activeConversation?.projeto_id ?? selectedProjectId)));
   const scopeLocked = Boolean(activeId);
 
@@ -396,6 +429,9 @@ export function ChatView() {
     focusComposerAfterSend.current = null;
     conversationRevision.current += 1;
     messagesRequest.current += 1;
+    setQueuedQuestions([]);
+    setQueuePaused(false);
+    setWaitingOnExistingQuery(false);
     setActiveId(null);
     setScopeId("todos_autorizados");
     setMessages([]);
@@ -413,6 +449,9 @@ export function ChatView() {
     focusComposerAfterSend.current = null;
     conversationRevision.current += 1;
     messagesRequest.current += 1;
+    setQueuedQuestions([]);
+    setQueuePaused(false);
+    setWaitingOnExistingQuery(false);
     setMessages([]);
     setDraft("");
     setSendError("");
@@ -521,10 +560,25 @@ export function ChatView() {
 
   const handleDeleteMessage = async (message: ThreadMessage) => {
     const conversationId = activeId;
-    if (!conversationId || sending || deletingMessageId) return;
+    if (sending || deletingMessageId) return;
+    if (message.failed && /^(?:local|queued)-/.test(message.id)) {
+      setMessages(current => current.filter(item => item.id !== message.id));
+      setConfirmDeleteMessageId(null);
+      setQueuePaused(false);
+      setWaitingOnExistingQuery(false);
+      setSendError("");
+      setDraft(current => current.trim() === message.conteudo ? "" : current);
+      return;
+    }
+    if (!conversationId) return;
     setDeletingMessageId(message.id);
     setSendError("");
     try {
+      if (/^(?:(?:local|assistant)-\d{13}|queued-\d{13}-[a-z0-9]+)$/.test(message.id)) {
+        setConfirmDeleteMessageId(null);
+        await loadMessages(conversationId);
+        return;
+      }
       await deleteMessage(conversationId, message.id);
       if (!mounted.current || selectedConversation.current !== conversationId) return;
       setMessages(current => current.filter(item => item.id !== message.id));
@@ -564,8 +618,8 @@ export function ChatView() {
 
   const send = useCallback(async (text: string, retryId?: string, queuedId?: string) => {
     const question = text.trim();
-    if (!question || sendLocks.current.has(sendKey) || !scopeValid || messagesState==='loading') return;
-    sendLocks.current.add(sendKey);
+    if (!question || sendLocks.current.has(activeSendKey) || !scopeValid || messagesState==='loading') return;
+
     const revision = conversationRevision.current;
     activeRequestConversationId.current = activeId;
     if (document.activeElement === composer.current || document.activeElement === submitButton.current) {
@@ -575,31 +629,49 @@ export function ChatView() {
     setPendingKeys(current => [...current, sendKey]);
     setProgressByKey(current => ({ ...current, [sendKey]: "searching" }));
     setSendError("");
-    const pendingId = retryId ?? queuedId ?? `local-${Date.now()}`;
+    let pendingId = retryId ?? queuedId ?? `local-${Date.now()}`;
+    const optimisticId = pendingId;
+    const attemptId = attemptIds.current.get(optimisticId) ?? createAttemptId();
+    sendLocks.current.add(sendKey);
+    attemptIds.current.set(optimisticId, attemptId);
     setMessages((current) => retryId
       ? current.map((item) => (item.id === retryId ? { ...item, failed: false, processing: true } : item))
       : [...current, { id: pendingId, remetente: "user", conteudo: question, fontes: [], created_at: new Date().toISOString(), ...(queuedId ? { processing: true } : {}) }]);
     if (!queuedId) setDraft(current=>!retryId||current.trim()===question?'':current);
+    let requestConversationId = activeId;
     const controller = new AbortController();
+    requestControllers.current.set(sendKey, controller);
     activeRequestController.current = controller;
     try {
       const answer = await askQuestion({
         pergunta: question,
+        attemptId,
         conversaId: activeId,
         projetoId: activeId ? null : selectedProjectId,
         escopo: activeId ? undefined : requestScopeType ?? undefined,
-        mensagemId: retryId,
+        mensagemId: retryId && !/^(?:local|queued)-/.test(retryId) ? retryId : undefined,
       }, controller.signal, (stage) => {
         if (mounted.current) setProgressByKey(current => ({ ...current, [sendKey]: stage }));
       }, (conversation) => {
         if (!mounted.current) return;
+        requestConversationId = conversation.id;
+        requestKeysByConversation.current.set(conversation.id, sendKey);
+        setConversations(current => [conversation, ...current.filter(item => item.id !== conversation.id)]);
+        if (revision !== conversationRevision.current) return;
         activeRequestConversationId.current = conversation.id;
         skipReload.current = conversation.id;
-        setConversations(current => [conversation, ...current.filter(item => item.id !== conversation.id)]);
         setScopeId(selectionForConversation(conversation));
         setActiveId(conversation.id);
+      }, (id) => {
+        attemptIds.current.delete(optimisticId);
+        const previousId = pendingId;
+        pendingId = id;
+        if (mounted.current && revision === conversationRevision.current) {
+          setMessages(current => current.map(item => item.id === previousId ? { ...item, id } : item));
+        }
       });
       if (!mounted.current) return;
+      attemptIds.current.delete(optimisticId);
       void loadConversations(false);
       if (revision !== conversationRevision.current) {
         if (selectedConversation.current === answer.conversa_id) void loadMessages(answer.conversa_id);
@@ -619,7 +691,7 @@ export function ChatView() {
     } catch (error) {
       if (!mounted.current) return;
       if (revision !== conversationRevision.current) {
-        if (activeId && selectedConversation.current === activeId) void loadMessages(activeId);
+        if (requestConversationId && selectedConversation.current === requestConversationId) void loadMessages(requestConversationId);
         return;
       }
       if (error instanceof DOMException && error.name === "AbortError") {
@@ -628,9 +700,9 @@ export function ChatView() {
         setMessages(current => current.map(item => item.id === pendingId ? { ...item, failed: true, processing: false, queued: false } : item));
         if (!queuedId) setDraft(current=>current||question);
         setSendError("Consulta interrompida. A pergunta ficou disponível para nova tentativa; a fila aguardará.");
-        const conversationId = activeRequestConversationId.current ?? activeId;
+        const conversationId = requestConversationId;
         if (conversationId) {
-          void loadMessages(conversationId);
+          if (!/^(?:local|queued)-/.test(pendingId)) void loadMessages(conversationId);
           void loadConversations(false);
         } else {
           void loadConversations(false);
@@ -664,15 +736,21 @@ export function ChatView() {
       }
       setSendError(describeChatError(error));
     } finally {
-      if (activeRequestController.current === controller) activeRequestController.current = null;
-      activeRequestConversationId.current = null;
+      if (activeRequestController.current === controller) {
+        activeRequestController.current = null;
+        activeRequestConversationId.current = null;
+      }
+      requestControllers.current.delete(sendKey);
+      for (const [id, key] of requestKeysByConversation.current) {
+        if (key === sendKey) requestKeysByConversation.current.delete(id);
+      }
       sendLocks.current.delete(sendKey);
       if (mounted.current) {
         setPendingKeys(current => current.filter(key => key !== sendKey));
         setProgressByKey(current => { const next = { ...current }; delete next[sendKey]; return next; });
       }
     }
-  }, [activeId, requestScopeType, selectedProjectId, scopeValid, sendKey, loadConversations, loadMessages, messagesState, cancelVoiceCapture]);
+  }, [activeId, activeSendKey, requestScopeType, selectedProjectId, scopeValid, sendKey, loadConversations, loadMessages, messagesState, cancelVoiceCapture]);
 
   useEffect(() => {
     if (!waitingOnExistingQuery || messagesState !== "idle" || messages.some(message => message.processing)) return;
@@ -701,12 +779,12 @@ export function ChatView() {
   const clearQueuedQuestions = () => setQueuedQuestions([]);
 
   useEffect(() => {
-    if (sending || queuePaused || !queuedQuestions.length || queueDispatching.current || !scopeValid || messagesState === "loading") return;
+    if (sending || queuePaused || !queuedQuestions.length || queueDispatching.current.has(sendKey) || !scopeValid || messagesState === "loading") return;
     const next = queuedQuestions[0];
-    queueDispatching.current = true;
+    queueDispatching.current.add(sendKey);
     setQueuedQuestions(current => current[0]?.id === next.id ? current.slice(1) : current);
-    void send(next.text, undefined, next.id).finally(() => { queueDispatching.current = false; });
-  }, [messagesState, queuePaused, queuedQuestions, scopeValid, send, sending]);
+    void send(next.text, undefined, next.id).finally(() => { queueDispatching.current.delete(sendKey); });
+  }, [messagesState, queuePaused, queuedQuestions, scopeValid, send, sending, sendKey]);
 
   const copy = async (message: ThreadMessage) => {
     try {
@@ -886,18 +964,18 @@ export function ChatView() {
             <select
               id="chat-scope"
               className="ds-input"
-              value={scopeId}
+              value={(scopeLocked || conversationScope === "projeto") && !scopeValid ? "escopo_indisponivel" : scopeId}
               disabled={scopeLocked || sending || queuedQuestions.length > 0}
               onChange={(event) => { cancelVoiceCapture(); conversationRevision.current += 1; setMessages([]); setSendError(""); setScopeId(event.target.value); }}
               aria-describedby="chat-scope-help"
             >
               <option value="todos_autorizados">Todos os projetos permitidos</option>
               {projects.map((project) => <option key={project.id} value={`projeto:${project.id}`}>{project.nome}{projectReadinessLabel(project)}</option>)}
-              {scopeId === "escopo_indisponivel" && <option value="escopo_indisponivel">Escopo indisponível</option>}
+              {(scopeId === "escopo_indisponivel" || ((scopeLocked || conversationScope === "projeto") && !scopeValid)) && <option value="escopo_indisponivel">Escopo indisponível</option>}
             </select>
             <span id="chat-scope-help" className="ds-help">
               {scopeLocked
-                ? conversationScope === "indisponivel" ? "Não foi possível confirmar o escopo desta conversa antiga. Crie uma nova para continuar com segurança." : "O escopo é definido ao iniciar a conversa. Crie uma nova para mudar."
+                ? !scopeValid ? "Não foi possível confirmar o acesso ao escopo desta conversa. Crie uma nova para continuar com segurança." : "O escopo é definido ao iniciar a conversa. Crie uma nova para mudar."
                 : "Por padrão, a consulta usa todos os projetos permitidos. Você pode restringi-la a um projeto."}
             </span>
             {conversationScope === "projeto" && selectedProjectReadiness && <span className="ds-help chat-project-readiness" role="status">{selectedProjectReadiness}</span>}
@@ -974,7 +1052,7 @@ export function ChatView() {
 
         <section className="chat-thread" aria-label="Conversa atual">
           <div className="chat-thread-header">
-            <button className="chat-sidebar-control chat-sidebar-control--desktop" type="button" aria-label={sidebarCollapsed ? "Expandir navegação de conversas" : "Recolher navegação de conversas"} aria-expanded={!sidebarCollapsed} aria-controls="chat-sidebar" onClick={() => setSidebarCollapsed(value => !value)}>
+            <button ref={desktopSidebarTrigger} className="chat-sidebar-control chat-sidebar-control--desktop" type="button" aria-label={sidebarCollapsed ? "Expandir navegação de conversas" : "Recolher navegação de conversas"} aria-expanded={!sidebarCollapsed} aria-controls="chat-sidebar" onClick={() => setSidebarCollapsed(value => !value)}>
               <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M9 4v16" /></svg>
             </button>
             <button ref={mobileSidebarTrigger} className="chat-sidebar-control chat-sidebar-control--mobile" type="button" aria-label="Abrir navegação de conversas" aria-expanded={mobileSidebarOpen} aria-controls="chat-sidebar" onClick={() => setMobileSidebarOpen(true)}>
@@ -997,7 +1075,10 @@ export function ChatView() {
               </MessageContextMenu>
             ) : <h2 className="chat-thread-title" title="Nova conversa">Nova conversa</h2>}
             <div className="chat-thread-actions">
-              <Badge tone={scopeName ? "brand" : "info"}>{scopeName ?? "Escopo indisponível"}</Badge>
+              <div className="chat-active-scope" role="status" aria-label="Escopo ativo">
+                <span>Escopo ativo</span>
+                <Badge tone={scopeValid ? "brand" : "info"}>{scopeValid ? scopeName : projectsState === "loading" ? "Validando acesso…" : "Escopo indisponível"}</Badge>
+              </div>
               {activeId && (
                 <Button
                   variant="danger"
@@ -1151,14 +1232,14 @@ export function ChatView() {
                     {voiceRecording ? <MicOff size={17} aria-hidden="true" /> : <Mic size={17} aria-hidden="true" />}
                   </Button>
                   {sending
-                    ? <Button ref={submitButton} variant="ghost" className="chat-send-button chat-stop-button" type="button" aria-label="Interromper consulta" title="Interromper consulta" onClick={() => activeRequestController.current?.abort()}><Square size={16} aria-hidden="true" /></Button>
+                    ? <Button ref={submitButton} variant="ghost" className="chat-send-button chat-stop-button" type="button" aria-label="Interromper consulta" title="Interromper consulta" onClick={() => requestControllers.current.get(activeSendKey)?.abort()}><Square size={16} aria-hidden="true" /></Button>
                     : <Button ref={submitButton} variant="ghost" className={`chat-send-button${draft.trim() && remaining >= 0 ? " has-message" : ""}`} type="submit" disabled={!canSend} aria-label="Enviar" title="Enviar mensagem"><ArrowUp size={19} aria-hidden="true" /></Button>}
                 </div>
               </div>
             </div>
             <div className="chat-composer-meta">
               <span id="chat-composer-help" className={`chat-composer-help${remaining < 0 ? " is-invalid" : ""}${voiceMessage ? " is-voice-active" : ""}${voiceError ? " is-voice-error" : ""}`}>
-                {voiceMessage ? <span role="status" aria-live="polite">{voiceMessage}</span> : remaining < 0 ? `Reduza ${-remaining} caractere(s) para enviar.` : !scopeValid ? projectsState === "loading" ? "Carregando o escopo dos projetos…" : projectsState === "error" ? "Não foi possível validar os projetos permitidos." : "Nenhum projeto disponível para consulta." : sending ? "Enter adiciona à fila · o botão interrompe a consulta" : queuePaused ? "A fila está pausada; tente novamente a pergunta pendente." : "Enter envia · Shift+Enter quebra a linha"}
+                {voiceMessage ? <span role="status" aria-live="polite">{voiceMessage}</span> : remaining < 0 ? `Reduza ${-remaining} caractere(s) para enviar.` : !scopeValid ? projectsState === "loading" ? "Carregando o escopo dos projetos…" : projectsState === "error" ? "Não foi possível validar os projetos permitidos." : conversationScope === "projeto" ? "Você não tem acesso ao projeto desta conversa." : "Nenhum projeto disponível para consulta." : sending ? "Enter adiciona à fila · o botão interrompe a consulta" : queuePaused ? "A fila está pausada; tente novamente a pergunta pendente." : "Enter envia · Shift+Enter quebra a linha"}
               </span>
               <span className="chat-composer-disclaimer">A IA pode errar; confira as fontes citadas.</span>
             </div>
@@ -1168,7 +1249,7 @@ export function ChatView() {
       </div>
       {renameConversationId && (
         <div className="chat-rename-backdrop">
-          <section ref={renameDialogRef} className="chat-rename-dialog" role="dialog" aria-modal="true" aria-labelledby="chat-rename-title" aria-describedby="chat-rename-description">
+          <section ref={renameDialogRef} tabIndex={-1} className="chat-rename-dialog" role="dialog" aria-modal="true" aria-labelledby="chat-rename-title" aria-describedby="chat-rename-description">
             <form onSubmit={(event) => void saveConversationRename(event)}>
               <h2 id="chat-rename-title">Renomear conversa</h2>
               <p id="chat-rename-description">Escolha um título claro para encontrar esta conversa depois.</p>
@@ -1217,12 +1298,19 @@ function MessageBubble({ message, copied, copyFailed, deleting, deleteDisabled, 
   const originBadge = message.origem ? ORIGIN_BADGE[message.origem as ChatOrigin] : null;
   const hasSources = message.fontes.length > 0;
   const [sourcesOpen, setSourcesOpen] = useState(false);
+  const [selectedSource, setSelectedSource] = useState<number | null>(null);
+  const [selectedChunk, setSelectedChunk] = useState<string>();
+  const openSources = (index: number | null = null, chunkId?: string) => {
+    setSelectedChunk(chunkId);
+    setSelectedSource(index);
+    setSourcesOpen(true);
+  };
   const actions: MessageContextAction[] = [
     { id: "copy", label: isUser ? "Copiar pergunta" : "Copiar resposta", onSelect: onCopy },
     ...(hasSources && !sourcesOpen ? [{
       id: "sources",
       label: "Ver fontes e evidências",
-      onSelect: () => setSourcesOpen(true),
+      onSelect: () => openSources(),
     }] : []),
     ...(failureText ? [{ id: "retry", label: "Tentar novamente", onSelect: onRetry, disabled: deleteDisabled }] : []),
     {
@@ -1243,7 +1331,10 @@ function MessageBubble({ message, copied, copyFailed, deleting, deleteDisabled, 
       </header>
       {message.failed && <p className="chat-message-failed" role="note">Não enviada</p>}
       {message.processing && <p className="chat-message-processing" role="status"><LoaderCircle aria-hidden="true" size={14} />Em processamento</p>}
-      {isUser ? <p className="chat-message-text">{message.conteudo}</p> : <Markdown source={message.conteudo} className="chat-message-body" />}
+      {isUser ? <p className="chat-message-text">{message.conteudo}</p> : <Markdown source={message.conteudo} className="chat-message-body" renderCitation={id => {
+        const index = message.fontes.findIndex(source => source.id === id || source.chunk_ids?.includes(id));
+        return index < 0 ? null : <button type="button" className="chat-inline-citation" aria-label={`Abrir fonte ${index + 1}`} onClick={() => openSources(index, id)}>[{index + 1}]</button>;
+      }} />}
       {failureText && (
         <div className="chat-message-error" role="alert">
           <span>{failureText}</span>
@@ -1251,11 +1342,11 @@ function MessageBubble({ message, copied, copyFailed, deleting, deleteDisabled, 
         </div>
       )}
       {message.fontes.length > 0 && (
-        <Button variant="ghost" size="sm" className="chat-sources-trigger" onClick={() => setSourcesOpen(true)}>
+        <Button variant="ghost" size="sm" className="chat-sources-trigger" onClick={() => openSources()}>
           Fontes e evidências <span>{message.fontes.length}</span>
         </Button>
       )}
-      {sourcesOpen && <ChatSourcesDialog sources={message.fontes} onClose={() => setSourcesOpen(false)} />}
+      {sourcesOpen && <ChatSourcesDialog sources={selectedSource === null ? message.fontes : message.fontes.slice(selectedSource, selectedSource + 1)} selectedChunk={selectedChunk} onClose={() => setSourcesOpen(false)} />}
       {!isUser && message.origem === "sem_resultado" && <p className="chat-sources-empty">Nenhuma evidência correspondente encontrada no acervo.</p>}
       {confirmingDelete && (
         <div className="chat-delete-confirm" role="group" aria-label="Confirmar exclusão da mensagem">

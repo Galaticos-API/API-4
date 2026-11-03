@@ -48,6 +48,18 @@ it('recolhe só o histórico e mantém a conversa na coluna de conteúdo',async(
   expect(thread).toBeInTheDocument();
   expect(screen.getByRole('button',{name:'Expandir navegação de conversas'})).toHaveAttribute('aria-expanded','false');
 });
+it('mantém o escopo ativo visível ao recolher o histórico',async()=>{
+  vi.mocked(listConversations).mockResolvedValue([]);
+  vi.mocked(listChatProjects).mockResolvedValue([{id:'project-a',nome:'Projeto A'}]);
+  render(<ChatView/>);
+  await screen.findByRole('option',{name:'Projeto A'});
+  const scope=screen.getByRole('status',{name:'Escopo ativo'});
+  expect(scope).toHaveTextContent('Todos os projetos permitidos');
+  fireEvent.change(screen.getByLabelText('Escopo da consulta'),{target:{value:'projeto:project-a'}});
+  fireEvent.click(screen.getByRole('button',{name:'Recolher navegação de conversas'}));
+  expect(scope).toBeVisible();
+  expect(scope).toHaveTextContent('Projeto A');
+});
 it('permite recarregar os projetos após falha sem apagar a pergunta',async()=>{
   vi.mocked(listConversations).mockResolvedValue([]);
   vi.mocked(listChatProjects).mockRejectedValueOnce(new Error('offline')).mockResolvedValueOnce([{id:'project-a',nome:'Projeto A'}]);
@@ -93,7 +105,7 @@ it('abre no escopo de todos os projetos permitidos e envia sem selecionar um pro
   fireEvent.click(screen.getByRole('button',{name:'Enviar'}));
   await waitFor(()=>expect(askQuestion).toHaveBeenCalledWith(expect.objectContaining({
     pergunta:'Consultar todos os projetos',conversaId:null,projetoId:null,escopo:'todos_autorizados',
-  }),expect.any(AbortSignal),expect.any(Function),expect.any(Function)));
+  }),expect.any(AbortSignal),expect.any(Function),expect.any(Function),expect.any(Function)));
 });
 it('informa quando o projeto selecionado ainda não tem conteúdo indexado sem bloquear o chat',async()=>{
   vi.mocked(listConversations).mockResolvedValue([]);
@@ -377,7 +389,7 @@ it('ao reabrir uma conversa, permite tentar novamente a última pergunta que fal
   expect(retry.closest('[role="alert"]')).toHaveTextContent('consulta anterior não foi concluída');
   fireEvent.click(retry);
   await screen.findByText('Resposta da última pergunta');
-  expect(askQuestion).toHaveBeenCalledWith(expect.objectContaining({pergunta:'Última pergunta',conversaId:'conversation-a',projetoId:null,mensagemId:'latest-failed'}),expect.any(AbortSignal),expect.any(Function),expect.any(Function));
+  expect(askQuestion).toHaveBeenCalledWith(expect.objectContaining({pergunta:'Última pergunta',conversaId:'conversation-a',projetoId:null,mensagemId:'latest-failed'}),expect.any(AbortSignal),expect.any(Function),expect.any(Function),expect.any(Function));
 });
 it('informa quando uma resposta não encontrou evidências no acervo',async()=>{
   vi.mocked(listConversations).mockResolvedValue([{id:'conversation-a',titulo:'Conversa A',projeto_id:'project-a',projeto_nome:'Projeto A',updated_at:''}]);
@@ -546,7 +558,7 @@ it('o menu de uma mensagem falha só oferece retry quando ela é a última pergu
   const menu=screen.getByRole('menu',{name:'Ações da mensagem de Você'});
   fireEvent.click(within(menu).getByRole('menuitem',{name:'Tentar novamente'}));
   await screen.findByText('Resposta recuperada');
-  expect(askQuestion).toHaveBeenCalledWith(expect.objectContaining({pergunta:'Pergunta pendente de nova tentativa',conversaId:'conversation-a',projetoId:null,mensagemId:'failed'}),expect.any(AbortSignal),expect.any(Function),expect.any(Function));
+  expect(askQuestion).toHaveBeenCalledWith(expect.objectContaining({pergunta:'Pergunta pendente de nova tentativa',conversaId:'conversation-a',projetoId:null,mensagemId:'failed'}),expect.any(AbortSignal),expect.any(Function),expect.any(Function),expect.any(Function));
 });
 it('não oferece novamente uma falha antiga quando a conversa já teve resposta',async()=>{
   vi.mocked(listConversations).mockResolvedValue([{id:'conversation-a',titulo:'Conversa A',projeto_id:'project-a',projeto_nome:'Projeto A',updated_at:''}]);
@@ -734,7 +746,7 @@ it('uma resposta atrasada do histórico não troca o projeto escolhido para a no
   expect(listMessages).not.toHaveBeenCalled();
   fireEvent.click(screen.getByRole('button',{name:'Enviar'}));
   await screen.findByText('Resposta do projeto A');
-  expect(askQuestion).toHaveBeenCalledWith(expect.objectContaining({projetoId:'project-a',conversaId:null}),expect.any(AbortSignal),expect.any(Function),expect.any(Function));
+  expect(askQuestion).toHaveBeenCalledWith(expect.objectContaining({projetoId:'project-a',conversaId:null}),expect.any(AbortSignal),expect.any(Function),expect.any(Function),expect.any(Function));
 });
 it('repetir a consulta do histórico também não abre uma conversa sobre a pergunta em edição',async()=>{
   vi.mocked(listConversations).mockRejectedValueOnce(new Error('offline')).mockResolvedValueOnce([{id:'old-b',titulo:'Conversa antiga B',projeto_id:'project-b',projeto_nome:'Projeto B',updated_at:''}]);
@@ -978,4 +990,54 @@ it('mantém o diálogo de renomeação aberto e o título antigo quando a API fa
   expect(await within(dialog).findByRole('alert')).toHaveTextContent('Assistente indisponível');
   expect(within(dialog).getByRole('textbox',{name:'Título da conversa'})).toHaveValue('Novo título');
   expect(screen.getByRole('heading',{name:'Título original'})).toBeInTheDocument();
+});
+
+it('abre separadamente dois trechos citados do mesmo documento', async () => {
+  const first = '33333333-3333-4333-8333-333333333333';
+  const second = '44444444-4444-4444-8444-444444444444';
+  vi.mocked(listConversations).mockResolvedValue([{id:'conversation-a',titulo:'Conversa A',projeto_id:'project-a',projeto_nome:'Projeto A',updated_at:''}]);
+  vi.mocked(listChatProjects).mockResolvedValue([{id:'project-a',nome:'Projeto A'}]);
+  vi.mocked(listMessages).mockResolvedValue([{
+    id:'answer', remetente:'assistant', created_at:null,
+    conteudo:`Primeira afirmação [${first}]. Segunda afirmação [${second}].`,
+    fontes:[{id:first,tipo:'documento',titulo:'Documento',chunk_ids:[first,second],
+      evidencias:[{chunk_id:first,texto:'Trecho inicial'},{chunk_id:second,texto:'Trecho final'}]}],
+  }]);
+  vi.spyOn(HTMLDialogElement.prototype,'showModal').mockImplementation(function(this:HTMLDialogElement){this.setAttribute('open','');});
+  vi.spyOn(HTMLDialogElement.prototype,'close').mockImplementation(function(this:HTMLDialogElement){this.removeAttribute('open');});
+  render(<ChatView/>);
+  const citations = await screen.findAllByRole('button',{name:'Abrir fonte 1'});
+  for (const [index, expected, other] of [[0,'Trecho inicial','Trecho final'],[1,'Trecho final','Trecho inicial']] as const) {
+    fireEvent.click(citations[index]);
+    const dialog = screen.getByRole('dialog',{name:'Fontes e evidências'});
+    expect(within(dialog).getByText(expected)).toBeVisible();
+    expect(within(dialog).queryByText(other)).toBeNull();
+    fireEvent.click(within(dialog).getByRole('button',{name:'Fechar fontes'}));
+  }
+});
+
+it('mantém a renomeação modal ao passar do celular ao desktop e libera a rolagem ao fechar', async () => {
+  const viewport = new EventTarget();
+  Object.defineProperty(viewport,'matches',{value:false,writable:true});
+  vi.stubGlobal('matchMedia',vi.fn(() => viewport));
+  vi.mocked(listConversations).mockResolvedValue([{id:'conversation-a',titulo:'Conversa A',projeto_id:'project-a',projeto_nome:'Projeto A',updated_at:''}]);
+  vi.mocked(listChatProjects).mockResolvedValue([{id:'project-a',nome:'Projeto A'}]);
+  vi.mocked(listMessages).mockResolvedValue([]);
+  render(<ChatView/>);
+  await screen.findByRole('heading',{name:'Conversa A'});
+  fireEvent.click(screen.getByRole('button',{name:'Abrir navegação de conversas'}));
+  const sidebar = screen.getByRole('dialog',{name:'Conversas'});
+  fireEvent.click(within(sidebar).getByRole('button',{name:'Ações da conversa: Conversa A'}));
+  fireEvent.click(screen.getByRole('menuitem',{name:'Renomear conversa'}));
+  const dialog = screen.getByRole('dialog',{name:'Renomear conversa'});
+  const input = within(dialog).getByRole('textbox');
+  await waitFor(()=>expect(input).toHaveFocus());
+  Object.assign(viewport,{matches:true});
+  act(()=>{viewport.dispatchEvent(Object.assign(new Event('change'),{matches:true}));});
+  expect(screen.queryByRole('dialog',{name:'Conversas'})).toBeNull();
+  expect(input).toHaveFocus();
+  expect(document.body.style.overflow).toBe('hidden');
+  fireEvent.keyDown(dialog,{key:'Escape'});
+  expect(screen.queryByRole('dialog',{name:'Renomear conversa'})).toBeNull();
+  expect(document.body.style.overflow).toBe('');
 });
