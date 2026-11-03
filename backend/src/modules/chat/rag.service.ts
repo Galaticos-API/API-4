@@ -78,10 +78,28 @@ function isProjectOverviewQuestion(question:string):boolean {
 export function splitCompoundQuestion(question:string):string[] {
   const clean=question.trim();
   const hadQuestionMark=/\?\s*$/u.test(clean);
-  const parts=clean.replace(/[?!.]+\s*$/u,'').split(/\s+e\s+(?=(?:qual|quais|quem|como|quando|onde|por que|porque|para que|quanto|quantos|quantas|o que|também)\b)/iu)
+  const parts=clean.replace(/[?!.]+\s*$/u,'').split(/(?:\s+e\s+|[?.;,]\s*)(?=(?:qual|quais|quem|como|quando|onde|por que|porque|para que|quanto|quantos|quantas|o que|também)\b)/iu)
     .map(part=>part.trim().replace(/^[,;:\s]+|[,;:\s]+$/gu,''))
     .filter(part=>part.length>=3);
+  if(parts.length===1) {
+    const elliptical=parts[0].match(/^(qual\s+.+?\s+(foi|é)\s+((?:adotad|escolhid|utilizad)[oa]))\s+e\s+[oa]\s+(extens[aã]o\s+vetorial)$/iu);
+    if(elliptical)return [`${elliptical[1]}?`,`Qual ${elliptical[4]} ${elliptical[2]} ${elliptical[3].slice(0,-1)}a?`];
+  }
   if(parts.length<2||parts.length>3)return [clean];
+  const shared=parts[parts.length-1].match(/\s+((?:foram|foram mesmo|são)\s+(?:adotad|escolhid|utilizad)[oa]s)$/iu);
+  if(shared&&parts.slice(0,-1).every(part=>!/(?:^|\s)(?:foi|foram|é|são|escolheu|escolheram|adotou|adotaram|utilizou|utilizaram|usamos|utilizamos|adotamos|escolhemos)(?=\s|$)/iu.test(part)&&/^(?:qual|quais)\s+\S+(?:\s+\S+){0,4}$/iu.test(part))) {
+    const present = /^são\s/iu.test(shared[1]);
+    const participle = shared[1].split(/\s+/u).at(-1)!;
+    return parts.map((part,index)=>{
+      const subject = index===parts.length-1 ? part.slice(0,-shared[0].length) : part;
+      const plural = /^quais\s/iu.test(subject);
+      const noun = subject.split(/\s+/u)[1];
+      const gender = /^(?:extens(?:ão|ões)|vers(?:ão|ões)|apis?|solu(?:ção|ções)|camadas?|linguage(?:m|ns)|tecnologias?|bases?|ferramentas?|bibliotecas?|plataformas?)$/iu.test(noun)
+        ? 'a' : /^(?:bancos?|sistemas?|frameworks?|modelos?)$/iu.test(noun) ? 'o' : participle.slice(-2,-1);
+      const auxiliary = present ? (plural?'são':'é') : (plural?'foram':'foi');
+      return `${subject[0].toUpperCase()}${subject.slice(1)} ${auxiliary} ${participle.slice(0,-2)}${gender}${plural?'s':''}${hadQuestionMark?'?':''}`;
+    });
+  }
   return parts.map(part=>hadQuestionMark?`${part}?`:part);
 }
 
@@ -90,33 +108,83 @@ export function formatVerifiedEvidence(evidence:ReturnType<typeof validateEviden
   return `Trechos literais encontrados no acervo:\n\n${evidence.map(item=>`- ${escapeMarkdown(item.quote)} [${item.source_id}]`).join("\n")}`;
 }
 
+export function isClearlyOutsideKnowledge(question:string):boolean {
+  const generalTopic=/\b(?:previs[aã]o do tempo|(?:vai|deve) chover|receita de bolo|(?:fazer|assar) p[ãa]o caseiro|resultado do jogo|quem ganhou a partida|hor[oó]scopo|meu signo|a capital d[aoe]|placar da final|cota[çc][ãa]o do d[oó]lar|signo de|receita de p[ãa]o caseiro|clima de amanh[ãa])(?![\p{L}\p{N}_])/iu;
+  const workContext=/\b(?:projeto|acervo|documento|requisito|aplicativo|sistema|api|funcionalidade|m[oó]dulo|tela|componente|painel|widget|servi[çc]o|autentica\w*|integra[çc][ãa]o)\b/iu;
+  if(/\b(?:ignore|esque[çc]a)\b[^.!?]*\b(?:e diga|e explique|e me d[eê]|e responda)\b/iu.test(question))return generalTopic.test(question);
+  return generalTopic.test(question)&&!workContext.test(question);
+}
+
+export function supportsRequestedDecision(question:string,quote:string):boolean {
+  if(!/\b(?:adotad[oa]s?|adotou|adotaram|escolhid[oa]s?|escolheu|escolheram|utilizad[oa]s?|utilizou|utilizaram)\b/iu.test(question))return true;
+  if(/^\s*(?:alternativas|op[çc][õo]es|tecnologias)\s+(?:avaliadas|consideradas|descartadas)\s*:/iu.test(quote))return false;
+  // A list of names alone does not establish which option was adopted.
+  const asksForDatabase=/\bbanco(?: de dados)?\b/iu.test(question);
+  const reversedDecision = /(?:^|(?<=[.!?;]))[^.!?;]*\b(postgresql|mysql|mariadb|sqlite|mongodb|sql server|oracle database|cockroachdb|firebird|db2)\b[^.!?;]*[.!?;]\s*(?:depois|posteriormente)\b[^.!?;]*\b(?:descartou|rejeitou|abandonou)\s+(?:o\s+)?\1\b/giu;
+  quote = quote.replace(/\b(?:usad[oa]|utilizad[oa]|adotad[oa]|escolhid[oa])\b[^.!?;]*[.!?;]\s*(?:depois|posteriormente|em seguida),?\s+(?:(?:ele|ela)\s+)?(?:foi|foram)\s+(?:abandonad[oa]s?|descartad[oa]s?|rejeitad[oa]s?|substitu[ií]d[oa]s?)\b/iu, "");
+  if (asksForDatabase) quote = quote.replace(reversedDecision, "");
+  return quote.split(/\n+|\s+e\s+(?=nunca\s+(?:usou|utilizou|adotou|escolheu)\s+\S)|;(?!\s*n[aã]o\s+(?:(?:foi|foram)\s+)?(?:adot|escolh|utiliz|usad))|(?<=[.!?])\s+|(?:,\s*mas\s+|\s+e\s+)(?=n[aã]o\b(?!\s+(?:(?:foi|foram)\s+)?(?:adot|escolh|utiliz|usad)))/iu).some(clause=>{
+    if (/\b(?:apenas|somente|exclusivamente)\s+(?:(?:durante|no|em|para)\s+(?:(?:o|a|um|uma)\s+)?(?:benchmarks?|testes?|prot[oó]tipos?|homologa[çc][ãa]o)|para fins de testes?|para homologa[çc][ãa]o)\b/iu.test(clause)) return false;
+    if(/\b(?:n[aã]o|nunca|nem|descart\w*|rejeit\w*|descontinu\w*|substitu[ií]d\w*|pode|poderia|pretend\w*|cogit\w*|recomend\w*|planej\w*|estud\w*|(?:apenas|somente|exclusivamente)\s+(?:para testes|(?:no|em) ambiente de testes?)|(?:apenas|somente|exclusivamente)\s+(?:no|em)\s+(?:prot[oó]tipo|benchmark|laborat[oó]rio)|(?:usad[oa]s?|utilizad[oa]s?|adotad[oa]s?|escolhid[oa]s?)\s+(?:(?:somente|apenas|exclusivamente|temporariamente)\s+)?(?:no|em|para|durante)\s+(?:(?:um|uma|o|a)\s+)?(?:benchmarks?|testes?|ambiente de testes?|prot[oó]tipos?)|deixou de ser (?:utilizad[oa]|usad[oa])|para reproduzir (?:um )?incidente em laborat[oó]rio|para\s+(?:(?:um|o)\s+)?piloto|para\s+(?:uma\s+)?prova de conceito|como alternativa|sugest[aã]o|consider\w*|avali\w*|ainda|ser[aá]|se aprovado)\b/iu.test(clause))return false;
+    if(asksForDatabase&&(!/\b(?:banco|postgresql|mysql|mariadb|sqlite|mongodb|sql server|oracle database|cockroachdb|firebird|db2)\b/iu.test(clause)
+      || /\b(?:para cache|como cache)\b/iu.test(clause)))return false;
+    return /\b(?:ado[çc][ãa]o|adot\w*|utiliz\w*|escolh\w*|decid\w*|usa|usamos|usado|usada|em uso)\b/iu.test(clause)
+      || (asksForDatabase&&/(?:^|\s)(?:é\s+o\s+banco de dados|o banco de dados\s+é)\s+/iu.test(clause));
+  });
+}
+
 export class RagService {
   constructor(private readonly chats=new ChatRepository(),private readonly search=new SearchRepository(),
     private readonly embeddings:SearchEmbeddingClient=new HttpSearchEmbeddingClient(),
     private readonly revisions=new HarnessRepository(),private readonly engine:HarnessEngine=new HttpHarnessEngine()){}
 
-  async answer(userId:string,question:string,requestedProjects?:string[],onProgress?:(stage:ChatProgressStage)=>void,signal?:AbortSignal,history:ConversationTurn[] = [],checkBroaderScope=true): Promise<AssistantAnswer & {contrato:string;escopo:string[];evidencias:NonNullable<AssistantAnswer["evidencias"]>}> {
+  async answer(userId:string,question:string,requestedProjects?:string[],onProgress?:(stage:ChatProgressStage)=>void,signal?:AbortSignal,history:ConversationTurn[] = [],checkBroaderScope=true, searchDeadline?:number): Promise<AssistantAnswer & {contrato:string;escopo:string[];evidencias:NonNullable<AssistantAnswer["evidencias"]>}> {
     const parsed=ragInput.safeParse({pergunta:question,...(requestedProjects?{projeto_ids:requestedProjects}:{})});
     if(!parsed.success)throw new ValidationError('Pergunta ou escopo inválido.');
     requestedProjects=parsed.data.projeto_ids;
-    const accessible=await this.chats.accessibleProjects(userId);
+    const accessible=await this.chats.accessibleProjects(userId,searchDeadline);
     if(requestedProjects?.some(id=>!accessible.some(project=>project.id===id)))throw new NotFoundError('Projeto não encontrado.');
     const projectIds=[...new Set(requestedProjects??accessible.map(project=>project.id))];
     const empty={contrato:'rag-conversacional-v1',resposta:NOT_FOUND_ANSWER,fontes:[] as ChatSource[],evidencias:[] as Array<{chunk_id:string;texto:string}>,escopo:projectIds,cobertura:'no_evidence' as const};
+    const originalAspects=splitCompoundQuestion(parsed.data.pergunta);
+    if(originalAspects.every(isClearlyOutsideKnowledge))return {...empty,resposta:OUT_OF_SCOPE_ANSWER,cobertura:'out_of_scope' as const};
     if(!projectIds.length)return empty;
     const offerBroaderScope=async<T extends AssistantAnswer>(answer:T):Promise<T>=>{
       if(!checkBroaderScope||requestedProjects?.length!==1||answer.cobertura!=='no_evidence'||signal?.aborted)return answer;
-      const otherProjects=[...new Set(accessible.map(project=>project.id))].filter(id=>!projectIds.includes(id)).slice(0,50);
+      const otherProjects=[...new Set(accessible.map(project=>project.id))].filter(id=>!projectIds.includes(id));
       if(!otherProjects.length)return answer;
       try {
         const deadline=AbortSignal.timeout(20_000);
         const probeSignal=signal?AbortSignal.any([signal,deadline]):deadline;
-        const candidate=await this.answer(userId,question,otherProjects,undefined,probeSignal,history,false);
-        if(!probeSignal.aborted&&candidate.evidencias?.length&&candidate.fontes.length) {
-          const stillAllowed=new Set((await this.chats.accessibleProjects(userId)).map(project=>project.id));
-          if(!probeSignal.aborted&&candidate.fontes.every(source=>source.projeto_id!==undefined&&stillAllowed.has(source.projeto_id)&&otherProjects.includes(source.projeto_id))) {
+        const expiresAt = performance.now() + 20_000;
+        const probe = async () => {
+          for (let offset = 0; offset < otherProjects.length; offset += 50) {
+            probeSignal.throwIfAborted();
+            const batch = otherProjects.slice(offset, offset + 50);
+            const candidate = await this.answer(userId, question, batch, undefined, probeSignal, history, false, expiresAt)
+              .catch(() => {
+                probeSignal.throwIfAborted();
+                return undefined;
+              });
+            if (!candidate?.evidencias.length || !candidate.fontes.length) continue;
+            const stillAllowed = new Set((await this.chats.accessibleProjects(userId,expiresAt)).map(project=>project.id));
+            probeSignal.throwIfAborted();
+            if (candidate.fontes.every(source=>source.projeto_id && stillAllowed.has(source.projeto_id) && batch.includes(source.projeto_id))) return true;
+          }
+          return false;
+        };
+        let stop!: () => void;
+        const aborted = new Promise<false>(resolve => {
+          stop = () => resolve(false);
+          if (probeSignal.aborted) stop();
+          else probeSignal.addEventListener('abort', stop, {once:true});
+        });
+        try {
+          if (await Promise.race([aborted, probe()]) && !probeSignal.aborted) {
             return {...answer,resposta:`${answer.resposta}\n\nAmpliar a busca pode ajudar. Abra uma nova conversa e selecione **Todos os projetos permitidos** para consultar o acervo autorizado.`};
           }
+        } finally {
+          probeSignal.removeEventListener('abort', stop);
         }
       } catch {
         // Uma falha na consulta auxiliar não altera a resposta do escopo selecionado.
@@ -151,9 +219,10 @@ export class RagService {
       // Use the deterministic split for explicit compound questions. Planner aspects
       // are useful for follow-ups, but a model can return the right count in the
       // wrong order or with different wording, breaking the aspect-to-search mapping.
-      const aspects=overviewRequest?[resolvedQuestion]:deterministicAspects.length>1?deterministicAspects:plannedAspects;
+      const aspects=overviewRequest?[resolvedQuestion]:originalAspects.length>1?originalAspects:deterministicAspects.length>1?deterministicAspects:plannedAspects;
       const safeAspects=aspects.length?aspects:[resolvedQuestion];
-      const searchQueries=[...new Set([parsed.data.pergunta,...queryPlan.queries,...safeAspects]
+      const mixedScope=safeAspects.some(isClearlyOutsideKnowledge);
+      const searchQueries=[...new Set((mixedScope?safeAspects.filter(aspect=>!isClearlyOutsideKnowledge(aspect)):[parsed.data.pergunta,...queryPlan.queries,...safeAspects])
         .map(query=>query.trim()).filter(query=>query.length>=3)
         .filter((query,index,all)=>all.findIndex(item=>item.toLocaleLowerCase('pt-BR')===query.toLocaleLowerCase('pt-BR'))===index))].slice(0,6);
       durations.interpretacao_pergunta=Math.round(performance.now()-stageStarted);
@@ -165,11 +234,11 @@ export class RagService {
       if(signal?.aborted)throw new DOMException("Consulta interrompida.","AbortError");
       stageStarted=performance.now();
       const resultSets=await Promise.all(searchQueries.map((query,index)=>this.search.hybridSearch(
-        {query,projectId:projectIds[0],limit:5},vectors[index],env.SEARCH_MIN_VECTOR_SIMILARITY,env.SEARCH_MIN_TEXT_RANK,projectIds)));
+        {query,projectId:projectIds[0],limit:5},vectors[index],env.SEARCH_MIN_VECTOR_SIMILARITY,env.SEARCH_MIN_TEXT_RANK,projectIds,undefined,searchDeadline)));
       let rows=fuseQueryResults(resultSets);
       if(!rows.length&&overviewRequest) {
         stageStarted=performance.now();
-        rows=await this.search.ragSearch(projectIds,vectors[0],5,-1);
+        rows=await this.search.ragSearch(projectIds,vectors[0],5,-1,searchDeadline);
         durations.busca_hibrida+=Math.round(performance.now()-stageStarted);
       }
       const aspectRows=safeAspects.map(aspect=>{
@@ -232,8 +301,29 @@ export class RagService {
             if(adapter.evidence.length)adapter.coverage='partial';
           }
         }
+        const requestedAspect=originalAspects.length===1?originalAspects[0]:safeAspects[index];
+        const asksForBiometrics=/\bbiom[eé]tr\w*\b/iu.test(requestedAspect);
+        const supported=adapter.evidence.filter(item=>supportsRequestedDecision(safeAspects[index],item.quote)
+          && (!asksForBiometrics || /\b(?:biom[eé]tr\w*|impress[ãa]o digital|reconhecimento facial|reconhecimento de [ií]ris)\b/iu.test(item.quote)));
+        if(supported.length!==adapter.evidence.length) {
+          adapter.evidence=supported;
+          adapter.coverage=supported.length?'partial':'no_evidence';
+        }
+        if(!adapter.evidence.length&&!asksForBiometrics
+          && /\bbanco(?: de dados)?\b/iu.test(requestedAspect)
+          && /\b(?:adotad[oa]|adotou|escolhid[oa]|escolheu)\b/iu.test(requestedAspect)) {
+          for(const source of aspectRows[index].filter(row=>row.entity_type==='decisao')) {
+            const quote=context.find(item=>item.id===source.id)?.text.split('\n')[0].trim();
+            if(!quote||quote.length>1000||!/^Título:\s+Adoção de\b/iu.test(quote)
+              || !/\b(?:PostgreSQL|MySQL|MariaDB|SQLite|MongoDB|SQL Server|Oracle Database)\b/iu.test(quote)
+              || !wholePassage(source.text,quote))continue;
+            adapter.evidence=[{source_id:source.id,quote}];
+            adapter.coverage='partial';
+            break;
+          }
+        }
         if(adapter.outcome!=='accepted')console.warn('[RAG] Evidence adjusted',{diagnostico_id:diagnosticId,aspecto:index,resultado:adapter.outcome,citacoes_validas:adapter.evidence.length});
-        hasCoverageConflict ||= adapter.coverageConflict;
+        hasCoverageConflict ||= adapter.coverageConflict&&adapter.evidence.length>0;
         selections.push({aspect:safeAspects[index],adapter});
       }
       if(!selections.length&&failedAspects)throw lastFailure;
@@ -260,7 +350,7 @@ export class RagService {
       stage='source_revalidation';
       reportProgress('validating');
       stageStarted=performance.now();
-      const current=await this.chats.currentRagChunks(userId,selectedEvidence.map(item=>item.source_id));
+      const current=await this.chats.currentRagChunks(userId,selectedEvidence.map(item=>item.source_id),searchDeadline);
       durations.revalidacao_fontes=Math.round(performance.now()-stageStarted);
       if(selectedEvidence.some(item=>{
         const source=rows.find(row=>row.id===item.source_id)!;
@@ -280,7 +370,11 @@ export class RagService {
         return source?`${escapeMarkdown(source.project_name)} ${match}`:match;
       });
       durations.montagem_resposta=Math.round(performance.now()-stageStarted);
-      const answer=evidenceCoverage==='partial'?`${verifiedAnswer}\n\n${notice}`:verifiedAnswer;
+      const missing=safeAspects.length>1?safeAspects.filter(aspect=>!selections.some(selection=>selection.aspect===aspect&&selection.adapter.evidence.length)): [];
+      const missingNotice=missing.length&&!failedAspects
+        ? `\n\nNão encontrei evidência para:\n${missing.map(aspect=>`- ${escapeMarkdown(aspect.replace(/\s+/gu,' '))}`).join('\n')}`
+        : '';
+      const answer=evidenceCoverage==='partial'?`${verifiedAnswer}\n\n${notice}${missingNotice}`:verifiedAnswer;
       const sources=usedSources(rows,selectedEvidence);
       finishLog(rows.length,sources.length);
       return {...empty,resposta:answer,fontes:sources,cobertura:evidenceCoverage,

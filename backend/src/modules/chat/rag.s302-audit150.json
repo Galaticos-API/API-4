@@ -1,0 +1,752 @@
+[
+  {
+    "area": "Externo",
+    "input": "Você pode me contar o clima de amanhã?",
+    "expected": true
+  },
+  {
+    "area": "Externo",
+    "input": "Preciso saber o clima de amanhã?",
+    "expected": true
+  },
+  {
+    "area": "Externo",
+    "input": "Estou curioso sobre o clima de amanhã?",
+    "expected": true
+  },
+  {
+    "area": "Projeto",
+    "input": "Como validar o widget que exibe o clima de amanhã?",
+    "expected": false
+  },
+  {
+    "area": "Projeto",
+    "input": "Como o painel apresenta o clima de amanhã?",
+    "expected": false
+  },
+  {
+    "area": "Projeto",
+    "input": "O protótipo prevê um componente para mostrar o clima de amanhã?",
+    "expected": false
+  },
+  {
+    "area": "Externo",
+    "input": "Você pode me contar a previsão do tempo?",
+    "expected": true
+  },
+  {
+    "area": "Externo",
+    "input": "Preciso saber a previsão do tempo?",
+    "expected": true
+  },
+  {
+    "area": "Externo",
+    "input": "Estou curioso sobre a previsão do tempo?",
+    "expected": true
+  },
+  {
+    "area": "Projeto",
+    "input": "Como validar o widget que exibe a previsão do tempo?",
+    "expected": false
+  },
+  {
+    "area": "Projeto",
+    "input": "Como o painel apresenta a previsão do tempo?",
+    "expected": false
+  },
+  {
+    "area": "Projeto",
+    "input": "O protótipo prevê um componente para mostrar a previsão do tempo?",
+    "expected": false
+  },
+  {
+    "area": "Externo",
+    "input": "Você pode me contar o placar da final?",
+    "expected": true
+  },
+  {
+    "area": "Externo",
+    "input": "Preciso saber o placar da final?",
+    "expected": true
+  },
+  {
+    "area": "Externo",
+    "input": "Estou curioso sobre o placar da final?",
+    "expected": true
+  },
+  {
+    "area": "Projeto",
+    "input": "Como validar o widget que exibe o placar da final?",
+    "expected": false
+  },
+  {
+    "area": "Projeto",
+    "input": "Como o painel apresenta o placar da final?",
+    "expected": false
+  },
+  {
+    "area": "Projeto",
+    "input": "O protótipo prevê um componente para mostrar o placar da final?",
+    "expected": false
+  },
+  {
+    "area": "Externo",
+    "input": "Você pode me contar a cotação do dólar?",
+    "expected": true
+  },
+  {
+    "area": "Externo",
+    "input": "Preciso saber a cotação do dólar?",
+    "expected": true
+  },
+  {
+    "area": "Externo",
+    "input": "Estou curioso sobre a cotação do dólar?",
+    "expected": true
+  },
+  {
+    "area": "Projeto",
+    "input": "Como validar o widget que exibe a cotação do dólar?",
+    "expected": false
+  },
+  {
+    "area": "Projeto",
+    "input": "Como o painel apresenta a cotação do dólar?",
+    "expected": false
+  },
+  {
+    "area": "Projeto",
+    "input": "O protótipo prevê um componente para mostrar a cotação do dólar?",
+    "expected": false
+  },
+  {
+    "area": "Externo",
+    "input": "Você pode me contar uma receita de bolo?",
+    "expected": true
+  },
+  {
+    "area": "Externo",
+    "input": "Preciso saber uma receita de bolo?",
+    "expected": true
+  },
+  {
+    "area": "Externo",
+    "input": "Estou curioso sobre uma receita de bolo?",
+    "expected": true
+  },
+  {
+    "area": "Projeto",
+    "input": "Como validar o widget que exibe uma receita de bolo?",
+    "expected": false
+  },
+  {
+    "area": "Projeto",
+    "input": "Como o painel apresenta uma receita de bolo?",
+    "expected": false
+  },
+  {
+    "area": "Projeto",
+    "input": "O protótipo prevê um componente para mostrar uma receita de bolo?",
+    "expected": false
+  },
+  {
+    "area": "Externo",
+    "input": "Você pode me contar a capital da França?",
+    "expected": true
+  },
+  {
+    "area": "Externo",
+    "input": "Preciso saber a capital da França?",
+    "expected": true
+  },
+  {
+    "area": "Externo",
+    "input": "Estou curioso sobre a capital da França?",
+    "expected": true
+  },
+  {
+    "area": "Projeto",
+    "input": "Como validar o widget que exibe a capital da França?",
+    "expected": false
+  },
+  {
+    "area": "Projeto",
+    "input": "Como o painel apresenta a capital da França?",
+    "expected": false
+  },
+  {
+    "area": "Projeto",
+    "input": "O protótipo prevê um componente para mostrar a capital da França?",
+    "expected": false
+  },
+  {
+    "area": "Externo",
+    "input": "Você pode me contar o horóscopo?",
+    "expected": true
+  },
+  {
+    "area": "Externo",
+    "input": "Preciso saber o horóscopo?",
+    "expected": true
+  },
+  {
+    "area": "Externo",
+    "input": "Estou curioso sobre o horóscopo?",
+    "expected": true
+  },
+  {
+    "area": "Projeto",
+    "input": "Como validar o widget que exibe o horóscopo?",
+    "expected": false
+  },
+  {
+    "area": "Projeto",
+    "input": "Como o painel apresenta o horóscopo?",
+    "expected": false
+  },
+  {
+    "area": "Projeto",
+    "input": "O protótipo prevê um componente para mostrar o horóscopo?",
+    "expected": false
+  },
+  {
+    "area": "Externo",
+    "input": "Você pode me contar o resultado do jogo?",
+    "expected": true
+  },
+  {
+    "area": "Externo",
+    "input": "Preciso saber o resultado do jogo?",
+    "expected": true
+  },
+  {
+    "area": "Externo",
+    "input": "Estou curioso sobre o resultado do jogo?",
+    "expected": true
+  },
+  {
+    "area": "Projeto",
+    "input": "Como validar o widget que exibe o resultado do jogo?",
+    "expected": false
+  },
+  {
+    "area": "Projeto",
+    "input": "Como o painel apresenta o resultado do jogo?",
+    "expected": false
+  },
+  {
+    "area": "Projeto",
+    "input": "O protótipo prevê um componente para mostrar o resultado do jogo?",
+    "expected": false
+  },
+  {
+    "area": "Externo",
+    "input": "Você pode me contar a receita de pão caseiro?",
+    "expected": true
+  },
+  {
+    "area": "Externo",
+    "input": "Preciso saber a receita de pão caseiro?",
+    "expected": true
+  },
+  {
+    "area": "Externo",
+    "input": "Estou curioso sobre a receita de pão caseiro?",
+    "expected": true
+  },
+  {
+    "area": "Projeto",
+    "input": "Como validar o widget que exibe a receita de pão caseiro?",
+    "expected": false
+  },
+  {
+    "area": "Projeto",
+    "input": "Como o painel apresenta a receita de pão caseiro?",
+    "expected": false
+  },
+  {
+    "area": "Projeto",
+    "input": "O protótipo prevê um componente para mostrar a receita de pão caseiro?",
+    "expected": false
+  },
+  {
+    "area": "Externo",
+    "input": "Você pode me contar o signo de Áries?",
+    "expected": true
+  },
+  {
+    "area": "Externo",
+    "input": "Preciso saber o signo de Áries?",
+    "expected": true
+  },
+  {
+    "area": "Externo",
+    "input": "Estou curioso sobre o signo de Áries?",
+    "expected": true
+  },
+  {
+    "area": "Projeto",
+    "input": "Como validar o widget que exibe o signo de Áries?",
+    "expected": false
+  },
+  {
+    "area": "Projeto",
+    "input": "Como o painel apresenta o signo de Áries?",
+    "expected": false
+  },
+  {
+    "area": "Projeto",
+    "input": "O protótipo prevê um componente para mostrar o signo de Áries?",
+    "expected": false
+  },
+  {
+    "area": "Evidência",
+    "input": "O banco de dados adotado foi PostgreSQL.",
+    "expected": true
+  },
+  {
+    "area": "Evidência",
+    "input": "A equipe escolheu PostgreSQL; a alternativa foi rejeitada.",
+    "expected": true
+  },
+  {
+    "area": "Evidência",
+    "input": "PostgreSQL é o banco de dados principal.",
+    "expected": true
+  },
+  {
+    "area": "Evidência",
+    "input": "A equipe cogita adotar PostgreSQL.",
+    "expected": false
+  },
+  {
+    "area": "Evidência",
+    "input": "A adoção de PostgreSQL ainda depende de aprovação.",
+    "expected": false
+  },
+  {
+    "area": "Evidência",
+    "input": "A equipe adotou PostgreSQL exclusivamente no ambiente de testes.",
+    "expected": false
+  },
+  {
+    "area": "Evidência",
+    "input": "O banco de dados adotado foi MySQL.",
+    "expected": true
+  },
+  {
+    "area": "Evidência",
+    "input": "A equipe escolheu MySQL; a alternativa foi rejeitada.",
+    "expected": true
+  },
+  {
+    "area": "Evidência",
+    "input": "MySQL é o banco de dados principal.",
+    "expected": true
+  },
+  {
+    "area": "Evidência",
+    "input": "A equipe cogita adotar MySQL.",
+    "expected": false
+  },
+  {
+    "area": "Evidência",
+    "input": "A adoção de MySQL ainda depende de aprovação.",
+    "expected": false
+  },
+  {
+    "area": "Evidência",
+    "input": "A equipe adotou MySQL exclusivamente no ambiente de testes.",
+    "expected": false
+  },
+  {
+    "area": "Evidência",
+    "input": "O banco de dados adotado foi SQLite.",
+    "expected": true
+  },
+  {
+    "area": "Evidência",
+    "input": "A equipe escolheu SQLite; a alternativa foi rejeitada.",
+    "expected": true
+  },
+  {
+    "area": "Evidência",
+    "input": "SQLite é o banco de dados principal.",
+    "expected": true
+  },
+  {
+    "area": "Evidência",
+    "input": "A equipe cogita adotar SQLite.",
+    "expected": false
+  },
+  {
+    "area": "Evidência",
+    "input": "A adoção de SQLite ainda depende de aprovação.",
+    "expected": false
+  },
+  {
+    "area": "Evidência",
+    "input": "A equipe adotou SQLite exclusivamente no ambiente de testes.",
+    "expected": false
+  },
+  {
+    "area": "Evidência",
+    "input": "O banco de dados adotado foi MongoDB.",
+    "expected": true
+  },
+  {
+    "area": "Evidência",
+    "input": "A equipe escolheu MongoDB; a alternativa foi rejeitada.",
+    "expected": true
+  },
+  {
+    "area": "Evidência",
+    "input": "MongoDB é o banco de dados principal.",
+    "expected": true
+  },
+  {
+    "area": "Evidência",
+    "input": "A equipe cogita adotar MongoDB.",
+    "expected": false
+  },
+  {
+    "area": "Evidência",
+    "input": "A adoção de MongoDB ainda depende de aprovação.",
+    "expected": false
+  },
+  {
+    "area": "Evidência",
+    "input": "A equipe adotou MongoDB exclusivamente no ambiente de testes.",
+    "expected": false
+  },
+  {
+    "area": "Evidência",
+    "input": "O banco de dados adotado foi Firebird.",
+    "expected": true
+  },
+  {
+    "area": "Evidência",
+    "input": "A equipe escolheu Firebird; a alternativa foi rejeitada.",
+    "expected": true
+  },
+  {
+    "area": "Evidência",
+    "input": "Firebird é o banco de dados principal.",
+    "expected": true
+  },
+  {
+    "area": "Evidência",
+    "input": "A equipe cogita adotar Firebird.",
+    "expected": false
+  },
+  {
+    "area": "Evidência",
+    "input": "A adoção de Firebird ainda depende de aprovação.",
+    "expected": false
+  },
+  {
+    "area": "Evidência",
+    "input": "A equipe adotou Firebird exclusivamente no ambiente de testes.",
+    "expected": false
+  },
+  {
+    "area": "Evidência",
+    "input": "O banco de dados adotado foi Db2.",
+    "expected": true
+  },
+  {
+    "area": "Evidência",
+    "input": "A equipe escolheu Db2; a alternativa foi rejeitada.",
+    "expected": true
+  },
+  {
+    "area": "Evidência",
+    "input": "Db2 é o banco de dados principal.",
+    "expected": true
+  },
+  {
+    "area": "Evidência",
+    "input": "A equipe cogita adotar Db2.",
+    "expected": false
+  },
+  {
+    "area": "Evidência",
+    "input": "A adoção de Db2 ainda depende de aprovação.",
+    "expected": false
+  },
+  {
+    "area": "Evidência",
+    "input": "A equipe adotou Db2 exclusivamente no ambiente de testes.",
+    "expected": false
+  },
+  {
+    "area": "Evidência",
+    "input": "O banco de dados adotado foi MariaDB.",
+    "expected": true
+  },
+  {
+    "area": "Evidência",
+    "input": "A equipe escolheu MariaDB; a alternativa foi rejeitada.",
+    "expected": true
+  },
+  {
+    "area": "Evidência",
+    "input": "MariaDB é o banco de dados principal.",
+    "expected": true
+  },
+  {
+    "area": "Evidência",
+    "input": "A equipe cogita adotar MariaDB.",
+    "expected": false
+  },
+  {
+    "area": "Evidência",
+    "input": "A adoção de MariaDB ainda depende de aprovação.",
+    "expected": false
+  },
+  {
+    "area": "Evidência",
+    "input": "A equipe adotou MariaDB exclusivamente no ambiente de testes.",
+    "expected": false
+  },
+  {
+    "area": "Evidência",
+    "input": "O banco de dados adotado foi CockroachDB.",
+    "expected": true
+  },
+  {
+    "area": "Evidência",
+    "input": "A equipe escolheu CockroachDB; a alternativa foi rejeitada.",
+    "expected": true
+  },
+  {
+    "area": "Evidência",
+    "input": "CockroachDB é o banco de dados principal.",
+    "expected": true
+  },
+  {
+    "area": "Evidência",
+    "input": "A equipe cogita adotar CockroachDB.",
+    "expected": false
+  },
+  {
+    "area": "Evidência",
+    "input": "A adoção de CockroachDB ainda depende de aprovação.",
+    "expected": false
+  },
+  {
+    "area": "Evidência",
+    "input": "A equipe adotou CockroachDB exclusivamente no ambiente de testes.",
+    "expected": false
+  },
+  {
+    "area": "Evidência",
+    "input": "O banco de dados adotado foi SQL Server.",
+    "expected": true
+  },
+  {
+    "area": "Evidência",
+    "input": "A equipe escolheu SQL Server; a alternativa foi rejeitada.",
+    "expected": true
+  },
+  {
+    "area": "Evidência",
+    "input": "SQL Server é o banco de dados principal.",
+    "expected": true
+  },
+  {
+    "area": "Evidência",
+    "input": "A equipe cogita adotar SQL Server.",
+    "expected": false
+  },
+  {
+    "area": "Evidência",
+    "input": "A adoção de SQL Server ainda depende de aprovação.",
+    "expected": false
+  },
+  {
+    "area": "Evidência",
+    "input": "A equipe adotou SQL Server exclusivamente no ambiente de testes.",
+    "expected": false
+  },
+  {
+    "area": "Evidência",
+    "input": "O banco de dados adotado foi Oracle Database.",
+    "expected": true
+  },
+  {
+    "area": "Evidência",
+    "input": "A equipe escolheu Oracle Database; a alternativa foi rejeitada.",
+    "expected": true
+  },
+  {
+    "area": "Evidência",
+    "input": "Oracle Database é o banco de dados principal.",
+    "expected": true
+  },
+  {
+    "area": "Evidência",
+    "input": "A equipe cogita adotar Oracle Database.",
+    "expected": false
+  },
+  {
+    "area": "Evidência",
+    "input": "A adoção de Oracle Database ainda depende de aprovação.",
+    "expected": false
+  },
+  {
+    "area": "Evidência",
+    "input": "A equipe adotou Oracle Database exclusivamente no ambiente de testes.",
+    "expected": false
+  },
+  {
+    "area": "Composta",
+    "input": "Qual banco o projeto utiliza; qual extensão é usada?",
+    "expected": 2
+  },
+  {
+    "area": "Composta",
+    "input": "Qual banco o projeto utiliza? E qual extensão é usada?",
+    "expected": 2
+  },
+  {
+    "area": "Composta",
+    "input": "Qual banco o projeto utiliza; como o backup funciona?",
+    "expected": 2
+  },
+  {
+    "area": "Composta",
+    "input": "Qual banco o projeto utiliza? E como o backup funciona?",
+    "expected": 2
+  },
+  {
+    "area": "Composta",
+    "input": "Qual banco o projeto utiliza; quem mantém o sistema?",
+    "expected": 2
+  },
+  {
+    "area": "Composta",
+    "input": "Qual banco o projeto utiliza? E quem mantém o sistema?",
+    "expected": 2
+  },
+  {
+    "area": "Composta",
+    "input": "Como a busca funciona; qual extensão é usada?",
+    "expected": 2
+  },
+  {
+    "area": "Composta",
+    "input": "Como a busca funciona? E qual extensão é usada?",
+    "expected": 2
+  },
+  {
+    "area": "Composta",
+    "input": "Como a busca funciona; como o backup funciona?",
+    "expected": 2
+  },
+  {
+    "area": "Composta",
+    "input": "Como a busca funciona? E como o backup funciona?",
+    "expected": 2
+  },
+  {
+    "area": "Composta",
+    "input": "Como a busca funciona; quem mantém o sistema?",
+    "expected": 2
+  },
+  {
+    "area": "Composta",
+    "input": "Como a busca funciona? E quem mantém o sistema?",
+    "expected": 2
+  },
+  {
+    "area": "Composta",
+    "input": "Quem aprova mudanças; qual extensão é usada?",
+    "expected": 2
+  },
+  {
+    "area": "Composta",
+    "input": "Quem aprova mudanças? E qual extensão é usada?",
+    "expected": 2
+  },
+  {
+    "area": "Composta",
+    "input": "Quem aprova mudanças; como o backup funciona?",
+    "expected": 2
+  },
+  {
+    "area": "Composta",
+    "input": "Quem aprova mudanças? E como o backup funciona?",
+    "expected": 2
+  },
+  {
+    "area": "Composta",
+    "input": "Quem aprova mudanças; quem mantém o sistema?",
+    "expected": 2
+  },
+  {
+    "area": "Composta",
+    "input": "Quem aprova mudanças? E quem mantém o sistema?",
+    "expected": 2
+  },
+  {
+    "area": "Composta",
+    "input": "Onde ficam as evidências; qual extensão é usada?",
+    "expected": 2
+  },
+  {
+    "area": "Composta",
+    "input": "Onde ficam as evidências? E qual extensão é usada?",
+    "expected": 2
+  },
+  {
+    "area": "Composta",
+    "input": "Onde ficam as evidências; como o backup funciona?",
+    "expected": 2
+  },
+  {
+    "area": "Composta",
+    "input": "Onde ficam as evidências? E como o backup funciona?",
+    "expected": 2
+  },
+  {
+    "area": "Composta",
+    "input": "Onde ficam as evidências; quem mantém o sistema?",
+    "expected": 2
+  },
+  {
+    "area": "Composta",
+    "input": "Onde ficam as evidências? E quem mantém o sistema?",
+    "expected": 2
+  },
+  {
+    "area": "Composta",
+    "input": "Qual modelo gera os vetores; qual extensão é usada?",
+    "expected": 2
+  },
+  {
+    "area": "Composta",
+    "input": "Qual modelo gera os vetores? E qual extensão é usada?",
+    "expected": 2
+  },
+  {
+    "area": "Composta",
+    "input": "Qual modelo gera os vetores; como o backup funciona?",
+    "expected": 2
+  },
+  {
+    "area": "Composta",
+    "input": "Qual modelo gera os vetores? E como o backup funciona?",
+    "expected": 2
+  },
+  {
+    "area": "Composta",
+    "input": "Qual modelo gera os vetores; quem mantém o sistema?",
+    "expected": 2
+  },
+  {
+    "area": "Composta",
+    "input": "Qual modelo gera os vetores? E quem mantém o sistema?",
+    "expected": 2
+  }
+]
