@@ -38,6 +38,18 @@ test('S2-24: busca híbrida, evidências, escopo transversal autorizado e revoga
       await db.query("INSERT INTO documento(id,projeto_id,nome,caminho,status_processamento) VALUES ($1,$2,'WhatsApp.txt','rag.txt','processado')",[doc,project]);
       await db.query("INSERT INTO chunk(id,projeto_id,entidade_tipo,entidade_id,texto,embedding) VALUES ($1,$2,'documento',$3,$4,$5::vector)",[chunk,project,doc,text,JSON.stringify(vector)]);
     }
+    await t.test('repetir tentativa após perder a confirmação não duplica pergunta nem conversa', async () => {
+      const chat = new ChatService(new ChatRepository(db));
+      const attemptId = randomUUID();
+      const request = { pergunta: 'Olá', projetoId: a, attemptId };
+      const first = await chat.query(admin, request);
+      await assert.rejects(() => chat.query(admin, request), { code: 'CHAT_ATTEMPT_REGISTERED' });
+      await assert.rejects(() => chat.query(admin, { ...request, projetoId: b }));
+      const result = await db.query('SELECT remetente, conteudo FROM mensagem WHERE conversa_id=$1', [first.conversa_id]);
+      assert.equal(first.conversa_id, attemptId);
+      assert.equal(result.rows.filter(row => row.remetente === 'user').length, 1);
+      assert.equal(result.rows.filter(row => row.remetente === 'assistant').length, 1);
+    });
     await t.test('pergunta transversal recupera projetos autorizados e publica apenas fontes citadas',async()=>{
       const result=await service.answer(admin,'Quais projetos integram WhatsApp?',[a,b]);
       assert.deepEqual(new Set(result.fontes.map(row=>row.projeto_id)),new Set([a,b]));

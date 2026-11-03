@@ -3191,6 +3191,8 @@ paths:
               properties:
                 pergunta: {type: string, minLength: 1, maxLength: 2000, description: 'Texto Unicode válido, sem caractere nulo nem sequência UTF-16 incompleta'}
                 conversa_id: {type: string, format: uuid}
+                mensagem_id: {type: string, format: uuid, description: Mensagem que será repetida após falha}
+                tentativa_id: {type: string, format: uuid, description: Identificador do envio gerado pelo cliente e reutilizado ao repetir a mesma pergunta após perda de conexão}
                 projeto_id: {type: string, format: uuid}
                 escopo: {type: string, enum: [projeto, todos_autorizados]}
       responses:
@@ -3266,6 +3268,7 @@ paths:
                 pergunta: {type: string, minLength: 1, maxLength: 2000, description: 'Texto Unicode válido, sem caractere nulo nem sequência UTF-16 incompleta'}
                 conversa_id: {type: string, format: uuid}
                 mensagem_id: {type: string, format: uuid, description: 'Mensagem que será repetida após falha'}
+                tentativa_id: {type: string, format: uuid, description: Identificador do envio gerado pelo cliente e reutilizado ao repetir a mesma pergunta após perda de conexão}
                 projeto_id: {type: string, format: uuid}
                 escopo: {type: string, enum: [projeto, todos_autorizados]}
       responses:
@@ -3273,7 +3276,7 @@ paths:
           description: Fluxo SSE; somente `completed` contém a resposta depois da validação das fontes. Fechar a conexão interrompe a consulta ativa.
           content:
             text/event-stream:
-              schema: {type: string, description: 'Eventos progress, completed ou error; heartbeat usa comentário SSE'}
+              schema: {type: string, description: 'Eventos conversation, message_persisted, progress, completed, cancelled ou error. message_persisted contém o UUID id da pergunta salva. O heartbeat usa comentário SSE.'}
         '400':
           $ref: '#/components/responses/ValidationError'
         '401':

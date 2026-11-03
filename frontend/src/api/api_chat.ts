@@ -160,12 +160,13 @@ export async function listMessages(conversationId: string, signal?: AbortSignal)
 }
 
 export async function askQuestion(
-  input: { pergunta: string; conversaId?: string | null; projetoId?: string | null; mensagemId?: string | null; escopo?: Exclude<ChatScopeType, "indisponivel"> },
+  input: { pergunta: string; conversaId?: string | null; projetoId?: string | null; mensagemId?: string | null; attemptId?: string; escopo?: Exclude<ChatScopeType, "indisponivel"> },
   signal?: AbortSignal,
   onProgress?: (stage: ChatProgressStage) => void,
   onConversation?: (conversation: ChatConversation) => void,
+  onMessagePersisted?: (id: string) => void,
 ): Promise<ChatAnswer> {
-  if (onProgress) return askQuestionWithProgress(input, onProgress, signal, onConversation);
+  if (onProgress) return askQuestionWithProgress(input, onProgress, signal, onConversation, onMessagePersisted);
   const deadline = AbortSignal.timeout(QUERY_TIMEOUT_MS);
   const response = await apiRequest("/chat/query", {
     method: "POST",
@@ -173,6 +174,7 @@ export async function askQuestion(
       pergunta: input.pergunta,
       conversa_id: input.conversaId || undefined,
       mensagem_id: input.mensagemId || undefined,
+      tentativa_id: input.attemptId,
       projeto_id: input.projetoId || undefined,
       escopo: input.escopo,
     }),
@@ -191,10 +193,11 @@ function parseChatAnswer(data: unknown): ChatAnswer {
 }
 
 export async function askQuestionWithProgress(
-  input: { pergunta: string; conversaId?: string | null; projetoId?: string | null; mensagemId?: string | null; escopo?: Exclude<ChatScopeType, "indisponivel"> },
+  input: { pergunta: string; conversaId?: string | null; projetoId?: string | null; mensagemId?: string | null; attemptId?: string; escopo?: Exclude<ChatScopeType, "indisponivel"> },
   onProgress: (stage: ChatProgressStage) => void,
   signal?: AbortSignal,
   onConversation?: (conversation: ChatConversation) => void,
+  onMessagePersisted?: (id: string) => void,
 ): Promise<ChatAnswer> {
   const deadline = AbortSignal.timeout(QUERY_TIMEOUT_MS);
   const response = await apiRequest("/chat/query/stream", {
@@ -203,6 +206,7 @@ export async function askQuestionWithProgress(
       pergunta: input.pergunta,
       conversa_id: input.conversaId || undefined,
       mensagem_id: input.mensagemId || undefined,
+      tentativa_id: input.attemptId,
       projeto_id: input.projetoId || undefined,
       escopo: input.escopo,
     }),
@@ -230,6 +234,10 @@ export async function askQuestionWithProgress(
     const payload: unknown = JSON.parse(data.join("\n"));
     if (event === "conversation") {
       onConversation?.(parseConversation(payload));
+      return;
+    }
+    if (event === "message_persisted") {
+      if (isRecord(payload) && typeof payload.id === "string" && UUID_PATTERN.test(payload.id)) onMessagePersisted?.(payload.id);
       return;
     }
     if (event === "progress") {
