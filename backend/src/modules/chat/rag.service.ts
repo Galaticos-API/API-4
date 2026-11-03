@@ -82,13 +82,23 @@ export function splitCompoundQuestion(question:string):string[] {
     .map(part=>part.trim().replace(/^[,;:\s]+|[,;:\s]+$/gu,''))
     .filter(part=>part.length>=3);
   if(parts.length===1) {
-    const elliptical=parts[0].match(/^(qual\s+.+?\s+(?:foi|é)\s+(?:adotad[oa]|escolhid[oa]|utilizad[oa]))\s+e\s+[oa]\s+(extens[aã]o\s+vetorial)$/iu);
-    if(elliptical)return [`${elliptical[1]}?`,`Qual ${elliptical[2]} foi adotada?`];
+    const elliptical=parts[0].match(/^(qual\s+.+?\s+(foi|é)\s+((?:adotad|escolhid|utilizad)[oa]))\s+e\s+[oa]\s+(extens[aã]o\s+vetorial)$/iu);
+    if(elliptical)return [`${elliptical[1]}?`,`Qual ${elliptical[4]} ${elliptical[2]} ${elliptical[3].slice(0,-1)}a?`];
   }
   if(parts.length<2||parts.length>3)return [clean];
   const shared=parts[parts.length-1].match(/\s+((?:foram|foram mesmo|são)\s+(?:adotad|escolhid|utilizad)[oa]s)$/iu);
-  if(shared&&parts.slice(0,-1).every(part=>/^qual(?:is)?\s+\S+(?:\s+\S+){0,4}$/iu.test(part))) {
-    return parts.map((part,index)=>`${index===parts.length-1?part:`${part} ${shared[1].replace(/^(?:foram mesmo|foram|são)/iu,verb=>verb==='são'?'é':'foi').replace(/s$/iu,'')}`}${hadQuestionMark?'?':''}`);
+  if(shared&&parts.slice(0,-1).every(part=>!/(?:^|\s)(?:foi|foram|é|são|escolheu|escolheram|adotou|adotaram|utilizou|utilizaram|usamos|utilizamos|adotamos|escolhemos)(?=\s|$)/iu.test(part)&&/^(?:qual|quais)\s+\S+(?:\s+\S+){0,4}$/iu.test(part))) {
+    const present = /^são\s/iu.test(shared[1]);
+    const participle = shared[1].split(/\s+/u).at(-1)!;
+    return parts.map((part,index)=>{
+      const subject = index===parts.length-1 ? part.slice(0,-shared[0].length) : part;
+      const plural = /^quais\s/iu.test(subject);
+      const noun = subject.split(/\s+/u)[1];
+      const gender = /^(?:extens(?:ão|ões)|vers(?:ão|ões)|apis?|solu(?:ção|ções)|camadas?|linguage(?:m|ns)|tecnologias?|bases?|ferramentas?|bibliotecas?|plataformas?)$/iu.test(noun)
+        ? 'a' : /^(?:bancos?|sistemas?|frameworks?|modelos?)$/iu.test(noun) ? 'o' : participle.slice(-2,-1);
+      const auxiliary = present ? (plural?'são':'é') : (plural?'foram':'foi');
+      return `${subject[0].toUpperCase()}${subject.slice(1)} ${auxiliary} ${participle.slice(0,-2)}${gender}${plural?'s':''}${hadQuestionMark?'?':''}`;
+    });
   }
   return parts.map(part=>hadQuestionMark?`${part}?`:part);
 }
@@ -110,8 +120,12 @@ export function supportsRequestedDecision(question:string,quote:string):boolean 
   if(/^\s*(?:alternativas|op[çc][õo]es|tecnologias)\s+(?:avaliadas|consideradas|descartadas)\s*:/iu.test(quote))return false;
   // A list of names alone does not establish which option was adopted.
   const asksForDatabase=/\bbanco(?: de dados)?\b/iu.test(question);
-  return quote.split(/\n+|;|(?<=[.!?])\s+|(?:,\s*mas\s+|\s+e\s+)(?=n[aã]o\b)/iu).some(clause=>{
-    if(/\b(?:n[aã]o|nunca|nem|descart\w*|rejeit\w*|descontinu\w*|substitu[ií]d\w*|pode|poderia|pretend\w*|cogit\w*|recomend\w*|planej\w*|estud\w*|(?:apenas|somente|exclusivamente)\s+(?:para testes|(?:no|em) ambiente de testes?)|(?:apenas|somente|exclusivamente)\s+(?:no|em)\s+(?:prot[oó]tipo|benchmark|laborat[oó]rio)|para reproduzir (?:um )?incidente em laborat[oó]rio|como alternativa|sugest[aã]o|consider\w*|avali\w*|ainda|ser[aá]|se aprovado)\b/iu.test(clause))return false;
+  const reversedDecision = /(?:^|(?<=[.!?;]))[^.!?;]*\b(postgresql|mysql|mariadb|sqlite|mongodb|sql server|oracle database|cockroachdb|firebird|db2)\b[^.!?;]*[.!?;]\s*(?:depois|posteriormente)\b[^.!?;]*\b(?:descartou|rejeitou|abandonou)\s+(?:o\s+)?\1\b/giu;
+  quote = quote.replace(/\b(?:usad[oa]|utilizad[oa]|adotad[oa]|escolhid[oa])\b[^.!?;]*[.!?;]\s*(?:depois|posteriormente|em seguida),?\s+(?:(?:ele|ela)\s+)?(?:foi|foram)\s+(?:abandonad[oa]s?|descartad[oa]s?|rejeitad[oa]s?|substitu[ií]d[oa]s?)\b/iu, "");
+  if (asksForDatabase) quote = quote.replace(reversedDecision, "");
+  return quote.split(/\n+|\s+e\s+(?=nunca\s+(?:usou|utilizou|adotou|escolheu)\s+\S)|;(?!\s*n[aã]o\s+(?:(?:foi|foram)\s+)?(?:adot|escolh|utiliz|usad))|(?<=[.!?])\s+|(?:,\s*mas\s+|\s+e\s+)(?=n[aã]o\b(?!\s+(?:(?:foi|foram)\s+)?(?:adot|escolh|utiliz|usad)))/iu).some(clause=>{
+    if (/\b(?:apenas|somente|exclusivamente)\s+(?:(?:durante|no|em|para)\s+(?:(?:o|a|um|uma)\s+)?(?:benchmarks?|testes?|prot[oó]tipos?|homologa[çc][ãa]o)|para fins de testes?|para homologa[çc][ãa]o)\b/iu.test(clause)) return false;
+    if(/\b(?:n[aã]o|nunca|nem|descart\w*|rejeit\w*|descontinu\w*|substitu[ií]d\w*|pode|poderia|pretend\w*|cogit\w*|recomend\w*|planej\w*|estud\w*|(?:apenas|somente|exclusivamente)\s+(?:para testes|(?:no|em) ambiente de testes?)|(?:apenas|somente|exclusivamente)\s+(?:no|em)\s+(?:prot[oó]tipo|benchmark|laborat[oó]rio)|(?:usad[oa]s?|utilizad[oa]s?|adotad[oa]s?|escolhid[oa]s?)\s+(?:(?:somente|apenas|exclusivamente|temporariamente)\s+)?(?:no|em|para|durante)\s+(?:(?:um|uma|o|a)\s+)?(?:benchmarks?|testes?|ambiente de testes?|prot[oó]tipos?)|deixou de ser (?:utilizad[oa]|usad[oa])|para reproduzir (?:um )?incidente em laborat[oó]rio|para\s+(?:(?:um|o)\s+)?piloto|para\s+(?:uma\s+)?prova de conceito|como alternativa|sugest[aã]o|consider\w*|avali\w*|ainda|ser[aá]|se aprovado)\b/iu.test(clause))return false;
     if(asksForDatabase&&(!/\b(?:banco|postgresql|mysql|mariadb|sqlite|mongodb|sql server|oracle database|cockroachdb|firebird|db2)\b/iu.test(clause)
       || /\b(?:para cache|como cache)\b/iu.test(clause)))return false;
     return /\b(?:ado[çc][ãa]o|adot\w*|utiliz\w*|escolh\w*|decid\w*|usa|usamos|usado|usada|em uso)\b/iu.test(clause)

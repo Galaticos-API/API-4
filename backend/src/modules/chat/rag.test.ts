@@ -394,13 +394,56 @@ test('S3-02: lista de alternativas não comprova adoção, ainda que seja litera
   assert.equal(supportsRequestedDecision(question,'Foi adotado PostgreSQL com pgvector.'),true);
   assert.equal(supportsRequestedDecision('Quais opções foram avaliadas?','ChromaDB, Pinecone Cloud, Elasticsearch'),true);
   assert.equal(supportsRequestedDecision(question,'Pinecone não foi adotado.'),false);
+  for (const quote of [
+    'PostgreSQL foi usado no benchmark, mas não foi adotado.',
+    'PostgreSQL foi utilizado em testes.',
+    'PostgreSQL foi usado para testes.',
+    'PostgreSQL foi usado em um benchmark.',
+    'PostgreSQL foi usado em produção. Depois, ele foi abandonado.',
+    'A equipe escolheu PostgreSQL para um piloto, sem decisão de produção.',
+    'A equipe adotou PostgreSQL para uma prova de conceito.',
+    'PostgreSQL foi usado inicialmente. Em seguida, foi substituído por MySQL.',
+    'A equipe escolheu PostgreSQL apenas para homologação.',
+    'PostgreSQL foi adotado exclusivamente em homologação.',
+    'PostgreSQL foi usado em produção. Posteriormente, foi abandonado.',
+    'O PostgreSQL foi escolhido para o ambiente de testes.',
+    'O PostgreSQL foi adotado temporariamente para testes de carga.',
+    'PostgreSQL foi usado em produção, mas deixou de ser utilizado.',
+    'A equipe utilizou PostgreSQL apenas durante o benchmark.',
+    'PostgreSQL foi adotado apenas para fins de teste.',
+    'PostgreSQL foi usado em produção. Depois, a equipe descartou PostgreSQL.',
+    'PostgreSQL foi usado somente durante o benchmark.',
+    'PostgreSQL foi adotado para testes.',
+    'PostgreSQL foi usado pela equipe; não foi adotado.',
+    'PostgreSQL foi usado pela equipe, mas não foi escolhido.',
+  ]) assert.equal(supportsRequestedDecision(question,quote),false);
+  assert.equal(supportsRequestedDecision(question,'A equipe adotou PostgreSQL em produção; SQLite foi utilizado apenas para testes.'),true);
+  assert.equal(supportsRequestedDecision(question,'PostgreSQL foi usado em produção. Depois, ele foi abandonado. MySQL foi adotado em produção.'),true);
+  assert.equal(supportsRequestedDecision(question,'PostgreSQL foi usado em produção. Depois, a equipe descartou PostgreSQL. MySQL foi adotado em produção.'),true);
+  assert.equal(supportsRequestedDecision(question,'A equipe usa PostgreSQL em produção e nunca utilizou MySQL.'),true);
+  assert.equal(supportsRequestedDecision(question,'A equipe adotou PostgreSQL após validação em testes.'),true);
   assert.equal(supportsRequestedDecision(question,'Elasticsearch foi descartado.'),false);
   assert.equal(supportsRequestedDecision(question,'ChromaDB e Pinecone.'),false);
   assert.equal(supportsRequestedDecision('Qual banco a equipe adotou?','ChromaDB e Pinecone.'),false);
 });
 
 test('S3-02: preserva o predicado compartilhado e recupera a extensão elíptica',()=>{
-  assert.deepEqual(splitCompoundQuestion('Qual banco e qual extensão foram adotados?'),['Qual banco foi adotado?','qual extensão foram adotados?']);
+  for (const verb of ['adotado','escolhido','utilizado']) {
+    assert.deepEqual(splitCompoundQuestion(`Qual banco foi ${verb} e a extensão vetorial?`),
+      [`Qual banco foi ${verb}?`, `Qual extensão vetorial foi ${verb.slice(0,-1)}a?`]);
+  }
+  assert.deepEqual(splitCompoundQuestion('Qual banco usamos e quais extensões foram escolhidas?'),['Qual banco usamos?','quais extensões foram escolhidas?']);
+  assert.deepEqual(splitCompoundQuestion('Qual banco a equipe escolheu e quais extensões foram adotadas?'),['Qual banco a equipe escolheu?','quais extensões foram adotadas?']);
+  assert.deepEqual(splitCompoundQuestion('Qual banco foi escolhido e quais extensões foram adotadas?'),['Qual banco foi escolhido?','quais extensões foram adotadas?']);
+  assert.deepEqual(splitCompoundQuestion('Qual API é utilizada e quais bancos são utilizados?'),['Qual API é utilizada?','quais bancos são utilizados?']);
+  assert.deepEqual(splitCompoundQuestion('Qual API e qual banco foram escolhidos?'),['Qual API foi escolhida?','Qual banco foi escolhido?']);
+  assert.deepEqual(splitCompoundQuestion('Qual solução e qual banco foram escolhidos?'),['Qual solução foi escolhida?','Qual banco foi escolhido?']);
+  assert.deepEqual(splitCompoundQuestion('Quais versões e quais extensões foram escolhidas?'),['Quais versões foram escolhidas?','Quais extensões foram escolhidas?']);
+  assert.deepEqual(splitCompoundQuestion('Qual motor e qual camada foram escolhidos?'),['Qual motor foi escolhido?','Qual camada foi escolhida?']);
+  assert.deepEqual(splitCompoundQuestion('Qual linguagem e qual banco foram adotados?'),['Qual linguagem foi adotada?','Qual banco foi adotado?']);
+  assert.deepEqual(splitCompoundQuestion('Qual banco de dados e qual versão foram escolhidos?'),['Qual banco de dados foi escolhido?','Qual versão foi escolhida?']);
+  assert.deepEqual(splitCompoundQuestion('Qual banco e qual extensão foram adotadas?'),['Qual banco foi adotado?','Qual extensão foi adotada?']);
+  assert.deepEqual(splitCompoundQuestion('Qual banco e qual extensão foram adotados?'),['Qual banco foi adotado?','Qual extensão foi adotada?']);
   assert.deepEqual(splitCompoundQuestion('Qual banco foi adotado e a extensão vetorial?'),['Qual banco foi adotado?','Qual extensão vetorial foi adotada?']);
 });
 
