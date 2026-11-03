@@ -111,7 +111,7 @@ export function supportsRequestedDecision(question:string,quote:string):boolean 
   // A list of names alone does not establish which option was adopted.
   const asksForDatabase=/\bbanco(?: de dados)?\b/iu.test(question);
   return quote.split(/\n+|;|(?<=[.!?])\s+|(?:,\s*mas\s+|\s+e\s+)(?=n[aã]o\b)/iu).some(clause=>{
-    if(/\b(?:n[aã]o|nunca|nem|descart\w*|rejeit\w*|descontinu\w*|substitu[ií]d\w*|pode|poderia|pretend\w*|cogit\w*|(?:apenas|somente|exclusivamente)\s+(?:para testes|(?:no|em) ambiente de testes?)|como alternativa|sugest[aã]o|consider\w*|avali\w*|ainda|ser[aá]|se aprovado)\b/iu.test(clause))return false;
+    if(/\b(?:n[aã]o|nunca|nem|descart\w*|rejeit\w*|descontinu\w*|substitu[ií]d\w*|pode|poderia|pretend\w*|cogit\w*|recomend\w*|planej\w*|estud\w*|(?:apenas|somente|exclusivamente)\s+(?:para testes|(?:no|em) ambiente de testes?)|(?:apenas|somente|exclusivamente)\s+(?:no|em)\s+(?:prot[oó]tipo|benchmark|laborat[oó]rio)|para reproduzir (?:um )?incidente em laborat[oó]rio|como alternativa|sugest[aã]o|consider\w*|avali\w*|ainda|ser[aá]|se aprovado)\b/iu.test(clause))return false;
     if(asksForDatabase&&(!/\b(?:banco|postgresql|mysql|mariadb|sqlite|mongodb|sql server|oracle database|cockroachdb|firebird|db2)\b/iu.test(clause)
       || /\b(?:para cache|como cache)\b/iu.test(clause)))return false;
     return /\b(?:ado[çc][ãa]o|adot\w*|utiliz\w*|escolh\w*|decid\w*|usa|usamos|usado|usada|em uso)\b/iu.test(clause)
