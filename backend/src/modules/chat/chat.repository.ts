@@ -1,3 +1,4 @@
+import { queryWithDeadline } from '../../database/query-with-deadline.js';
 import { projectAccessSql } from "../projects/project-access.js";
 import { knowledgeSourceSql } from '../../shared/knowledge-source-sql.js';
 import { withTransaction } from "../../database/transaction.js";
@@ -71,8 +72,8 @@ export class ChatRepository {
     return (result.rowCount ?? 0) > 0;
   }
 
-  async accessibleProjects(usuarioId: string): Promise<Array<{ id: string; nome: string }>> {
-    const result = await this.pool.query<{ id: string; nome: string }>(
+  async accessibleProjects(usuarioId: string, deadline?: number): Promise<Array<{ id: string; nome: string }>> {
+    const result = await queryWithDeadline<{ id: string; nome: string }>(this.pool, deadline,
       `SELECT p.id,p.nome FROM projeto p WHERE ${projectAccessSql("p.id","$1")} ORDER BY p.nome,p.id`, [usuarioId]);
     return result.rows;
   }
@@ -264,9 +265,9 @@ export class ChatRepository {
     )).rows;
   }
 
-  async currentRagChunks(userId:string,ids:string[]):Promise<Array<{id:string;texto:string;projeto_id:string;entidade_tipo:string;entidade_id:string;metadados_json:Record<string,unknown>|null}>> {
+  async currentRagChunks(userId:string,ids:string[],deadline?:number):Promise<Array<{id:string;texto:string;projeto_id:string;entidade_tipo:string;entidade_id:string;metadados_json:Record<string,unknown>|null}>> {
     if(!ids.length)return [];
-    const result=await this.pool.query(`SELECT c.id,c.texto,c.projeto_id,c.entidade_tipo,c.entidade_id,c.metadados_json FROM chunk c JOIN projeto p ON p.id=c.projeto_id
+    const result=await queryWithDeadline<{id:string;texto:string;projeto_id:string;entidade_tipo:string;entidade_id:string;metadados_json:Record<string,unknown>|null}>(this.pool, deadline, `SELECT c.id,c.texto,c.projeto_id,c.entidade_tipo,c.entidade_id,c.metadados_json FROM chunk c JOIN projeto p ON p.id=c.projeto_id
       WHERE c.id=ANY($1::uuid[]) AND p.status<>'arquivado' AND ${projectAccessSql('c.projeto_id','$2')}
       AND ${knowledgeSourceSql('c')}
       AND (c.entidade_tipo<>'analise_repositorio' OR EXISTS (SELECT 1 FROM analise_repositorio r

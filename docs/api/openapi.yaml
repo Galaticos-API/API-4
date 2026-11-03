@@ -20,6 +20,7 @@ paths:
       summary: Recuperar evidências e responder conversacionalmente em projetos autorizados
       description: >-
         Contrato rag-conversacional-v1. Sem projeto_ids, consulta todos os projetos permitidos ao usuário.
+        Para um único projeto sem evidência, a resposta pode sugerir ampliar a busca se houver evidência verificada em outro projeto autorizado. O aviso não inclui conteúdo, fontes ou identificadores de fora do escopo solicitado.
         A seleção explícita de qualquer projeto não autorizado retorna 404 antes da recuperação.
         O modelo seleciona até cinco passagens literais; o backend verifica cada passagem contra o contexto
         enviado e revalida acesso e elegibilidade. A síntese pode parafrasear somente essas evidências e
@@ -49,7 +50,7 @@ paths:
                 properties:
                   contrato: {type: string, enum: [rag-conversacional-v1]}
                   resposta: {type: string}
-                  cobertura: {type: string, enum: [complete, partial, no_evidence, out_of_scope], description: 'Indica se as evidências cobrem a pergunta, cobrem somente parte, não foram encontradas ou se o assunto está claramente fora do escopo'}
+                  cobertura: {type: string, enum: [complete, partial, no_evidence, out_of_scope], description: 'Em partial, a resposta cita o que foi confirmado e identifica os aspectos separados sem evidência quando possível. Em no_evidence ou out_of_scope, fontes e evidencias ficam vazias.'}
                   escopo: {type: array, items: {type: string, format: uuid}}
                   evidencias:
                     type: array
