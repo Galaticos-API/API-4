@@ -363,6 +363,88 @@ it('exibe status animado e alterna as mensagens enquanto aguarda o assistente',a
   await act(async()=>finish({conversa_id:'conversation-a',resposta:'Resposta pronta',fontes:[],origem:'assistente'}));
   expect(await screen.findByText('Resposta pronta')).toBeInTheDocument();
 });
+it('preserva o tempo de processamento na resposta após o indicador sumir',async()=>{
+  let finish!:(answer:ChatAnswer)=>void;
+  let onTiming!:(durationMs:number,message:string)=>void;
+  vi.mocked(listConversations).mockResolvedValue([]);
+  vi.mocked(listChatProjects).mockResolvedValue([{id:'project-a',nome:'Projeto A'}]);
+  vi.mocked(askQuestion).mockImplementation((_input,_signal,_progress,_conversation,timing)=>{
+    onTiming=timing!;
+    return new Promise(resolve=>{finish=resolve;});
+  });
+  render(<ChatView/>);
+  await screen.findByRole('option',{name:'Projeto A'});
+  fireEvent.change(screen.getByLabelText('Escopo da consulta'),{target:{value:'projeto:project-a'}});
+  fireEvent.change(screen.getByRole('textbox'),{target:{value:'Pergunta com temporização'}});
+  fireEvent.click(screen.getByRole('button',{name:'Enviar'}));
+  expect(screen.getByRole('status',{name:'O assistente está preparando uma resposta'})).toBeInTheDocument();
+  await act(async()=>{
+    onTiming(15_000,'Pensou por 15s');
+    finish({conversa_id:'conversation-a',resposta:'Resposta com tempo',fontes:[],origem:'assistente'});
+  });
+  expect(await screen.findByText('Resposta com tempo')).toBeInTheDocument();
+  expect(screen.queryByRole('status',{name:'O assistente está preparando uma resposta'})).toBeNull();
+  expect(screen.getByLabelText('Pensou por 15s')).toHaveTextContent('Pensou por 15s');
+});
+it('não exibe tempo de conclusão quando a consulta é cancelada',async()=>{
+  vi.mocked(listConversations).mockResolvedValue([]);
+  vi.mocked(listChatProjects).mockResolvedValue([{id:'project-a',nome:'Projeto A'}]);
+  vi.mocked(askQuestion).mockImplementation((_input,signal)=>new Promise((_resolve,reject)=>{
+    signal?.addEventListener('abort',()=>reject(new DOMException('Consulta interrompida','AbortError')),{once:true});
+  }));
+  render(<ChatView/>);
+  await screen.findByRole('option',{name:'Projeto A'});
+  fireEvent.change(screen.getByLabelText('Escopo da consulta'),{target:{value:'projeto:project-a'}});
+  fireEvent.change(screen.getByRole('textbox'),{target:{value:'Pergunta cancelada'}});
+  fireEvent.click(screen.getByRole('button',{name:'Enviar'}));
+  fireEvent.click(await screen.findByRole('button',{name:'Interromper consulta'}));
+  await screen.findByText(/Consulta interrompida/);
+  expect(screen.queryByLabelText(/Pensou por/)).toBeNull();
+});
+it('preserva o tempo de processamento na resposta após o indicador de thinking sumir',async()=>{
+  let finish!:(answer:ChatAnswer)=>void;
+  let onTiming!:(durationMs:number,message:string)=>void;
+  vi.mocked(listConversations).mockResolvedValue([]);
+  vi.mocked(listChatProjects).mockResolvedValue([{id:'project-a',nome:'Projeto A'}]);
+  vi.mocked(askQuestion).mockImplementation((_input,_signal,_progress,_conversation,timing)=>{
+    onTiming=timing!;
+    return new Promise(resolve=>{finish=resolve;});
+  });
+  render(<ChatView/>);
+  await screen.findByRole('option',{name:'Projeto A'});
+  fireEvent.change(screen.getByLabelText('Escopo da consulta'),{target:{value:'projeto:project-a'}});
+  fireEvent.change(screen.getByRole('textbox'),{target:{value:'Pergunta cronometrada'}});
+  fireEvent.click(screen.getByRole('button',{name:'Enviar'}));
+  expect(screen.getByRole('status',{name:'O assistente está preparando uma resposta'})).toBeInTheDocument();
+  await act(async()=>{
+    onTiming(15_400,'Pensou por 15s');
+    finish({conversa_id:'conversation-a',resposta:'Resposta cronometrada',fontes:[],origem:'assistente'});
+  });
+  expect(await screen.findByText('Resposta cronometrada')).toBeInTheDocument();
+  expect(screen.queryByRole('status',{name:'O assistente está preparando uma resposta'})).toBeNull();
+  expect(screen.getByLabelText('Pensou por 15s')).toHaveTextContent('Pensou por 15s');
+});
+it('não exibe duração de conclusão quando a consulta é interrompida',async()=>{
+  let rejectSend!:(error:DOMException)=>void;
+  let onTiming!:(durationMs:number,message:string)=>void;
+  vi.mocked(listConversations).mockResolvedValue([]);
+  vi.mocked(listChatProjects).mockResolvedValue([{id:'project-a',nome:'Projeto A'}]);
+  vi.mocked(askQuestion).mockImplementation((_input,_signal,_progress,_conversation,timing)=>{
+    onTiming=timing!;
+    return new Promise((_resolve,reject)=>{rejectSend=reject;});
+  });
+  render(<ChatView/>);
+  await screen.findByRole('option',{name:'Projeto A'});
+  fireEvent.change(screen.getByLabelText('Escopo da consulta'),{target:{value:'projeto:project-a'}});
+  fireEvent.change(screen.getByRole('textbox'),{target:{value:'Pergunta interrompida'}});
+  fireEvent.click(screen.getByRole('button',{name:'Enviar'}));
+  await act(async()=>{
+    onTiming?.(9_000,'Pensou por 9s');
+    rejectSend(new DOMException('Consulta interrompida.','AbortError'));
+  });
+  expect(await screen.findByText(/Consulta interrompida/)).toBeInTheDocument();
+  expect(screen.queryByLabelText('Pensou por 9s')).toBeNull();
+});
 it('ao reabrir uma conversa, permite tentar novamente a última pergunta que falhou',async()=>{
   vi.mocked(listConversations).mockResolvedValue([{id:'conversation-a',titulo:'Conversa A',projeto_id:'project-a',projeto_nome:'Projeto A',escopo_tipo:'projeto',updated_at:''}]);
   vi.mocked(listChatProjects).mockResolvedValue([{id:'project-a',nome:'Projeto A'}]);
