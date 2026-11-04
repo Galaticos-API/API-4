@@ -285,8 +285,10 @@ export async function verifyCopilotBrowser({
     const question=ragPage.getByRole('textbox');
     await question.fill('Consultar pedido');
     await ragPage.getByRole('button',{name:'Enviar',exact:true}).click();
-    await ragPage.locator('.chat-sources summary').last().click();
-    const source=ragPage.locator('.chat-sources a').last();await source.waitFor({state:'visible'});
+    await ragPage.getByRole('button',{name:/Fontes e evidências/}).last().click();
+    const sourcesDialog=ragPage.getByRole('dialog',{name:'Fontes e evidências'});
+    await sourcesDialog.waitFor({state:'visible'});
+    const source=sourcesDialog.locator('a.chat-source-open-link').last();await source.waitFor({state:'visible'});
     const href=await source.getAttribute('href');assert.ok(href?.startsWith('/projects/'+projectId));
     await source.click();await ragPage.waitForURL('**'+href);
     await ragPage.goto('http://127.0.0.1:5189/chat');
