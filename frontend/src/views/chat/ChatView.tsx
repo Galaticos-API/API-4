@@ -603,7 +603,7 @@ export function ChatView() {
         setConversations(current => [conversation, ...current.filter(item => item.id !== conversation.id)]);
         setScopeId(selectionForConversation(conversation));
         setActiveId(conversation.id);
-      }, (durationMs, message) => {
+      }, (_durationMs, message) => {
         if (mounted.current) setTimingMessage(message);
       });
       if (!mounted.current) return;

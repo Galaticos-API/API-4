@@ -164,8 +164,9 @@ export async function askQuestion(
   signal?: AbortSignal,
   onProgress?: (stage: ChatProgressStage) => void,
   onConversation?: (conversation: ChatConversation) => void,
+  onTiming?: (durationMs: number, message: string) => void,
 ): Promise<ChatAnswer> {
-  if (onProgress) return askQuestionWithProgress(input, onProgress, signal, onConversation);
+  if (onProgress) return askQuestionWithProgress(input, onProgress, signal, onConversation, onTiming);
   const deadline = AbortSignal.timeout(QUERY_TIMEOUT_MS);
   const response = await apiRequest("/chat/query", {
     method: "POST",

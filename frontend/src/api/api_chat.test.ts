@@ -1,5 +1,5 @@
 import {afterEach,expect,it,vi} from 'vitest';
-import {askQuestion,askQuestionWithProgress,describeChatError,listChatProjects,listMessages} from './api_chat';
+import {askQuestion,askQuestionWithProgress,describeChatError,listChatProjects,listMessages,type ChatProgressStage} from './api_chat';
 import {ApiError} from './api_auth';
 
 afterEach(()=>{vi.unstubAllGlobals();vi.restoreAllMocks();vi.clearAllTimers();vi.useRealTimers();});
