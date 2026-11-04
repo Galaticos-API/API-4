@@ -408,3 +408,25 @@ test('Harness HTTP distingue saída rejeitada (422) de indisponibilidade',async(
     await assert.rejects(()=>new HttpHarnessEngine(`http://127.0.0.1:${port}/down`).generate({},2000),(error:unknown)=>!(error instanceof ModelOutputRejectedError));
   } finally { server.close(); }
 });
+test('RAG interrompe embedding e geração quando o AbortSignal dispara',async()=>{
+  const controller=new AbortController();
+  const embedding=new RagService(new Chats(),new Search(),{
+    embed:async(_text,signal)=>new Promise((_resolve,reject)=>{
+      signal?.addEventListener('abort',()=>reject(new DOMException('Consulta interrompida.','AbortError')),{once:true});
+      controller.abort();
+    }),
+  },new Revisions(),{generate:async()=>({coverage:'complete',evidence:[{source_id:chunk,quote:row.text}]})});
+  await assert.rejects(()=>embedding.answer(randomUUID(),'Como funciona o login?',[project],undefined,controller.signal),(error:unknown)=>error instanceof DOMException&&error.name==='AbortError');
+
+  const generationController=new AbortController();
+  let generateStarted=false;
+  const generation=new RagService(new Chats(),new Search(),{embed:async()=>Array(1024).fill(0.1)},new Revisions(),{
+    generate:async(_payload,_timeout,signal)=>new Promise((_resolve,reject)=>{
+      generateStarted=true;
+      signal?.addEventListener('abort',()=>reject(new DOMException('Consulta interrompida.','AbortError')),{once:true});
+      generationController.abort();
+    }),
+  });
+  await assert.rejects(()=>generation.answer(randomUUID(),'Como funciona o login?',[project],undefined,generationController.signal),(error:unknown)=>error instanceof DOMException&&error.name==='AbortError');
+  assert.equal(generateStarted,true);
+});
