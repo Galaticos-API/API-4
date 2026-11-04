@@ -96,7 +96,7 @@ const THINKING_MESSAGES: Record<ChatProgressStage, string> = {
   validating: "Validando evidências e fontes",
 };
 
-function ThinkingIndicator({ stage }: { stage: ChatProgressStage }) {
+function ThinkingIndicator({ stage, timingMessage }: { stage: ChatProgressStage; timingMessage?: string }) {
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const message = THINKING_MESSAGES[stage];
 
@@ -114,7 +114,8 @@ function ThinkingIndicator({ stage }: { stage: ChatProgressStage }) {
       <span key={stage} className="chat-typing-message" aria-live="polite" aria-atomic="true">
         {message}
       </span>
-      {elapsedSeconds >= 5 && <span className="chat-typing-elapsed" aria-hidden="true">· {elapsedSeconds}s</span>}
+      {timingMessage && <span className="chat-typing-elapsed" aria-hidden="true">· {timingMessage}</span>}
+      {!timingMessage && elapsedSeconds >= 5 && <span className="chat-typing-elapsed" aria-hidden="true">· {elapsedSeconds}s</span>}
     </div>
   );
 }
@@ -136,6 +137,7 @@ export function ChatView() {
   const [queuePaused, setQueuePaused] = useState(false);
   const [waitingOnExistingQuery, setWaitingOnExistingQuery] = useState(false);
   const [progressByKey, setProgressByKey] = useState<Partial<Record<string, ChatProgressStage>>>({});
+  const [timingMessage, setTimingMessage] = useState("");
   const [sendError, setSendError] = useState("");
   const [voiceRecording, setVoiceRecording] = useState(false);
   const [voiceMessage, setVoiceMessage] = useState("");
@@ -400,6 +402,7 @@ export function ChatView() {
     setScopeId("todos_autorizados");
     setMessages([]);
     setSendError("");
+    setTimingMessage("");
     setConfirmDeleteMessageId(null);
     setConfirmDeleteConversationId(null);
     setConfirmDeleteConversationSource(null);
@@ -416,6 +419,7 @@ export function ChatView() {
     setMessages([]);
     setDraft("");
     setSendError("");
+    setTimingMessage("");
     setConfirmDeleteMessageId(null);
     setConfirmDeleteConversationId(null);
     setConfirmDeleteConversationSource(null);
@@ -574,6 +578,7 @@ export function ChatView() {
     if (speechRecognition.current) cancelVoiceCapture();
     setPendingKeys(current => [...current, sendKey]);
     setProgressByKey(current => ({ ...current, [sendKey]: "searching" }));
+    setTimingMessage("");
     setSendError("");
     const pendingId = retryId ?? queuedId ?? `local-${Date.now()}`;
     setMessages((current) => retryId
@@ -598,6 +603,8 @@ export function ChatView() {
         setConversations(current => [conversation, ...current.filter(item => item.id !== conversation.id)]);
         setScopeId(selectionForConversation(conversation));
         setActiveId(conversation.id);
+      }, (durationMs, message) => {
+        if (mounted.current) setTimingMessage(message);
       });
       if (!mounted.current) return;
       void loadConversations(false);
@@ -1063,7 +1070,7 @@ export function ChatView() {
               />
             ))}
 
-            {sending && <ThinkingIndicator stage={progressByKey[activeSendKey] ?? "searching"} />}
+            {sending && <ThinkingIndicator stage={progressByKey[activeSendKey] ?? "searching"} timingMessage={timingMessage} />}
           </div>
 
           <div className="chat-prompt-bar" role="group" aria-label="Perguntas sugeridas">

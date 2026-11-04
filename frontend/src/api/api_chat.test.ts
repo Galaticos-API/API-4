@@ -1,5 +1,5 @@
 import {afterEach,expect,it,vi} from 'vitest';
-import {askQuestion,describeChatError,listChatProjects,listMessages,type ChatProgressStage} from './api_chat';
+import {askQuestion,askQuestionWithProgress,describeChatError,listChatProjects,listMessages} from './api_chat';
 import {ApiError} from './api_auth';
 
 afterEach(()=>{vi.unstubAllGlobals();vi.restoreAllMocks();vi.clearAllTimers();vi.useRealTimers();});
@@ -79,6 +79,24 @@ it('processa eventos de progresso fragmentados e só resolve com a resposta conc
   expect(vi.mocked(fetch)).toHaveBeenCalledWith(expect.stringContaining('/chat/query/stream'),expect.any(Object));
 });
 
+it('processa evento timing após completed e invoca callback',async()=>{
+  const wire=[
+    'event: progress\ndata: {"stage":"searching"}\n\n',
+    'event: completed\ndata: {"conversa_id":"conversation-a","resposta":"Resposta validada","fontes":[],"origem":"assistente"}\n\n',
+    'event: timing\ndata: {"duration_ms":1234,"message":"Pensou por 1s"}\n\n',
+  ].join('');
+  const bytes=new TextEncoder().encode(wire);
+  const body=new ReadableStream<Uint8Array>({start(controller){
+    controller.enqueue(bytes);
+    controller.close();
+  }});
+  vi.stubGlobal('fetch',vi.fn(async()=>new Response(body,{headers:{'Content-Type':'text/event-stream; charset=utf-8'}})));
+  const timingCalls:{durationMs:number;message:string}[]=[];
+  const result=await askQuestionWithProgress({pergunta:'Consultar evidências',projetoId:'project-a'},()=>{},undefined,undefined,(durationMs,message)=>timingCalls.push({durationMs,message}));
+  expect(result.resposta).toBe('Resposta validada');
+  expect(timingCalls).toEqual([{durationMs:1234,message:'Pensou por 1s'}]);
+});
+
 it('propaga erro seguro enviado como evento do fluxo',async()=>{
   const wire='event: error\ndata: {"status":503,"error":"Falha no RAG","code":"CHAT_FAILED","details":{"diagnostico_id":"e8e57e2d-0b59-4cdc-b191-d1618381c6a2"}}\n\n';
   vi.stubGlobal('fetch',vi.fn(async()=>new Response(wire,{headers:{'Content-Type':'text/event-stream'}})));
@@ -145,4 +163,14 @@ it('exibe o ID de diagnóstico validado em falhas de serviço do chat',()=>{
   const id='e8e57e2d-0b59-4cdc-b191-d1618381c6a2';
   expect(describeChatError(new ApiError(503,{error:'Falha',details:{diagnostico_id:id}}))).toContain(id);
   expect(describeChatError(new ApiError(503,{error:'Falha',details:{diagnostico_id:'private prompt'}}))).not.toContain('private prompt');
+});
+
+it('extrai diagnostic_id do campo raiz (novo formato) em erros de serviço',()=>{
+  const id='f1a2b3c4-d5e6-4789-a0b1-c2d3e4f5a6b7';
+  expect(describeChatError(new ApiError(503,{error:'Falha',diagnostic_id:id}))).toContain(id);
+});
+
+it('mantém compatibilidade com formato legado (details.diagnostico_id)',()=>{
+  const id='a1b2c3d4-e5f6-4789-a0b1-c2d3e4f5a6b7';
+  expect(describeChatError(new ApiError(503,{error:'Falha',details:{diagnostico_id:id}}))).toContain(id);
 });

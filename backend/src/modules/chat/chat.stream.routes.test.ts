@@ -13,6 +13,7 @@ const USER = "10000000-0000-4000-8000-000000000001";
 let server: Server;
 let baseUrl: string;
 let fail = false;
+let unexpectedError = false;
 let cancelNext = false;
 let cancellationObserved = false;
 let renameCall: { user: string; id: string; title: unknown } | null = null;
@@ -36,6 +37,7 @@ before(() => {
       onProgress?.("synthesizing");
       onProgress?.("validating");
       if (fail) throw new AppError("Falha segura", 503, "CHAT_FAILED", { diagnostico_id: "d4ef37fb-7a50-471d-8d10-50692dce8a2f" });
+      if (unexpectedError) throw new Error("Erro inesperado");
       return { conversa_id: "20000000-0000-4000-8000-000000000001", resposta: "Resposta validada", fontes: [], origem: "assistente" };
     },
   } as unknown as ChatService;
@@ -87,6 +89,8 @@ test("SSE relata etapas reais e envia somente a resposta final concluída", asyn
   const body = await response.text();
   assert.deepEqual([...body.matchAll(/event: progress\ndata: (.*?)\n\n/g)].map((match) => JSON.parse(match[1]).stage), ["searching", "synthesizing", "validating"]);
   assert.match(body, /event: completed\ndata: .*"resposta":"Resposta validada"/);
+  assert.match(body, /event: timing\ndata: .*"duration_ms":\d+/);
+  assert.match(body, /event: timing\ndata: .*"message":"Pensou por/);
   assert.doesNotMatch(body, /token|partial|delta/i);
 });
 
@@ -100,7 +104,10 @@ test("SSE serializa falhas com envelope seguro e diagnóstico, sem stack ou erro
   const body = await response.text();
   assert.match(body, /event: error/);
   assert.match(body, /"status":503/);
-  assert.match(body, /d4ef37fb-7a50-471d-8d10-50692dce8a2f/);
+  // Verify diagnostic_id is at root level (new format)
+  assert.match(body, /"diagnostic_id":"[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}"/);
+  // Verify legacy format is also present for backward compatibility
+  assert.match(body, /"details":\{[^}]*"diagnostico_id":"[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}"/);
   assert.doesNotMatch(body, /stack|private prompt|password/i);
   fail = false;
 });
@@ -120,4 +127,22 @@ test("SSE interrompe o processamento quando o cliente fecha a conexão", async (
   await response.body?.cancel().catch(() => undefined);
   await new Promise(resolve => setTimeout(resolve, 100));
   assert.equal(cancellationObserved, true);
+});
+
+test("SSE inclui diagnostic_id em erros inesperados (não-AppError)", async () => {
+  unexpectedError = true;
+  const response = await fetch(`${baseUrl}/chat/query/stream`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ pergunta: "Pergunta de QA", projeto_id: "30000000-0000-4000-8000-000000000001" }),
+  });
+  const body = await response.text();
+  assert.match(body, /event: error/);
+  assert.match(body, /"status":500/);
+  assert.match(body, /"code":"INTERNAL_SERVER_ERROR"/);
+  // Verify diagnostic_id is at root level
+  assert.match(body, /"diagnostic_id":"[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}"/);
+  // Verify legacy format is also present
+  assert.match(body, /"details":\{[^}]*"diagnostico_id":"[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}"/);
+  unexpectedError = false;
 });

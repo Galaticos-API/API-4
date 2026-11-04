@@ -164,9 +164,12 @@ export function createChatRouter(service: ChatService = new ChatService(), authe
         if (!res.writableEnded) res.end();
         return;
       }
+      // Log diagnostic ID for tracing
+      console.error(`[Chat Query Error] diagnostic_id=${diagnosticId}`, error);
+      const existingDetails = error instanceof AppError && typeof error.details === "object" && error.details !== null ? error.details as Record<string, unknown> : {};
       const payload = error instanceof AppError
-        ? { status: error.statusCode, error: error.message, code: error.code, details: error.details, diagnostic_id: diagnosticId }
-        : { status: 500, error: "Erro interno do servidor.", code: "INTERNAL_SERVER_ERROR", diagnostic_id: diagnosticId };
+        ? { status: error.statusCode, error: error.message, code: error.code, details: { ...existingDetails, diagnostico_id: diagnosticId }, diagnostic_id: diagnosticId }
+        : { status: 500, error: "Erro interno do servidor.", code: "INTERNAL_SERVER_ERROR", details: { diagnostico_id: diagnosticId }, diagnostic_id: diagnosticId };
       writeEvent("error", payload);
       res.end();
     } finally {
