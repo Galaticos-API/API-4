@@ -10,7 +10,7 @@ import { HarnessRepository } from '../harness/harness.repository.js';
 import { defaultConfig,ModelOutputRejectedError } from '../harness/harness.contract.js';
 import { HttpHarnessEngine } from '../harness/harness.service.js';
 import { reconcileEvidenceResponse,resolveQuote,wholePassage } from './rag-evidence.js';
-import { NOT_FOUND_ANSWER,PARTIAL_ANSWER_NOTICE,UNAVAILABLE_ASPECT_NOTICE } from './chat.types.js';
+import { NO_CANDIDATES_ANSWER,NOT_FOUND_ANSWER,PARTIAL_ANSWER_NOTICE,SCOPE_LIMIT_ANSWER,UNAVAILABLE_ASPECT_NOTICE } from './chat.types.js';
 import type { HybridSearchRow } from '../search/search.types.js';
 
 const project=randomUUID(),chunk=randomUUID(),other=randomUUID(),entity=randomUUID();
@@ -109,7 +109,7 @@ test('RAG diferencia busca sem candidatos de candidatos sem evidência útil',as
   const embeddings={embed:async()=>Array(1024).fill(0.1)};
   const noCandidates=await new RagService(new Chats(),new EmptySearch(),embeddings,new Revisions(),{generate:async()=>{throw Error('não deve chamar o harness sem candidatos');}})
     .answer(randomUUID(),'Pergunta sem correspondência',[project]);
-  assert.equal(noCandidates.resposta,NOT_FOUND_ANSWER);
+  assert.equal(noCandidates.resposta,`${NO_CANDIDATES_ANSWER} ${SCOPE_LIMIT_ANSWER}`);
 
   const unsupported=await new RagService(new Chats(),new Search(),embeddings,new Revisions(),{generate:async()=>({coverage:'no_evidence',evidence:[]})})
     .answer(randomUUID(),'Pergunta sem evidência',[project]);

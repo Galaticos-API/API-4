@@ -44,7 +44,7 @@ function createService(): ChatService {
       onProgress?.("synthesizing");
       onProgress?.("validating");
       if (fail) throw new AppError("Falha segura", 503, "CHAT_FAILED", { diagnostico_id: "d4ef37fb-7a50-471d-8d10-50692dce8a2f" });
-      if (unexpectedError) throw new Error("Erro inesperado");
+      if (unexpectedError) throw new Error("Erro inesperado com PROMPT_CONFIDENCIAL");
       return { conversa_id: "20000000-0000-4000-8000-000000000001", resposta: "Resposta validada", fontes: [], origem: "assistente" };
     },
   } as unknown as ChatService;
@@ -178,11 +178,20 @@ test("SSE interrompe o processamento quando o cliente fecha a conexão", async (
 
 test("SSE inclui diagnostic_id em erros inesperados (não-AppError)", async () => {
   unexpectedError = true;
-  const response = await fetch(`${baseUrl}/chat/query/stream`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ pergunta: "Pergunta de QA", projeto_id: PROJECT }),
-  });
+  const originalConsoleError = console.error;
+  const loggedArguments: unknown[][] = [];
+  console.error = (...args: unknown[]) => { loggedArguments.push(args); };
+  let response: Response | undefined;
+  try {
+    response = await fetch(`${baseUrl}/chat/query/stream`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ pergunta: "Pergunta de QA", projeto_id: PROJECT }),
+    });
+  } finally {
+    console.error = originalConsoleError;
+  }
+  assert.ok(response);
   const body = await response.text();
   assert.match(body, /event: error/);
   assert.match(body, /"status":500/);
@@ -190,6 +199,14 @@ test("SSE inclui diagnostic_id em erros inesperados (não-AppError)", async () =
   assert.match(body, /"diagnostic_id":"[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}"/);
   assert.match(body, /"details":\{[^}]*"diagnostico_id":"[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}"/);
   assert.doesNotMatch(body, /event: timing/);
+  assert.equal(loggedArguments.length, 1);
+  const diagnosticMatch = /"diagnostic_id":"([^"]+)"/.exec(body);
+  assert.ok(diagnosticMatch);
+  assert.deepEqual(loggedArguments[0], ["[Chat Query Error]", {
+    diagnostic_id: diagnosticMatch[1],
+    code: "INTERNAL_SERVER_ERROR",
+  }]);
+  assert.doesNotMatch(JSON.stringify(loggedArguments), /PROMPT_CONFIDENCIAL|Erro inesperado|stack/i);
   unexpectedError = false;
 });
 

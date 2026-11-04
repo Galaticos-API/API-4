@@ -188,7 +188,12 @@ export function createChatRouter(service: ChatService = new ChatService(), authe
         if (!res.writableEnded) res.end();
         return;
       }
-      console.error(`[Chat Query Error] diagnostic_id=${diagnosticId}`, error);
+      // Never log the raw exception: providers and database clients may include
+      // prompts, SQL parameters, or credentials in error messages and stacks.
+      console.error("[Chat Query Error]", {
+        diagnostic_id: diagnosticId,
+        code: error instanceof AppError ? error.code : "INTERNAL_SERVER_ERROR",
+      });
       const existingDetails = error instanceof AppError && typeof error.details === "object" && error.details !== null ? error.details as Record<string, unknown> : {};
       const payload = error instanceof AppError
         ? { status: error.statusCode, error: error.message, code: error.code, details: { ...existingDetails, diagnostico_id: diagnosticId }, diagnostic_id: diagnosticId }

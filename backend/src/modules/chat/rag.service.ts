@@ -10,7 +10,7 @@ import { SearchRepository } from '../search/search.repository.js';
 import { fallbackSearchQuery,HttpSearchEmbeddingClient,type SearchEmbeddingClient } from '../search/search.service.js';
 import type { HybridSearchRow } from '../search/search.types.js';
 import { ChatRepository } from './chat.repository.js';
-import { NO_SUPPORT_ANSWER,NOT_FOUND_ANSWER,OUT_OF_SCOPE_ANSWER,PARTIAL_ANSWER_NOTICE,SCOPE_LIMIT_ANSWER,UNAVAILABLE_ASPECT_NOTICE,validChatText,type AssistantAnswer,type ChatProgressStage,type ChatSource,type ConversationTurn } from './chat.types.js';
+import { NO_CANDIDATES_ANSWER,NO_SUPPORT_ANSWER,NOT_FOUND_ANSWER,OUT_OF_SCOPE_ANSWER,PARTIAL_ANSWER_NOTICE,SCOPE_LIMIT_ANSWER,UNAVAILABLE_ASPECT_NOTICE,validChatText,type AssistantAnswer,type ChatProgressStage,type ChatSource,type ConversationTurn } from './chat.types.js';
 
 export const ragInput=z.object({pergunta:z.string().trim().min(1).max(2000).refine(validChatText,'Use texto Unicode válido, sem caractere nulo.'),projeto_ids:z.array(z.string().uuid().transform(id=>id.toLowerCase())).min(1).max(50).optional()}).strict();
 type RagFailureStage = 'embedding' | 'hybrid_search' | 'context_build' | 'harness' | 'source_revalidation' | 'response_assembly';
@@ -158,7 +158,10 @@ export class RagService {
         return index>=0?fuseQueryResults([resultSets[index]]):[];
       });
       durations.busca_hibrida=Math.round(performance.now()-stageStarted);
-      if(!rows.length){finishLog(0);return empty;}
+      if(!rows.length){
+        finishLog(0);
+        return overviewRequest?empty:{...empty,resposta:`${NO_CANDIDATES_ANSWER} ${SCOPE_LIMIT_ANSWER}`};
+      }
       if(rows.some(row=>!projectIds.includes(row.project_id)))throw Error('Escopo incompatível');
       stage='context_build';
       let remaining=20000;
