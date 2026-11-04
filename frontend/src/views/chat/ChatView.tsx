@@ -49,6 +49,7 @@ function projectReadinessHelp(project: ProjectOption): string | null {
 
 interface ThreadMessage extends ChatMessage {
   failed?: boolean;
+  thinkingLabel?: string;
 }
 
 interface QueuedQuestion { id: string; text: string }
@@ -587,6 +588,7 @@ export function ChatView() {
     if (!queuedId) setDraft(current=>!retryId||current.trim()===question?'':current);
     const controller = new AbortController();
     activeRequestController.current = controller;
+    let completedTiming = "";
     try {
       const answer = await askQuestion({
         pergunta: question,
@@ -604,6 +606,7 @@ export function ChatView() {
         setScopeId(selectionForConversation(conversation));
         setActiveId(conversation.id);
       }, (_durationMs, message) => {
+        completedTiming = message;
         if (mounted.current) setTimingMessage(message);
       });
       if (!mounted.current) return;
@@ -615,8 +618,17 @@ export function ChatView() {
       setMessages(current => current.map(item => item.id === pendingId ? { ...item, processing: false, queued: false } : item));
       setMessages((current) => [
         ...current,
-        { id: `assistant-${Date.now()}`, remetente: "assistant", conteudo: answer.resposta, fontes: answer.fontes, created_at: new Date().toISOString(), origem: answer.origem },
+        {
+          id: `assistant-${Date.now()}`,
+          remetente: "assistant",
+          conteudo: answer.resposta,
+          fontes: answer.fontes,
+          created_at: new Date().toISOString(),
+          origem: answer.origem,
+          ...(completedTiming ? { thinkingLabel: completedTiming } : {}),
+        },
       ]);
+      setTimingMessage("");
       if (!activeId) {
         skipReload.current = answer.conversa_id;
         setActiveId(answer.conversa_id);
@@ -677,6 +689,7 @@ export function ChatView() {
       if (mounted.current) {
         setPendingKeys(current => current.filter(key => key !== sendKey));
         setProgressByKey(current => { const next = { ...current }; delete next[sendKey]; return next; });
+        setTimingMessage("");
       }
     }
   }, [activeId, requestScopeType, selectedProjectId, scopeValid, sendKey, loadConversations, loadMessages, messagesState, cancelVoiceCapture]);
@@ -1250,6 +1263,9 @@ function MessageBubble({ message, copied, copyFailed, deleting, deleteDisabled, 
       </header>
       {message.failed && <p className="chat-message-failed" role="note">Não enviada</p>}
       {message.processing && <p className="chat-message-processing" role="status"><LoaderCircle aria-hidden="true" size={14} />Em processamento</p>}
+      {!isUser && message.thinkingLabel && (
+        <p className="chat-message-thinking" aria-label={message.thinkingLabel}>{message.thinkingLabel}</p>
+      )}
       {isUser ? <p className="chat-message-text">{message.conteudo}</p> : <Markdown source={message.conteudo} className="chat-message-body" />}
       {failureText && (
         <div className="chat-message-error" role="alert">
