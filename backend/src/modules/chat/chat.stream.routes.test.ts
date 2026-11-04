@@ -6,24 +6,28 @@ import type { Server } from "node:http";
 import { AppError } from "../../shared/errors.js";
 import { errorHandler } from "../../middleware/errorHandler.js";
 import type { ChatProgressStage } from "./chat.types.js";
-import { createChatRouter } from "./chat.routes.js";
+import { createChatRouter, formatThinkingDuration } from "./chat.routes.js";
 import type { ChatService } from "./chat.service.js";
 
 const USER = "10000000-0000-4000-8000-000000000001";
+const PROJECT = "30000000-0000-4000-8000-000000000001";
 let server: Server;
 let baseUrl: string;
+let unauthServer: Server;
+let unauthBaseUrl: string;
 let fail = false;
 let unexpectedError = false;
 let cancelNext = false;
 let cancellationObserved = false;
 let renameCall: { user: string; id: string; title: unknown } | null = null;
+let lastQueryDelayMs = 0;
 
-before(() => {
-  const service = {
-    accessibleProjectsWithKnowledgeReadiness: async () => [{ id: "30000000-0000-4000-8000-000000000001", nome: "QA", documentos_total: 0, documentos_processados: 0, documentos_pendentes: 0, documentos_com_falha: 0, trechos_elegiveis: 0, trechos_com_embedding: 0, ultimo_trecho_em: null, prontidao: "empty" }],
+function createService(): ChatService {
+  return {
+    accessibleProjectsWithKnowledgeReadiness: async () => [{ id: PROJECT, nome: "QA", documentos_total: 0, documentos_processados: 0, documentos_pendentes: 0, documentos_com_falha: 0, trechos_elegiveis: 0, trechos_com_embedding: 0, ultimo_trecho_em: null, prontidao: "empty" }],
     renameConversation: async (user: string, id: string, title: unknown) => {
       renameCall = { user, id, title };
-      return { id, usuario_id: user, projeto_id: "30000000-0000-4000-8000-000000000001", titulo: String(title), created_at: "2026-10-27T00:00:00Z", updated_at: "2026-10-27T00:00:00Z" };
+      return { id, usuario_id: user, projeto_id: PROJECT, titulo: String(title), created_at: "2026-10-27T00:00:00Z", updated_at: "2026-10-27T00:00:00Z" };
     },
     query: async (_user: string, _input: unknown, onProgress?: (stage: ChatProgressStage) => void, signal?: AbortSignal) => {
       if (cancelNext) {
@@ -33,6 +37,9 @@ before(() => {
           reject(new DOMException("Consulta interrompida.", "AbortError"));
         }, { once: true }));
       }
+      if (lastQueryDelayMs > 0) {
+        await new Promise((resolve) => setTimeout(resolve, lastQueryDelayMs));
+      }
       onProgress?.("searching");
       onProgress?.("synthesizing");
       onProgress?.("validating");
@@ -41,25 +48,48 @@ before(() => {
       return { conversa_id: "20000000-0000-4000-8000-000000000001", resposta: "Resposta validada", fontes: [], origem: "assistente" };
     },
   } as unknown as ChatService;
+}
+
+before(() => {
   const authentication: express.RequestHandler = (req, _res, next) => {
     req.auth = { id: USER, nome: "QA", email: "qa@example.test", role: "admin" };
     next();
   };
   const app = express();
   app.use(express.json());
-  app.use("/api/v1/chat", createChatRouter(service, authentication));
+  app.use("/api/v1/chat", createChatRouter(createService(), authentication));
   app.use(errorHandler);
   server = app.listen(0);
   baseUrl = `http://127.0.0.1:${(server.address() as AddressInfo).port}/api/v1`;
+
+  const rejectAuth: express.RequestHandler = (_req, res) => {
+    res.status(401).json({ error: "Autenticação necessária.", code: "UNAUTHORIZED" });
+  };
+  const unauthApp = express();
+  unauthApp.use(express.json());
+  unauthApp.use("/api/v1/chat", createChatRouter(createService(), rejectAuth));
+  unauthApp.use(errorHandler);
+  unauthServer = unauthApp.listen(0);
+  unauthBaseUrl = `http://127.0.0.1:${(unauthServer.address() as AddressInfo).port}/api/v1`;
 });
 
-after(() => server.close());
+after(() => {
+  server.close();
+  unauthServer.close();
+});
+
+test("formatThinkingDuration cobre segundos e minutos", () => {
+  assert.deepEqual(formatThinkingDuration(0), { duration_ms: 0, message: "Pensou por 0s" });
+  assert.deepEqual(formatThinkingDuration(15_400), { duration_ms: 15400, message: "Pensou por 15s" });
+  assert.deepEqual(formatThinkingDuration(75_000), { duration_ms: 75000, message: "Pensou por 1min15s" });
+  assert.deepEqual(formatThinkingDuration(125_999), { duration_ms: 125999, message: "Pensou por 2min5s" });
+});
 
 test("GET projetos retorna prontidão do acervo para orientar o escopo do chat", async () => {
   const response = await fetch(`${baseUrl}/chat/projects`);
   assert.equal(response.status, 200);
   assert.deepEqual(await response.json(), { items: [{
-    id: "30000000-0000-4000-8000-000000000001", nome: "QA", documentos_total: 0,
+    id: PROJECT, nome: "QA", documentos_total: 0,
     documentos_processados: 0, documentos_pendentes: 0, documentos_com_falha: 0,
     trechos_elegiveis: 0, trechos_com_embedding: 0, ultimo_trecho_em: null, prontidao: "empty",
   }] });
@@ -80,10 +110,11 @@ test("PATCH renomeia uma conversa autenticada e devolve o título salvo", async 
 
 test("SSE relata etapas reais e envia somente a resposta final concluída", async () => {
   fail = false;
+  lastQueryDelayMs = 0;
   const response = await fetch(`${baseUrl}/chat/query/stream`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ pergunta: "Pergunta de QA", projeto_id: "30000000-0000-4000-8000-000000000001" }),
+    body: JSON.stringify({ pergunta: "Pergunta de QA", projeto_id: PROJECT }),
   });
   assert.match(response.headers.get("content-type") ?? "", /text\/event-stream/);
   const body = await response.text();
@@ -94,21 +125,37 @@ test("SSE relata etapas reais e envia somente a resposta final concluída", asyn
   assert.doesNotMatch(body, /token|partial|delta/i);
 });
 
+test("SSE timing reflete a duração real da consulta", async () => {
+  fail = false;
+  lastQueryDelayMs = 80;
+  const response = await fetch(`${baseUrl}/chat/query/stream`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ pergunta: "Pergunta com latência", projeto_id: PROJECT }),
+  });
+  const body = await response.text();
+  lastQueryDelayMs = 0;
+  const timingMatch = /event: timing\ndata: (.*?)\n\n/.exec(body);
+  assert.ok(timingMatch);
+  const timing = JSON.parse(timingMatch[1]) as { duration_ms: number; message: string };
+  assert.ok(timing.duration_ms >= 80, `duration_ms=${timing.duration_ms}`);
+  assert.match(timing.message, /^Pensou por \d+s$/);
+});
+
 test("SSE serializa falhas com envelope seguro e diagnóstico, sem stack ou erro bruto", async () => {
   fail = true;
   const response = await fetch(`${baseUrl}/chat/query/stream`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ pergunta: "Pergunta de QA", projeto_id: "30000000-0000-4000-8000-000000000001" }),
+    body: JSON.stringify({ pergunta: "Pergunta de QA", projeto_id: PROJECT }),
   });
   const body = await response.text();
   assert.match(body, /event: error/);
   assert.match(body, /"status":503/);
-  // Verify diagnostic_id is at root level (new format)
   assert.match(body, /"diagnostic_id":"[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}"/);
-  // Verify legacy format is also present for backward compatibility
   assert.match(body, /"details":\{[^}]*"diagnostico_id":"[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}"/);
   assert.doesNotMatch(body, /stack|private prompt|password/i);
+  assert.doesNotMatch(body, /event: timing/);
   fail = false;
 });
 
@@ -119,7 +166,7 @@ test("SSE interrompe o processamento quando o cliente fecha a conexão", async (
   const response = await fetch(`${baseUrl}/chat/query/stream`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ pergunta: "Pergunta interrompida", projeto_id: "30000000-0000-4000-8000-000000000001" }),
+    body: JSON.stringify({ pergunta: "Pergunta interrompida", projeto_id: PROJECT }),
     signal: controller.signal,
   });
   assert.match(response.headers.get("content-type") ?? "", /text\/event-stream/);
@@ -134,15 +181,78 @@ test("SSE inclui diagnostic_id em erros inesperados (não-AppError)", async () =
   const response = await fetch(`${baseUrl}/chat/query/stream`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ pergunta: "Pergunta de QA", projeto_id: "30000000-0000-4000-8000-000000000001" }),
+    body: JSON.stringify({ pergunta: "Pergunta de QA", projeto_id: PROJECT }),
   });
   const body = await response.text();
   assert.match(body, /event: error/);
   assert.match(body, /"status":500/);
   assert.match(body, /"code":"INTERNAL_SERVER_ERROR"/);
-  // Verify diagnostic_id is at root level
   assert.match(body, /"diagnostic_id":"[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}"/);
-  // Verify legacy format is also present
   assert.match(body, /"details":\{[^}]*"diagnostico_id":"[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}"/);
+  assert.doesNotMatch(body, /event: timing/);
   unexpectedError = false;
+});
+
+test("SSE rejeita pergunta vazia com HTTP 400 antes dos cabeçalhos de stream", async () => {
+  const response = await fetch(`${baseUrl}/chat/query/stream`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ pergunta: "   ", projeto_id: PROJECT }),
+  });
+  assert.equal(response.status, 400);
+  assert.doesNotMatch(response.headers.get("content-type") ?? "", /text\/event-stream/);
+  const payload = await response.json() as { error: string; code: string };
+  assert.equal(payload.code, "VALIDATION_ERROR");
+  assert.match(payload.error, /Digite uma pergunta/i);
+});
+
+test("SSE rejeita escopo inválido com HTTP 400 antes dos cabeçalhos de stream", async () => {
+  const response = await fetch(`${baseUrl}/chat/query/stream`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ pergunta: "Pergunta de QA", escopo: "escopo_fantasma" }),
+  });
+  assert.equal(response.status, 400);
+  assert.doesNotMatch(response.headers.get("content-type") ?? "", /text\/event-stream/);
+  const payload = await response.json() as { error: string; code: string };
+  assert.equal(payload.code, "VALIDATION_ERROR");
+  assert.match(payload.error, /Escopo da conversa inválido/i);
+});
+
+test("SSE rejeita identificador de projeto inválido com HTTP 400", async () => {
+  const response = await fetch(`${baseUrl}/chat/query/stream`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ pergunta: "Pergunta de QA", projeto_id: "projeto-invalido" }),
+  });
+  assert.equal(response.status, 400);
+  assert.doesNotMatch(response.headers.get("content-type") ?? "", /text\/event-stream/);
+  const payload = await response.json() as { error: string; code: string };
+  assert.equal(payload.code, "VALIDATION_ERROR");
+  assert.match(payload.error, /ID do projeto inválido/i);
+});
+
+test("SSE rejeita conversa_id inválido com HTTP 400", async () => {
+  const response = await fetch(`${baseUrl}/chat/query/stream`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ pergunta: "Pergunta de QA", conversa_id: "nao-e-uuid" }),
+  });
+  assert.equal(response.status, 400);
+  assert.doesNotMatch(response.headers.get("content-type") ?? "", /text\/event-stream/);
+  const payload = await response.json() as { error: string; code: string };
+  assert.equal(payload.code, "VALIDATION_ERROR");
+  assert.match(payload.error, /ID da conversa inválido/i);
+});
+
+test("SSE sem autenticação responde 401 sem abrir event-stream", async () => {
+  const response = await fetch(`${unauthBaseUrl}/chat/query/stream`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ pergunta: "Pergunta de QA", projeto_id: PROJECT }),
+  });
+  assert.equal(response.status, 401);
+  assert.doesNotMatch(response.headers.get("content-type") ?? "", /text\/event-stream/);
+  const payload = await response.json() as { code: string };
+  assert.equal(payload.code, "UNAUTHORIZED");
 });
