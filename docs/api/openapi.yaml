@@ -3031,7 +3031,8 @@ paths:
 
   /api/v1/chat/conversations:
     get:
-      summary: Lista as conversas do usuário autenticado
+      summary: Lista as conversas privadas do usuário autenticado
+      description: Retorna somente conversas do usuário autenticado, ordenadas pela atividade mais recente (updated_at decrescente). Conversas criadas no fluxo de consulta recebem título derivado da primeira pergunta, limitado a 60 caracteres; títulos podem ser renomeados explicitamente.
       operationId: listChatConversations
       security: [{cookieAuth: []}]
       responses:
@@ -3040,7 +3041,8 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
     post:
-      summary: Cria uma conversa para um projeto ou para todos os projetos autorizados
+      summary: Cria uma conversa privada para um projeto ou para todos os projetos autorizados
+      description: Cria conversa vinculada ao usuário autenticado. Ao iniciar pelo endpoint de consulta, o título é gerado a partir da primeira pergunta.
       operationId: createChatConversation
       security: [{cookieAuth: []}]
       requestBody:
