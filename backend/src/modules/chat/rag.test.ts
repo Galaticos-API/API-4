@@ -80,6 +80,26 @@ class Chats extends ChatRepository {
 }
 class Search extends SearchRepository {async hybridSearch(){return [row];}}
 class Revisions extends HarnessRepository {async current(){return {mode:'consulta' as const,version:0,schema_version:1 as const,config:defaultConfig('consulta'),created_at:null,created_by:null};}}
+test('RAG applies one default search deadline to access, retrieval, and evidence revalidation',async()=>{
+  const deadlines:{accessible?:number;search?:number;current?:number}={};
+  class DeadlineChats extends ChatRepository {
+    async accessibleProjects(...args:Parameters<ChatRepository['accessibleProjects']>){deadlines.accessible=args[1];return [{id:project,nome:'Projeto A'}];}
+    async currentRagChunks(...args:Parameters<ChatRepository['currentRagChunks']>){deadlines.current=args[2];return [currentRow()];}
+  }
+  class DeadlineSearch extends SearchRepository {
+    async hybridSearch(...args:Parameters<SearchRepository['hybridSearch']>){deadlines.search=args[6];return [row];}
+  }
+  const service=new RagService(new DeadlineChats(),new DeadlineSearch(),{embed:async()=>Array(1024).fill(0.1)},new Revisions(),{
+    generate:async()=>({coverage:'complete',evidence:[{source_id:chunk,quote:row.text}]}),
+  });
+  await service.answer(randomUUID(),'Como funciona o login?',[project]);
+  assert.notEqual(deadlines.accessible,undefined);
+  assert.notEqual(deadlines.search,undefined);
+  assert.notEqual(deadlines.current,undefined);
+  assert.ok(deadlines.accessible!>performance.now(),'default deadline should still be in the future');
+  assert.equal(deadlines.search,deadlines.accessible);
+  assert.equal(deadlines.current,deadlines.accessible);
+});
 test('RAG recupera contexto limitado, retorna evidências e revalida as fontes antes de responder',async()=>{
   const chats=new Chats();let calls=0;
   const stages:string[]=[];

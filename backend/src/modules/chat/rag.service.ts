@@ -195,6 +195,7 @@ export class RagService {
     private readonly revisions=new HarnessRepository(),private readonly engine:HarnessEngine=new HttpHarnessEngine()){}
 
   async answer(userId:string,question:string,requestedProjects?:string[],onProgress?:(stage:ChatProgressStage)=>void,signal?:AbortSignal,history:ConversationTurn[] = [],checkBroaderScope=true, searchDeadline?:number): Promise<AssistantAnswer & {contrato:string;escopo:string[];evidencias:NonNullable<AssistantAnswer["evidencias"]>}> {
+    searchDeadline ??= performance.now() + 20_000;
     const parsed=ragInput.safeParse({pergunta:question,...(requestedProjects?{projeto_ids:requestedProjects}:{})});
     if(!parsed.success)throw new ValidationError('Pergunta ou escopo inválido.');
     requestedProjects=parsed.data.projeto_ids;
