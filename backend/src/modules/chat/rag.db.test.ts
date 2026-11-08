@@ -10,7 +10,7 @@ import { HttpHarnessEngine } from '../harness/harness.service.js';
 import { HttpSearchEmbeddingClient } from '../search/search.service.js';
 import { SearchRepository } from '../search/search.repository.js';
 import { HarnessRepository } from '../harness/harness.repository.js';
-import { NOT_FOUND_ANSWER,PARTIAL_ANSWER_NOTICE } from './chat.types.js';
+import { NO_CANDIDATES_ANSWER,NOT_FOUND_ANSWER,PARTIAL_ANSWER_NOTICE,SCOPE_LIMIT_ANSWER } from './chat.types.js';
 
 test('S2-24: busca híbrida, evidências, escopo transversal autorizado e revogação em PostgreSQL',{skip:!process.env.QUALITY_TEST_DATABASE_URL},async t=>{
   const db=new Pool({connectionString:validateTarget(process.env.QUALITY_TEST_DATABASE_URL,'test')});
@@ -50,7 +50,7 @@ test('S2-24: busca híbrida, evidências, escopo transversal autorizado e revoga
     });
     await t.test('sem recuperação pertinente não aciona geração',async()=>{
       const previous=modelCalls;const result=await service.answer(admin,'assunto inexistente',[a,b]);
-      assert.equal(result.resposta,NOT_FOUND_ANSWER);assert.equal(result.cobertura,"no_evidence");assert.deepEqual(result.fontes,[]);assert.equal(modelCalls,previous);
+      assert.equal(result.resposta,`${NO_CANDIDATES_ANSWER} ${SCOPE_LIMIT_ANSWER}`);assert.equal(result.cobertura,"no_evidence");assert.deepEqual(result.fontes,[]);assert.equal(modelCalls,previous);
     });
     await t.test('HTTP recusa perguntas e títulos inválidos sem criar conversas órfãs',async()=>{
       const {app}=await import('../../app.js');
@@ -112,7 +112,7 @@ test('S2-24: busca híbrida, evidências, escopo transversal autorizado e revoga
         const transversal=await real.answer(admin,'Quais usos do WhatsApp existem nos projetos?',[a,b]);
         assert.deepEqual(new Set(transversal.fontes.map(source=>source.projeto_id)),new Set([a,b]));
         const missing=await real.answer(dev,'Qual política de autenticação biométrica foi definida?',[a]);
-        assert.equal(missing.resposta,NOT_FOUND_ANSWER);assert.equal(missing.cobertura,"no_evidence");assert.deepEqual(missing.fontes,[]);
+        assert.equal(missing.resposta,`${NO_CANDIDATES_ANSWER} ${SCOPE_LIMIT_ANSWER}`);assert.equal(missing.cobertura,"no_evidence");assert.deepEqual(missing.fontes,[]);
         assert.equal(missing.cobertura,'no_evidence');
 
         const offTopic=new RagService(new ChatRepository(db),new SearchRepository(db),embeddings,new HarnessRepository(db),new HttpHarnessEngine(process.env.RAG_REAL_AI_URL!));
