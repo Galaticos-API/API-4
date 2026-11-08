@@ -103,7 +103,7 @@ it('processa evento timing após completed e invoca callback',async()=>{
 
 it('envia a mesma chave de tentativa ao endpoint SSE para permitir retry idempotente',async()=>{
   const wire='event: completed\ndata: {"conversa_id":"conversation-a","resposta":"Resposta validada","fontes":[],"origem":"assistente"}\n\n';
-  const fetchMock=vi.fn(async()=>new Response(wire,{headers:{'Content-Type':'text/event-stream; charset=utf-8'}}));
+  const fetchMock=vi.fn(async(_input:RequestInfo|URL,_init?:RequestInit)=>new Response(wire,{headers:{'Content-Type':'text/event-stream; charset=utf-8'}}));
   vi.stubGlobal('fetch',fetchMock);
   await askQuestion({pergunta:'Pergunta recuperável',attemptId:'50000000-0000-4000-8000-000000000001'},undefined,()=>{});
   const request=fetchMock.mock.calls[0][1] as RequestInit;
