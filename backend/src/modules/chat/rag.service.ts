@@ -109,6 +109,8 @@ export function formatVerifiedEvidence(evidence:ReturnType<typeof validateEviden
 }
 
 export function isClearlyOutsideKnowledge(question:string):boolean {
+  // Elliptical follow-ups need conversation context before scope classification.
+  if (/^(?:e\s+)?(?:a|o|esse|essa|isso|ela|ele)\b/iu.test(question.trim())) return false;
   const generalTopic=/\b(?:previs[aã]o do tempo|(?:vai|deve) chover|receita de bolo|(?:fazer|assar) p[ãa]o caseiro|resultado do jogo|quem ganhou a partida|hor[oó]scopo|meu signo|a capital d[aoe]|placar da final|cota[çc][ãa]o do d[oó]lar|signo de|receita de p[ãa]o caseiro|clima de amanh[ãa])(?![\p{L}\p{N}_])/iu;
   const workContext=/\b(?:projeto|acervo|documento|requisito|aplicativo|sistema|api|funcionalidade|m[oó]dulo|tela|componente|painel|widget|servi[çc]o|autentica\w*|integra[çc][ãa]o)\b/iu;
   if(/\b(?:ignore|esque[çc]a)\b[^.!?]*\b(?:e diga|e explique|e me d[eê]|e responda)\b/iu.test(question))return generalTopic.test(question);
@@ -120,13 +122,67 @@ export function supportsRequestedDecision(question:string,quote:string):boolean 
   if(/^\s*(?:alternativas|op[çc][õo]es|tecnologias)\s+(?:avaliadas|consideradas|descartadas)\s*:/iu.test(quote))return false;
   // A list of names alone does not establish which option was adopted.
   const asksForDatabase=/\bbanco(?: de dados)?\b/iu.test(question);
+  if(asksForDatabase) {
+    const names=['PostgreSQL','MySQL','MariaDB','SQLite','MongoDB','SQL Server','Oracle Database','CockroachDB','Firebird','Db2','DynamoDB'];
+    const clauses=quote.split(/\n+|(?<=[.!?;])\s+|,\s*(?:mas|porém|contudo)\s+/iu);
+    const states=new Map<string,boolean>();
+    let previousCandidate:string|undefined;
+    const excluded=/\b(?:recomend\w*|planej\w*|estud\w*|consider\w*|avali\w*|cogit\w*|pretend\w*|poderia|pode\s+adotar|ainda\s+depende\s+de\s+aprova[çc][ãa]o|depende\s+de\s+aprova[çc][ãa]o|se aprovado|será\s+adotad\w*|reproduzir (?:um )?incidente em laborat[oó]rio|para\s+(?:(?:um|uma)\s+)?(?:piloto|prova de conceito)|(?:apenas|somente|exclusivamente|temporariamente)\s+(?:no|em|para|durante)\s+(?:o\s+)?(?:prot[oó]tipo|benchmark|laborat[oó]rio|testes?|ambiente de testes?|homologa[çc][ãa]o|fins?\s+de\s+testes?)|(?:usad[oa]s?|utilizad[oa]s?|adotad[oa]s?|escolhid[oa]s?)\s+(?:(?:somente|apenas|exclusivamente|temporariamente)\s+)?(?:no|em|para|durante)\s+(?:o\s+)?(?:prot[oó]tipo|benchmark|laborat[oó]rio|testes?|ambiente de testes?|homologa[çc][ãa]o)|(?:usad[oa]s?|utilizad[oa]s?)\s+(?:em\s+)?(?:um\s+)?benchmark|deixou de ser (?:utilizad[oa]|usad[oa])|como alternativa|sugest[aã]o|para cache|como cache)\b/iu;
+    const affirmative=/\b(?:ado[çc][ãa]o|adot\w*|escolh\w*|utiliz\w*|usa(?:mos|m)?|usado|usada|em uso|banco principal|banco de dados operacional|(?:o\s+)?banco de dados\s+é|é\s+(?:o\s+)?banco de dados|(?:[\p{L}\p{N}][\p{L}\p{N}._+-]*\s+)?é\s+(?:o\s+)?banco de dados|o\s+banco de dados\s+é)\b/iu;
+    const negative=/\b(?:n[aã]o\s+(?:adot\w*|escolh\w*|utiliz\w*|us\w*|foi\s+(?:adotad[oa]|escolhid[oa]|utilizad[oa]|usad[oa]))|nunca\s+(?:adot\w*|escolh\w*|utiliz\w*)|(?:adotad[oa]|escolhid[oa]|utilizad[oa]|usad[oa])\s+n[aã]o\s+(?:foi|foram)|(?:descart\w*|rejeit\w*|abandon\w*))\b/iu;
+    const pronounVeto=/\b(?:n[aã]o|nunca|nem)\s+(?:(?:foi|foram)\s+)?(?:(?:adotad[oa]s?|escolhid[oa]s?|utilizad[oa]s?|usad[oa]s?)\s+(?:ele|ela|o|a|os|as|lo|la|los|las|dele|dela)|(?:adot[aá]r?|escolh[eê]r?|utiliz[aá]r?|us[aá]r?)(?:-(?:lo|la|los|las)|\s+(?:ele|ela|o|a|os|as|lo|la|los|las|dele|dela)))\b/iu;
+    const implicitDecisionNegation=/^\s*(?:(?:depois|posteriormente|em seguida),?\s+)?(?:(?:ele|ela)\s+)?(?:n[aã]o\s+(?:(?:foi|foram)\s+)?(?:adotad[oa]|escolhid[oa]|utilizad[oa]|usad[oa])|(?:a equipe|o time|a decis[aã]o)\s+decidiu\s+n[aã]o\s+(?:adotar|escolher|utilizar|usar)|(?:foi|foram)\s+(?:descartad[oa]|rejeitad[oa]|abandonad[oa]|substitu[ií]d[oa])|deixou\s+de\s+ser\s+(?:utilizad[oa]|usad[oa]))\b/iu;
+    for(let index=0;index<clauses.length;index++){
+      const clause=clauses[index];
+      const next=clauses[index+1]??'';
+      const adversative=/(?:^|\s)(?:porém|contudo|entretanto|todavia|no entanto)\s*,?\s*/iu.test(clause);
+      const adversativeNegation=/^\s*(?:porém|contudo|entretanto|todavia|no entanto)\b[^.!?;]*\b(?:n[aã]o|nunca|nem)\s+(?:foi|foram|é|era|será|seria|adotad[oa]s?|escolhid[oa]s?|utilizad[oa]s?)\b/iu.test(clause);
+      const previous=clauses[index-1]??'';
+      if(adversativeNegation&&previousCandidate)states.set(previousCandidate,false);
+      const mentioned=names.filter(name=>new RegExp(`\\b${name}\\b`,'iu').test(clause));
+      if(previousCandidate&&/\b(?:foi|foram)\s+substitu[ií]d[oa]s?\s+por\b/iu.test(clause)) {
+        const previousName=names.find(name=>name.toLowerCase()===previousCandidate);
+        const explicitTarget=previousName&&new RegExp(`\\b${previousName}\\b[^.!?;]*\\b(?:foi|foram)\\s+substitu[ií]d[oa]s?\\b`,'iu').test(clause);
+        const startsWithReplacement=/^\s*(?:(?:(?:em seguida|depois|posteriormente),?\s+)?(?:(?:ele|ela)\s+)?)?(?:foi|foram)\s+substitu[ií]d[oa]s?\s+por\b/iu.test(clause);
+        const replacementHasNewCandidate=mentioned.some(name=>name.toLowerCase()!==previousCandidate)
+          && /^\s*[\p{L}\p{N}][\p{L}\p{N}._+-]*\s+(?:foi|foram)\s+substitu[ií]d[oa]s?\s+por\b/iu.test(clause);
+        if(explicitTarget||(startsWithReplacement&&!replacementHasNewCandidate))states.set(previousCandidate,false);
+      }
+      if(mentioned.length){
+        for(const name of mentioned){
+          const explicitForCandidate=new RegExp(`(?:\\b${name}\\b[^.!?;]{0,24}\\b(?:n[aã]o|nunca|nem)\\s+(?:foi|foram|é|era|será|seria)\\s+(?:adotad[oa]s?|escolhid[oa]s?)|\\b(?:n[aã]o\\s+(?:adot\\w*|escolh\\w*|utiliz\\w*|us\\w*|decid\\w*)|nunca\\s+(?:adot\\w*|escolh\\w*))[^.!?;]{0,24}\\b${name}\\b)`,'iu');
+          const thisCandidate=new RegExp(`\\b${name}\\b`,'iu');
+          const candidateNegative=new RegExp(`(?:\\b${name}\\b[^.!?;]{0,50}\\b(?:n[aã]o|nunca|nem)\\s+(?:foi|foram|é|era|será|seria)\\s+(?:adotad[oa]s?|escolhid[oa]s?|utilizad[oa]s?)|\\b(?:n[aã]o\\s+(?:adot\\w*|escolh\\w*|utiliz\\w*|us\\w*|decid\\w*)|nunca\\s+(?:adot\\w*|escolh\\w*))[^.!?;]{0,50}\\b${name}\\b)`,'iu');
+          const candidateAffirmative=thisCandidate.test(clause)&&(affirmative.test(clause)||new RegExp(`\\b${name}\\b\\s+é\\s+(?:o\\s+)?banco(?: de dados)?`,'iu').test(clause)||new RegExp(`banco(?: de dados)?\\s+é\\s+${name}\\b`,'iu').test(clause));
+          const explicitNotBank=new RegExp(`\\b${name}\\b[^.!?;]*\\bn[aã]o\\s+é\\s+(?:o\\s+)?banco(?: de dados)?`,'iu').test(clause);
+          if(explicitNotBank){states.set(name.toLowerCase(),false);continue;}
+          if(candidateNegative.test(clause)||explicitForCandidate.test(clause)||negative.test(clause)&&!candidateAffirmative)states.set(name.toLowerCase(),false);
+          else if(candidateAffirmative&&!excluded.test(clause)&&!adversative&&!/^\s*T[ií]tulo\s*:/iu.test(clause))states.set(name.toLowerCase(),true);
+        }
+        previousCandidate=mentioned[mentioned.length-1].toLowerCase();
+        const nextMentionsDatabase=names.some(candidate=>new RegExp(`\\b${candidate}\\b`,'iu').test(next));
+        if(!nextMentionsDatabase&&(pronounVeto.test(next)||implicitDecisionNegation.test(next)))states.set(previousCandidate!,false);
+      }else if(previousCandidate&&(pronounVeto.test(clause)||implicitDecisionNegation.test(clause)))states.set(previousCandidate,false);
+    }
+    return [...states.values()].some(Boolean);
+  }
+  const targetNames=asksForDatabase?'(?:postgresql|mysql|mariadb|sqlite|mongodb|sql server|oracle database|cockroachdb|firebird|db2|dynamodb)':'(?:[\p{L}\p{N}][\p{L}\p{N}._+-]*)';
   const reversedDecision = /(?:^|(?<=[.!?;]))[^.!?;]*\b(postgresql|mysql|mariadb|sqlite|mongodb|sql server|oracle database|cockroachdb|firebird|db2)\b[^.!?;]*[.!?;]\s*(?:depois|posteriormente)\b[^.!?;]*\b(?:descartou|rejeitou|abandonou)\s+(?:o\s+)?\1\b/giu;
   quote = quote.replace(/\b(?:usad[oa]|utilizad[oa]|adotad[oa]|escolhid[oa])\b[^.!?;]*[.!?;]\s*(?:depois|posteriormente|em seguida),?\s+(?:(?:ele|ela)\s+)?(?:foi|foram)\s+(?:abandonad[oa]s?|descartad[oa]s?|rejeitad[oa]s?|substitu[ií]d[oa]s?)\b/iu, "");
   if (asksForDatabase) quote = quote.replace(reversedDecision, "");
-  return quote.split(/\n+|\s+e\s+(?=nunca\s+(?:usou|utilizou|adotou|escolheu)\s+\S)|;(?!\s*n[aã]o\s+(?:(?:foi|foram)\s+)?(?:adot|escolh|utiliz|usad))|(?<=[.!?])\s+|(?:,\s*mas\s+|\s+e\s+)(?=n[aã]o\b(?!\s+(?:(?:foi|foram)\s+)?(?:adot|escolh|utiliz|usad)))/iu).some(clause=>{
+  const clauses=quote.split(/\n+|\s+e\s+(?=nunca\s+(?:usou|utilizou|adotou|escolheu)\s+\S)|;(?!\s*n[aã]o\s+(?:(?:foi|foram)\s+)?(?:adot|escolh|utiliz|usad))|(?<=[.!?])\s+|(?:,\s*mas\s+|\s+e\s+)(?=n[aã]o\s+(?:(?:foi|foram)\s+)?(?:adot|escolh|utiliz|usad))/iu);
+  return clauses.some((clause,index)=>{
+    const next=clauses[index+1]??'';
+    const candidate=new RegExp(`\\b${targetNames}\\b`,'iu');
+    const negatedCandidate=new RegExp(`\\b${targetNames}\\b[^.!?;]*\\b(?:n[aã]o|nunca|nem)\\s+(?:foi|foram|é|era|será|seria|adotad[oa]s?|escolh\\w*|utiliz\\w*|us\\w*)`,'iu');
+    const negationAboutClause=new RegExp(`\\b(?:n[aã]o\\s+(?:adot|escolh|utiliz|us|decid)[^.!?;]*\\b${targetNames}\\b|(?:adotad[oa]s?|escolhid[oa]s?|utilizad[oa]s?|usad[oa]s?)\\s+n[aã]o\\s+(?:foi|foram)[^.!?;]*\\b${targetNames}\\b|nunca\\s+(?:adot|escolh|utiliz|us)|nem\\s+(?:adot|escolh|utiliz|us))`,'iu');
+    const negatedClause=new RegExp(`\\b(?:n[aã]o\\s+(?:adot|escolh|utiliz|us|decid)[^.!?;]*\\b${targetNames}\\b|\\b${targetNames}\\b[^.!?;]*\\b(?:n[aã]o|nunca|nem)\\s+(?:adot|escolh|utiliz|us|decid))`,'iu');
+    const pronounNegation=/\b(?:n[aã]o|nunca|nem)\s+(?:(?:adotad[oa]s?|escolhid[oa]s?|utilizad[oa]s?|usad[oa]s?)|(?:adotar|escolher|utilizar|usar))\s+(?:ele|ela|lo|la|los|las|dele|dela)\b/iu.test(next);
+    const otherCandidate=new RegExp(`\\b${targetNames}\\b`,'iu');
+    if(negatedCandidate.test(clause)||negatedClause.test(clause)||(candidate.test(clause)&&(negationAboutClause.test(next)||pronounNegation)&&!otherCandidate.test(next)))return false;
     if (/\b(?:apenas|somente|exclusivamente)\s+(?:(?:durante|no|em|para)\s+(?:(?:o|a|um|uma)\s+)?(?:benchmarks?|testes?|prot[oó]tipos?|homologa[çc][ãa]o)|para fins de testes?|para homologa[çc][ãa]o)\b/iu.test(clause)) return false;
-    if(/\b(?:n[aã]o|nunca|nem|descart\w*|rejeit\w*|descontinu\w*|substitu[ií]d\w*|pode|poderia|pretend\w*|cogit\w*|recomend\w*|planej\w*|estud\w*|(?:apenas|somente|exclusivamente)\s+(?:para testes|(?:no|em) ambiente de testes?)|(?:apenas|somente|exclusivamente)\s+(?:no|em)\s+(?:prot[oó]tipo|benchmark|laborat[oó]rio)|(?:usad[oa]s?|utilizad[oa]s?|adotad[oa]s?|escolhid[oa]s?)\s+(?:(?:somente|apenas|exclusivamente|temporariamente)\s+)?(?:no|em|para|durante)\s+(?:(?:um|uma|o|a)\s+)?(?:benchmarks?|testes?|ambiente de testes?|prot[oó]tipos?)|deixou de ser (?:utilizad[oa]|usad[oa])|para reproduzir (?:um )?incidente em laborat[oó]rio|para\s+(?:(?:um|o)\s+)?piloto|para\s+(?:uma\s+)?prova de conceito|como alternativa|sugest[aã]o|consider\w*|avali\w*|ainda|ser[aá]|se aprovado)\b/iu.test(clause))return false;
-    if(asksForDatabase&&(!/\b(?:banco|postgresql|mysql|mariadb|sqlite|mongodb|sql server|oracle database|cockroachdb|firebird|db2)\b/iu.test(clause)
+    if(/\b(?:descart\w*|rejeit\w*|substitu[ií]d\w*|pode|poderia|pretend\w*|cogit\w*|recomend\w*|planej\w*|estud\w*|(?:apenas|somente|exclusivamente)\s+(?:para testes|(?:no|em) ambiente de testes?)|(?:apenas|somente|exclusivamente)\s+(?:no|em)\s+(?:prot[oó]tipo|benchmark|laborat[oó]rio)|(?:usad[oa]s?|utilizad[oa]s?|adotad[oa]s?|escolhid[oa]s?)\s+(?:(?:somente|apenas|exclusivamente|temporariamente)\s+)?(?:no|em|para|durante)\s+(?:(?:um|uma|o|a)\s+)?(?:benchmarks?|testes?|ambiente de testes?|prot[oó]tipos?)|deixou de ser (?:utilizad[oa]|usad[oa])|para reproduzir (?:um )?incidente em laborat[oó]rio|para\s+(?:(?:um|o)\s+)?piloto|para\s+(?:uma\s+)?prova de conceito|como alternativa|sugest[aã]o|consider\w*|avali\w*|ainda|ser[aá]|se aprovado)\b/iu.test(clause))return false;
+    if(asksForDatabase&&(!/\b(?:banco|postgresql|mysql|mariadb|sqlite|mongodb|sql server|oracle database|cockroachdb|firebird|db2|dynamodb)\b/iu.test(clause)
       || /\b(?:para cache|como cache)\b/iu.test(clause)))return false;
     return /\b(?:ado[çc][ãa]o|adot\w*|utiliz\w*|escolh\w*|decid\w*|usa|usamos|usado|usada|em uso)\b/iu.test(clause)
       || (asksForDatabase&&/(?:^|\s)(?:é\s+o\s+banco de dados|o banco de dados\s+é)\s+/iu.test(clause));
@@ -147,7 +203,7 @@ export class RagService {
     const projectIds=[...new Set(requestedProjects??accessible.map(project=>project.id))];
     const empty={contrato:'rag-conversacional-v1',resposta:NOT_FOUND_ANSWER,fontes:[] as ChatSource[],evidencias:[] as Array<{chunk_id:string;texto:string}>,escopo:projectIds,cobertura:'no_evidence' as const};
     const originalAspects=splitCompoundQuestion(parsed.data.pergunta);
-    if(originalAspects.every(isClearlyOutsideKnowledge))return {...empty,resposta:OUT_OF_SCOPE_ANSWER,cobertura:'out_of_scope' as const};
+  if(originalAspects.every(isClearlyOutsideKnowledge))return {...empty,resposta:OUT_OF_SCOPE_ANSWER,cobertura:'out_of_scope' as const};
     if(!projectIds.length)return empty;
     const diagnosticId=randomUUID();
     const startedAt=performance.now();
@@ -243,19 +299,6 @@ export class RagService {
         if(supported.length!==adapter.evidence.length) {
           adapter.evidence=supported;
           adapter.coverage=supported.length?'partial':'no_evidence';
-        }
-        if(!adapter.evidence.length&&!asksForBiometrics
-          && /\bbanco(?: de dados)?\b/iu.test(requestedAspect)
-          && /\b(?:adotad[oa]|adotou|escolhid[oa]|escolheu)\b/iu.test(requestedAspect)) {
-          for(const source of aspectRows[index].filter(row=>row.entity_type==='decisao')) {
-            const quote=context.find(item=>item.id===source.id)?.text.split('\n')[0].trim();
-            if(!quote||quote.length>1000||!/^Título:\s+Adoção de\b/iu.test(quote)
-              || !/\b(?:PostgreSQL|MySQL|MariaDB|SQLite|MongoDB|SQL Server|Oracle Database)\b/iu.test(quote)
-              || !wholePassage(source.text,quote))continue;
-            adapter.evidence=[{source_id:source.id,quote}];
-            adapter.coverage='partial';
-            break;
-          }
         }
         if(adapter.outcome!=='accepted')console.warn('[RAG] Evidence adjusted',{diagnostico_id:diagnosticId,aspecto:index,resultado:adapter.outcome,citacoes_validas:adapter.evidence.length});
         hasCoverageConflict ||= adapter.coverageConflict&&adapter.evidence.length>0;

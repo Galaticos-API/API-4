@@ -32,7 +32,7 @@ test('S2-24: busca híbrida, evidências, escopo transversal autorizado e revoga
   try {
     await db.query("INSERT INTO usuario(id,nome,email,senha_hash,role) VALUES ($1,'Admin',$3,'h','admin'),($2,'Dev',$4,'h','dev')",[admin,dev,admin+'@rag.test',dev+'@rag.test']);
     await db.query('INSERT INTO desenvolvedor(id,usuario_id) VALUES ($1,$2)',[developer,dev]);
-    await db.query("INSERT INTO projeto(id,nome,cliente,status) VALUES ($1,'RAG A','QA','ativo'),($2,'RAG B','QA','ativo')",[a,b]);
+    await db.query("INSERT INTO projeto(id,nome,cliente,status) VALUES ($1,$3,'QA','ativo'),($2,$4,'QA','ativo')",[a,b,`RAG A ${a}`,`RAG B ${b}`]);
     await db.query("INSERT INTO alocacao(desenvolvedor_id,projeto_id,data_inicio) VALUES ($1,$2,CURRENT_TIMESTAMP-INTERVAL '1 day')",[developer,a]);
     for(const [project,doc,chunk,text] of [[a,docA,chunkA,'O projeto A integra WhatsApp para avisos.'],[b,docB,chunkB,'O projeto B integra WhatsApp para suporte.']]) {
       await db.query("INSERT INTO documento(id,projeto_id,nome,caminho,status_processamento) VALUES ($1,$2,'WhatsApp.txt','rag.txt','processado')",[doc,project]);
@@ -143,5 +143,13 @@ test('S2-24: busca híbrida, evidências, escopo transversal autorizado e revoga
       await db.query("UPDATE projeto SET status='arquivado' WHERE id=$1",[b]);
       const result=await service.answer(admin,'WhatsApp',[a,b]);assert.ok(result.fontes.every(source=>source.projeto_id===a));
     });
-  } finally {await db.end();await pool.end();}
+  } finally {
+    try {
+      await db.query('DELETE FROM usuario WHERE id=ANY($1::uuid[])',[[admin,dev]]);
+      await db.query('DELETE FROM projeto WHERE id=ANY($1::uuid[])',[[a,b]]);
+    } finally {
+      try { await db.end(); }
+      finally { await pool.end(); }
+    }
+  }
 });
