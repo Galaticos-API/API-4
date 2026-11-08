@@ -194,17 +194,60 @@ export class RagService {
     private readonly embeddings:SearchEmbeddingClient=new HttpSearchEmbeddingClient(),
     private readonly revisions=new HarnessRepository(),private readonly engine:HarnessEngine=new HttpHarnessEngine()){}
 
-  async answer(userId:string,question:string,requestedProjects?:string[],onProgress?:(stage:ChatProgressStage)=>void,signal?:AbortSignal,history:ConversationTurn[] = []) {
+  async answer(userId:string,question:string,requestedProjects?:string[],onProgress?:(stage:ChatProgressStage)=>void,signal?:AbortSignal,history:ConversationTurn[] = [],checkBroaderScope=true, searchDeadline?:number): Promise<AssistantAnswer & {contrato:string;escopo:string[];evidencias:NonNullable<AssistantAnswer["evidencias"]>}> {
+    searchDeadline ??= performance.now() + 20_000;
     const parsed=ragInput.safeParse({pergunta:question,...(requestedProjects?{projeto_ids:requestedProjects}:{})});
     if(!parsed.success)throw new ValidationError('Pergunta ou escopo inválido.');
     requestedProjects=parsed.data.projeto_ids;
-    const accessible=await this.chats.accessibleProjects(userId);
+    const accessible=await this.chats.accessibleProjects(userId,searchDeadline);
     if(requestedProjects?.some(id=>!accessible.some(project=>project.id===id)))throw new NotFoundError('Projeto não encontrado.');
     const projectIds=[...new Set(requestedProjects??accessible.map(project=>project.id))];
     const empty={contrato:'rag-conversacional-v1',resposta:NOT_FOUND_ANSWER,fontes:[] as ChatSource[],evidencias:[] as Array<{chunk_id:string;texto:string}>,escopo:projectIds,cobertura:'no_evidence' as const};
     const originalAspects=splitCompoundQuestion(parsed.data.pergunta);
   if(originalAspects.every(isClearlyOutsideKnowledge))return {...empty,resposta:OUT_OF_SCOPE_ANSWER,cobertura:'out_of_scope' as const};
     if(!projectIds.length)return empty;
+    const offerBroaderScope=async<T extends AssistantAnswer>(answer:T):Promise<T>=>{
+      if(!checkBroaderScope||requestedProjects?.length!==1||answer.cobertura!=='no_evidence'||signal?.aborted)return answer;
+      const otherProjects=[...new Set(accessible.map(project=>project.id))].filter(id=>!projectIds.includes(id));
+      if(!otherProjects.length)return answer;
+      try {
+        const deadline=AbortSignal.timeout(20_000);
+        const probeSignal=signal?AbortSignal.any([signal,deadline]):deadline;
+        const expiresAt = performance.now() + 20_000;
+        const probe = async () => {
+          for (let offset = 0; offset < otherProjects.length; offset += 50) {
+            probeSignal.throwIfAborted();
+            const batch = otherProjects.slice(offset, offset + 50);
+            const candidate = await this.answer(userId, question, batch, undefined, probeSignal, history, false, expiresAt)
+              .catch(() => {
+                probeSignal.throwIfAborted();
+                return undefined;
+              });
+            if (!candidate?.evidencias.length || !candidate.fontes.length) continue;
+            const stillAllowed = new Set((await this.chats.accessibleProjects(userId,expiresAt)).map(project=>project.id));
+            probeSignal.throwIfAborted();
+            if (candidate.fontes.every(source=>source.projeto_id && stillAllowed.has(source.projeto_id) && batch.includes(source.projeto_id))) return true;
+          }
+          return false;
+        };
+        let stop!: () => void;
+        const aborted = new Promise<false>(resolve => {
+          stop = () => resolve(false);
+          if (probeSignal.aborted) stop();
+          else probeSignal.addEventListener('abort', stop, {once:true});
+        });
+        try {
+          if (await Promise.race([aborted, probe()]) && !probeSignal.aborted) {
+            return {...answer,resposta:`${answer.resposta}\n\nAmpliar a busca pode ajudar. Abra uma nova conversa e selecione **Todos os projetos permitidos** para consultar o acervo autorizado.`};
+          }
+        } finally {
+          probeSignal.removeEventListener('abort', stop);
+        }
+      } catch {
+        // Uma falha na consulta auxiliar não altera a resposta do escopo selecionado.
+      }
+      return answer;
+    };
     const diagnosticId=randomUUID();
     const startedAt=performance.now();
     const durations:Record<string,number>={};
@@ -248,11 +291,11 @@ export class RagService {
       if(signal?.aborted)throw new DOMException("Consulta interrompida.","AbortError");
       stageStarted=performance.now();
       const resultSets=await Promise.all(searchQueries.map((query,index)=>this.search.hybridSearch(
-        {query,projectId:projectIds[0],limit:5},vectors[index],env.SEARCH_MIN_VECTOR_SIMILARITY,env.SEARCH_MIN_TEXT_RANK,projectIds)));
+        {query,projectId:projectIds[0],limit:5},vectors[index],env.SEARCH_MIN_VECTOR_SIMILARITY,env.SEARCH_MIN_TEXT_RANK,projectIds,undefined,searchDeadline)));
       let rows=fuseQueryResults(resultSets);
       if(!rows.length&&overviewRequest) {
         stageStarted=performance.now();
-        rows=await this.search.ragSearch(projectIds,vectors[0],5,-1);
+        rows=await this.search.ragSearch(projectIds,vectors[0],5,-1,searchDeadline);
         durations.busca_hibrida+=Math.round(performance.now()-stageStarted);
       }
       const aspectRows=safeAspects.map(aspect=>{
@@ -262,7 +305,7 @@ export class RagService {
       durations.busca_hibrida=Math.round(performance.now()-stageStarted);
       if(!rows.length){
         finishLog(0);
-        return overviewRequest?empty:{...empty,resposta:`${NO_CANDIDATES_ANSWER} ${SCOPE_LIMIT_ANSWER}`};
+        return offerBroaderScope(overviewRequest?empty:{...empty,resposta:`${NO_CANDIDATES_ANSWER} ${SCOPE_LIMIT_ANSWER}`});
       }
       if(rows.some(row=>!projectIds.includes(row.project_id)))throw Error('Escopo incompatível');
       stage='context_build';
@@ -275,7 +318,7 @@ export class RagService {
         return text.trim()?[{id:row.id,text}]:[];
         });
       });
-      if(!overviewRequest&&!facetContexts.some(context=>context.length)){finishLog(rows.length);return {...empty,resposta:`${NO_SUPPORT_ANSWER} ${SCOPE_LIMIT_ANSWER}`};}
+      if(!overviewRequest&&!facetContexts.some(context=>context.length)){finishLog(rows.length);return offerBroaderScope({...empty,resposta:`${NO_SUPPORT_ANSWER} ${SCOPE_LIMIT_ANSWER}`});}
       stage='harness';
       reportProgress('synthesizing');
       stageStarted=performance.now();
@@ -294,6 +337,29 @@ export class RagService {
           if(signal?.aborted)throw error;
           failedAspects++;lastFailure=error;
           continue;
+        }
+        const aspect=safeAspects.length===1?resolvedQuestion:safeAspects[index];
+        if(!adapter.evidence.length&&adapter.coverage==='no_evidence'
+          && /\b(?:projetos|compare|compara[çc][ãa]o)\b/iu.test(aspect)) {
+          const byProject=new Map<string,typeof context>();
+          for(const item of context) {
+            const owner=rows.find(row=>row.id===item.id)?.project_id;
+            if(owner)byProject.set(owner,[...(byProject.get(owner)??[]),item]);
+          }
+          if(byProject.size>1) {
+            for(const [owner,projectContext] of byProject) {
+              if(signal?.aborted)throw new DOMException('Consulta interrompida.','AbortError');
+              const retry=new EvidenceEngine(this.engine);
+              try {
+                await new HarnessService(this.revisions,retry,this.chats).run(owner,
+                  {mode:'consulta',operation:'responder',level:'pbi',fields:{pergunta:`${aspect.slice(0,1900)} Responda apenas sobre o projeto representado nestes trechos.`},context:[]},projectContext,diagnosticId,signal);
+                adapter.evidence.push(...retry.evidence);
+              } catch(error) {
+                if(signal?.aborted)throw error;
+              }
+            }
+            if(adapter.evidence.length)adapter.coverage='partial';
+          }
         }
         const requestedAspect=originalAspects.length===1?originalAspects[0]:safeAspects[index];
         const asksForBiometrics=/\bbiom[eé]tr\w*\b/iu.test(requestedAspect);
@@ -325,12 +391,13 @@ export class RagService {
       durations.geracao_e_validacao_harness=Math.round(performance.now()-stageStarted);
       if(!selectedEvidence.length){
         finishLog(rows.length);
-        return {...empty,resposta:overviewRequest?NOT_FOUND_ANSWER:evidenceCoverage==='out_of_scope'?OUT_OF_SCOPE_ANSWER:failedAspects?`${NO_SUPPORT_ANSWER} ${UNAVAILABLE_ASPECT_NOTICE}`:`${NO_SUPPORT_ANSWER} ${SCOPE_LIMIT_ANSWER}`,cobertura:evidenceCoverage};
+        const refusal={...empty,resposta:overviewRequest?NOT_FOUND_ANSWER:evidenceCoverage==='out_of_scope'?OUT_OF_SCOPE_ANSWER:failedAspects?`${NO_SUPPORT_ANSWER} ${UNAVAILABLE_ASPECT_NOTICE}`:`${NO_SUPPORT_ANSWER} ${SCOPE_LIMIT_ANSWER}`,cobertura:evidenceCoverage};
+        return failedAspects?refusal:offerBroaderScope(refusal);
       }
       stage='source_revalidation';
       reportProgress('validating');
       stageStarted=performance.now();
-      const current=await this.chats.currentRagChunks(userId,selectedEvidence.map(item=>item.source_id));
+      const current=await this.chats.currentRagChunks(userId,selectedEvidence.map(item=>item.source_id),searchDeadline);
       durations.revalidacao_fontes=Math.round(performance.now()-stageStarted);
       if(selectedEvidence.some(item=>{
         const source=rows.find(row=>row.id===item.source_id)!;

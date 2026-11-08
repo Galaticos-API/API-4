@@ -80,6 +80,26 @@ class Chats extends ChatRepository {
 }
 class Search extends SearchRepository {async hybridSearch(){return [row];}}
 class Revisions extends HarnessRepository {async current(){return {mode:'consulta' as const,version:0,schema_version:1 as const,config:defaultConfig('consulta'),created_at:null,created_by:null};}}
+test('RAG applies one default search deadline to access, retrieval, and evidence revalidation',async()=>{
+  const deadlines:{accessible?:number;search?:number;current?:number}={};
+  class DeadlineChats extends ChatRepository {
+    async accessibleProjects(...args:Parameters<ChatRepository['accessibleProjects']>){deadlines.accessible=args[1];return [{id:project,nome:'Projeto A'}];}
+    async currentRagChunks(...args:Parameters<ChatRepository['currentRagChunks']>){deadlines.current=args[2];return [currentRow()];}
+  }
+  class DeadlineSearch extends SearchRepository {
+    async hybridSearch(...args:Parameters<SearchRepository['hybridSearch']>){deadlines.search=args[6];return [row];}
+  }
+  const service=new RagService(new DeadlineChats(),new DeadlineSearch(),{embed:async()=>Array(1024).fill(0.1)},new Revisions(),{
+    generate:async()=>({coverage:'complete',evidence:[{source_id:chunk,quote:row.text}]}),
+  });
+  await service.answer(randomUUID(),'Como funciona o login?',[project]);
+  assert.notEqual(deadlines.accessible,undefined);
+  assert.notEqual(deadlines.search,undefined);
+  assert.notEqual(deadlines.current,undefined);
+  assert.ok(deadlines.accessible!>performance.now(),'default deadline should still be in the future');
+  assert.equal(deadlines.search,deadlines.accessible);
+  assert.equal(deadlines.current,deadlines.accessible);
+});
 test('RAG recupera contexto limitado, retorna evidências e revalida as fontes antes de responder',async()=>{
   const chats=new Chats();let calls=0;
   const stages:string[]=[];
@@ -526,6 +546,76 @@ test('Harness HTTP distingue saída rejeitada (422) de indisponibilidade',async(
     await assert.rejects(()=>new HttpHarnessEngine(`http://127.0.0.1:${port}/down`).generate({},2000),(error:unknown)=>!(error instanceof ModelOutputRejectedError));
   } finally { server.close(); }
 });
+for(const scenario of ['authorized','unauthorized','revoked','irrelevant','second_batch','failed_batch','slow'] as const) {
+  test(`S3-03: sugestão de ampliação com projeto alternativo ${scenario}`,async()=>{
+    const alternate=randomUUID(), forbidden=randomUUID();
+    const searched:string[][]=[];
+    let authorizationChecks=0;
+    const controller = new AbortController();
+    const preceding = ["second_batch","failed_batch"].includes(scenario) ? Array.from({length:50},()=>({id:randomUUID(),nome:"Projeto"})) : [];
+    class ScopedChats extends Chats {
+      async accessibleProjects(){
+        authorizationChecks++;
+        const allowed=scenario!=='unauthorized'&&!(scenario==='revoked'&&authorizationChecks>=3);
+        return [{id:project,nome:'Projeto A'},...preceding,...(allowed?[{id:alternate,nome:'Projeto reservado'}]:[])];
+      }
+      async currentRagChunks(){return [{...currentRow(),projeto_id:alternate}];}
+    }
+    class ScopedSearch extends SearchRepository {
+      async hybridSearch(...args:Parameters<SearchRepository['hybridSearch']>){
+        const ids=args[4]??[];
+        searched.push(ids);
+        if (scenario === "failed_batch" && ids.includes(preceding[0].id)) throw new Error("Lote indisponível");
+        if (scenario === "slow" && ids.includes(alternate)) {
+          assert.ok(args[6]! > performance.now());
+          controller.abort();
+          return new Promise<never>(()=>{});
+        }
+        return ids.includes(alternate)?[{...row,project_id:alternate,project_name:'Projeto reservado'}]:[];
+      }
+    }
+    const service=new RagService(new ScopedChats(),new ScopedSearch(),{embed:async()=>Array(1024).fill(0.1)},new Revisions(),{
+      generate:async()=>scenario==='irrelevant'?{coverage:'no_evidence',evidence:[]}:{coverage:'complete',evidence:[{source_id:chunk,quote:row.text}]},
+    });
+    const result=await service.answer(randomUUID(),'Como funciona o login?',[project],undefined,controller.signal);
+    assert.equal(result.cobertura,'no_evidence');
+    assert.deepEqual(result.escopo,[project]);
+    assert.deepEqual(result.fontes,[]);
+    assert.deepEqual(result.evidencias,[]);
+    assert.equal(result.resposta.includes('Ampliar a busca pode ajudar'),['authorized','second_batch','failed_batch'].includes(scenario));
+    assert.doesNotMatch(result.resposta,/Projeto reservado|O login exige autenticação/);
+    assert.ok(searched.every(ids=>!ids.includes(forbidden)));
+    assert.equal(searched.some(ids=>ids.includes(alternate)),scenario!=='unauthorized');
+  });
+}
+
+test('S3-03: comparação tenta contextos separados quando o modelo não cita no contexto conjunto',async()=>{
+  const alternate=randomUUID();
+  const textB='O login usa autenticação por token.';
+  const second={...row,id:other,project_id:alternate,project_name:'Projeto B',text:textB};
+  class ComparisonChats extends Chats {
+    async accessibleProjects(){return [{id:project,nome:'Projeto A'},{id:alternate,nome:'Projeto B'}];}
+    async currentRagChunks(){return [currentRow(),{...currentRow(textB),id:other,projeto_id:alternate}];}
+  }
+  class ComparisonSearch extends SearchRepository {
+    async hybridSearch(){return [row,second];}
+  }
+  const sizes:number[]=[];
+  const service=new RagService(new ComparisonChats(),new ComparisonSearch(),{embed:async()=>Array(1024).fill(0.1)},new Revisions(),{
+    generate:async payload=>{
+      const context=payload.context as Array<{id:string;text:string}>;
+      sizes.push(context.length);
+      return context.length>1?{coverage:'no_evidence',evidence:[]}:{
+        coverage:'complete',evidence:context.map(item=>({source_id:item.id,quote:item.text})),
+      };
+    },
+  });
+  const result=await service.answer(randomUUID(),'Como os projetos autenticam o login?',[project,alternate]);
+  assert.deepEqual(sizes,[2,1,1]);
+  assert.deepEqual(new Set(result.fontes.map(source=>source.projeto_id)),new Set([project,alternate]));
+  assert.equal(result.cobertura,'partial');
+});
+
 test('RAG interrompe embedding e geração quando o AbortSignal dispara',async()=>{
   const controller=new AbortController();
   const embedding=new RagService(new Chats(),new Search(),{

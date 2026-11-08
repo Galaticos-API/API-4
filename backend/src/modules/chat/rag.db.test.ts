@@ -10,7 +10,7 @@ import { HttpHarnessEngine } from '../harness/harness.service.js';
 import { HttpSearchEmbeddingClient } from '../search/search.service.js';
 import { SearchRepository } from '../search/search.repository.js';
 import { HarnessRepository } from '../harness/harness.repository.js';
-import { NO_CANDIDATES_ANSWER,NOT_FOUND_ANSWER,PARTIAL_ANSWER_NOTICE,SCOPE_LIMIT_ANSWER } from './chat.types.js';
+import { NO_CANDIDATES_ANSWER,PARTIAL_ANSWER_NOTICE,SCOPE_LIMIT_ANSWER } from './chat.types.js';
 
 test('S2-24: busca híbrida, evidências, escopo transversal autorizado e revogação em PostgreSQL',{skip:!process.env.QUALITY_TEST_DATABASE_URL},async t=>{
   const db=new Pool({connectionString:validateTarget(process.env.QUALITY_TEST_DATABASE_URL,'test')});
@@ -51,6 +51,25 @@ test('S2-24: busca híbrida, evidências, escopo transversal autorizado e revoga
     await t.test('sem recuperação pertinente não aciona geração',async()=>{
       const previous=modelCalls;const result=await service.answer(admin,'assunto inexistente',[a,b]);
       assert.equal(result.resposta,`${NO_CANDIDATES_ANSWER} ${SCOPE_LIMIT_ANSWER}`);assert.equal(result.cobertura,"no_evidence");assert.deepEqual(result.fontes,[]);assert.equal(modelCalls,previous);
+    });
+    await t.test('S3-03: somente quem acessa a evidência externa recebe o aviso',async()=>{
+      await db.query('UPDATE chunk SET embedding=$2::vector WHERE id=$1',[chunkA,JSON.stringify([0,1,...Array(1022).fill(0)])]);
+      try {
+        const question='Como funciona o suporte?';
+        const restricted=await service.answer(admin,question,[a]);
+        assert.match(restricted.resposta,/Ampliar a busca pode ajudar/);
+        assert.deepEqual(restricted.escopo,[a]);
+        assert.deepEqual(restricted.fontes,[]);
+        assert.deepEqual(restricted.evidencias,[]);
+        assert.doesNotMatch(restricted.resposta,/RAG B|WhatsApp/);
+        const denied=await service.answer(dev,question,[a]);
+        assert.equal(denied.resposta,`${NO_CANDIDATES_ANSWER} ${SCOPE_LIMIT_ANSWER}`);
+        assert.deepEqual(denied.fontes,[]);
+        const expanded=await service.answer(admin,question);
+        assert.deepEqual(expanded.fontes.map(source=>source.projeto_id),[b]);
+      } finally {
+        await db.query('UPDATE chunk SET embedding=$2::vector WHERE id=$1',[chunkA,JSON.stringify(vector)]);
+      }
     });
     await t.test('HTTP recusa perguntas e títulos inválidos sem criar conversas órfãs',async()=>{
       const {app}=await import('../../app.js');
