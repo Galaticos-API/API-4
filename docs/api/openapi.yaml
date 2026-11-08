@@ -3031,7 +3031,8 @@ paths:
 
   /api/v1/chat/conversations:
     get:
-      summary: Lista as conversas do usuário autenticado
+      summary: Lista as conversas privadas do usuário autenticado
+      description: Retorna somente conversas do usuário autenticado, ordenadas pela atividade mais recente (updated_at decrescente). Conversas criadas no fluxo de consulta recebem título derivado da primeira pergunta, limitado a 60 caracteres; títulos podem ser renomeados explicitamente.
       operationId: listChatConversations
       security: [{cookieAuth: []}]
       responses:
@@ -3040,7 +3041,8 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
     post:
-      summary: Cria uma conversa para um projeto ou para todos os projetos autorizados
+      summary: Cria uma conversa privada para um projeto ou para todos os projetos autorizados
+      description: Cria conversa vinculada ao usuário autenticado. Ao iniciar pelo endpoint de consulta, o título é gerado a partir da primeira pergunta.
       operationId: createChatConversation
       security: [{cookieAuth: []}]
       requestBody:
@@ -3269,10 +3271,65 @@ paths:
                 escopo: {type: string, enum: [projeto, todos_autorizados]}
       responses:
         '200':
-          description: Fluxo SSE; somente `completed` contém a resposta depois da validação das fontes. Fechar a conexão interrompe a consulta ativa.
+          description: >
+            Fluxo SSE codificado como texto UTF-8. Cada frame segue o formato `event: <nome>` e
+            `data: <JSON>`, terminado por uma linha em branco; comentários `: keep-alive` são heartbeats.
+            Eventos: `progress` ({stage}), `conversation` (metadados), `completed` (resposta final),
+            `timing` ({duration_ms, message}, depois de completed), `cancelled` ({error}) e `error`
+            (envelope seguro com diagnostic_id). Fechar a conexão interrompe a consulta ativa.
           content:
             text/event-stream:
-              schema: {type: string, description: 'Eventos progress, completed ou error; heartbeat usa comentário SSE'}
+              schema:
+                type: string
+                description: Corpo textual com frames SSE; o JSON em cada campo data depende do nome do evento.
+                example: |-
+                  event: progress
+                  data: {"stage":"searching"}
+
+                  event: completed
+                  data: {"conversa_id":"20000000-0000-4000-8000-000000000001","resposta":"Resposta validada","fontes":[],"origem":"assistente"}
+
+                  event: timing
+                  data: {"duration_ms":15400,"message":"Pensou por 15s"}
+              x-sse-event-schemas:
+                progress:
+                  type: object
+                  properties:
+                    stage: {type: string, enum: [searching, synthesizing, validating]}
+                conversation:
+                  type: object
+                  properties:
+                    id: {type: string, format: uuid}
+                    titulo: {type: string}
+                    projeto_id: {type: string, format: uuid, nullable: true}
+                    projeto_nome: {type: string, nullable: true}
+                    escopo_tipo: {type: string, enum: [projeto, todos_autorizados, indisponivel]}
+                    updated_at: {type: string, format: date-time}
+                completed:
+                  type: object
+                  properties:
+                    conversa_id: {type: string, format: uuid}
+                    escopo_tipo: {type: string, enum: [projeto, todos_autorizados]}
+                    resposta: {type: string}
+                    fontes: {type: array, items: {$ref: '#/components/schemas/ChatSource'}}
+                    origem: {type: string, enum: [assistente, busca_textual, sem_resultado]}
+                timing:
+                  type: object
+                  properties:
+                    duration_ms: {type: integer, description: 'Duração total em milissegundos'}
+                    message: {type: string, description: 'Mensagem formatada para exibição (ex: "Pensou por 15s")'}
+                cancelled:
+                  type: object
+                  properties:
+                    error: {type: string}
+                error:
+                  type: object
+                  properties:
+                    status: {type: integer}
+                    error: {type: string}
+                    code: {type: string}
+                    details: {type: object, description: 'Detalhes adicionais do erro, pode incluir diagnostico_id para compatibilidade legada'}
+                    diagnostic_id: {type: string, format: uuid, description: 'Identificador para correlação de logs (campo raiz, preferido sobre details.diagnostico_id)'}
         '400':
           $ref: '#/components/responses/ValidationError'
         '401':

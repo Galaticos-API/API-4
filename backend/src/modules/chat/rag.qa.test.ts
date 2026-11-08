@@ -8,7 +8,7 @@ import { ChatRepository } from './chat.repository.js';
 import { SearchRepository } from '../search/search.repository.js';
 import { HarnessRepository } from '../harness/harness.repository.js';
 import { defaultConfig } from '../harness/harness.contract.js';
-import { NOT_FOUND_ANSWER } from './chat.types.js';
+import { NO_CANDIDATES_ANSWER,SCOPE_LIMIT_ANSWER } from './chat.types.js';
 import type { HybridSearchRow } from '../search/search.types.js';
 
 interface RagSmokeFixture {
@@ -128,7 +128,8 @@ test('chat RAG QA fictício: pergunta sem evidência se abstém e não chama o g
 
   for (const variant of query.variants) {
     const response = await service.answer(randomUUID(), variant, [fixture.project.id]);
-    assert.equal(response.resposta, NOT_FOUND_ANSWER);
+    assert.ok(response.resposta.startsWith(NO_CANDIDATES_ANSWER));
+    assert.ok(response.resposta.includes(SCOPE_LIMIT_ANSWER));
     assert.deepEqual(response.fontes, []);
     assert.deepEqual(response.evidencias, []);
   }

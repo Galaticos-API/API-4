@@ -1,8 +1,10 @@
 import { Router, type NextFunction, type Request, type RequestHandler, type Response } from "express";
+import { randomUUID } from "crypto";
 import { requireAuth } from "../../middleware/requireAuth.js";
-import { AppError, ValidationError } from "../../shared/errors.js";
+import { AppError, ValidationError, validateUuid } from "../../shared/errors.js";
 import { ChatService } from "./chat.service.js";
 import { RagService,ragInput } from './rag.service.js';
+import { performance } from 'perf_hooks';
 
 function userId(req: Request): string {
   if (!req.auth?.id) throw new ValidationError("Autenticação necessária.");
@@ -17,6 +19,47 @@ function scope(value: unknown): "projeto" | "todos_autorizados" | undefined {
   if (value === undefined) return undefined;
   if (value === "projeto" || value === "todos_autorizados") return value;
   throw new ValidationError("Escopo da conversa inválido.");
+}
+
+export function formatThinkingDuration(elapsedMs: number): { duration_ms: number; message: string } {
+  const duration_ms = Math.max(0, Math.round(elapsedMs));
+  const totalSeconds = Math.floor(duration_ms / 1000);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  const timeLabel = minutes > 0 ? `${minutes}min${seconds}s` : `${seconds}s`;
+  return { duration_ms, message: `Pensou por ${timeLabel}` };
+}
+
+type StreamQueryInput = {
+  pergunta: string;
+  conversaId?: string;
+  mensagemId?: string;
+  projetoId?: string;
+  escopo?: "projeto" | "todos_autorizados";
+};
+
+/** Sync validation only — must run before SSE headers so HTTP 4xx remains possible. */
+function parseQueryInput(body: unknown): StreamQueryInput {
+  const payload = body && typeof body === "object" ? body as Record<string, unknown> : {};
+  const pergunta = payload.pergunta;
+  if (typeof pergunta !== "string") throw new ValidationError("Pergunta é obrigatória.");
+  if (!pergunta.trim()) throw new ValidationError("Digite uma pergunta.");
+
+  const conversaId = text(payload.conversa_id);
+  const mensagemId = text(payload.mensagem_id);
+  const projetoId = text(payload.projeto_id);
+  if (mensagemId && !conversaId) throw new ValidationError("A conversa é obrigatória para repetir uma pergunta.");
+  if (conversaId) validateUuid(conversaId, "ID da conversa");
+  if (mensagemId) validateUuid(mensagemId, "ID da mensagem");
+  if (projetoId) validateUuid(projetoId, "ID do projeto");
+
+  return {
+    pergunta,
+    conversaId,
+    mensagemId,
+    projetoId,
+    escopo: scope(payload.escopo),
+  };
 }
 
 export function createChatRouter(service: ChatService = new ChatService(), authentication: RequestHandler = requireAuth): Router {
@@ -88,23 +131,24 @@ export function createChatRouter(service: ChatService = new ChatService(), authe
 
   router.post("/query", async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const pergunta = req.body?.pergunta;
-      if (typeof pergunta !== "string") throw new ValidationError("Pergunta é obrigatória.");
-      res.json(await service.query(userId(req), {
-        pergunta,
-        conversaId: text(req.body?.conversa_id),
-        mensagemId: text(req.body?.mensagem_id),
-        projetoId: text(req.body?.projeto_id),
-        escopo: scope(req.body?.escopo),
-      }));
+      const input = parseQueryInput(req.body);
+      res.json(await service.query(userId(req), input));
     } catch (error) {
       next(error);
     }
   });
 
   router.post("/query/stream", async (req: Request, res: Response, next: NextFunction) => {
-    const pergunta = req.body?.pergunta;
-    if (typeof pergunta !== "string") { next(new ValidationError("Pergunta é obrigatória.")); return; }
+    const diagnosticId = randomUUID();
+    let input: StreamQueryInput;
+    let authenticatedUserId: string;
+    try {
+      authenticatedUserId = userId(req);
+      input = parseQueryInput(req.body);
+    } catch (error) {
+      next(error);
+      return;
+    }
 
     res.status(200).set({
       "Content-Type": "text/event-stream; charset=utf-8",
@@ -113,6 +157,7 @@ export function createChatRouter(service: ChatService = new ChatService(), authe
       "X-Accel-Buffering": "no",
     });
     res.flushHeaders();
+    const startedAt = performance.now();
     const controller = new AbortController();
     res.on("close", () => {
       if (!res.writableEnded) controller.abort();
@@ -126,13 +171,7 @@ export function createChatRouter(service: ChatService = new ChatService(), authe
     }, 15_000);
 
     try {
-      const result = await service.query(userId(req), {
-        pergunta,
-        conversaId: text(req.body?.conversa_id),
-        mensagemId: text(req.body?.mensagem_id),
-        projetoId: text(req.body?.projeto_id),
-        escopo: scope(req.body?.escopo),
-      }, (stage) => writeEvent("progress", { stage }), controller.signal, (conversation) => writeEvent("conversation", {
+      const result = await service.query(authenticatedUserId, input, (stage) => writeEvent("progress", { stage }), controller.signal, (conversation) => writeEvent("conversation", {
         id: conversation.id,
         titulo: conversation.titulo,
         projeto_id: conversation.projeto_id,
@@ -141,6 +180,7 @@ export function createChatRouter(service: ChatService = new ChatService(), authe
         updated_at: conversation.updated_at,
       }));
       writeEvent("completed", result);
+      writeEvent("timing", formatThinkingDuration(performance.now() - startedAt));
       res.end();
     } catch (error) {
       if (controller.signal.aborted || (error instanceof AppError && error.code === "CHAT_CANCELLED")) {
@@ -148,9 +188,16 @@ export function createChatRouter(service: ChatService = new ChatService(), authe
         if (!res.writableEnded) res.end();
         return;
       }
+      // Never log the raw exception: providers and database clients may include
+      // prompts, SQL parameters, or credentials in error messages and stacks.
+      console.error("[Chat Query Error]", {
+        diagnostic_id: diagnosticId,
+        code: error instanceof AppError ? error.code : "INTERNAL_SERVER_ERROR",
+      });
+      const existingDetails = error instanceof AppError && typeof error.details === "object" && error.details !== null ? error.details as Record<string, unknown> : {};
       const payload = error instanceof AppError
-        ? { status: error.statusCode, error: error.message, code: error.code, details: error.details }
-        : { status: 500, error: "Erro interno do servidor.", code: "INTERNAL_SERVER_ERROR" };
+        ? { status: error.statusCode, error: error.message, code: error.code, details: { ...existingDetails, diagnostico_id: diagnosticId }, diagnostic_id: diagnosticId }
+        : { status: 500, error: "Erro interno do servidor.", code: "INTERNAL_SERVER_ERROR", details: { diagnostico_id: diagnosticId }, diagnostic_id: diagnosticId };
       writeEvent("error", payload);
       res.end();
     } finally {
