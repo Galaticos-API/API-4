@@ -105,7 +105,7 @@ it('abre no escopo de todos os projetos permitidos e envia sem selecionar um pro
   fireEvent.click(screen.getByRole('button',{name:'Enviar'}));
   await waitFor(()=>expect(askQuestion).toHaveBeenCalledWith(expect.objectContaining({
     pergunta:'Consultar todos os projetos',conversaId:null,projetoId:null,escopo:'todos_autorizados',
-  }),expect.any(AbortSignal),expect.any(Function),expect.any(Function),expect.any(Function)));
+  }),expect.any(AbortSignal),expect.any(Function),expect.any(Function),expect.any(Function),expect.any(Function)));
 });
 it('informa quando o projeto selecionado ainda não tem conteúdo indexado sem bloquear o chat',async()=>{
   vi.mocked(listConversations).mockResolvedValue([]);
@@ -471,7 +471,31 @@ it('ao reabrir uma conversa, permite tentar novamente a última pergunta que fal
   expect(retry.closest('[role="alert"]')).toHaveTextContent('consulta anterior não foi concluída');
   fireEvent.click(retry);
   await screen.findByText('Resposta da última pergunta');
-  expect(askQuestion).toHaveBeenCalledWith(expect.objectContaining({pergunta:'Última pergunta',conversaId:'conversation-a',projetoId:null,mensagemId:'latest-failed'}),expect.any(AbortSignal),expect.any(Function),expect.any(Function),expect.any(Function));
+  expect(askQuestion).toHaveBeenCalledWith(expect.objectContaining({pergunta:'Última pergunta',conversaId:'conversation-a',projetoId:null,mensagemId:'latest-failed'}),expect.any(AbortSignal),expect.any(Function),expect.any(Function),expect.any(Function),expect.any(Function));
+});
+it('usa o ID persistido pelo SSE ao tentar novamente uma pergunta otimista',async()=>{
+  const persistedId='40000000-0000-4000-8000-000000000001';
+  let retryInput:Parameters<typeof askQuestion>[0]|undefined;
+  vi.mocked(listConversations).mockResolvedValue([]);
+  vi.mocked(listChatProjects).mockResolvedValue([{id:'project-a',nome:'Projeto A'}]);
+  vi.mocked(askQuestion)
+    .mockImplementationOnce(async(_input,_signal,_progress,_conversation,_timing,onMessagePersisted)=>{
+      onMessagePersisted?.(persistedId);
+      throw new Error('Falha de rede após persistência');
+    })
+    .mockImplementationOnce(async(input)=>{
+      retryInput=input;
+      return {conversa_id:'conversation-a',resposta:'Resposta após retry',fontes:[],origem:'assistente'};
+    });
+  render(<ChatView/>);
+  await screen.findByRole('option',{name:'Projeto A'});
+  fireEvent.change(screen.getByLabelText('Escopo da consulta'),{target:{value:'projeto:project-a'}});
+  fireEvent.change(screen.getByRole('textbox'),{target:{value:'Pergunta recuperável'}});
+  fireEvent.click(screen.getByRole('button',{name:'Enviar'}));
+  const retry=await screen.findByRole('button',{name:'Tentar novamente'});
+  fireEvent.click(retry);
+  expect(await screen.findByText('Resposta após retry')).toBeInTheDocument();
+  expect(retryInput).toMatchObject({pergunta:'Pergunta recuperável',mensagemId:persistedId});
 });
 it('informa quando uma resposta não encontrou evidências no acervo',async()=>{
   vi.mocked(listConversations).mockResolvedValue([{id:'conversation-a',titulo:'Conversa A',projeto_id:'project-a',projeto_nome:'Projeto A',updated_at:''}]);
@@ -640,7 +664,7 @@ it('o menu de uma mensagem falha só oferece retry quando ela é a última pergu
   const menu=screen.getByRole('menu',{name:'Ações da mensagem de Você'});
   fireEvent.click(within(menu).getByRole('menuitem',{name:'Tentar novamente'}));
   await screen.findByText('Resposta recuperada');
-  expect(askQuestion).toHaveBeenCalledWith(expect.objectContaining({pergunta:'Pergunta pendente de nova tentativa',conversaId:'conversation-a',projetoId:null,mensagemId:'failed'}),expect.any(AbortSignal),expect.any(Function),expect.any(Function),expect.any(Function));
+  expect(askQuestion).toHaveBeenCalledWith(expect.objectContaining({pergunta:'Pergunta pendente de nova tentativa',conversaId:'conversation-a',projetoId:null,mensagemId:'failed'}),expect.any(AbortSignal),expect.any(Function),expect.any(Function),expect.any(Function),expect.any(Function));
 });
 it('não oferece novamente uma falha antiga quando a conversa já teve resposta',async()=>{
   vi.mocked(listConversations).mockResolvedValue([{id:'conversation-a',titulo:'Conversa A',projeto_id:'project-a',projeto_nome:'Projeto A',updated_at:''}]);
@@ -828,7 +852,7 @@ it('uma resposta atrasada do histórico não troca o projeto escolhido para a no
   expect(listMessages).not.toHaveBeenCalled();
   fireEvent.click(screen.getByRole('button',{name:'Enviar'}));
   await screen.findByText('Resposta do projeto A');
-  expect(askQuestion).toHaveBeenCalledWith(expect.objectContaining({projetoId:'project-a',conversaId:null}),expect.any(AbortSignal),expect.any(Function),expect.any(Function),expect.any(Function));
+  expect(askQuestion).toHaveBeenCalledWith(expect.objectContaining({projetoId:'project-a',conversaId:null}),expect.any(AbortSignal),expect.any(Function),expect.any(Function),expect.any(Function),expect.any(Function));
 });
 it('repetir a consulta do histórico também não abre uma conversa sobre a pergunta em edição',async()=>{
   vi.mocked(listConversations).mockRejectedValueOnce(new Error('offline')).mockResolvedValueOnce([{id:'old-b',titulo:'Conversa antiga B',projeto_id:'project-b',projeto_nome:'Projeto B',updated_at:''}]);

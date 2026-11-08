@@ -81,6 +81,8 @@ it('processa eventos de progresso fragmentados e só resolve com a resposta conc
 
 it('processa evento timing após completed e invoca callback',async()=>{
   const wire=[
+    'event: conversation\ndata: {"id":"20000000-0000-4000-8000-000000000001","titulo":"Consulta","projeto_id":"30000000-0000-4000-8000-000000000001","projeto_nome":"Projeto","escopo_tipo":"projeto","updated_at":"2026-10-27T00:00:00Z"}\n\n',
+    'event: message_persisted\ndata: {"id":"40000000-0000-4000-8000-000000000001"}\n\n',
     'event: progress\ndata: {"stage":"searching"}\n\n',
     'event: completed\ndata: {"conversa_id":"conversation-a","resposta":"Resposta validada","fontes":[],"origem":"assistente"}\n\n',
     'event: timing\ndata: {"duration_ms":1234,"message":"Pensou por 1s"}\n\n',
@@ -92,9 +94,11 @@ it('processa evento timing após completed e invoca callback',async()=>{
   }});
   vi.stubGlobal('fetch',vi.fn(async()=>new Response(body,{headers:{'Content-Type':'text/event-stream; charset=utf-8'}})));
   const timingCalls:{durationMs:number;message:string}[]=[];
-  const result=await askQuestionWithProgress({pergunta:'Consultar evidências',projetoId:'project-a'},()=>{},undefined,undefined,(durationMs,message)=>timingCalls.push({durationMs,message}));
+  const callbacks:string[]=[];
+  const result=await askQuestionWithProgress({pergunta:'Consultar evidências',projetoId:'project-a'},()=>callbacks.push('progress'),undefined,()=>callbacks.push('conversation'),(durationMs,message)=>timingCalls.push({durationMs,message}),id=>callbacks.push(`persisted:${id}`));
   expect(result.resposta).toBe('Resposta validada');
   expect(timingCalls).toEqual([{durationMs:1234,message:'Pensou por 1s'}]);
+  expect(callbacks).toEqual(['conversation','persisted:40000000-0000-4000-8000-000000000001','progress']);
 });
 
 it('propaga erro seguro enviado como evento do fluxo',async()=>{
