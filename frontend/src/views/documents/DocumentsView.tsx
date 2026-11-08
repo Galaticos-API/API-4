@@ -44,6 +44,9 @@ export function DocumentsView({
   archived?: boolean;
   embedded?: boolean;
 }) {
+  const confirmedDocument = useRef<string | null>(null);
+  const focusedDocument = useRef<string | null>(null);
+  const [originUnavailable, setOriginUnavailable] = useState(false);
   const [items, setItems] = useState<ProjectDocument[]>([]);
   const [limits, setLimits] = useState<DocumentLimits | null>(null);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
@@ -91,6 +94,7 @@ export function DocumentsView({
     setLoadError("");
     try {
       const signal = AbortSignal.any([controller.signal, AbortSignal.timeout(15000)]);
+      const target = window.location.hash.match(/^#document-([\da-f-]{36})$/i)?.[1];
       const loaded: ProjectDocument[] = [];
       let cursor: string | null = null;
       let pages = 0;
@@ -99,15 +103,25 @@ export function DocumentsView({
         response = await listDocuments(projectId, { cursor: cursor ?? undefined, signal });
         if (controller.signal.aborted || generation !== listGeneration.current) return;
         loaded.push(...response.items);
+        if (target && response.items.some(item => item.id === target)) confirmedDocument.current = target;
         cursor = response.next_cursor;
         pages++;
-      } while (cursor && pages < pageCount.current);
+        if (target && !quiet) {
+          pageCount.current = Math.max(pageCount.current, pages);
+          setItems(current => [...new Map([...current, ...loaded].map(item => [item.id, item])).values()]);
+          setLimits(response.limites);
+          if (pages >= pageCount.current) setNextCursor(cursor);
+        }
+      } while (cursor && (pages < pageCount.current || Boolean(!quiet && target && !loaded.some(item => item.id === target))));
+      if (!quiet) setOriginUnavailable(Boolean(target && !loaded.some(item => item.id === target)));
       pageCount.current = pages;
       setItems([...new Map(loaded.map(item => [item.id, item])).values()]);
       setLimits(response.limites);
       setNextCursor(cursor);
     } catch {
-      if (!controller.signal.aborted && generation === listGeneration.current) setLoadError("Não foi possível carregar os documentos. Tente novamente.");
+      if (!controller.signal.aborted && generation === listGeneration.current) {
+        setLoadError("Não foi possível carregar os documentos. Tente novamente.");
+      }
     } finally {
       if (generation === listGeneration.current) {
         listBusy.current = false;
@@ -122,6 +136,9 @@ export function DocumentsView({
     cancelList();
     ++projectEpoch.current;
     pageCount.current = 1;
+    confirmedDocument.current = null;
+    focusedDocument.current = null;
+    setOriginUnavailable(false);
     setItems([]);
     setLimits(null);
     setNextCursor(null);
@@ -148,6 +165,22 @@ export function DocumentsView({
     return cancelList;
   }, [projectId, refresh, cancelList]);
 
+  useEffect(() => {
+    let citationHash = window.location.hash.startsWith("#document-");
+    const followCitation = () => {
+      if (!window.location.hash.startsWith("#document-") && !citationHash) return;
+      citationHash = window.location.hash.startsWith("#document-");
+      cancelList();
+      confirmedDocument.current = null;
+    focusedDocument.current = null;
+      setOriginUnavailable(false);
+      setLoadingMore(false);
+      void refresh(false);
+    };
+    window.addEventListener("hashchange", followCitation);
+    return () => window.removeEventListener("hashchange", followCitation);
+  }, [cancelList, refresh]);
+
   const hasProcessing = items.some((item) => item.status_processamento === "pendente" || item.status_processamento === "processando");
   useEffect(() => {
     if (!hasProcessing) return;
@@ -171,6 +204,8 @@ export function DocumentsView({
     try {
       const response = await listDocuments(projectId, { cursor: nextCursor, signal: AbortSignal.any([controller.signal, AbortSignal.timeout(15000)]) });
       if (controller.signal.aborted || generation !== listGeneration.current) return;
+      const cited = response.items.find(item => window.location.hash === `#document-${encodeURIComponent(item.id)}`);
+      if (cited) confirmedDocument.current = cited.id;
       setItems(current => [...new Map([...current, ...response.items].map(item => [item.id, item])).values()]);
       if (response.items.length) pageCount.current++;
       setNextCursor(response.next_cursor);
@@ -325,10 +360,11 @@ export function DocumentsView({
       {selectionError && <Alert tone="danger" title="Arquivo não aceito">{selectionError}</Alert>}
       {uploadError && <Alert tone="danger" title="Falha no envio">{uploadError}</Alert>}
       {processingError && <Alert tone="danger" title="Falha no reprocessamento">{processingError}</Alert>}
+      {originUnavailable && <p role="status">O documento citado não foi encontrado nas páginas carregadas.</p>}
       {loadError && (
         <Alert tone="danger" role="alert">
           {loadError}{" "}
-          <Button variant="secondary" size="sm" disabled={loading || refreshing} onClick={() => void refresh(items.length > 0)}>Tentar novamente</Button>
+          <Button variant="secondary" size="sm" disabled={loading || refreshing} onClick={() => void refresh(false)}>Tentar novamente</Button>
         </Alert>
       )}
 
@@ -368,7 +404,7 @@ export function DocumentsView({
         </div>
       )}
 
-      {loading ? (
+      {loading && items.length === 0 ? (
         <div className="glass-panel projects-state" role="status">Carregando documentos…</div>
       ) : !loadError && items.length === 0 ? (
         <div className="glass-panel documents-list">
@@ -401,7 +437,14 @@ export function DocumentsView({
               {items.map((item) => {
                 const status = STATUS_VIEW[item.status_processamento];
                 return (
-                  <tr key={item.id}>
+                  <tr key={item.id} id={`document-${item.id}`} tabIndex={-1} ref={node => {
+                    if (node && confirmedDocument.current === item.id && focusedDocument.current !== item.id && window.location.hash === `#document-${encodeURIComponent(item.id)}`) {
+                      focusedDocument.current = item.id;
+                      setOriginUnavailable(false);
+                      node.focus();
+                      node.scrollIntoView?.({block: "center"});
+                    }
+                  }}>
                     <td data-label="Documento" className="documents-name">{item.nome}</td>
                     <td data-label="Tipo">{item.extensao?.slice(1).toUpperCase() ?? "—"}</td>
                     <td data-label="Tamanho">{item.tamanho_bytes === null ? "—" : formatBytes(item.tamanho_bytes)}</td>
@@ -425,7 +468,7 @@ export function DocumentsView({
             </tbody>
           </table>
           {moreError && <Alert tone="danger" role="alert">{moreError}</Alert>}
-          {nextCursor && <Button variant="secondary" disabled={loadingMore || refreshing} onClick={() => void loadMore()}>{loadingMore ? "Carregando…" : "Carregar mais"}</Button>}
+          {nextCursor && <Button variant="secondary" disabled={loading || loadingMore || refreshing} onClick={() => void loadMore()}>{loadingMore ? "Carregando…" : "Carregar mais"}</Button>}
         </div>
       ) : null}
 

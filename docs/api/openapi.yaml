@@ -3193,6 +3193,8 @@ paths:
               properties:
                 pergunta: {type: string, minLength: 1, maxLength: 2000, description: 'Texto Unicode válido, sem caractere nulo nem sequência UTF-16 incompleta'}
                 conversa_id: {type: string, format: uuid}
+                mensagem_id: {type: string, format: uuid, description: Mensagem que será repetida após falha}
+                tentativa_id: {type: string, format: uuid, description: Identificador do envio gerado pelo cliente e reutilizado ao repetir a mesma pergunta após perda de conexão}
                 projeto_id: {type: string, format: uuid}
                 escopo: {type: string, enum: [projeto, todos_autorizados]}
       responses:
@@ -3268,6 +3270,7 @@ paths:
                 pergunta: {type: string, minLength: 1, maxLength: 2000, description: 'Texto Unicode válido, sem caractere nulo nem sequência UTF-16 incompleta'}
                 conversa_id: {type: string, format: uuid}
                 mensagem_id: {type: string, format: uuid, description: 'Mensagem que será repetida após falha'}
+                tentativa_id: {type: string, format: uuid, description: Identificador do envio gerado pelo cliente e reutilizado ao repetir a mesma pergunta após perda de conexão}
                 projeto_id: {type: string, format: uuid}
                 escopo: {type: string, enum: [projeto, todos_autorizados]}
       responses:
@@ -3275,14 +3278,14 @@ paths:
           description: >
             Fluxo SSE codificado como texto UTF-8. Cada frame segue o formato `event: <nome>` e
             `data: <JSON>`, terminado por uma linha em branco; comentários `: keep-alive` são heartbeats.
-            Eventos: `progress` ({stage}), `conversation` (metadados), `completed` (resposta final),
+            Eventos: `conversation` (metadados), `message_persisted` (UUID da pergunta salva), `progress` ({stage}), `completed` (resposta final),
             `timing` ({duration_ms, message}, depois de completed), `cancelled` ({error}) e `error`
             (envelope seguro com diagnostic_id). Fechar a conexão interrompe a consulta ativa.
           content:
             text/event-stream:
               schema:
                 type: string
-                description: Corpo textual com frames SSE; o JSON em cada campo data depende do nome do evento.
+                description: Corpo textual com frames SSE; `message_persisted` informa o UUID da pergunta salva, `timing` vem após `completed` e o JSON de `data` depende do nome do evento. Heartbeats usam comentários SSE.
                 example: |-
                   event: progress
                   data: {"stage":"searching"}
@@ -3306,6 +3309,11 @@ paths:
                     projeto_nome: {type: string, nullable: true}
                     escopo_tipo: {type: string, enum: [projeto, todos_autorizados, indisponivel]}
                     updated_at: {type: string, format: date-time}
+                message_persisted:
+                  type: object
+                  required: [id]
+                  properties:
+                    id: {type: string, format: uuid, description: ID persistido da pergunta do usuário}
                 completed:
                   type: object
                   properties:
@@ -3329,7 +3337,7 @@ paths:
                     status: {type: integer}
                     error: {type: string}
                     code: {type: string}
-                    details: {type: object, description: 'Detalhes adicionais do erro, pode incluir diagnostico_id para compatibilidade legada'}
+                    details: {type: object, description: 'Detalhes adicionais do erro; pode incluir diagnostico_id para compatibilidade legada'}
                     diagnostic_id: {type: string, format: uuid, description: 'Identificador para correlação de logs (campo raiz, preferido sobre details.diagnostico_id)'}
         '400':
           $ref: '#/components/responses/ValidationError'

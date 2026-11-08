@@ -5,6 +5,7 @@ import { AppError, ValidationError, validateUuid } from "../../shared/errors.js"
 import { ChatService } from "./chat.service.js";
 import { RagService,ragInput } from './rag.service.js';
 import { performance } from 'perf_hooks';
+import { MAX_QUESTION_LENGTH, validChatText } from './chat.types.js';
 
 function userId(req: Request): string {
   if (!req.auth?.id) throw new ValidationError("Autenticação necessária.");
@@ -34,6 +35,7 @@ type StreamQueryInput = {
   pergunta: string;
   conversaId?: string;
   mensagemId?: string;
+  attemptId?: string;
   projetoId?: string;
   escopo?: "projeto" | "todos_autorizados";
 };
@@ -44,19 +46,24 @@ function parseQueryInput(body: unknown): StreamQueryInput {
   const pergunta = payload.pergunta;
   if (typeof pergunta !== "string") throw new ValidationError("Pergunta é obrigatória.");
   if (!pergunta.trim()) throw new ValidationError("Digite uma pergunta.");
+  if (pergunta.trim().length > MAX_QUESTION_LENGTH) throw new ValidationError(`A pergunta pode ter no máximo ${MAX_QUESTION_LENGTH} caracteres.`);
+  if (!validChatText(pergunta)) throw new ValidationError("Use texto Unicode válido, sem caractere nulo.");
 
   const conversaId = text(payload.conversa_id);
   const mensagemId = text(payload.mensagem_id);
+  const attemptId = text(payload.tentativa_id);
   const projetoId = text(payload.projeto_id);
   if (mensagemId && !conversaId) throw new ValidationError("A conversa é obrigatória para repetir uma pergunta.");
   if (conversaId) validateUuid(conversaId, "ID da conversa");
   if (mensagemId) validateUuid(mensagemId, "ID da mensagem");
+  if (attemptId) validateUuid(attemptId, "ID da tentativa");
   if (projetoId) validateUuid(projetoId, "ID do projeto");
 
   return {
     pergunta,
     conversaId,
     mensagemId,
+    attemptId,
     projetoId,
     escopo: scope(payload.escopo),
   };
@@ -178,7 +185,7 @@ export function createChatRouter(service: ChatService = new ChatService(), authe
         projeto_nome: conversation.projeto_nome,
         escopo_tipo: conversation.escopo_tipo,
         updated_at: conversation.updated_at,
-      }));
+      }), id => writeEvent("message_persisted", { id }));
       writeEvent("completed", result);
       writeEvent("timing", formatThinkingDuration(performance.now() - startedAt));
       res.end();

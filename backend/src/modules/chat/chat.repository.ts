@@ -114,13 +114,16 @@ export class ChatRepository {
     }, "snapshot");
   }
 
-  async createConversation(usuarioId: string, projetoId: string | null, titulo: string, scope: "projeto" | "todos_autorizados" = "projeto"): Promise<Conversation> {
+  async createConversation(usuarioId: string, projetoId: string | null, titulo: string, scope: "projeto" | "todos_autorizados" = "projeto", attemptId?: string): Promise<Conversation> {
     const result = await this.pool.query<Conversation>(
-      `INSERT INTO conversa (usuario_id, projeto_id, escopo_tipo, titulo) VALUES ($1, $2, $3, $4)
+      `INSERT INTO conversa (usuario_id, projeto_id, escopo_tipo, titulo, id) VALUES ($1, $2, $3, $4, COALESCE($5::uuid, gen_random_uuid()))
+       ON CONFLICT (id) DO NOTHING
        RETURNING id, usuario_id, projeto_id, escopo_tipo, titulo, created_at, updated_at`,
-      [usuarioId, projetoId, scope, titulo],
+      [usuarioId, projetoId, scope, titulo, attemptId ?? null],
     );
-    return result.rows[0];
+    const conversation = result.rows[0] ?? (attemptId && await this.findOwnedConversation(attemptId, usuarioId));
+    if (!conversation || conversation.projeto_id !== projetoId || conversation.escopo_tipo !== scope) throw new ConflictError("Tentativa indisponível.");
+    return conversation;
   }
 
   async findOwnedConversation(conversaId: string, usuarioId: string): Promise<Conversation | null> {
@@ -197,12 +200,13 @@ export class ChatRepository {
     return result.rows;
   }
 
-  async addMessage(conversaId: string, remetente: "user" | "assistant", conteudo: string, fontes: ChatSource[] = []): Promise<string> {
+  async addMessage(conversaId: string, remetente: "user" | "assistant", conteudo: string, fontes: ChatSource[] = [], attemptId?: string): Promise<string> {
     return withTransaction(this.pool, async client => {
       await client.query("SELECT id FROM conversa WHERE id=$1 FOR UPDATE", [conversaId]);
       await client.query("UPDATE mensagem SET processing_status='failed' WHERE conversa_id=$1 AND processing_status='pending' AND created_at < CURRENT_TIMESTAMP - INTERVAL '2 minutes'", [conversaId]);
       if (remetente === "user" && (await client.query("SELECT 1 FROM mensagem WHERE conversa_id=$1 AND processing_status='pending'", [conversaId])).rowCount) throw new ConflictError("Aguarde a resposta em andamento nesta conversa.");
-      const result = await client.query<{ id: string }>("INSERT INTO mensagem (conversa_id,remetente,conteudo,fontes_json,processing_status) VALUES ($1,$2,$3,$4::jsonb,$5) RETURNING id", [conversaId, remetente, conteudo, JSON.stringify(fontes), remetente === "user" ? "pending" : "completed"]);
+      const result = await client.query<{ id: string }>("INSERT INTO mensagem (conversa_id,remetente,conteudo,fontes_json,processing_status,id) VALUES ($1,$2,$3,$4::jsonb,$5,COALESCE($6::uuid,gen_random_uuid())) ON CONFLICT (id) DO NOTHING RETURNING id", [conversaId, remetente, conteudo, JSON.stringify(fontes), remetente === "user" ? "pending" : "completed", attemptId ?? null]);
+      if (!result.rowCount) throw new ConflictError("Esta tentativa já foi registrada.");
       await client.query("UPDATE conversa SET updated_at=CURRENT_TIMESTAMP WHERE id=$1", [conversaId]);
       return result.rows[0].id;
     });
@@ -218,7 +222,7 @@ export class ChatRepository {
     });
   }
 
-  async retryMessage(conversaId: string, messageId: string, conteudo: string): Promise<string> {
+  async retryMessage(conversaId: string, messageId: string, conteudo: string, requireSameContent = false): Promise<string> {
     return withTransaction(this.pool, async client => {
       await client.query("SELECT id FROM conversa WHERE id=$1 FOR UPDATE", [conversaId]);
       await client.query("UPDATE mensagem SET processing_status='failed' WHERE conversa_id=$1 AND processing_status='pending' AND created_at < CURRENT_TIMESTAMP - INTERVAL '2 minutes'", [conversaId]);
@@ -226,8 +230,8 @@ export class ChatRepository {
         throw new ConflictError("Aguarde a resposta em andamento nesta conversa.");
       }
       const result = await client.query(
-        "UPDATE mensagem SET processing_status='pending', conteudo=$3 WHERE id=$1 AND conversa_id=$2 AND remetente='user' AND processing_status='failed' RETURNING id",
-        [messageId, conversaId, conteudo],
+        "UPDATE mensagem SET processing_status='pending', conteudo=$3 WHERE id=$1 AND conversa_id=$2 AND remetente='user' AND processing_status='failed' AND (NOT $4::boolean OR conteudo=$3) RETURNING id",
+        [messageId, conversaId, conteudo, requireSameContent],
       );
       if (!result.rowCount) throw new ConflictError("Esta pergunta não está mais disponível para nova tentativa.");
       await client.query("UPDATE conversa SET updated_at=CURRENT_TIMESTAMP WHERE id=$1", [conversaId]);
