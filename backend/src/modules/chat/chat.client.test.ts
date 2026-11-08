@@ -70,7 +70,7 @@ test('OpenAPI documenta SSE como corpo textual e descreve os payloads dos evento
   assert.equal(stream.schema.type, 'string');
   assert.match(stream.schema.example, /event: completed\s+data:/);
   assert.deepEqual(Object.keys(stream['x-sse-event-schemas']).sort(), [
-    'cancelled', 'completed', 'conversation', 'error', 'progress', 'timing',
+    'cancelled', 'completed', 'conversation', 'error', 'message_persisted', 'progress', 'timing',
   ]);
   assert.deepEqual(stream['x-sse-event-schemas'].progress.properties.stage.enum, [
     'searching', 'synthesizing', 'validating',
