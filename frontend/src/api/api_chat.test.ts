@@ -101,6 +101,16 @@ it('processa evento timing após completed e invoca callback',async()=>{
   expect(callbacks).toEqual(['conversation','persisted:40000000-0000-4000-8000-000000000001','progress']);
 });
 
+it('envia a mesma chave de tentativa ao endpoint SSE para permitir retry idempotente',async()=>{
+  const wire='event: completed\ndata: {"conversa_id":"conversation-a","resposta":"Resposta validada","fontes":[],"origem":"assistente"}\n\n';
+  const fetchMock=vi.fn(async()=>new Response(wire,{headers:{'Content-Type':'text/event-stream; charset=utf-8'}}));
+  vi.stubGlobal('fetch',fetchMock);
+  await askQuestion({pergunta:'Pergunta recuperável',attemptId:'50000000-0000-4000-8000-000000000001'},undefined,()=>{});
+  const request=fetchMock.mock.calls[0][1] as RequestInit;
+  expect(fetchMock.mock.calls[0][0]).toContain('/chat/query/stream');
+  expect(JSON.parse(String(request.body))).toMatchObject({tentativa_id:'50000000-0000-4000-8000-000000000001'});
+});
+
 it('propaga erro seguro enviado como evento do fluxo',async()=>{
   const wire='event: error\ndata: {"status":503,"error":"Falha no RAG","code":"CHAT_FAILED","details":{"diagnostico_id":"e8e57e2d-0b59-4cdc-b191-d1618381c6a2"}}\n\n';
   vi.stubGlobal('fetch',vi.fn(async()=>new Response(wire,{headers:{'Content-Type':'text/event-stream'}})));
