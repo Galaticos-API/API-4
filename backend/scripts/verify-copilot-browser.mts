@@ -287,6 +287,7 @@ export async function verifyCopilotBrowser({
     await ragPage.getByRole('button',{name:'Enviar',exact:true}).click();
     await ragPage.getByRole('button',{name:/Fontes e evidências/}).last().click();
     const sourcesDialog=ragPage.getByRole('dialog',{name:'Fontes e evidências'});
+    await sourcesDialog.waitFor({state:'visible'});
     const source=sourcesDialog.locator('a[href^="/projects/"]').last();await source.waitFor({state:'visible'});
     const href=await source.getAttribute('href');assert.ok(href?.startsWith('/projects/'+projectId));
     await source.click();await ragPage.waitForURL('**'+href);

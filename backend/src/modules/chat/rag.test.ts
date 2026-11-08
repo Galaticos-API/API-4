@@ -10,7 +10,7 @@ import { HarnessRepository } from '../harness/harness.repository.js';
 import { defaultConfig,ModelOutputRejectedError } from '../harness/harness.contract.js';
 import { HttpHarnessEngine } from '../harness/harness.service.js';
 import { reconcileEvidenceResponse,resolveQuote,wholePassage } from './rag-evidence.js';
-import { NOT_FOUND_ANSWER,PARTIAL_ANSWER_NOTICE,UNAVAILABLE_ASPECT_NOTICE } from './chat.types.js';
+import { NO_CANDIDATES_ANSWER,NOT_FOUND_ANSWER,PARTIAL_ANSWER_NOTICE,SCOPE_LIMIT_ANSWER,UNAVAILABLE_ASPECT_NOTICE } from './chat.types.js';
 import type { HybridSearchRow } from '../search/search.types.js';
 
 const project=randomUUID(),chunk=randomUUID(),other=randomUUID(),entity=randomUUID();
@@ -109,7 +109,7 @@ test('RAG diferencia busca sem candidatos de candidatos sem evidência útil',as
   const embeddings={embed:async()=>Array(1024).fill(0.1)};
   const noCandidates=await new RagService(new Chats(),new EmptySearch(),embeddings,new Revisions(),{generate:async()=>{throw Error('não deve chamar o harness sem candidatos');}})
     .answer(randomUUID(),'Pergunta sem correspondência',[project]);
-  assert.equal(noCandidates.resposta,NOT_FOUND_ANSWER);
+  assert.equal(noCandidates.resposta,`${NO_CANDIDATES_ANSWER} ${SCOPE_LIMIT_ANSWER}`);
 
   const unsupported=await new RagService(new Chats(),new Search(),embeddings,new Revisions(),{generate:async()=>({coverage:'no_evidence',evidence:[]})})
     .answer(randomUUID(),'Pergunta sem evidência',[project]);
@@ -526,7 +526,6 @@ test('Harness HTTP distingue saída rejeitada (422) de indisponibilidade',async(
     await assert.rejects(()=>new HttpHarnessEngine(`http://127.0.0.1:${port}/down`).generate({},2000),(error:unknown)=>!(error instanceof ModelOutputRejectedError));
   } finally { server.close(); }
 });
-
 for(const scenario of ['authorized','unauthorized','revoked','irrelevant','second_batch','failed_batch','slow'] as const) {
   test(`S3-03: sugestão de ampliação com projeto alternativo ${scenario}`,async()=>{
     const alternate=randomUUID(), forbidden=randomUUID();
@@ -595,4 +594,27 @@ test('S3-03: comparação tenta contextos separados quando o modelo não cita no
   assert.deepEqual(sizes,[2,1,1]);
   assert.deepEqual(new Set(result.fontes.map(source=>source.projeto_id)),new Set([project,alternate]));
   assert.equal(result.cobertura,'partial');
+});
+
+test('RAG interrompe embedding e geração quando o AbortSignal dispara',async()=>{
+  const controller=new AbortController();
+  const embedding=new RagService(new Chats(),new Search(),{
+    embed:async(_text,signal)=>new Promise((_resolve,reject)=>{
+      signal?.addEventListener('abort',()=>reject(new DOMException('Consulta interrompida.','AbortError')),{once:true});
+      controller.abort();
+    }),
+  },new Revisions(),{generate:async()=>({coverage:'complete',evidence:[{source_id:chunk,quote:row.text}]})});
+  await assert.rejects(()=>embedding.answer(randomUUID(),'Como funciona o login?',[project],undefined,controller.signal),(error:unknown)=>error instanceof DOMException&&error.name==='AbortError');
+
+  const generationController=new AbortController();
+  let generateStarted=false;
+  const generation=new RagService(new Chats(),new Search(),{embed:async()=>Array(1024).fill(0.1)},new Revisions(),{
+    generate:async(_payload,_timeout,signal)=>new Promise((_resolve,reject)=>{
+      generateStarted=true;
+      signal?.addEventListener('abort',()=>reject(new DOMException('Consulta interrompida.','AbortError')),{once:true});
+      generationController.abort();
+    }),
+  });
+  await assert.rejects(()=>generation.answer(randomUUID(),'Como funciona o login?',[project],undefined,generationController.signal),(error:unknown)=>error instanceof DOMException&&error.name==='AbortError');
+  assert.equal(generateStarted,true);
 });

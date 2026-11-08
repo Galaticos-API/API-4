@@ -164,9 +164,10 @@ export async function askQuestion(
   signal?: AbortSignal,
   onProgress?: (stage: ChatProgressStage) => void,
   onConversation?: (conversation: ChatConversation) => void,
+  onTiming?: (durationMs: number, message: string) => void,
   onMessagePersisted?: (id: string) => void,
 ): Promise<ChatAnswer> {
-  if (onProgress) return askQuestionWithProgress(input, onProgress, signal, onConversation, onMessagePersisted);
+  if (onProgress) return askQuestionWithProgress(input, onProgress, signal, onConversation, onTiming, onMessagePersisted);
   const deadline = AbortSignal.timeout(QUERY_TIMEOUT_MS);
   const response = await apiRequest("/chat/query", {
     method: "POST",
@@ -197,6 +198,7 @@ export async function askQuestionWithProgress(
   onProgress: (stage: ChatProgressStage) => void,
   signal?: AbortSignal,
   onConversation?: (conversation: ChatConversation) => void,
+  onTiming?: (durationMs: number, message: string) => void,
   onMessagePersisted?: (id: string) => void,
 ): Promise<ChatAnswer> {
   const deadline = AbortSignal.timeout(QUERY_TIMEOUT_MS);
@@ -246,6 +248,12 @@ export async function askQuestionWithProgress(
       }
       return;
     }
+    if (event === "timing") {
+      if (isRecord(payload) && typeof payload.duration_ms === "number" && typeof payload.message === "string") {
+        onTiming?.(payload.duration_ms, payload.message);
+      }
+      return;
+    }
     if (event === "completed") { answer = parseChatAnswer(payload); return; }
     if (event === "cancelled") throw new DOMException("Consulta interrompida.", "AbortError");
     if (event === "error") {
@@ -285,10 +293,17 @@ export function describeChatError(error: unknown): string {
     if (error.status === 409) return serverMessage(error) ?? "A mensagem ainda está sendo processada. Tente novamente em instantes.";
     if (error.status === 503) {
       const payload = error.details;
-      const details = isRecord(payload) && isRecord(payload.details) ? payload.details : undefined;
-      const diagnosticId = details?.diagnostico_id;
+      const details = isRecord(payload) ? payload : undefined;
+      // Check for diagnostic_id at root level first (new format)
+      const diagnosticId = details?.diagnostic_id;
       if (typeof diagnosticId === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(diagnosticId)) {
         return `A consulta falhou, mas sua pergunta foi preservada. Código de diagnóstico: ${diagnosticId}. Tente novamente.`;
+      }
+      // Fallback to legacy format (details.diagnostico_id)
+      const nestedDetails = isRecord(details?.details) ? details.details : undefined;
+      const legacyDiagnosticId = nestedDetails?.diagnostico_id;
+      if (typeof legacyDiagnosticId === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(legacyDiagnosticId)) {
+        return `A consulta falhou, mas sua pergunta foi preservada. Código de diagnóstico: ${legacyDiagnosticId}. Tente novamente.`;
       }
     }
   }

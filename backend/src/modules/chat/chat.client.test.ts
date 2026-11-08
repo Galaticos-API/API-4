@@ -62,3 +62,17 @@ test('OpenAPI documenta os quatro estados de cobertura retornados pelo RAG', () 
   assert.ok(response.required.includes('cobertura'));
   assert.deepEqual(response.properties.cobertura.enum, ['complete', 'partial', 'no_evidence', 'out_of_scope']);
 });
+
+test('OpenAPI documenta SSE como corpo textual e descreve os payloads dos eventos', () => {
+  const spec = YAML.parse(readFileSync(resolve(process.cwd(), '../docs/api/openapi.yaml'), 'utf8'));
+  const stream = spec.paths['/api/v1/chat/query/stream'].post.responses['200'].content['text/event-stream'];
+
+  assert.equal(stream.schema.type, 'string');
+  assert.match(stream.schema.example, /event: completed\s+data:/);
+  assert.deepEqual(Object.keys(stream['x-sse-event-schemas']).sort(), [
+    'cancelled', 'completed', 'conversation', 'error', 'progress', 'timing',
+  ]);
+  assert.deepEqual(stream['x-sse-event-schemas'].progress.properties.stage.enum, [
+    'searching', 'synthesizing', 'validating',
+  ]);
+});
