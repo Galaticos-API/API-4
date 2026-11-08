@@ -25,7 +25,9 @@ export class FakeChatRepository extends ChatRepository {
   }
 
   async listConversations(usuarioId: string): Promise<Conversation[]> {
-    return this.conversations.filter((item) => item.usuario_id === usuarioId);
+    return this.conversations
+      .filter((item) => item.usuario_id === usuarioId)
+      .sort((a, b) => b.updated_at.localeCompare(a.updated_at));
   }
 
   async projectExists(projetoId: string): Promise<boolean> {

@@ -168,6 +168,7 @@
 .chat-queue-remove:hover, .chat-queue-remove:focus-visible { color: var(--status-danger); background: color-mix(in srgb, var(--status-danger) 10%, transparent); }
 .chat-stop-button { color: var(--status-danger); }
 .chat-stop-button:hover:not(:disabled) { color: var(--text-primary); background: color-mix(in srgb, var(--status-danger) 14%, transparent); }
+.chat-message-thinking { margin: 0 0 4px; color: var(--text-muted); font-size: 12px; font-variant-numeric: tabular-nums; }
 .chat-message-text { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.65; }
 .chat-message-body { min-width: 0; color: var(--text-primary); font-size: 15px; line-height: 1.72; }
 .chat-message-body > * + * { margin-top: 10px; }

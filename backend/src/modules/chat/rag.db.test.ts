@@ -10,7 +10,7 @@ import { HttpHarnessEngine } from '../harness/harness.service.js';
 import { HttpSearchEmbeddingClient } from '../search/search.service.js';
 import { SearchRepository } from '../search/search.repository.js';
 import { HarnessRepository } from '../harness/harness.repository.js';
-import { NOT_FOUND_ANSWER,PARTIAL_ANSWER_NOTICE } from './chat.types.js';
+import { NO_CANDIDATES_ANSWER,NOT_FOUND_ANSWER,PARTIAL_ANSWER_NOTICE,SCOPE_LIMIT_ANSWER } from './chat.types.js';
 
 test('S2-24: busca híbrida, evidências, escopo transversal autorizado e revogação em PostgreSQL',{skip:!process.env.QUALITY_TEST_DATABASE_URL},async t=>{
   const db=new Pool({connectionString:validateTarget(process.env.QUALITY_TEST_DATABASE_URL,'test')});
@@ -32,7 +32,7 @@ test('S2-24: busca híbrida, evidências, escopo transversal autorizado e revoga
   try {
     await db.query("INSERT INTO usuario(id,nome,email,senha_hash,role) VALUES ($1,'Admin',$3,'h','admin'),($2,'Dev',$4,'h','dev')",[admin,dev,admin+'@rag.test',dev+'@rag.test']);
     await db.query('INSERT INTO desenvolvedor(id,usuario_id) VALUES ($1,$2)',[developer,dev]);
-    await db.query("INSERT INTO projeto(id,nome,cliente,status) VALUES ($1,'RAG A','QA','ativo'),($2,'RAG B','QA','ativo')",[a,b]);
+    await db.query("INSERT INTO projeto(id,nome,cliente,status) VALUES ($1,$3,'QA','ativo'),($2,$4,'QA','ativo')",[a,b,`RAG A ${a}`,`RAG B ${b}`]);
     await db.query("INSERT INTO alocacao(desenvolvedor_id,projeto_id,data_inicio) VALUES ($1,$2,CURRENT_TIMESTAMP-INTERVAL '1 day')",[developer,a]);
     for(const [project,doc,chunk,text] of [[a,docA,chunkA,'O projeto A integra WhatsApp para avisos.'],[b,docB,chunkB,'O projeto B integra WhatsApp para suporte.']]) {
       await db.query("INSERT INTO documento(id,projeto_id,nome,caminho,status_processamento) VALUES ($1,$2,'WhatsApp.txt','rag.txt','processado')",[doc,project]);
@@ -50,7 +50,7 @@ test('S2-24: busca híbrida, evidências, escopo transversal autorizado e revoga
     });
     await t.test('sem recuperação pertinente não aciona geração',async()=>{
       const previous=modelCalls;const result=await service.answer(admin,'assunto inexistente',[a,b]);
-      assert.equal(result.resposta,NOT_FOUND_ANSWER);assert.equal(result.cobertura,"no_evidence");assert.deepEqual(result.fontes,[]);assert.equal(modelCalls,previous);
+      assert.equal(result.resposta,`${NO_CANDIDATES_ANSWER} ${SCOPE_LIMIT_ANSWER}`);assert.equal(result.cobertura,"no_evidence");assert.deepEqual(result.fontes,[]);assert.equal(modelCalls,previous);
     });
     await t.test('S3-03: somente quem acessa a evidência externa recebe o aviso',async()=>{
       await db.query('UPDATE chunk SET embedding=$2::vector WHERE id=$1',[chunkA,JSON.stringify([0,1,...Array(1022).fill(0)])]);
@@ -131,7 +131,7 @@ test('S2-24: busca híbrida, evidências, escopo transversal autorizado e revoga
         const transversal=await real.answer(admin,'Quais usos do WhatsApp existem nos projetos?',[a,b]);
         assert.deepEqual(new Set(transversal.fontes.map(source=>source.projeto_id)),new Set([a,b]));
         const missing=await real.answer(dev,'Qual política de autenticação biométrica foi definida?',[a]);
-        assert.equal(missing.resposta,NOT_FOUND_ANSWER);assert.equal(missing.cobertura,"no_evidence");assert.deepEqual(missing.fontes,[]);
+        assert.equal(missing.resposta,`${NO_CANDIDATES_ANSWER} ${SCOPE_LIMIT_ANSWER}`);assert.equal(missing.cobertura,"no_evidence");assert.deepEqual(missing.fontes,[]);
         assert.equal(missing.cobertura,'no_evidence');
 
         const offTopic=new RagService(new ChatRepository(db),new SearchRepository(db),embeddings,new HarnessRepository(db),new HttpHarnessEngine(process.env.RAG_REAL_AI_URL!));
@@ -162,5 +162,13 @@ test('S2-24: busca híbrida, evidências, escopo transversal autorizado e revoga
       await db.query("UPDATE projeto SET status='arquivado' WHERE id=$1",[b]);
       const result=await service.answer(admin,'WhatsApp',[a,b]);assert.ok(result.fontes.every(source=>source.projeto_id===a));
     });
-  } finally {await db.end();await pool.end();}
+  } finally {
+    try {
+      await db.query('DELETE FROM usuario WHERE id=ANY($1::uuid[])',[[admin,dev]]);
+      await db.query('DELETE FROM projeto WHERE id=ANY($1::uuid[])',[[a,b]]);
+    } finally {
+      try { await db.end(); }
+      finally { await pool.end(); }
+    }
+  }
 });
