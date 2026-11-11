@@ -49,6 +49,9 @@ function projectReadinessHelp(project: ProjectOption): string | null {
 
 interface ThreadMessage extends ChatMessage {
   failed?: boolean;
+  incomplete?: boolean;
+  streaming?: boolean;
+  evidenceSequence?: number;
   thinkingLabel?: string;
 }
 
@@ -658,7 +661,7 @@ export function ChatView() {
         escopo: activeId ? undefined : requestScopeType ?? undefined,
         mensagemId: retryId && !/^(?:local|queued)-/.test(retryId) ? retryId : undefined,
       }, controller.signal, (stage) => {
-        if (mounted.current) setProgressByKey(current => ({ ...current, [sendKey]: stage }));
+        if (mounted.current && revision === conversationRevision.current) setProgressByKey(current => ({ ...current, [sendKey]: stage }));
       }, (conversation) => {
         if (!mounted.current) return;
         requestConversationId = conversation.id;
@@ -671,14 +674,34 @@ export function ChatView() {
         setActiveId(conversation.id);
       }, (_durationMs, message) => {
         completedTiming = message;
-        if (mounted.current) setTimingMessage(message);
+        if (mounted.current && revision === conversationRevision.current) setTimingMessage(message);
       }, (id) => {
         attemptIds.current.delete(optimisticId);
         const previousId = pendingId;
         pendingId = id;
         if (mounted.current && revision === conversationRevision.current) {
-          setMessages(current => current.map(item => item.id === previousId ? { ...item, id } : item));
+          setMessages(current => current.map(item => item.id === previousId
+            ? { ...item, id }
+            : item.id === `${previousId}-assistant` ? { ...item, id: `${id}-assistant` } : item));
         }
+      }, (sequence, text) => {
+        if (!mounted.current || revision !== conversationRevision.current) return;
+        const assistantId = `${pendingId}-assistant`;
+        setMessages(current => {
+          const existing = current.find(item => item.id === assistantId);
+          if (existing) return current.map(item => item.id === assistantId
+            ? { ...item, conteudo: item.conteudo + text, streaming: true, evidenceSequence: sequence }
+            : item);
+          return [...current, {
+            id: assistantId,
+            remetente: "assistant",
+            conteudo: text,
+            fontes: [],
+            created_at: new Date().toISOString(),
+            streaming: true,
+            evidenceSequence: sequence,
+          }];
+        });
       });
       if (!mounted.current) return;
       attemptIds.current.delete(optimisticId);
@@ -688,18 +711,21 @@ export function ChatView() {
         return;
       }
       setMessages(current => current.map(item => item.id === pendingId ? { ...item, processing: false, queued: false } : item));
-      setMessages((current) => [
-        ...current,
-        {
-          id: `assistant-${Date.now()}`,
+      const assistantId = `${pendingId}-assistant`;
+      setMessages(current => {
+        const finalMessage: ThreadMessage = {
+          id: assistantId,
           remetente: "assistant",
           conteudo: answer.resposta,
           fontes: answer.fontes,
           created_at: new Date().toISOString(),
           origem: answer.origem,
           ...(completedTiming ? { thinkingLabel: completedTiming } : {}),
-        },
-      ]);
+        };
+        return current.some(item => item.id === assistantId)
+          ? current.map(item => item.id === assistantId ? finalMessage : item)
+          : [...current, finalMessage];
+      });
       setTimingMessage("");
       if (!activeId) {
         skipReload.current = answer.conversa_id;
@@ -717,15 +743,12 @@ export function ChatView() {
         setQueuePaused(true);
         setWaitingOnExistingQuery(false);
         setMessages(current => current.map(item => item.id === pendingId ? { ...item, failed: true, processing: false, queued: false } : item));
+        setMessages(current => current.flatMap(item => item.id === `${pendingId}-assistant`
+          ? item.conteudo ? [{ ...item, streaming: false, incomplete: true }] : []
+          : [item]));
         if (!queuedId) setDraft(current=>current||question);
         setSendError("Consulta interrompida. A pergunta ficou disponível para nova tentativa; a fila aguardará.");
-        const conversationId = requestConversationId;
-        if (conversationId) {
-          if (!/^(?:local|queued)-/.test(pendingId)) void loadMessages(conversationId);
-          void loadConversations(false);
-        } else {
-          void loadConversations(false);
-        }
+        void loadConversations(false);
         return;
       }
       if (error instanceof ApiError && error.status === 409) {
@@ -748,6 +771,9 @@ export function ChatView() {
       setQueuePaused(true);
       setWaitingOnExistingQuery(false);
       setMessages((current) => current.map((item) => (item.id === pendingId ? { ...item, failed: true, processing: false } : item)));
+      setMessages(current => current.flatMap(item => item.id === `${pendingId}-assistant`
+        ? item.conteudo ? [{ ...item, streaming: false, incomplete: true }] : []
+        : [item]));
       setDraft(current=>current||question);
       if (error instanceof ApiError && error.details && typeof error.details === "object" && "details" in error.details) {
         const detail = error.details.details as { conversa_id?: string };
@@ -825,7 +851,7 @@ export function ChatView() {
   const latestRetryableFailure = [...messages].reverse().find((message) => {
     if (message.remetente !== "user" || !message.failed) return false;
     const index = messages.indexOf(message);
-    return !messages.slice(index + 1).some(later => later.remetente === "assistant");
+    return !messages.slice(index + 1).some(later => later.remetente === "assistant" && !later.incomplete);
   });
 
   const editDraft = (value: string) => {
@@ -977,7 +1003,7 @@ export function ChatView() {
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" /></svg>
             </button>
           </div>
-          <Button className="chat-new-conversation" disabled={sending || queuedQuestions.length > 0} onClick={startNewConversation}>Nova conversa</Button>
+          <Button className="chat-new-conversation" disabled={queuedQuestions.length > 0} onClick={startNewConversation}>Nova conversa</Button>
 
           <div className="ds-field">
             <label className="ds-label" htmlFor="chat-scope">Escopo da consulta</label>
@@ -1042,7 +1068,7 @@ export function ChatView() {
                       type="button"
                       className="chat-conversation"
                       aria-current={conversation.id === activeId}
-                      disabled={sending || queuedQuestions.length > 0}
+                      disabled={queuedQuestions.length > 0}
                       onClick={() => { openConversation(conversation); setMobileSidebarOpen(false); }}
                     >
                       <span className="chat-conversation-title">{conversation.titulo}</span>
@@ -1351,6 +1377,8 @@ function MessageBubble({ message, copied, copyFailed, deleting, deleteDisabled, 
       </header>
       {message.failed && <p className="chat-message-failed" role="note">Não enviada</p>}
       {message.processing && <p className="chat-message-processing" role="status"><LoaderCircle aria-hidden="true" size={14} />Em processamento</p>}
+      {message.streaming && <p className="chat-message-processing" role="status">Trechos de evidência validados · resposta em preparação</p>}
+      {message.incomplete && <p className="chat-message-failed" role="note">Trechos parciais, resposta incompleta e sem fontes finais.</p>}
       {!isUser && message.thinkingLabel && (
         <p className="chat-message-thinking" aria-label={message.thinkingLabel}>{message.thinkingLabel}</p>
       )}

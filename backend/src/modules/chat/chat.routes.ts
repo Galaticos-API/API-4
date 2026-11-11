@@ -166,6 +166,7 @@ export function createChatRouter(service: ChatService = new ChatService(), authe
     res.flushHeaders();
     const startedAt = performance.now();
     const controller = new AbortController();
+    let sequence = 1;
     res.on("close", () => {
       if (!res.writableEnded) controller.abort();
     });
@@ -185,7 +186,18 @@ export function createChatRouter(service: ChatService = new ChatService(), authe
         projeto_nome: conversation.projeto_nome,
         escopo_tipo: conversation.escopo_tipo,
         updated_at: conversation.updated_at,
-      }), id => writeEvent("message_persisted", { id }));
+      }), id => writeEvent("message_persisted", { id }), item => {
+        if (controller.signal.aborted) return;
+        for (let offset = 0; offset < item.quote.length; offset += 240) {
+          if (controller.signal.aborted) break;
+          let end = Math.min(offset + 240, item.quote.length);
+          if (end < item.quote.length && /[\uD800-\uDBFF]/u.test(item.quote[end - 1])) end--;
+          const text = item.quote.slice(offset, end);
+          if (!text) continue;
+          writeEvent("evidence_chunk", { sequence: sequence++, text });
+          offset = end - 240;
+        }
+      });
       writeEvent("completed", result);
       writeEvent("timing", formatThinkingDuration(performance.now() - startedAt));
       res.end();

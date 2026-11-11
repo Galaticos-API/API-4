@@ -546,6 +546,83 @@ test('Harness HTTP distingue saída rejeitada (422) de indisponibilidade',async(
     await assert.rejects(()=>new HttpHarnessEngine(`http://127.0.0.1:${port}/down`).generate({},2000),(error:unknown)=>!(error instanceof ModelOutputRejectedError));
   } finally { server.close(); }
 });
+test('Harness HTTP encaminha candidates internos e só resolve com o envelope terminal',async()=>{
+  const candidate={source_id:chunk,quote:'A sessão é válida.'};
+  let receivedUrl='';
+  const server=createServer((req,res)=>{
+    receivedUrl=req.url??'';
+    res.writeHead(200,{'content-type':'text/event-stream'});
+    const wire=`event: evidence_candidate\r\ndata: ${JSON.stringify(candidate)}\r\n\r\nevent: completed\r\ndata: ${JSON.stringify({mode:'consulta',version:1,schema_version:1,result:{answer:'validado'}})}\r\n\r\n`;
+    const bytes=Buffer.from(wire);const split=bytes.indexOf(Buffer.from('ã'))+1;
+    res.write(bytes.subarray(0,split));res.end(bytes.subarray(split));
+  });
+  await new Promise<void>(done=>server.listen(0,'127.0.0.1',done));
+  const {port}=server.address() as AddressInfo;
+  const engine=new HttpHarnessEngine(`http://127.0.0.1:${port}`);
+  const candidates:unknown[]=[];
+  try {
+    const result=await engine.generate({mode:'consulta',version:1,schema_version:1},2000,undefined,value=>{candidates.push(value);});
+    assert.equal(receivedUrl,'/harness/run/stream');
+    assert.deepEqual(candidates,[candidate]);
+    assert.deepEqual(result,{answer:'validado'});
+  } finally { server.close(); }
+});
+test('Harness HTTP recusa stream sem evento completed',async()=>{
+  const server=createServer((_req,res)=>{res.writeHead(200,{'content-type':'text/event-stream'});res.end('event: evidence_candidate\ndata: {"source_id":"bad","quote":"texto"}\n\n');});
+  await new Promise<void>(done=>server.listen(0,'127.0.0.1',done));
+  const {port}=server.address() as AddressInfo;
+  try { await assert.rejects(()=>new HttpHarnessEngine(`http://127.0.0.1:${port}`).generate({mode:'consulta',version:1,schema_version:1},2000,undefined,()=>{}),/Revisão de resposta incompatível/); }
+  finally { server.close(); }
+});
+test('RAG só publica candidate literal e relevante após revalidar autorização e chunk atual',async()=>{
+  const published:Array<{source_id:string;quote:string}>=[];
+  const service=new RagService(new Chats(),new Search(),{embed:async()=>Array(1024).fill(0.1)},new Revisions(),{
+    generate:async(_payload,_timeout,_signal,onCandidate)=>{
+      await onCandidate?.({source_id:chunk,quote:'O login exige autenticação.'});
+      await onCandidate?.({source_id:chunk,quote:'O pagamento é feito por PIX.'});
+      return {coverage:'complete',evidence:[{source_id:chunk,quote:row.text}]};
+    },
+  });
+  const result=await service.answer(randomUUID(),'Como funciona o login?',[project],undefined,undefined,[],true,undefined, async item=>{published.push(item);});
+  assert.deepEqual(published,[{source_id:chunk,quote:row.text}]);
+  assert.deepEqual(result.fontes.map(source=>source.id),[chunk]);
+});
+test('RAG não publica candidate de projeto revogado ou trecho alterado',async()=>{
+  for(const state of ['revoked','changed'] as const) {
+    let published=0;
+    let accessChecks=0;
+    class FreshnessChats extends Chats {
+      async accessibleProjects(){accessChecks++;return state==='revoked'&&accessChecks>1?[]:[{id:project,nome:'Projeto A'}];}
+      async currentRagChunks(){return [currentRow(state==='changed'?'O login usa senha temporária.':row.text)];}
+    }
+    const service=new RagService(new FreshnessChats(),new Search(),{embed:async()=>Array(1024).fill(0.1)},new Revisions(),{
+      generate:async(_payload,_timeout,_signal,onCandidate)=>{
+        await onCandidate?.({source_id:chunk,quote:row.text});
+        return {coverage:'complete',evidence:[{source_id:chunk,quote:row.text}]};
+      },
+    });
+    if(state==='revoked') await service.answer(randomUUID(),'Como funciona o login?',[project],undefined,undefined,[],true,undefined,()=>{published++;});
+    else await assert.rejects(()=>service.answer(randomUUID(),'Como funciona o login?',[project],undefined,undefined,[],true,undefined,()=>{published++;}),/não conseguiu validar as evidências/);
+    assert.equal(published,0,state);
+  }
+});
+test('RAG mantém resposta parcial quando um aspecto falha durante streaming',async()=>{
+  const quote='O login exige autenticação.';
+  let calls=0;
+  const published:Array<{source_id:string;quote:string}>=[];
+  const service=new RagService(new Chats(),new Search(),{embed:async()=>Array(1024).fill(0.1)},new Revisions(),{
+    generate:async(_payload,_timeout,_signal,onCandidate)=>{
+      calls++;
+      if(calls===1)throw new Error('aspecto indisponível');
+      await onCandidate?.({source_id:chunk,quote});
+      return {coverage:'complete',evidence:[{source_id:chunk,quote}]};
+    },
+  });
+  const result=await service.answer(randomUUID(),'Como funciona o login e qual o prazo?',[project],undefined,undefined,[],true,undefined,item=>{published.push(item);});
+  assert.equal(result.cobertura,'partial');
+  assert.deepEqual(published,[{source_id:chunk,quote}]);
+  assert.match(result.resposta,/O login exige autenticação/);
+});
 for(const scenario of ['authorized','unauthorized','revoked','irrelevant','second_batch','failed_batch','slow'] as const) {
   test(`S3-03: sugestão de ampliação com projeto alternativo ${scenario}`,async()=>{
     const alternate=randomUUID(), forbidden=randomUUID();

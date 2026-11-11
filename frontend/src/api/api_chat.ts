@@ -166,8 +166,9 @@ export async function askQuestion(
   onConversation?: (conversation: ChatConversation) => void,
   onTiming?: (durationMs: number, message: string) => void,
   onMessagePersisted?: (id: string) => void,
+  onEvidenceChunk?: (sequence: number, text: string) => void,
 ): Promise<ChatAnswer> {
-  if (onProgress) return askQuestionWithProgress(input, onProgress, signal, onConversation, onTiming, onMessagePersisted);
+  if (onProgress) return askQuestionWithProgress(input, onProgress, signal, onConversation, onTiming, onMessagePersisted, onEvidenceChunk);
   const deadline = AbortSignal.timeout(QUERY_TIMEOUT_MS);
   const response = await apiRequest("/chat/query", {
     method: "POST",
@@ -200,6 +201,7 @@ export async function askQuestionWithProgress(
   onConversation?: (conversation: ChatConversation) => void,
   onTiming?: (durationMs: number, message: string) => void,
   onMessagePersisted?: (id: string) => void,
+  onEvidenceChunk?: (sequence: number, text: string) => void,
 ): Promise<ChatAnswer> {
   const deadline = AbortSignal.timeout(QUERY_TIMEOUT_MS);
   const response = await apiRequest("/chat/query/stream", {
@@ -225,6 +227,7 @@ export async function askQuestionWithProgress(
   const decoder = new TextDecoder();
   let buffer = "";
   let answer: ChatAnswer | undefined;
+  let lastEvidenceSequence = 0;
   const consumeFrame = (frame: string) => {
     let event = "message";
     const data: string[] = [];
@@ -252,6 +255,15 @@ export async function askQuestionWithProgress(
       if (isRecord(payload) && typeof payload.duration_ms === "number" && typeof payload.message === "string") {
         onTiming?.(payload.duration_ms, payload.message);
       }
+      return;
+    }
+    if (event === "evidence_chunk") {
+      if (!isRecord(payload) || !Number.isSafeInteger(payload.sequence) || (payload.sequence as number) <= lastEvidenceSequence
+        || typeof payload.text !== "string" || !payload.text.trim() || payload.text.length > 10_000) {
+        throw new Error("Chunk de evidência inválido ou fora de sequência.");
+      }
+      lastEvidenceSequence = payload.sequence as number;
+      onEvidenceChunk?.(lastEvidenceSequence, payload.text);
       return;
     }
     if (event === "completed") { answer = parseChatAnswer(payload); return; }

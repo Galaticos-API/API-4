@@ -24,8 +24,8 @@ import {
 } from "./chat.types.js";
 
 export interface AssistantClient {
-  ask(pergunta: string, projetoId?: string,usuarioId?:string,onProgress?:(stage:ChatProgressStage)=>void,signal?:AbortSignal): Promise<AssistantAnswer>;
-  askProjects?(pergunta: string, projetoIds: string[],usuarioId:string,onProgress?:(stage:ChatProgressStage)=>void,signal?:AbortSignal,history?:ConversationTurn[]): Promise<AssistantAnswer>;
+  ask(pergunta: string, projetoId?: string,usuarioId?:string,onProgress?:(stage:ChatProgressStage)=>void,signal?:AbortSignal,onEvidenceCandidate?:(item:{source_id:string;quote:string})=>void|Promise<void>): Promise<AssistantAnswer>;
+  askProjects?(pergunta: string, projetoIds: string[],usuarioId:string,onProgress?:(stage:ChatProgressStage)=>void,signal?:AbortSignal,history?:ConversationTurn[],onEvidenceCandidate?:(item:{source_id:string;quote:string})=>void|Promise<void>): Promise<AssistantAnswer>;
 }
 
 const MAX_CONTEXT_MESSAGES = 8;
@@ -104,18 +104,18 @@ function attachValidatedEvidence(sources: ChatSource[], evidence: AssistantAnswe
 export class HttpAssistantClient implements AssistantClient {
   constructor(private readonly baseUrl: string = env.AI_SERVICE_URL, private readonly repository = new ChatRepository(), private readonly ragAnswerer?: RagAnswerer) { }
 
-  async ask(pergunta: string, projetoId?: string,usuarioId?:string,onProgress?:(stage:ChatProgressStage)=>void,signal?:AbortSignal): Promise<AssistantAnswer> {
+  async ask(pergunta: string, projetoId?: string,usuarioId?:string,onProgress?:(stage:ChatProgressStage)=>void,signal?:AbortSignal,onEvidenceCandidate?:(item:{source_id:string;quote:string})=>void|Promise<void>): Promise<AssistantAnswer> {
     if (!projetoId) throw new ValidationError("Escolha um projeto.");
     if(!usuarioId)throw new ValidationError('Autenticação necessária.');
-    return this.askProjects(pergunta, [projetoId], usuarioId, onProgress, signal);
+    return this.askProjects(pergunta, [projetoId], usuarioId, onProgress, signal,[],onEvidenceCandidate);
   }
 
-  async askProjects(pergunta: string, projetoIds: string[],usuarioId:string,onProgress?:(stage:ChatProgressStage)=>void,signal?:AbortSignal,history:ConversationTurn[]=[]): Promise<AssistantAnswer> {
+  async askProjects(pergunta: string, projetoIds: string[],usuarioId:string,onProgress?:(stage:ChatProgressStage)=>void,signal?:AbortSignal,history:ConversationTurn[]=[],onEvidenceCandidate?:(item:{source_id:string;quote:string})=>void|Promise<void>): Promise<AssistantAnswer> {
     if (!projetoIds.length) throw new ValidationError("Você não tem projetos disponíveis para consulta.");
     // O RAG já monta a resposta exclusivamente com citações verificadas.
     // Não substituir esse texto por uma segunda geração livre sem validação de evidências.
     const rag=this.ragAnswerer??new RagService(this.repository,new SearchRepository(),new HttpSearchEmbeddingClient(this.baseUrl),undefined,new HttpHarnessEngine(this.baseUrl));
-    return rag.answer(usuarioId,pergunta,projetoIds,onProgress,signal,history);
+    return rag.answer(usuarioId,pergunta,projetoIds,onProgress,signal,history,true,undefined,onEvidenceCandidate);
   }
 }
 
@@ -253,7 +253,7 @@ export class ChatService {
     return this.repository.listMessages(conversaId,usuarioId);
   }
 
-  async query(usuarioId: string, input: QueryInput, onProgress?:(stage:ChatProgressStage)=>void, signal?:AbortSignal, onConversationCreated?:(conversation:Conversation)=>void, onMessagePersisted?:(id:string)=>void): Promise<QueryResult> {
+  async query(usuarioId: string, input: QueryInput, onProgress?:(stage:ChatProgressStage)=>void, signal?:AbortSignal, onConversationCreated?:(conversation:Conversation)=>void, onMessagePersisted?:(id:string)=>void, onEvidenceCandidate?:(item:{source_id:string;quote:string})=>void|Promise<void>): Promise<QueryResult> {
     const startedAt=performance.now();
     const logCompleted=(result:QueryResult)=>{
       console.info('[Chat] Request completed',{
@@ -321,7 +321,7 @@ export class ChatService {
         ? recentConversationContext(await this.repository.listMessages(conversaId, usuarioId), messageId)
         : [];
       const answer=this.assistant.askProjects
-        ? await this.assistant.askProjects(pergunta,projectIds,usuarioId,onProgress,signal,history)
+        ? await this.assistant.askProjects(pergunta,projectIds,usuarioId,onProgress,signal,history,onEvidenceCandidate)
         : projectIds.length === 1
           ? await this.assistant.ask(pergunta,projectIds[0],usuarioId,onProgress,signal)
           : (() => { throw new ValidationError("Este assistente não suporta consultas em múltiplos projetos."); })();

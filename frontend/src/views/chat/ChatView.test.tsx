@@ -105,7 +105,7 @@ it('abre no escopo de todos os projetos permitidos e envia sem selecionar um pro
   fireEvent.click(screen.getByRole('button',{name:'Enviar'}));
   await waitFor(()=>expect(askQuestion).toHaveBeenCalledWith(expect.objectContaining({
     pergunta:'Consultar todos os projetos',conversaId:null,projetoId:null,escopo:'todos_autorizados',
-  }),expect.any(AbortSignal),expect.any(Function),expect.any(Function),expect.any(Function),expect.any(Function)));
+  }),expect.any(AbortSignal),expect.any(Function),expect.any(Function),expect.any(Function),expect.any(Function),expect.any(Function)));
 });
 it('informa quando o projeto selecionado ainda não tem conteúdo indexado sem bloquear o chat',async()=>{
   vi.mocked(listConversations).mockResolvedValue([]);
@@ -375,6 +375,85 @@ it('exibe status animado e alterna as mensagens enquanto aguarda o assistente',a
   await act(async()=>finish({conversa_id:'conversation-a',resposta:'Resposta pronta',fontes:[],origem:'assistente'}));
   expect(await screen.findByText('Resposta pronta')).toBeInTheDocument();
 });
+it('mostra chunks validados em um placeholder e os substitui pela resposta canônica com fontes', async () => {
+  let finish!:(answer:ChatAnswer)=>void;
+  let onChunk!:(sequence:number,text:string)=>void;
+  vi.mocked(listConversations).mockResolvedValue([]);
+  vi.mocked(listChatProjects).mockResolvedValue([{id:'project-a',nome:'Projeto A'}]);
+  vi.mocked(askQuestion).mockImplementation((_input,_signal,_progress,_conversation,_timing,_persisted,chunk)=>{
+    onChunk=chunk!;
+    return new Promise(resolve=>{finish=resolve;});
+  });
+  render(<ChatView/>);
+  await screen.findByRole('option',{name:'Projeto A'});
+  fireEvent.change(screen.getByLabelText('Escopo da consulta'),{target:{value:'projeto:project-a'}});
+  fireEvent.change(screen.getByRole('textbox'),{target:{value:'Pergunta com evidências'}});
+  fireEvent.click(screen.getByRole('button',{name:'Enviar'}));
+  act(()=>onChunk(1,'Excerto validado. '));
+  expect(screen.getByText('Excerto validado.')).toBeInTheDocument();
+  expect(screen.getByText(/Trechos de evidência validados/)).toBeInTheDocument();
+  expect(screen.queryByRole('button',{name:/Fontes e evidências/})).toBeNull();
+  await act(async()=>{
+    onChunk(2,'Mais um excerto.');
+    finish({conversa_id:'conversation-a',resposta:'Resposta final canônica.',fontes:[{id:'source-1',titulo:'Documento',tipo:'documento'}],origem:'assistente'});
+  });
+  expect(await screen.findByText('Resposta final canônica.')).toBeInTheDocument();
+  expect(screen.queryByText(/Excerto validado/)).toBeNull();
+  expect(screen.getByRole('button',{name:/Fontes e evidências/})).toBeInTheDocument();
+});
+
+it('preserva chunks recebidos ao interromper e pausa a fila sem declarar resposta concluída', async () => {
+  let onChunk!:(sequence:number,text:string)=>void;
+  vi.mocked(listConversations).mockResolvedValue([]);
+  vi.mocked(listChatProjects).mockResolvedValue([{id:'project-a',nome:'Projeto A'}]);
+  vi.mocked(askQuestion).mockImplementation((_input,_signal,_progress,_conversation,_timing,_persisted,chunk)=>{
+    onChunk=chunk!;
+    return new Promise((_resolve,reject)=>_signal?.addEventListener('abort',()=>reject(new DOMException('interrompida','AbortError')),{once:true}));
+  });
+  render(<ChatView/>);
+  await screen.findByRole('option',{name:'Projeto A'});
+  fireEvent.change(screen.getByLabelText('Escopo da consulta'),{target:{value:'projeto:project-a'}});
+  fireEvent.change(screen.getByRole('textbox'),{target:{value:'Pergunta interrompida'}});
+  fireEvent.click(screen.getByRole('button',{name:'Enviar'}));
+  fireEvent.change(screen.getByRole('textbox'),{target:{value:'Pergunta seguinte na fila'}});
+  fireEvent.keyDown(screen.getByRole('textbox'),{key:'Enter',code:'Enter',charCode:13});
+  act(()=>onChunk(1,'Trecho parcial preservado.'));
+  fireEvent.click(await screen.findByRole('button',{name:'Interromper consulta'}));
+  expect(await screen.findByText(/Trechos parciais, resposta incompleta e sem fontes finais/)).toBeInTheDocument();
+  expect(screen.getByText('Trecho parcial preservado.')).toBeInTheDocument();
+  expect(screen.getByRole('button',{name:'Tentar novamente'})).toBeInTheDocument();
+  expect(screen.queryByRole('button',{name:/Fontes e evidências/})).toBeNull();
+  expect(screen.getByRole('region',{name:'Fila de mensagens'})).toHaveTextContent('Pergunta seguinte na fila');
+  expect(screen.getByText('Fila pausada')).toBeInTheDocument();
+  expect(askQuestion).toHaveBeenCalledTimes(1);
+});
+it('ignora chunks atrasados depois que o usuário troca de conversa', async () => {
+  let onChunk!:(sequence:number,text:string)=>void;
+  let finish!:(answer:ChatAnswer)=>void;
+  vi.mocked(listConversations).mockResolvedValue([
+    {id:'conversation-a',titulo:'Conversa A',projeto_id:'project-a',projeto_nome:'Projeto A',updated_at:''},
+    {id:'conversation-b',titulo:'Conversa B',projeto_id:'project-a',projeto_nome:'Projeto A',updated_at:''},
+  ]);
+  vi.mocked(listMessages).mockResolvedValue([]);
+  vi.mocked(listChatProjects).mockResolvedValue([{id:'project-a',nome:'Projeto A'}]);
+  vi.mocked(askQuestion).mockImplementation((_input,_signal,_progress,_conversation,_timing,_persisted,chunk)=>{
+    onChunk=chunk!;
+    return new Promise(resolve=>{finish=resolve;});
+  });
+  render(<ChatView/>);
+  await screen.findByRole('heading',{name:'Conversa A'});
+  fireEvent.change(screen.getByRole('textbox'),{target:{value:'Pergunta da conversa A'}});
+  fireEvent.click(screen.getByRole('button',{name:'Enviar'}));
+  act(()=>onChunk(1,'Trecho da conversa A'));
+  fireEvent.click(screen.getByText('Conversa B'));
+  await screen.findByRole('heading',{name:'Conversa B'});
+  act(()=>onChunk(2,'Chunk atrasado não deve vazar'));
+  await act(async()=>finish({conversa_id:'conversation-a',resposta:'Resposta atrasada',fontes:[],origem:'assistente'}));
+  expect(screen.queryByText('Trecho da conversa A')).toBeNull();
+  expect(screen.queryByText('Chunk atrasado não deve vazar')).toBeNull();
+  expect(screen.queryByText('Resposta atrasada')).toBeNull();
+  expect(screen.getByRole('heading',{name:'Conversa B'})).toBeInTheDocument();
+});
 it('preserva o tempo de processamento na resposta após o indicador sumir',async()=>{
   let finish!:(answer:ChatAnswer)=>void;
   let onTiming!:(durationMs:number,message:string)=>void;
@@ -471,7 +550,7 @@ it('ao reabrir uma conversa, permite tentar novamente a última pergunta que fal
   expect(retry.closest('[role="alert"]')).toHaveTextContent('consulta anterior não foi concluída');
   fireEvent.click(retry);
   await screen.findByText('Resposta da última pergunta');
-  expect(askQuestion).toHaveBeenCalledWith(expect.objectContaining({pergunta:'Última pergunta',conversaId:'conversation-a',projetoId:null,mensagemId:'latest-failed'}),expect.any(AbortSignal),expect.any(Function),expect.any(Function),expect.any(Function),expect.any(Function));
+  expect(askQuestion).toHaveBeenCalledWith(expect.objectContaining({pergunta:'Última pergunta',conversaId:'conversation-a',projetoId:null,mensagemId:'latest-failed'}),expect.any(AbortSignal),expect.any(Function),expect.any(Function),expect.any(Function),expect.any(Function),expect.any(Function));
 });
 it('usa o ID persistido pelo SSE ao tentar novamente uma pergunta otimista',async()=>{
   const persistedId='40000000-0000-4000-8000-000000000001';
@@ -479,7 +558,8 @@ it('usa o ID persistido pelo SSE ao tentar novamente uma pergunta otimista',asyn
   vi.mocked(listConversations).mockResolvedValue([]);
   vi.mocked(listChatProjects).mockResolvedValue([{id:'project-a',nome:'Projeto A'}]);
   vi.mocked(askQuestion)
-    .mockImplementationOnce(async(_input,_signal,_progress,_conversation,_timing,onMessagePersisted)=>{
+    .mockImplementationOnce(async(_input,_signal,_progress,_conversation,_timing,onMessagePersisted,onEvidenceChunk)=>{
+      onEvidenceChunk?.(1,'Trecho parcial recuperável');
       onMessagePersisted?.(persistedId);
       throw new Error('Falha de rede após persistência');
     })
@@ -493,6 +573,7 @@ it('usa o ID persistido pelo SSE ao tentar novamente uma pergunta otimista',asyn
   fireEvent.change(screen.getByRole('textbox'),{target:{value:'Pergunta recuperável'}});
   fireEvent.click(screen.getByRole('button',{name:'Enviar'}));
   const retry=await screen.findByRole('button',{name:'Tentar novamente'});
+  expect(screen.getByText('Trecho parcial recuperável')).toBeInTheDocument();
   fireEvent.click(retry);
   expect(await screen.findByText('Resposta após retry')).toBeInTheDocument();
   expect(retryInput).toMatchObject({pergunta:'Pergunta recuperável',mensagemId:persistedId});
@@ -664,7 +745,7 @@ it('o menu de uma mensagem falha só oferece retry quando ela é a última pergu
   const menu=screen.getByRole('menu',{name:'Ações da mensagem de Você'});
   fireEvent.click(within(menu).getByRole('menuitem',{name:'Tentar novamente'}));
   await screen.findByText('Resposta recuperada');
-  expect(askQuestion).toHaveBeenCalledWith(expect.objectContaining({pergunta:'Pergunta pendente de nova tentativa',conversaId:'conversation-a',projetoId:null,mensagemId:'failed'}),expect.any(AbortSignal),expect.any(Function),expect.any(Function),expect.any(Function),expect.any(Function));
+  expect(askQuestion).toHaveBeenCalledWith(expect.objectContaining({pergunta:'Pergunta pendente de nova tentativa',conversaId:'conversation-a',projetoId:null,mensagemId:'failed'}),expect.any(AbortSignal),expect.any(Function),expect.any(Function),expect.any(Function),expect.any(Function),expect.any(Function));
 });
 it('não oferece novamente uma falha antiga quando a conversa já teve resposta',async()=>{
   vi.mocked(listConversations).mockResolvedValue([{id:'conversation-a',titulo:'Conversa A',projeto_id:'project-a',projeto_nome:'Projeto A',updated_at:''}]);
@@ -852,7 +933,7 @@ it('uma resposta atrasada do histórico não troca o projeto escolhido para a no
   expect(listMessages).not.toHaveBeenCalled();
   fireEvent.click(screen.getByRole('button',{name:'Enviar'}));
   await screen.findByText('Resposta do projeto A');
-  expect(askQuestion).toHaveBeenCalledWith(expect.objectContaining({projetoId:'project-a',conversaId:null}),expect.any(AbortSignal),expect.any(Function),expect.any(Function),expect.any(Function),expect.any(Function));
+  expect(askQuestion).toHaveBeenCalledWith(expect.objectContaining({projetoId:'project-a',conversaId:null}),expect.any(AbortSignal),expect.any(Function),expect.any(Function),expect.any(Function),expect.any(Function),expect.any(Function));
 });
 it('repetir a consulta do histórico também não abre uma conversa sobre a pergunta em edição',async()=>{
   vi.mocked(listConversations).mockRejectedValueOnce(new Error('offline')).mockResolvedValueOnce([{id:'old-b',titulo:'Conversa antiga B',projeto_id:'project-b',projeto_nome:'Projeto B',updated_at:''}]);

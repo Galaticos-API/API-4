@@ -3249,9 +3249,11 @@ paths:
     post:
       summary: Envia pergunta com eventos de progresso do assistente
       description: >
-        Usa Server-Sent Events para enviar somente mudanças de etapa reais (`searching`,
-        `synthesizing`, `validating`) e, ao final, a resposta completa após validação das
-        evidências e fontes. Tokens brutos do modelo não são transmitidos. O evento `error`
+        Usa Server-Sent Events para enviar mudanças de etapa reais (`searching`,
+        `synthesizing`, `validating`) e `evidence_chunk` com trechos literais somente após
+        validação de evidência, relevância, autorização do projeto e atualidade do chunk.
+        Esses trechos não incluem IDs nem fontes; fontes aparecem exclusivamente em `completed`,
+        que contém a resposta canônica completa. Candidates brutos do modelo nunca são transmitidos. O evento `error`
         segue o envelope seguro da API. A conversa nova pode consultar um projeto ou
         todos os projetos atualmente autorizados; o escopo de conversas existentes
         permanece imutável. Fechar a conexão SSE interrompe a consulta e a pergunta fica
@@ -3278,7 +3280,8 @@ paths:
           description: >
             Fluxo SSE codificado como texto UTF-8. Cada frame segue o formato `event: <nome>` e
             `data: <JSON>`, terminado por uma linha em branco; comentários `: keep-alive` são heartbeats.
-            Eventos: `conversation` (metadados), `message_persisted` (UUID da pergunta salva), `progress` ({stage}), `completed` (resposta final),
+            Eventos: `conversation` (metadados), `message_persisted` (UUID da pergunta salva), `progress` ({stage}),
+            `evidence_chunk` ({sequence,text}, trecho literal já validado e sem fontes), `completed` (resposta final canônica),
             `timing` ({duration_ms, message}, depois de completed), `cancelled` ({error}) e `error`
             (envelope seguro com diagnostic_id). Fechar a conexão interrompe a consulta ativa.
           content:
@@ -3300,6 +3303,12 @@ paths:
                   type: object
                   properties:
                     stage: {type: string, enum: [searching, synthesizing, validating]}
+                evidence_chunk:
+                  type: object
+                  required: [sequence, text]
+                  properties:
+                    sequence: {type: integer, minimum: 1}
+                    text: {type: string, description: 'Trecho literal já verificado pelo backend; sem IDs ou fontes'}
                 conversation:
                   type: object
                   properties:

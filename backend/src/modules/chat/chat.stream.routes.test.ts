@@ -134,6 +134,30 @@ test("SSE relata etapas reais e envia somente a resposta final concluída", asyn
   assert.doesNotMatch(body, /token|partial|delta/i);
 });
 
+test("SSE transmite somente trechos verificados sem IDs e mantém fontes no completed", async () => {
+  const quote = "O login exige autenticação.";
+  const service = createService() as unknown as { query: (...args: any[]) => Promise<unknown> };
+  service.query = async (_user: string, _input: unknown, _progress: unknown, _signal: unknown, _conversation: unknown, onMessagePersisted: (id:string) => void, onEvidenceCandidate: (item: {source_id:string;quote:string}) => void) => {
+    onMessagePersisted("40000000-0000-4000-8000-000000000001");
+    onEvidenceCandidate({ source_id: "30000000-0000-4000-8000-000000000009", quote });
+    return { resposta: quote, fontes: [{ id: "source-id" }], conversa_id: "20000000-0000-4000-8000-000000000001", origem: "assistente" };
+  };
+  const streamed = createChatRouter(service as unknown as ChatService, (req, _res, next) => { req.auth = { id: USER, nome: "QA", email: "qa@example.test", role: "admin" }; next(); });
+  const app = express(); app.use(express.json()); app.use("/api/v1/chat", streamed);
+  const local = app.listen(0); const url = `http://127.0.0.1:${(local.address() as AddressInfo).port}/api/v1/chat/query/stream`;
+  try {
+    const response = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ pergunta: "Como funciona o login?", projeto_id: PROJECT }) });
+    const body = await response.text();
+    const chunk = /event: evidence_chunk\ndata: (.*?)\n\n/.exec(body);
+    assert.ok(chunk);
+    assert.deepEqual(JSON.parse(chunk[1]), { sequence: 1, text: quote });
+    assert.doesNotMatch(chunk[1], /source|fontes|30000000/);
+    assert.ok(body.indexOf("event: message_persisted") < body.indexOf("event: evidence_chunk"));
+    assert.ok(body.indexOf("event: evidence_chunk") < body.indexOf("event: completed"));
+    assert.match(body, /event: completed\ndata: .*"fontes"/);
+  } finally { local.close(); }
+});
+
 test("SSE timing reflete a duração real da consulta", async () => {
   fail = false;
   lastQueryDelayMs = 80;

@@ -79,11 +79,50 @@ it('processa eventos de progresso fragmentados e só resolve com a resposta conc
   expect(vi.mocked(fetch)).toHaveBeenCalledWith(expect.stringContaining('/chat/query/stream'),expect.any(Object));
 });
 
+it('emite somente chunks de evidência SSE com sequência crescente e texto validado', async () => {
+  const wire = [
+    'event: evidence_chunk\ndata: {"sequence":1,"text":"Trecho validado 1"}\n\n',
+    'event: evidence_chunk\ndata: {"sequence":2,"text":"Trecho validado 2"}\n\n',
+    'event: completed\ndata: {"conversa_id":"conversation-a","resposta":"Resposta final","fontes":[],"origem":"assistente"}\n\n',
+  ].join('');
+  vi.stubGlobal('fetch', vi.fn(async () => new Response(wire, { headers: { 'Content-Type': 'text/event-stream' } })));
+  const chunks: Array<{ sequence: number; text: string }> = [];
+  const answer = await askQuestionWithProgress(
+    { pergunta: 'Consultar evidências', projetoId: 'project-a' },
+    () => {}, undefined, undefined, undefined,
+    undefined,
+    (sequence, text) => chunks.push({ sequence, text }),
+  );
+  expect(chunks).toEqual([
+    { sequence: 1, text: 'Trecho validado 1' },
+    { sequence: 2, text: 'Trecho validado 2' },
+  ]);
+  expect(answer.resposta).toBe('Resposta final');
+});
+
+it('rejeita chunks SSE malformados e sequências repetidas', async () => {
+  const wire = [
+    'event: evidence_chunk\ndata: {"sequence":1,"text":"Trecho validado"}\n\n',
+    'event: evidence_chunk\ndata: {"sequence":1,"text":"Duplicado"}\n\n',
+    'event: completed\ndata: {"conversa_id":"conversation-a","resposta":"Resposta final","fontes":[],"origem":"assistente"}\n\n',
+  ].join('');
+  vi.stubGlobal('fetch', vi.fn(async () => new Response(wire, { headers: { 'Content-Type': 'text/event-stream' } })));
+  const chunks: string[] = [];
+  await expect(askQuestionWithProgress(
+    { pergunta: 'Consultar evidências', projetoId: 'project-a' },
+    () => {}, undefined, undefined, undefined,
+    undefined,
+    (_sequence, text) => chunks.push(text),
+  )).rejects.toThrow(/sequência/i);
+  expect(chunks).toEqual(['Trecho validado']);
+});
+
 it('processa evento timing após completed e invoca callback',async()=>{
   const wire=[
     'event: conversation\ndata: {"id":"20000000-0000-4000-8000-000000000001","titulo":"Consulta","projeto_id":"30000000-0000-4000-8000-000000000001","projeto_nome":"Projeto","escopo_tipo":"projeto","updated_at":"2026-10-27T00:00:00Z"}\n\n',
     'event: message_persisted\ndata: {"id":"40000000-0000-4000-8000-000000000001"}\n\n',
     'event: progress\ndata: {"stage":"searching"}\n\n',
+    'event: evidence_chunk\ndata: {"sequence":1,"text":"Trecho"}\n\n',
     'event: completed\ndata: {"conversa_id":"conversation-a","resposta":"Resposta validada","fontes":[],"origem":"assistente"}\n\n',
     'event: timing\ndata: {"duration_ms":1234,"message":"Pensou por 1s"}\n\n',
   ].join('');
@@ -95,10 +134,12 @@ it('processa evento timing após completed e invoca callback',async()=>{
   vi.stubGlobal('fetch',vi.fn(async()=>new Response(body,{headers:{'Content-Type':'text/event-stream; charset=utf-8'}})));
   const timingCalls:{durationMs:number;message:string}[]=[];
   const callbacks:string[]=[];
-  const result=await askQuestionWithProgress({pergunta:'Consultar evidências',projetoId:'project-a'},()=>callbacks.push('progress'),undefined,()=>callbacks.push('conversation'),(durationMs,message)=>timingCalls.push({durationMs,message}),id=>callbacks.push(`persisted:${id}`));
+  const chunks:string[]=[];
+  const result=await askQuestionWithProgress({pergunta:'Consultar evidências',projetoId:'project-a'},()=>callbacks.push('progress'),undefined,()=>callbacks.push('conversation'),(durationMs,message)=>timingCalls.push({durationMs,message}),id=>callbacks.push(`persisted:${id}`),(sequence,text)=>chunks.push(`${sequence}:${text}`));
   expect(result.resposta).toBe('Resposta validada');
   expect(timingCalls).toEqual([{durationMs:1234,message:'Pensou por 1s'}]);
   expect(callbacks).toEqual(['conversation','persisted:40000000-0000-4000-8000-000000000001','progress']);
+  expect(chunks).toEqual(['1:Trecho']);
 });
 
 it('envia a mesma chave de tentativa ao endpoint SSE para permitir retry idempotente',async()=>{

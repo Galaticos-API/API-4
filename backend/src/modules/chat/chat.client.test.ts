@@ -36,7 +36,7 @@ test('HttpAssistantClient devolve exatamente a resposta RAG verificada sem nova 
     const result = await client.ask('Para que usa WhatsApp e qual o prazo?', projectId, userId);
 
     assert.deepEqual(result, response);
-    assert.deepEqual(calls, [[userId, 'Para que usa WhatsApp e qual o prazo?', [projectId], undefined, undefined, []]]);
+    assert.deepEqual(calls, [[userId, 'Para que usa WhatsApp e qual o prazo?', [projectId], undefined, undefined, [], true, undefined, undefined]]);
     assert.equal(unverifiedGenerationCalls, 0);
     assert.ok(result.resposta.includes('[aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa]'));
     assert.ok(result.resposta.includes('A resposta é parcial:'));
@@ -70,7 +70,7 @@ test('OpenAPI documenta SSE como corpo textual e descreve os payloads dos evento
   assert.equal(stream.schema.type, 'string');
   assert.match(stream.schema.example, /event: completed\s+data:/);
   assert.deepEqual(Object.keys(stream['x-sse-event-schemas']).sort(), [
-    'cancelled', 'completed', 'conversation', 'error', 'message_persisted', 'progress', 'timing',
+    'cancelled', 'completed', 'conversation', 'error', 'evidence_chunk', 'message_persisted', 'progress', 'timing',
   ]);
   assert.deepEqual(stream['x-sse-event-schemas'].progress.properties.stage.enum, [
     'searching', 'synthesizing', 'validating',

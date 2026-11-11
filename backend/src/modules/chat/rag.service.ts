@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { EvidenceEngine, validateEvidence, wholePassage, escapeMarkdown } from './rag-evidence.js';
+import { EvidenceEngine, validateEvidence, wholePassage, escapeMarkdown, resolveQuote } from './rag-evidence.js';
 export { validateEvidence,validateEvidenceResponse,evidenceOutputSchema } from './rag-evidence.js';
 import { z } from 'zod';
 import { env } from '../../config/env.js';
@@ -194,7 +194,7 @@ export class RagService {
     private readonly embeddings:SearchEmbeddingClient=new HttpSearchEmbeddingClient(),
     private readonly revisions=new HarnessRepository(),private readonly engine:HarnessEngine=new HttpHarnessEngine()){}
 
-  async answer(userId:string,question:string,requestedProjects?:string[],onProgress?:(stage:ChatProgressStage)=>void,signal?:AbortSignal,history:ConversationTurn[] = [],checkBroaderScope=true, searchDeadline?:number): Promise<AssistantAnswer & {contrato:string;escopo:string[];evidencias:NonNullable<AssistantAnswer["evidencias"]>}> {
+  async answer(userId:string,question:string,requestedProjects?:string[],onProgress?:(stage:ChatProgressStage)=>void,signal?:AbortSignal,history:ConversationTurn[] = [],checkBroaderScope=true, searchDeadline?:number,onEvidenceCandidate?:(item:{source_id:string;quote:string})=>void|Promise<void>): Promise<AssistantAnswer & {contrato:string;escopo:string[];evidencias:NonNullable<AssistantAnswer["evidencias"]>}> {
     searchDeadline ??= performance.now() + 20_000;
     const parsed=ragInput.safeParse({pergunta:question,...(requestedProjects?{projeto_ids:requestedProjects}:{})});
     if(!parsed.success)throw new ValidationError('Pergunta ou escopo inválido.');
@@ -332,7 +332,28 @@ export class RagService {
         const adapter=new EvidenceEngine(this.engine);
         try {
           await new HarnessService(this.revisions,adapter,this.chats).run(projectIds[0],
-            {mode:'consulta',operation:'responder',level:'pbi',fields:{pergunta:safeAspects.length===1?resolvedQuestion:safeAspects[index]},context:[]},context,diagnosticId,signal);
+            {mode:'consulta',operation:'responder',level:'pbi',fields:{pergunta:safeAspects.length===1?resolvedQuestion:safeAspects[index]},context:[]},context,diagnosticId,signal,
+            async candidate=>{
+              if(!onEvidenceCandidate||signal?.aborted)return;
+              const raw=candidate&&typeof candidate==='object'?candidate as Record<string,unknown>:{};
+              if(typeof raw.source_id!=='string'||typeof raw.quote!=='string')return;
+              const resolved=resolveQuote(context,raw.source_id,raw.quote);
+              if(!resolved||!supportsRequestedDecision(safeAspects[index],resolved.quote))return;
+              const source=rows.find(row=>row.id===resolved.source_id);
+              if(!source||!projectIds.includes(source.project_id))return;
+              const [allowed,current]=await Promise.all([
+                this.chats.accessibleProjects(userId,searchDeadline),
+                this.chats.currentRagChunks(userId,[resolved.source_id],searchDeadline),
+              ]);
+              if(signal?.aborted)throw new DOMException('Consulta interrompida.','AbortError');
+              const latest=current.find(row=>row.id===resolved.source_id);
+              if(!allowed.some(project=>project.id===source.project_id)||!latest
+                ||latest.projeto_id!==source.project_id||latest.entidade_tipo!==source.entity_type
+                ||latest.entidade_id!==source.entity_id||latest.texto!==source.text
+                ||JSON.stringify(latest.metadados_json??{})!==JSON.stringify(source.metadata??{})
+                ||!wholePassage(latest.texto,resolved.quote))return;
+              await onEvidenceCandidate(resolved);
+            });
         } catch(error) {
           if(signal?.aborted)throw error;
           failedAspects++;lastFailure=error;
