@@ -225,6 +225,22 @@ it('extrai diagnostic_id do campo raiz (novo formato) em erros de serviço',()=>
   expect(describeChatError(new ApiError(503,{error:'Falha',diagnostic_id:id}))).toContain(id);
 });
 
+it('consulta os detalhes de uma conversa por id com getConversation',async()=>{
+  const conversation={id:'conv-123',titulo:'Conversa Retomada',projeto_id:'project-a',projeto_nome:'Projeto A',escopo_tipo:'projeto',updated_at:'2026-10-27T12:00:00.000Z'};
+  const fetchMock=vi.fn(async()=>new Response(JSON.stringify(conversation),{headers:{'Content-Type':'application/json'}}));
+  vi.stubGlobal('fetch',fetchMock);
+  const {getConversation}=await import('./api_chat');
+  const result=await getConversation('conv-123');
+  expect(fetchMock).toHaveBeenCalledWith(
+    expect.stringContaining('/chat/conversations/conv-123'),
+    expect.anything()
+  );
+  expect(result.id).toBe('conv-123');
+  expect(result.escopo_tipo).toBe('projeto');
+  expect(result.projeto_id).toBe('project-a');
+  expect(result.projeto_nome).toBe('Projeto A');
+});
+
 it('mantém compatibilidade com formato legado (details.diagnostico_id)',()=>{
   const id='a1b2c3d4-e5f6-4789-a0b1-c2d3e4f5a6b7';
   expect(describeChatError(new ApiError(503,{error:'Falha',details:{diagnostico_id:id}}))).toContain(id);

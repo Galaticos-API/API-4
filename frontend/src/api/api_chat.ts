@@ -130,6 +130,11 @@ export async function listConversations(signal?: AbortSignal): Promise<ChatConve
   return data.items.map(parseConversation);
 }
 
+export async function getConversation(conversationId: string, signal?: AbortSignal): Promise<ChatConversation> {
+  const data: unknown = await (await apiRequest(`/chat/conversations/${encodeURIComponent(conversationId)}`, { signal })).json();
+  return parseConversation(data);
+}
+
 export async function deleteConversation(conversationId: string, signal?: AbortSignal): Promise<void> {
   await apiRequest(`/chat/conversations/${encodeURIComponent(conversationId)}`, {
     method: "DELETE",

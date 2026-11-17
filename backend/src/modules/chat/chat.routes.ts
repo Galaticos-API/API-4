@@ -100,6 +100,15 @@ export function createChatRouter(service: ChatService = new ChatService(), authe
     }
   });
 
+  router.get("/conversations/:id", async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const item = await service.getConversation(userId(req), String(req.params.id));
+      res.json(item);
+    } catch (error) {
+      next(error);
+    }
+  });
+
   router.patch("/conversations/:id", async (req: Request, res: Response, next: NextFunction) => {
     try {
       const updated = await service.renameConversation(userId(req), String(req.params.id), req.body?.titulo);

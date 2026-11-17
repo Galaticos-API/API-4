@@ -1,6 +1,6 @@
 import { ChatRepository } from "./chat.repository.js";
 import type { AssistantClient } from "./chat.service.js";
-import type { ChatMessage, ChatSource, ChunkMatch, Conversation } from "./chat.types.js";
+import type { AssistantAnswer, ChatMessage, ChatSource, ChunkMatch, Conversation, ConversationTurn } from "./chat.types.js";
 
 export const ANA = "b0000000-0000-4000-8000-000000000001";
 export const BRUNO = "b0000000-0000-4000-8000-000000000002";
@@ -36,7 +36,17 @@ export class FakeChatRepository extends ChatRepository {
 
   async createConversation(usuarioId: string, projetoId: string | null, titulo: string, scope: "projeto" | "todos_autorizados" = "projeto"): Promise<Conversation> {
     const now = new Date().toISOString();
-    const created: Conversation = { id: this.id("c"), usuario_id: usuarioId, projeto_id: projetoId, escopo_tipo: scope, titulo, created_at: now, updated_at: now };
+    const project = this.allowedProjects.find(p => p.id === projetoId);
+    const created: Conversation = {
+      id: this.id("c"),
+      usuario_id: usuarioId,
+      projeto_id: projetoId,
+      escopo_tipo: scope,
+      titulo,
+      created_at: now,
+      updated_at: now,
+      projeto_nome: project?.nome ?? null,
+    };
     this.conversations.push(created);
     return created;
   }
@@ -82,9 +92,9 @@ export class FakeChatRepository extends ChatRepository {
 
 export class FakeAssistant implements AssistantClient {
   public calls: Array<{ pergunta: string; projetoId?: string }> = [];
-  public projectCalls: Array<{ pergunta: string; projetoIds: string[] }> = [];
+  public projectCalls: Array<{ pergunta: string; projetoIds: string[]; history?: ConversationTurn[] }> = [];
   public available = true;
-  public answer = { resposta: "Resposta do assistente", fontes: [{ id: "s1", titulo: "Decisão 1", tipo: "decisao" }] };
+  public answer: AssistantAnswer = { resposta: "Resposta do assistente", fontes: [{ id: "s1", titulo: "Decisão 1", tipo: "decisao" }] };
 
   async ask(pergunta: string, projetoId?: string) {
     this.calls.push({ pergunta, projetoId });
@@ -92,8 +102,8 @@ export class FakeAssistant implements AssistantClient {
     return this.answer;
   }
 
-  async askProjects(pergunta: string, projetoIds: string[]) {
-    this.projectCalls.push({ pergunta, projetoIds });
+  async askProjects(pergunta: string, projetoIds: string[], _usuarioId?: string, _onProgress?: unknown, _signal?: AbortSignal, history?: ConversationTurn[]) {
+    this.projectCalls.push({ pergunta, projetoIds, ...(history?.length ? { history } : {}) });
     if (projetoIds.length === 1) this.calls.push({ pergunta, projetoId: projetoIds[0] });
     if (!this.available) throw new Error("indisponível");
     return this.answer;
