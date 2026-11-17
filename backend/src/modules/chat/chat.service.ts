@@ -165,6 +165,20 @@ export class ChatService {
     });
   }
 
+  async getConversation(usuarioId: string, conversaId: string): Promise<Conversation> {
+    validateUuid(conversaId, "ID da conversa");
+    const conversation = await this.repository.findOwnedConversation(conversaId, usuarioId);
+    if (!conversation) throw new NotFoundError("Conversa não encontrada.");
+    const permitted = new Set((await this.repository.accessibleProjects(usuarioId)).map(p => p.id));
+    const unsafeGeneral = new Set(await this.repository.unsafeGeneralConversationIds(usuarioId));
+    const scopeType = conversation.escopo_tipo ?? (conversation.projeto_id ? "projeto" : undefined);
+    const accessibleProject = (scopeType === "projeto" || (!conversation.escopo_tipo && conversation.projeto_id)) && conversation.projeto_id !== null && permitted.has(conversation.projeto_id);
+    const accessibleGeneral = scopeType === "todos_autorizados" && permitted.size > 0 && !unsafeGeneral.has(conversation.id);
+    return accessibleProject || accessibleGeneral
+      ? conversation
+      : { ...conversation, projeto_id: null, projeto_nome: null, escopo_tipo: "indisponivel" as const };
+  }
+
   private async requireProject(projetoId: string | undefined, usuarioId: string): Promise<string> {
     if (!projetoId) throw new ValidationError("Escolha um projeto para iniciar a conversa.");
     validateUuid(projetoId, "ID do projeto");
