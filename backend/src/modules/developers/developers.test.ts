@@ -10,6 +10,7 @@ import type { UserRole } from "../auth/auth.types.js";
 import { DevelopersController } from "./developers.controller.js";
 import { createDevelopersRouter } from "./developers.routes.js";
 import { DevelopersService } from "./developers.service.js";
+import { DevelopersRepository } from "./developers.repository.js";
 import type {
   CreateDeveloperInput,
   Developer,
@@ -307,6 +308,10 @@ test("S3-08 / RNF-09 (Security by Design): rejeita dados pessoais fora do propó
     "Engenheiro de software. CPF: 123.456.789-00",
     "Arquiteto backend (123.456.789-00)",
     "Desenvolvedor pleno. Salário: R$ 10.000",
+    "Engenheiro com contato profissional nome.sobrenome@empresa.com",
+    "Engenheiro com telefone (11) 98765-4321",
+    "Documento informado: 12345678900",
+    "Mora na Rua das Flores, 123, Centro",
     "Resumo com caractere nulo\u0000inválido",
   ]) {
     await assert.rejects(
@@ -322,6 +327,68 @@ test("S3-08 / RNF-09 (Security by Design): rejeita dados pessoais fora do propó
       },
     );
   }
+});
+
+test("S3-08: unique violation em create consulta perfil após restaurar estado da transação", async () => {
+  const queryLog: string[] = [];
+  let transactionAborted = false;
+  const existing = {
+    id: DEV_1_ID,
+    nome: "Dev Rafael Matesco",
+    senioridade: "Senior",
+    bio: "Engenheiro de Software",
+    usuario_id: USER_DEV_ID,
+  };
+  const client = {
+    async query(sql: string) {
+      const normalized = sql.trim().toUpperCase();
+      queryLog.push(normalized);
+      if (transactionAborted && normalized !== "ROLLBACK TO SAVEPOINT DEVELOPER_INSERT") {
+        throw new Error("current transaction is aborted");
+      }
+      if (normalized === "BEGIN") return { rows: [] };
+      if (normalized.startsWith("SELECT ID, NOME, ATIVO FROM USUARIO")) {
+        return { rows: [{ id: USER_DEV_ID, nome: "Dev Rafael Matesco", ativo: true }] };
+      }
+      if (normalized.startsWith("SELECT") && normalized.includes("FROM DESENVOLVEDOR D")) {
+        if (normalized.includes("WHERE D.USUARIO_ID = $1")) {
+          return queryLog.some((entry) => entry === "ROLLBACK TO SAVEPOINT DEVELOPER_INSERT")
+            ? { rows: [existing] }
+            : { rows: [] };
+        }
+        return { rows: [existing] };
+      }
+      if (normalized.startsWith("INSERT INTO DESENVOLVEDOR")) {
+        transactionAborted = true;
+        throw Object.assign(new Error("duplicate key"), { code: "23505" });
+      }
+      if (normalized === "ROLLBACK TO SAVEPOINT DEVELOPER_INSERT") {
+        transactionAborted = false;
+        return { rows: [] };
+      }
+      return { rows: [] };
+    },
+    release() {},
+  };
+  const db = {
+    async connect() { return client; },
+    async query() { throw new Error("unexpected pool query"); },
+  };
+  const repository = new DevelopersRepository(db as never);
+
+  await assert.rejects(
+    () => repository.create({ nome: "Perfil concorrente", usuario_id: USER_DEV_ID }, "10000000-0000-4000-8000-000000000001"),
+    (err: unknown) => {
+      assert.ok(err instanceof AppError);
+      assert.equal(err.statusCode, 409, queryLog.join(" | "));
+      assert.equal(err.code, "DEVELOPER_PROFILE_EXISTS");
+      assert.equal((err.details as { existing_profile?: { id: string } }).existing_profile?.id, DEV_1_ID);
+      return true;
+    },
+  );
+
+  assert.ok(queryLog.includes("ROLLBACK TO SAVEPOINT DEVELOPER_INSERT"), queryLog.join(" | "));
+  assert.equal(transactionAborted, false);
 });
 
 test("S3-08 / PBI-05.1.4: rotas HTTP entregam perfil consolidado para a equipe e restringem escrita a PO/Admin", async () => {

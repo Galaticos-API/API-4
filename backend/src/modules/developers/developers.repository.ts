@@ -348,75 +348,80 @@ export class DevelopersRepository {
         }
       }
 
+      await client.query("SAVEPOINT developer_insert");
+      let insertRes: { rows: Array<{ id: string }> };
       try {
-        const insertRes = await client.query<{ id: string }>(
+        insertRes = await client.query<{ id: string }>(
           `INSERT INTO desenvolvedor (nome, usuario_id, senioridade, bio)
            VALUES ($1, $2, $3, $4)
            RETURNING id`,
           [resolvedName, usuarioId, input.senioridade ?? null, input.bio ?? null],
         );
-        const createdId = insertRes.rows[0].id;
-
-        const { rows } = await client.query(
-          `SELECT
-             d.id,
-             COALESCE(NULLIF(btrim(d.nome), ''), u.nome) AS nome,
-             d.senioridade,
-             d.bio,
-             d.usuario_id,
-             u.nome AS usuario_nome,
-             u.role,
-             0::int AS competencias_count,
-             0::int AS alocacoes_count,
-             d.created_at,
-             COALESCE(d.updated_at, d.created_at) AS updated_at
-           FROM desenvolvedor d
-           LEFT JOIN usuario u ON d.usuario_id = u.id
-           WHERE d.id = $1`,
-          [createdId],
-        );
-
-        const created = normalizeDeveloperRow(rows[0]);
-
-        await auditService.record(
-          {
-            usuario_id: actorUserId,
-            entidade_tipo: "desenvolvedor",
-            entidade_id: created.id,
-            acao: "CRIAR_PERFIL_PROFISSIONAL",
-            dados_json: {
-              nome: created.nome,
-              senioridade: created.senioridade,
-              bio: created.bio,
-              usuario_id: created.usuario_id,
-            },
-          },
-          client,
-        );
-
-        return created;
       } catch (err: unknown) {
-        if ((err as { code?: string }).code === "23505" && usuarioId) {
-          const existingProfile = await this.findByUsuarioId(usuarioId, client);
-          throw new AppError(
-            "Já existe um perfil profissional vinculado a este usuário.",
-            409,
-            "DEVELOPER_PROFILE_EXISTS",
-            existingProfile
-              ? {
-                  existing_profile: {
-                    id: existingProfile.id,
-                    nome: existingProfile.nome,
-                    senioridade: existingProfile.senioridade,
-                    bio: existingProfile.bio,
-                    usuario_id: existingProfile.usuario_id,
-                  },
-                }
-              : undefined,
-          );
-        }
-        throw err;
+        if ((err as { code?: string }).code !== "23505" || !usuarioId) throw err;
+
+        // UNIQUE viola a transação corrente; recupere-a antes de consultar o perfil.
+        await client.query("ROLLBACK TO SAVEPOINT developer_insert");
+        await client.query("RELEASE SAVEPOINT developer_insert");
+        const existingProfile = await this.findByUsuarioId(usuarioId, client);
+        throw new AppError(
+          "Já existe um perfil profissional vinculado a este usuário.",
+          409,
+          "DEVELOPER_PROFILE_EXISTS",
+          existingProfile
+            ? {
+                existing_profile: {
+                  id: existingProfile.id,
+                  nome: existingProfile.nome,
+                  senioridade: existingProfile.senioridade,
+                  bio: existingProfile.bio,
+                  usuario_id: existingProfile.usuario_id,
+                },
+              }
+            : undefined,
+        );
       }
+      const createdId = insertRes.rows[0].id;
+      await client.query("RELEASE SAVEPOINT developer_insert");
+
+      const { rows } = await client.query(
+        `SELECT
+           d.id,
+           COALESCE(NULLIF(btrim(d.nome), ''), u.nome) AS nome,
+           d.senioridade,
+           d.bio,
+           d.usuario_id,
+           u.nome AS usuario_nome,
+           u.role,
+           0::int AS competencias_count,
+           0::int AS alocacoes_count,
+           d.created_at,
+           COALESCE(d.updated_at, d.created_at) AS updated_at
+         FROM desenvolvedor d
+         LEFT JOIN usuario u ON d.usuario_id = u.id
+         WHERE d.id = $1`,
+        [createdId],
+      );
+
+      const created = normalizeDeveloperRow(rows[0]);
+
+      await auditService.record(
+        {
+          usuario_id: actorUserId,
+          entidade_tipo: "desenvolvedor",
+          entidade_id: created.id,
+          acao: "CRIAR_PERFIL_PROFISSIONAL",
+          dados_json: {
+            nome: created.nome,
+            senioridade: created.senioridade,
+            bio: created.bio,
+            usuario_id: created.usuario_id,
+          },
+        },
+        client,
+      );
+
+      return created;
     });
   }
 

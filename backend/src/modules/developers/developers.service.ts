@@ -58,9 +58,15 @@ const SENIORITY_MAP: Record<string, (typeof ALLOWED_SENIORITIES)[number]> = {
   techlead: "Tech Lead",
 };
 
-// Detecta CPF formatado (000.000.000-00) ou rótulos explícitos de documentos/dados pessoais no texto livre
-const PERSONAL_DATA_IN_TEXT_REGEX =
-  /(?:\b\d{3}\.\d{3}\.\d{3}-\d{2}\b|\b(?:cpf|rg|cnh|data\s+de\s+nascimento|endere[cç]o\s+residencial|sal[aá]rio|remunera[cç][aã]o)\s*[:=-])/i;
+// Procura formatos comuns de contato/documentos/endereço sem bloquear referências técnicas.
+const PERSONAL_DATA_IN_TEXT_PATTERNS = [
+  /\b\d{3}[.\s-]?\d{3}[.\s-]?\d{3}[-.\s]?\d{2}(?!\d)/u,
+  /\b\(?\d{2}\)?\s*[-.]?\s*\d{4,5}\s*[-.]?\s*\d{4}\b/u,
+  /\b[\w.+-]+@[\w.-]+\.[a-z]{2,}\b/iu,
+  /\b(?:cpf|rg|cnh|passaporte|documento)\b\s*(?:[:=-]\s*)?\d{7,14}\b/iu,
+  /\b(?:cpf|rg|cnh|passaporte|documento pessoal|data\s+de\s+nascimento|endere[cç]o\s+residencial|sal[aá]rio|remunera[cç][aã]o)\s*[:=-]/iu,
+  /\b(?:rua|avenida|av\.?|travessa|alameda|rodovia)\s+[\p{L}].{0,60}?\b\d{1,5}\b/iu,
+];
 
 function normalizeSeniority(value: string | null | undefined): string | null | undefined {
   if (value === undefined) return undefined;
@@ -101,7 +107,7 @@ function assertNoPersonalDataInPayload(input: unknown): void {
 
 function assertNoPersonalDataInText(fieldLabel: string, value: string | null | undefined): void {
   if (!value) return;
-  if (PERSONAL_DATA_IN_TEXT_REGEX.test(value)) {
+  if (PERSONAL_DATA_IN_TEXT_PATTERNS.some((pattern) => pattern.test(value))) {
     throw new ValidationError(
       `O campo ${fieldLabel} contém dados pessoais fora do propósito profissional (ex.: documentos pessoais, endereço ou salário).`,
       { field: fieldLabel, purpose_limitation: "LGPD_RNF_09" },
