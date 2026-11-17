@@ -152,17 +152,20 @@ export class ChatService {
     return this.repository.accessibleProjectsWithKnowledgeReadiness(usuarioId);
   }
 
+  private visibleConversation(conversation: Conversation, permitted: Set<string>, unsafeGeneral: Set<string>): Conversation {
+    const scopeType = conversation.escopo_tipo ?? (conversation.projeto_id ? "projeto" : undefined);
+    const accessibleProject = scopeType === "projeto" && conversation.projeto_id !== null && permitted.has(conversation.projeto_id);
+    const accessibleGeneral = scopeType === "todos_autorizados" && permitted.size > 0 && !unsafeGeneral.has(conversation.id);
+    return accessibleProject || accessibleGeneral
+      ? { ...conversation, ...(scopeType ? { escopo_tipo: scopeType } : {}) }
+      : { ...conversation, projeto_id: null, projeto_nome: null, escopo_tipo: "indisponivel" as const };
+  }
+
   async listConversations(usuarioId: string): Promise<Conversation[]> {
     const items = await this.repository.listConversations(usuarioId);
     const permitted = new Set((await this.repository.accessibleProjects(usuarioId)).map(p => p.id));
     const unsafeGeneral = new Set(await this.repository.unsafeGeneralConversationIds(usuarioId));
-    return items.map(c => {
-      const accessibleProject = c.escopo_tipo === "projeto" && c.projeto_id !== null && permitted.has(c.projeto_id);
-      const accessibleGeneral = c.escopo_tipo === "todos_autorizados" && permitted.size > 0 && !unsafeGeneral.has(c.id);
-      return accessibleProject || accessibleGeneral
-        ? c
-        : { ...c, projeto_id: null, projeto_nome: null, escopo_tipo: "indisponivel" as const };
-    });
+    return items.map(c => this.visibleConversation(c, permitted, unsafeGeneral));
   }
 
   async getConversation(usuarioId: string, conversaId: string): Promise<Conversation> {
@@ -171,12 +174,7 @@ export class ChatService {
     if (!conversation) throw new NotFoundError("Conversa não encontrada.");
     const permitted = new Set((await this.repository.accessibleProjects(usuarioId)).map(p => p.id));
     const unsafeGeneral = new Set(await this.repository.unsafeGeneralConversationIds(usuarioId));
-    const scopeType = conversation.escopo_tipo ?? (conversation.projeto_id ? "projeto" : undefined);
-    const accessibleProject = (scopeType === "projeto" || (!conversation.escopo_tipo && conversation.projeto_id)) && conversation.projeto_id !== null && permitted.has(conversation.projeto_id);
-    const accessibleGeneral = scopeType === "todos_autorizados" && permitted.size > 0 && !unsafeGeneral.has(conversation.id);
-    return accessibleProject || accessibleGeneral
-      ? conversation
-      : { ...conversation, projeto_id: null, projeto_nome: null, escopo_tipo: "indisponivel" as const };
+    return this.visibleConversation(conversation, permitted, unsafeGeneral);
   }
 
   private async requireProject(projetoId: string | undefined, usuarioId: string): Promise<string> {

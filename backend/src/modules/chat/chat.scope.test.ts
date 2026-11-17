@@ -204,3 +204,33 @@ test("PBI-04.2.2: getConversation consulta conversa pelo ID e preserva escopo e 
   const fetchedLostAccess = await service.getConversation(ANA, convA.id);
   assert.equal(fetchedLostAccess.escopo_tipo, "indisponivel");
 });
+
+test("legado sem escopo explícito usa o mesmo fallback na listagem e no GET, preservando autorização", async () => {
+  const repository = new FakeChatRepository();
+  const service = new ChatService(repository, new FakeAssistant());
+  const legacy = {
+    id: "c0000000-0000-4000-8000-000000000077",
+    usuario_id: ANA,
+    projeto_id: PROJECT_A,
+    projeto_nome: "A",
+    titulo: "Conversa legada",
+    created_at: "2026-11-01T00:00:00.000Z",
+    updated_at: "2026-11-01T00:00:00.000Z",
+  };
+  repository.conversations.push(legacy);
+
+  const listed = await service.listConversations(ANA);
+  const fetched = await service.getConversation(ANA, legacy.id);
+  assert.equal(listed[0].escopo_tipo, "projeto");
+  assert.equal(fetched.escopo_tipo, listed[0].escopo_tipo);
+  assert.equal(listed[0].projeto_id, PROJECT_A);
+  assert.equal(fetched.projeto_id, listed[0].projeto_id);
+
+  repository.allowedProjects = [{ id: PROJECT_B, nome: "B" }];
+  const revokedListed = await service.listConversations(ANA);
+  const revokedFetched = await service.getConversation(ANA, legacy.id);
+  assert.equal(revokedListed[0].escopo_tipo, "indisponivel");
+  assert.equal(revokedFetched.escopo_tipo, "indisponivel");
+  assert.equal(revokedListed[0].projeto_id, null);
+  assert.equal(revokedFetched.projeto_id, null);
+});
