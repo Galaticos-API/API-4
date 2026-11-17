@@ -308,7 +308,7 @@ test("S3-08 / RNF-09 (Security by Design): rejeita dados pessoais fora do propó
     "Engenheiro de software. CPF: 123.456.789-00",
     "Arquiteto backend (123.456.789-00)",
     "Desenvolvedor pleno. Salário: R$ 10.000",
-    "Engenheiro com contato profissional nome.sobrenome@empresa.com",
+    "Contato pessoal: pessoa@gmail.com",
     "Engenheiro com telefone (11) 98765-4321",
     "Documento informado: 12345678900",
     "Mora na Rua das Flores, 123, Centro",
@@ -327,6 +327,21 @@ test("S3-08 / RNF-09 (Security by Design): rejeita dados pessoais fora do propó
       },
     );
   }
+
+  const corporateBio = "Engenheiro de software com contato profissional pessoa@empresa.com";
+  const corporateProfile = await service.createProfile(
+    { nome: "Profissional Corporativo", senioridade: "Pleno", bio: corporateBio },
+    "10000000-0000-4000-8000-000000000001",
+  );
+  assert.equal(corporateProfile.bio, corporateBio);
+
+  await assert.rejects(
+    () => service.createProfile(
+      { nome: "Profissional Rotulado", senioridade: "Pleno", bio: "E-mail pessoal: pessoa@empresa.com" },
+      "10000000-0000-4000-8000-000000000001",
+    ),
+    (err: unknown) => err instanceof AppError && err.statusCode === 400,
+  );
 });
 
 test("S3-08: unique violation em create consulta perfil após restaurar estado da transação", async () => {
