@@ -3063,6 +3063,36 @@ paths:
           description: Projeto não encontrado
 
   /api/v1/chat/conversations/{id}:
+    get:
+      summary: Consulta os detalhes e o escopo original de uma conversa privada
+      description: Retorna a conversa identificada, preservando o escopo original (projeto ou todos_autorizados), o projeto vinculado e metadados. Conversas de outro usuário retornam 404 sem revelar a existência. Se o projeto estiver arquivado ou inacessível, o escopo é retornado como indisponivel.
+      operationId: getChatConversation
+      security: [{cookieAuth: []}]
+      parameters:
+        - {name: id, in: path, required: true, schema: {type: string, format: uuid}}
+      responses:
+        '200':
+          description: Detalhes da conversa privada
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [id, usuario_id, titulo, created_at, updated_at]
+                properties:
+                  id: {type: string, format: uuid}
+                  usuario_id: {type: string, format: uuid}
+                  projeto_id: {type: string, format: uuid, nullable: true}
+                  projeto_nome: {type: string, nullable: true}
+                  escopo_tipo: {type: string, enum: [projeto, todos_autorizados, indisponivel]}
+                  titulo: {type: string}
+                  created_at: {type: string, format: date-time}
+                  updated_at: {type: string, format: date-time}
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Conversa não encontrada
     patch:
       summary: Renomeia uma conversa do usuário autenticado
       description: A conversa deve pertencer ao usuário e continuar acessível no projeto associado. O título é aparado e deve conter de 1 a 120 caracteres Unicode válidos.
@@ -3108,7 +3138,7 @@ paths:
   /api/v1/chat/conversations/{id}/messages:
     get:
       summary: Mensagens de uma conversa do próprio usuário
-      description: Conversa de outra pessoa retorna 404, sem revelar a existência.
+      description: Retorna todas as mensagens da conversa privada em ordem cronológica, preservando com exatidão as fontes e evidências citadas em cada resposta para permitir a retomada completa do contexto estabelecido (PBI-04.2.2). Conversa de outra pessoa retorna 404 sem revelar a existência.
       operationId: listChatMessages
       security: [{cookieAuth: []}]
       parameters:
