@@ -1061,3 +1061,104 @@ it('mantém o diálogo de renomeação aberto e o título antigo quando a API fa
   expect(within(dialog).getByRole('textbox',{name:'Título da conversa'})).toHaveValue('Novo título');
   expect(screen.getByRole('heading',{name:'Título original'})).toBeInTheDocument();
 });
+
+it('PBI-04.2.2 Cenário 1: reabrir conversa do histórico apresenta todas as mensagens com as fontes citadas preservadas',async()=>{
+  const conversationA: ChatConversation = { id: 'conv-1', titulo: 'Conversa Inicial', projeto_id: 'project-a', projeto_nome: 'Projeto Alpha', escopo_tipo: 'projeto', updated_at: '2026-11-01T10:00:00Z' };
+  const conversationB: ChatConversation = { id: 'conv-2', titulo: 'Conversa Histórico Antiga', projeto_id: 'project-b', projeto_nome: 'Projeto Beta', escopo_tipo: 'projeto', updated_at: '2026-10-15T10:00:00Z' };
+  vi.mocked(listConversations).mockResolvedValue([conversationA, conversationB]);
+  vi.mocked(listChatProjects).mockResolvedValue([{ id: 'project-a', nome: 'Projeto Alpha' }, { id: 'project-b', nome: 'Projeto Beta' }]);
+  vi.mocked(listMessages).mockImplementation(async (id) => {
+    if (id === 'conv-2') {
+      return [
+        { id: 'm-1', remetente: 'user', conteudo: 'Como funciona o deploy do Projeto Beta?', fontes: [], created_at: '2026-10-15T10:01:00Z' },
+        {
+          id: 'm-2',
+          remetente: 'assistant',
+          conteudo: 'O deploy é automatizado via pipeline CI/CD no Kubernetes.',
+          fontes: [{
+            id: 'chunk-beta-1',
+            titulo: 'Manual de Deploy.md',
+            tipo: 'documento',
+            projeto_id: 'project-b',
+            projeto_nome: 'Projeto Beta',
+            entidade_id: 'doc-beta-1',
+            evidencias: [{ chunk_id: 'chunk-beta-1', texto: 'Deploy automatizado via pipeline CI/CD no cluster Kubernetes.' }],
+          }],
+          created_at: '2026-10-15T10:01:05Z',
+          origem: 'assistente',
+        },
+      ];
+    }
+    return [];
+  });
+
+  Object.defineProperty(HTMLDialogElement.prototype, 'showModal', { configurable: true, value: function(this: HTMLDialogElement) { this.setAttribute('open', ''); } });
+  Object.defineProperty(HTMLDialogElement.prototype, 'close', { configurable: true, value: function(this: HTMLDialogElement) { this.removeAttribute('open'); } });
+
+  render(<ChatView />);
+  await screen.findByRole('heading', { name: 'Conversa Inicial' });
+
+  const sidebar = within(document.querySelector('.chat-conversations')!);
+  const conv2Button = sidebar.getByText('Conversa Histórico Antiga').closest('button')!;
+  fireEvent.click(conv2Button);
+
+  expect(await screen.findByText('Como funciona o deploy do Projeto Beta?')).toBeInTheDocument();
+  expect(screen.getByText('O deploy é automatizado via pipeline CI/CD no Kubernetes.')).toBeInTheDocument();
+
+  const sourcesButton = screen.getByRole('button', { name: /Fontes e evidências 1/ });
+  expect(sourcesButton).toBeInTheDocument();
+
+  fireEvent.click(sourcesButton);
+  const dialog = await screen.findByRole('dialog', { name: 'Fontes e evidências' });
+  expect(dialog).toBeVisible();
+  expect(within(dialog).getByText('Manual de Deploy.md')).toBeInTheDocument();
+  expect(within(dialog).getByText('Deploy automatizado via pipeline CI/CD no cluster Kubernetes.')).toBeInTheDocument();
+  expect(within(dialog).getByText('Projeto Beta')).toBeInTheDocument();
+});
+
+it('PBI-04.2.2 Cenário 2: retomar conversa restrita a um projeto restabelece o mesmo escopo e impede alteração indevida',async()=>{
+  const conversation: ChatConversation = { id: 'conv-escopo', titulo: 'Dúvidas Projeto Beta', projeto_id: 'project-b', projeto_nome: 'Projeto Beta', escopo_tipo: 'projeto', updated_at: '2026-10-20T10:00:00Z' };
+  vi.mocked(listConversations).mockResolvedValue([conversation]);
+  vi.mocked(listChatProjects).mockResolvedValue([{ id: 'project-a', nome: 'Projeto Alpha' }, { id: 'project-b', nome: 'Projeto Beta' }]);
+  vi.mocked(listMessages).mockResolvedValue([
+    { id: 'm-1', remetente: 'user', conteudo: 'Qual a porta do serviço?', fontes: [], created_at: '2026-10-20T10:00:01Z' },
+    { id: 'm-2', remetente: 'assistant', conteudo: 'A porta é 8080.', fontes: [], created_at: '2026-10-20T10:00:05Z', origem: 'assistente' },
+  ]);
+  vi.mocked(askQuestion).mockResolvedValue({
+    conversa_id: 'conv-escopo',
+    escopo_tipo: 'projeto',
+    resposta: 'O serviço roda em Docker.',
+    fontes: [],
+    origem: 'assistente',
+  });
+
+  render(<ChatView />);
+
+  await screen.findByRole('heading', { name: 'Dúvidas Projeto Beta' });
+
+  const scopeSelect = screen.getByLabelText('Escopo da consulta');
+  expect(scopeSelect).toHaveValue('projeto:project-b');
+  expect(scopeSelect).toBeDisabled();
+
+  expect(screen.getByText('Projeto Beta', { selector: '.ds-badge' })).toBeInTheDocument();
+
+  const textarea = screen.getByPlaceholderText('Escreva sua mensagem…');
+  fireEvent.change(textarea, { target: { value: 'Ele roda em Docker?' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Enviar' }));
+
+  await waitFor(() => {
+    expect(askQuestion).toHaveBeenCalledWith(
+      expect.objectContaining({
+        pergunta: 'Ele roda em Docker?',
+        conversaId: 'conv-escopo',
+        projetoId: null,
+      }),
+      expect.any(AbortSignal),
+      expect.any(Function),
+      expect.any(Function),
+      expect.any(Function),
+    );
+  });
+
+  expect(await screen.findByText('O serviço roda em Docker.')).toBeInTheDocument();
+});
