@@ -1,3 +1,4 @@
+import { queryWithDeadline } from '../../database/query-with-deadline.js';
 import { Pool } from "pg";
 import { pool } from "../../database/db.js";
 import type { HybridSearchInput, HybridSearchRow } from "./search.types.js";
@@ -20,9 +21,9 @@ export class SearchRepository {
     return (result.rowCount ?? 0) > 0;
   }
 
-  async hybridSearch(input: HybridSearchInput, embedding: number[], minimumSimilarity: number, minimumTextRank = 0.05, projectIds = [input.projectId], userId?: string): Promise<HybridSearchRow[]> {
+  async hybridSearch(input: HybridSearchInput, embedding: number[], minimumSimilarity: number, minimumTextRank = 0.05, projectIds = [input.projectId], userId?: string, deadline?: number): Promise<HybridSearchRow[]> {
     const vector = `[${embedding.join(",")}]`;
-    const result = await this.pool.query<HybridSearchRow>(
+    const result = await queryWithDeadline<HybridSearchRow>(this.pool, deadline,
       `WITH scoped_chunks AS (
          SELECT c.id, c.projeto_id, c.entidade_tipo, c.entidade_id, c.texto,
                 c.metadados_json, c.embedding, p.nome AS projeto_nome
@@ -248,9 +249,9 @@ export class SearchRepository {
     return result.rows;
   }
 
-  async ragSearch(projectIds: string[], embedding: number[], limit = 5, minimumSimilarity = 0.40): Promise<HybridSearchRow[]> {
+  async ragSearch(projectIds: string[], embedding: number[], limit = 5, minimumSimilarity = 0.40, deadline?: number): Promise<HybridSearchRow[]> {
     const vector = `[${embedding.join(",")}]`;
-    const result = await this.pool.query<HybridSearchRow>(
+    const result = await queryWithDeadline<HybridSearchRow>(this.pool, deadline,
       `WITH scoped_chunks AS (
          SELECT c.id, c.projeto_id, c.entidade_tipo, c.entidade_id, c.texto,
                 c.metadados_json, c.embedding, p.nome AS projeto_nome,

@@ -27,11 +27,56 @@ import {
 } from "./harness.contract.js";
 
 export interface HarnessEngine {
-  generate(payload: Record<string, unknown>, timeout: number, signal?: AbortSignal): Promise<unknown>;
+  generate(payload: Record<string, unknown>, timeout: number, signal?: AbortSignal, onEvidenceCandidate?: (candidate: unknown) => void | Promise<void>): Promise<unknown>;
 }
 export class HttpHarnessEngine implements HarnessEngine {
   constructor(private readonly baseUrl = env.AI_SERVICE_URL) {}
-  async generate(payload: Record<string, unknown>, timeout: number, signal?: AbortSignal) {
+  async generate(payload: Record<string, unknown>, timeout: number, signal?: AbortSignal, onEvidenceCandidate?: (candidate: unknown) => void | Promise<void>) {
+    if (onEvidenceCandidate) {
+      const response = await axios.post(this.baseUrl + "/harness/run/stream", payload, {
+        headers: serviceHeaders(), timeout, maxContentLength: 200000, responseType: 'stream', signal,
+      }).catch((error: unknown) => {
+        if (axios.isAxiosError(error) && error.response?.status === 422)
+          throw new ModelOutputRejectedError("Saída do modelo fora do contrato");
+        throw error;
+      });
+      let buffer = '';
+      let terminal: unknown;
+      const decoder = new TextDecoder();
+      const processFrame = async (frame: string) => {
+        let event = 'message';
+        const data: string[] = [];
+        for (const line of frame.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n')) {
+          if (line.startsWith('event:')) event = line.slice(6).trim();
+          else if (line.startsWith('data:')) data.push(line.slice(5).trimStart());
+        }
+        if (!data.length) return;
+        const value = JSON.parse(data.join('\n')) as unknown;
+        if (event === 'evidence_candidate') await onEvidenceCandidate(value);
+        else if (event === 'completed') terminal = value;
+        else if (event === 'error' || event === 'cancelled') throw new Error('Harness stream terminou sem conclusão.');
+      };
+      try {
+        for await (const part of response.data as AsyncIterable<Buffer | string>) {
+          buffer += typeof part === 'string' ? part : decoder.decode(part, { stream: true });
+          let boundary: number;
+          while ((boundary = /\r?\n\r?\n/u.exec(buffer)?.index ?? -1) >= 0) {
+            const separator = /\r?\n\r?\n/u.exec(buffer)![0];
+            const frame = buffer.slice(0, boundary);
+            buffer = buffer.slice(boundary + separator.length);
+            await processFrame(frame);
+          }
+        }
+        buffer += decoder.decode();
+        if (buffer.trim()) await processFrame(buffer);
+      } finally {
+        response.data.destroy?.();
+      }
+      const envelope = terminal as Record<string, unknown> | undefined;
+      if (!envelope || envelope.mode !== payload.mode || envelope.version !== payload.version || envelope.schema_version !== payload.schema_version)
+        throw new Error('Revisão de resposta incompatível');
+      return envelope.result;
+    }
     const response = await axios.post(this.baseUrl + "/harness/run", payload, {
       headers: serviceHeaders(),
       timeout,
@@ -208,6 +253,7 @@ export class HarnessService {
     trustedContext?: HarnessInput["context"],
     diagnosticId = randomUUID(),
     signal?: AbortSignal,
+    onEvidenceCandidate?: (candidate: unknown) => void | Promise<void>,
   ) {
     if (
       !(OPERATIONS[input.mode] as readonly string[]).includes(input.operation)
@@ -242,7 +288,7 @@ export class HarnessService {
             )
           ).map((row) => ({ id: row.id, text: row.texto.slice(0, 8000) })));
     const scoped = { ...input, context };
-    const evidenceEngine = input.operation === 'responder' && trustedContext === undefined ? new EvidenceEngine(this.engine) : undefined;
+    const evidenceEngine = input.operation === 'responder' ? new EvidenceEngine(this.engine) : undefined;
     const startedAt = performance.now();
     let stage = 'generation';
     try {
@@ -260,6 +306,7 @@ export class HarnessService {
           },
           config.timeout_ms,
           signal,
+          evidenceEngine && onEvidenceCandidate ? onEvidenceCandidate : undefined,
         );
       stage = 'output_validation';
       const result = parseOutput(scoped, generated);

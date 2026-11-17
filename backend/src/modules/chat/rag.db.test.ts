@@ -10,7 +10,7 @@ import { HttpHarnessEngine } from '../harness/harness.service.js';
 import { HttpSearchEmbeddingClient } from '../search/search.service.js';
 import { SearchRepository } from '../search/search.repository.js';
 import { HarnessRepository } from '../harness/harness.repository.js';
-import { NO_CANDIDATES_ANSWER,NOT_FOUND_ANSWER,PARTIAL_ANSWER_NOTICE,SCOPE_LIMIT_ANSWER } from './chat.types.js';
+import { NO_CANDIDATES_ANSWER,PARTIAL_ANSWER_NOTICE,SCOPE_LIMIT_ANSWER } from './chat.types.js';
 
 test('S2-24: busca híbrida, evidências, escopo transversal autorizado e revogação em PostgreSQL',{skip:!process.env.QUALITY_TEST_DATABASE_URL},async t=>{
   const db=new Pool({connectionString:validateTarget(process.env.QUALITY_TEST_DATABASE_URL,'test')});
@@ -32,12 +32,65 @@ test('S2-24: busca híbrida, evidências, escopo transversal autorizado e revoga
   try {
     await db.query("INSERT INTO usuario(id,nome,email,senha_hash,role) VALUES ($1,'Admin',$3,'h','admin'),($2,'Dev',$4,'h','dev')",[admin,dev,admin+'@rag.test',dev+'@rag.test']);
     await db.query('INSERT INTO desenvolvedor(id,usuario_id) VALUES ($1,$2)',[developer,dev]);
-    await db.query("INSERT INTO projeto(id,nome,cliente,status) VALUES ($1,'RAG A','QA','ativo'),($2,'RAG B','QA','ativo')",[a,b]);
+    await db.query("INSERT INTO projeto(id,nome,cliente,status) VALUES ($1,$3,'QA','ativo'),($2,$4,'QA','ativo')",[a,b,`RAG A ${a}`,`RAG B ${b}`]);
     await db.query("INSERT INTO alocacao(desenvolvedor_id,projeto_id,data_inicio) VALUES ($1,$2,CURRENT_TIMESTAMP-INTERVAL '1 day')",[developer,a]);
     for(const [project,doc,chunk,text] of [[a,docA,chunkA,'O projeto A integra WhatsApp para avisos.'],[b,docB,chunkB,'O projeto B integra WhatsApp para suporte.']]) {
       await db.query("INSERT INTO documento(id,projeto_id,nome,caminho,status_processamento) VALUES ($1,$2,'WhatsApp.txt','rag.txt','processado')",[doc,project]);
       await db.query("INSERT INTO chunk(id,projeto_id,entidade_tipo,entidade_id,texto,embedding) VALUES ($1,$2,'documento',$3,$4,$5::vector)",[chunk,project,doc,text,JSON.stringify(vector)]);
     }
+    await t.test('repetir tentativa após perder a confirmação não duplica pergunta nem conversa', async () => {
+      const chat = new ChatService(new ChatRepository(db));
+      const attemptId = randomUUID();
+      const request = { pergunta: 'Olá', projetoId: a, attemptId };
+      const first = await chat.query(admin, request);
+      await assert.rejects(() => chat.query(admin, request), { code: 'CHAT_ATTEMPT_REGISTERED' });
+      await assert.rejects(() => chat.query(admin, { ...request, projetoId: b }));
+      const result = await db.query('SELECT remetente, conteudo FROM mensagem WHERE conversa_id=$1', [first.conversa_id]);
+      assert.equal(first.conversa_id, attemptId);
+      assert.equal(result.rows.filter(row => row.remetente === 'user').length, 1);
+      assert.equal(result.rows.filter(row => row.remetente === 'assistant').length, 1);
+    });
+    await t.test('tentativas concorrentes com o mesmo ID não duplicam gravação nem invocam duas respostas', async () => {
+      let releaseGeneration!: () => void;
+      const generation = new Promise<void>(resolve => { releaseGeneration = resolve; });
+      let generationStarted!: () => void;
+      const started = new Promise<void>(resolve => { generationStarted = resolve; });
+      let persisted!: () => void;
+      const persistedMessage = new Promise<void>(resolve => { persisted = resolve; });
+      let calls = 0;
+      const answerer = {
+        ask: async () => ({ resposta: 'Resposta controlada', fontes: [], cobertura: 'complete' as const }),
+        askProjects: async () => {
+          calls++;
+          generationStarted();
+          await generation;
+          return { resposta: 'A decisão foi registrada.', fontes: [], cobertura: 'complete' as const };
+        },
+      };
+      const chat = new ChatService(new ChatRepository(db), answerer);
+      const attemptId = randomUUID();
+      const request = { pergunta: 'Qual decisão está registrada?', projetoId: a, attemptId };
+      try {
+        const firstPromise = chat.query(admin, request, undefined, undefined, undefined, id => {
+          assert.equal(id, attemptId);
+          persisted();
+        });
+        await Promise.all([started, persistedMessage]);
+        await assert.rejects(() => chat.query(admin, request), (error: unknown) =>
+          typeof error === 'object' && error !== null && 'code' in error && error.code === 'CHAT_ATTEMPT_REGISTERED');
+        assert.equal(calls, 1, 'a duplicate pending attempt must not invoke the assistant again');
+        releaseGeneration();
+        const first = await firstPromise;
+        assert.equal(first.conversa_id, attemptId);
+        const counts = await db.query(
+          "SELECT (SELECT count(*)::int FROM conversa WHERE id=$1) AS conversations, (SELECT count(*)::int FROM mensagem WHERE conversa_id=$1 AND remetente='user') AS questions, (SELECT count(*)::int FROM mensagem WHERE conversa_id=$1 AND remetente='assistant') AS answers",
+          [attemptId],
+        );
+        assert.deepEqual(counts.rows[0], { conversations: 1, questions: 1, answers: 1 });
+      } finally {
+        releaseGeneration();
+      }
+    });
     await t.test('pergunta transversal recupera projetos autorizados e publica apenas fontes citadas',async()=>{
       const result=await service.answer(admin,'Quais projetos integram WhatsApp?',[a,b]);
       assert.deepEqual(new Set(result.fontes.map(row=>row.projeto_id)),new Set([a,b]));
@@ -50,7 +103,26 @@ test('S2-24: busca híbrida, evidências, escopo transversal autorizado e revoga
     });
     await t.test('sem recuperação pertinente não aciona geração',async()=>{
       const previous=modelCalls;const result=await service.answer(admin,'assunto inexistente',[a,b]);
-      assert.ok(result.resposta.startsWith(NO_CANDIDATES_ANSWER));assert.ok(result.resposta.includes(SCOPE_LIMIT_ANSWER));assert.deepEqual(result.fontes,[]);assert.equal(modelCalls,previous);
+      assert.equal(result.resposta,`${NO_CANDIDATES_ANSWER} ${SCOPE_LIMIT_ANSWER}`);assert.equal(result.cobertura,"no_evidence");assert.deepEqual(result.fontes,[]);assert.equal(modelCalls,previous);
+    });
+    await t.test('S3-03: somente quem acessa a evidência externa recebe o aviso',async()=>{
+      await db.query('UPDATE chunk SET embedding=$2::vector WHERE id=$1',[chunkA,JSON.stringify([0,1,...Array(1022).fill(0)])]);
+      try {
+        const question='Como funciona o suporte?';
+        const restricted=await service.answer(admin,question,[a]);
+        assert.match(restricted.resposta,/Ampliar a busca pode ajudar/);
+        assert.deepEqual(restricted.escopo,[a]);
+        assert.deepEqual(restricted.fontes,[]);
+        assert.deepEqual(restricted.evidencias,[]);
+        assert.doesNotMatch(restricted.resposta,/RAG B|WhatsApp/);
+        const denied=await service.answer(dev,question,[a]);
+        assert.equal(denied.resposta,`${NO_CANDIDATES_ANSWER} ${SCOPE_LIMIT_ANSWER}`);
+        assert.deepEqual(denied.fontes,[]);
+        const expanded=await service.answer(admin,question);
+        assert.deepEqual(expanded.fontes.map(source=>source.projeto_id),[b]);
+      } finally {
+        await db.query('UPDATE chunk SET embedding=$2::vector WHERE id=$1',[chunkA,JSON.stringify(vector)]);
+      }
     });
     await t.test('HTTP recusa perguntas e títulos inválidos sem criar conversas órfãs',async()=>{
       const {app}=await import('../../app.js');
@@ -112,7 +184,7 @@ test('S2-24: busca híbrida, evidências, escopo transversal autorizado e revoga
         const transversal=await real.answer(admin,'Quais usos do WhatsApp existem nos projetos?',[a,b]);
         assert.deepEqual(new Set(transversal.fontes.map(source=>source.projeto_id)),new Set([a,b]));
         const missing=await real.answer(dev,'Qual política de autenticação biométrica foi definida?',[a]);
-        assert.ok(missing.resposta.startsWith(NO_CANDIDATES_ANSWER));assert.deepEqual(missing.fontes,[]);
+        assert.equal(missing.resposta,`${NO_CANDIDATES_ANSWER} ${SCOPE_LIMIT_ANSWER}`);assert.equal(missing.cobertura,"no_evidence");assert.deepEqual(missing.fontes,[]);
         assert.equal(missing.cobertura,'no_evidence');
 
         const offTopic=new RagService(new ChatRepository(db),new SearchRepository(db),embeddings,new HarnessRepository(db),new HttpHarnessEngine(process.env.RAG_REAL_AI_URL!));
@@ -143,5 +215,13 @@ test('S2-24: busca híbrida, evidências, escopo transversal autorizado e revoga
       await db.query("UPDATE projeto SET status='arquivado' WHERE id=$1",[b]);
       const result=await service.answer(admin,'WhatsApp',[a,b]);assert.ok(result.fontes.every(source=>source.projeto_id===a));
     });
-  } finally {await db.end();await pool.end();}
+  } finally {
+    try {
+      await db.query('DELETE FROM usuario WHERE id=ANY($1::uuid[])',[[admin,dev]]);
+      await db.query('DELETE FROM projeto WHERE id=ANY($1::uuid[])',[[a,b]]);
+    } finally {
+      try { await db.end(); }
+      finally { await pool.end(); }
+    }
+  }
 });

@@ -1,3 +1,4 @@
+import json
 import httpx
 from typing import Any
 from config import settings
@@ -71,6 +72,39 @@ class OllamaClient:
             res.raise_for_status()
             data = res.json()
             return data.get("response", "")
+
+    async def generate_response_stream(
+        self, prompt: str, system_prompt: str | None = None, model: str = settings.OLLAMA_LLM_MODEL,
+        temperature: float = 0.2, output_schema: dict[str, Any] | None = None,
+        max_tokens: int | None = None, on_json_candidate=None,
+    ) -> str:
+        """Read Ollama NDJSON progressively; callbacks receive only complete parsed candidates."""
+        payload: dict[str, Any] = {"model": model, "prompt": prompt, "stream": True, "options": {"temperature": temperature}}
+        if max_tokens is not None: payload["options"]["num_predict"] = max_tokens
+        if output_schema is not None: payload["format"] = output_schema
+        if system_prompt: payload["system"] = system_prompt
+        parts: list[str] = []
+        done = False
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            async with client.stream("POST", f"{self.base_url}/api/generate", json=payload) as response:
+                response.raise_for_status()
+                async for line in response.aiter_lines():
+                    if not line: continue
+                    data = json.loads(line)
+                    fragment = data.get("response", "")
+                    if fragment:
+                        parts.append(fragment)
+                        if on_json_candidate:
+                            for candidate in on_json_candidate.feed(fragment):
+                                await on_json_candidate.callback(candidate)
+                    if data.get("done"):
+                        done = True
+                        if data.get("done_reason") == "length": raise ValueError("Resposta truncada")
+                        break
+        if not done: raise ValueError("Fluxo Ollama incompleto")
+        content = "".join(parts)
+        if not content.strip(): raise ValueError("Resposta vazia")
+        return content
 
 
 ollama_client = OllamaClient()

@@ -20,6 +20,7 @@ paths:
       summary: Recuperar evidências e responder conversacionalmente em projetos autorizados
       description: >-
         Contrato rag-conversacional-v1. Sem projeto_ids, consulta todos os projetos permitidos ao usuário.
+        Para um único projeto sem evidência, a resposta pode sugerir ampliar a busca se houver evidência verificada em outro projeto autorizado. O aviso não inclui conteúdo, fontes ou identificadores de fora do escopo solicitado.
         A seleção explícita de qualquer projeto não autorizado retorna 404 antes da recuperação.
         O modelo seleciona até cinco passagens literais; o backend verifica cada passagem contra o contexto
         enviado e revalida acesso e elegibilidade. A síntese pode parafrasear somente essas evidências e
@@ -49,7 +50,7 @@ paths:
                 properties:
                   contrato: {type: string, enum: [rag-conversacional-v1]}
                   resposta: {type: string}
-                  cobertura: {type: string, enum: [complete, partial, no_evidence, out_of_scope], description: 'Indica se as evidências cobrem a pergunta, cobrem somente parte, não foram encontradas ou se o assunto está claramente fora do escopo'}
+                  cobertura: {type: string, enum: [complete, partial, no_evidence, out_of_scope], description: 'Em partial, a resposta cita o que foi confirmado e identifica os aspectos separados sem evidência quando possível. Em no_evidence ou out_of_scope, fontes e evidencias ficam vazias.'}
                   escopo: {type: array, items: {type: string, format: uuid}}
                   evidencias:
                     type: array
@@ -3031,7 +3032,8 @@ paths:
 
   /api/v1/chat/conversations:
     get:
-      summary: Lista as conversas do usuário autenticado
+      summary: Lista as conversas privadas do usuário autenticado
+      description: Retorna somente conversas do usuário autenticado, ordenadas pela atividade mais recente (updated_at decrescente). Conversas criadas no fluxo de consulta recebem título derivado da primeira pergunta, limitado a 60 caracteres; títulos podem ser renomeados explicitamente.
       operationId: listChatConversations
       security: [{cookieAuth: []}]
       responses:
@@ -3040,7 +3042,8 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
     post:
-      summary: Cria uma conversa para um projeto ou para todos os projetos autorizados
+      summary: Cria uma conversa privada para um projeto ou para todos os projetos autorizados
+      description: Cria conversa vinculada ao usuário autenticado. Ao iniciar pelo endpoint de consulta, o título é gerado a partir da primeira pergunta.
       operationId: createChatConversation
       security: [{cookieAuth: []}]
       requestBody:
@@ -3220,6 +3223,8 @@ paths:
               properties:
                 pergunta: {type: string, minLength: 1, maxLength: 2000, description: 'Texto Unicode válido, sem caractere nulo nem sequência UTF-16 incompleta'}
                 conversa_id: {type: string, format: uuid}
+                mensagem_id: {type: string, format: uuid, description: Mensagem que será repetida após falha}
+                tentativa_id: {type: string, format: uuid, description: Identificador do envio gerado pelo cliente e reutilizado ao repetir a mesma pergunta após perda de conexão}
                 projeto_id: {type: string, format: uuid}
                 escopo: {type: string, enum: [projeto, todos_autorizados]}
       responses:
@@ -3274,9 +3279,11 @@ paths:
     post:
       summary: Envia pergunta com eventos de progresso do assistente
       description: >
-        Usa Server-Sent Events para enviar somente mudanças de etapa reais (`searching`,
-        `synthesizing`, `validating`) e, ao final, a resposta completa após validação das
-        evidências e fontes. Tokens brutos do modelo não são transmitidos. O evento `error`
+        Usa Server-Sent Events para enviar mudanças de etapa reais (`searching`,
+        `synthesizing`, `validating`) e `evidence_chunk` com trechos literais somente após
+        validação de evidência, relevância, autorização do projeto e atualidade do chunk.
+        Esses trechos não incluem IDs nem fontes; fontes aparecem exclusivamente em `completed`,
+        que contém a resposta canônica completa. Candidates brutos do modelo nunca são transmitidos. O evento `error`
         segue o envelope seguro da API. A conversa nova pode consultar um projeto ou
         todos os projetos atualmente autorizados; o escopo de conversas existentes
         permanece imutável. Fechar a conexão SSE interrompe a consulta e a pergunta fica
@@ -3295,6 +3302,7 @@ paths:
                 pergunta: {type: string, minLength: 1, maxLength: 2000, description: 'Texto Unicode válido, sem caractere nulo nem sequência UTF-16 incompleta'}
                 conversa_id: {type: string, format: uuid}
                 mensagem_id: {type: string, format: uuid, description: 'Mensagem que será repetida após falha'}
+                tentativa_id: {type: string, format: uuid, description: Identificador do envio gerado pelo cliente e reutilizado ao repetir a mesma pergunta após perda de conexão}
                 projeto_id: {type: string, format: uuid}
                 escopo: {type: string, enum: [projeto, todos_autorizados]}
       responses:
@@ -3302,14 +3310,15 @@ paths:
           description: >
             Fluxo SSE codificado como texto UTF-8. Cada frame segue o formato `event: <nome>` e
             `data: <JSON>`, terminado por uma linha em branco; comentários `: keep-alive` são heartbeats.
-            Eventos: `progress` ({stage}), `conversation` (metadados), `completed` (resposta final),
+            Eventos: `conversation` (metadados), `message_persisted` (UUID da pergunta salva), `progress` ({stage}),
+            `evidence_chunk` ({sequence,text}, trecho literal já validado e sem fontes), `completed` (resposta final canônica),
             `timing` ({duration_ms, message}, depois de completed), `cancelled` ({error}) e `error`
             (envelope seguro com diagnostic_id). Fechar a conexão interrompe a consulta ativa.
           content:
             text/event-stream:
               schema:
                 type: string
-                description: Corpo textual com frames SSE; o JSON em cada campo data depende do nome do evento.
+                description: Corpo textual com frames SSE; `message_persisted` informa o UUID da pergunta salva, `timing` vem após `completed` e o JSON de `data` depende do nome do evento. Heartbeats usam comentários SSE.
                 example: |-
                   event: progress
                   data: {"stage":"searching"}
@@ -3324,6 +3333,12 @@ paths:
                   type: object
                   properties:
                     stage: {type: string, enum: [searching, synthesizing, validating]}
+                evidence_chunk:
+                  type: object
+                  required: [sequence, text]
+                  properties:
+                    sequence: {type: integer, minimum: 1}
+                    text: {type: string, description: 'Trecho literal já verificado pelo backend; sem IDs ou fontes'}
                 conversation:
                   type: object
                   properties:
@@ -3333,6 +3348,11 @@ paths:
                     projeto_nome: {type: string, nullable: true}
                     escopo_tipo: {type: string, enum: [projeto, todos_autorizados, indisponivel]}
                     updated_at: {type: string, format: date-time}
+                message_persisted:
+                  type: object
+                  required: [id]
+                  properties:
+                    id: {type: string, format: uuid, description: ID persistido da pergunta do usuário}
                 completed:
                   type: object
                   properties:
@@ -3356,7 +3376,7 @@ paths:
                     status: {type: integer}
                     error: {type: string}
                     code: {type: string}
-                    details: {type: object, description: 'Detalhes adicionais do erro, pode incluir diagnostico_id para compatibilidade legada'}
+                    details: {type: object, description: 'Detalhes adicionais do erro; pode incluir diagnostico_id para compatibilidade legada'}
                     diagnostic_id: {type: string, format: uuid, description: 'Identificador para correlação de logs (campo raiz, preferido sobre details.diagnostico_id)'}
         '400':
           $ref: '#/components/responses/ValidationError'

@@ -66,6 +66,7 @@ export interface ChunkMatch {
 }
 
 export interface QueryInput {
+  attemptId?: string;
   conversaId?: string;
   mensagemId?: string;
   projetoId?: string;

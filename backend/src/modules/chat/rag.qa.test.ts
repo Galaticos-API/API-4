@@ -42,14 +42,14 @@ const fixtureRows: HybridSearchRow[] = fixture.chunks.map((chunk) => ({
 }));
 
 class FixtureChats extends ChatRepository {
-  constructor(private readonly allowedProject = fixture.project.id) { super(); }
+  constructor(private readonly allowedProject = fixture.project.id, private readonly rows: HybridSearchRow[] = fixtureRows) { super(); }
   async accessibleProjects() {
     return this.allowedProject === fixture.project.id
       ? [{ id: fixture.project.id, nome: fixture.project.name }]
       : [];
   }
   async currentRagChunks(_userId: string, ids: string[]) {
-    return fixtureRows.filter((row) => ids.includes(row.id)).map((row) => ({
+    return this.rows.filter((row) => ids.includes(row.id)).map((row) => ({
       id: row.id,
       texto: row.text,
       projeto_id: row.project_id,
@@ -161,4 +161,43 @@ test('chat RAG QA fictício: citação fabricada continua sendo recusada', async
   assert.deepEqual(answer.fontes, []);
   assert.deepEqual(answer.evidencias, []);
   assert.doesNotMatch(answer.resposta, /PIX/);
+});
+
+test('chat RAG não adota fallback de título sem evidência literal de decisão', async () => {
+  const row: HybridSearchRow = { ...fixtureRows[0], entity_type: 'decisao', text: 'Título: Adoção de PostgreSQL\nA equipe não adotou PostgreSQL.' };
+  const service = makeService([row], async () => ({ coverage: 'no_evidence', evidence: [] }));
+  const answer = await service.answer(randomUUID(), 'Qual banco a equipe adotou?', [fixture.project.id]);
+  assert.equal(answer.cobertura, 'no_evidence');
+  assert.deepEqual(answer.evidencias, []);
+  assert.match(answer.resposta, /não apresentam evidências suficientes/i);
+});
+
+test('chat RAG interpreta pergunta curta fora de tópico com base no histórico', async () => {
+  let planned = false;
+  const row: HybridSearchRow = { ...fixtureRows[0], text: 'O aplicativo Sinapse oferece consultas da previsão do tempo aos usuários.' };
+  const service = new RagService(new FixtureChats(fixture.project.id,[row]), new FixtureSearch([row]), {
+    embed: async () => Array(1024).fill(0.1),
+    planQuery: async (_question, _signal, history) => {
+      planned = (history?.length ?? 0) > 0;
+      assert.match(history?.[0]?.content ?? '', /previsão do tempo/i);
+      return { queries: ['Como funciona a previsão do tempo no aplicativo?'], resolvedQuestion: 'Como funciona a previsão do tempo no aplicativo?', aspects: ['Como funciona a previsão do tempo no aplicativo?'] };
+    },
+  }, new FixtureRevisions(), { generate: async (payload) => {
+    if ((payload.output_schema as {properties?:Record<string,unknown>}).properties?.evidence) return { coverage: 'complete', evidence: [{source_id: row.id, quote: 'O aplicativo Sinapse oferece consultas da previsão do tempo aos usuários.'}] };
+    return { answer: `Resposta [${row.id}]`, sources: [row.id] };
+  }});
+  const answer = await service.answer(randomUUID(), 'E a previsão do tempo?', [fixture.project.id], undefined, undefined, [{ role: 'user', content: 'O aplicativo Sinapse oferece consultas da previsão do tempo?' }]);
+  assert.equal(planned, true);
+  assert.ok(answer.evidencias[0]?.texto.includes('previsão do tempo'));
+  assert.equal(answer.evidencias[0]?.chunk_id, row.id);
+});
+
+test('chat RAG recusa novo pedido externo mesmo com histórico de projeto', async () => {
+  let embeddingCalls = 0;
+  const service = new RagService(new FixtureChats(), new FixtureSearch(fixtureRows), {
+    embed: async () => { embeddingCalls++; return Array(1024).fill(0.1); },
+  }, new FixtureRevisions(), { generate: async () => ({ coverage: 'no_evidence', evidence: [] }) });
+  const answer = await service.answer(randomUUID(), 'Qual o clima de amanhã?', [fixture.project.id], undefined, undefined, [{ role: 'user', content: 'Como funciona o pagamento PIX?' }]);
+  assert.equal(answer.cobertura, 'out_of_scope');
+  assert.equal(embeddingCalls, 0);
 });

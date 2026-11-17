@@ -86,7 +86,7 @@ export function parseMarkdown(source: string): Block[] {
   return blocks;
 }
 
-function renderInline(text: string, keyPrefix: string): ReactNode[] {
+function renderInline(text: string, keyPrefix: string, renderCitation?: (id: string) => ReactNode): ReactNode[] {
   const nodes: ReactNode[] = [];
   const pattern = /\\[\\`*_{}\[\]()#+.!<>|~\-]|(`[^`\n]+`)|(\*\*[^*\n]+\*\*)|(\[[^\]\n]+\]\([^)\s]+\))|(\[[^\]\n]+\])|(\*[^*\n]+\*)/g;
   let last = 0;
@@ -105,7 +105,7 @@ function renderInline(text: string, keyPrefix: string): ReactNode[] {
         nodes.push(<a key={key} href={link[2]} target="_blank" rel="noopener noreferrer">{link[1]}</a>);
       } else nodes.push(token);
     } else if (match[4]) {
-      nodes.push(<sup key={key} className="markdown-citation" aria-label={`Citação: ${token.slice(1, -1)}`} title={`Citação: ${token.slice(1, -1)}`}>[ref]</sup>);
+      nodes.push(<Fragment key={key}>{renderCitation?.(token.slice(1, -1)) ?? <sup className="markdown-citation" aria-label={`Citação: ${token.slice(1, -1)}`} title={`Citação: ${token.slice(1, -1)}`}>[ref]</sup>}</Fragment>);
     } else nodes.push(<em key={key}>{token.slice(1, -1)}</em>);
     last = match.index + token.length;
   }
@@ -113,7 +113,7 @@ function renderInline(text: string, keyPrefix: string): ReactNode[] {
   return nodes;
 }
 
-export function Markdown({ source, className = "" }: { source: string; className?: string }) {
+export function Markdown({ source, className = "", renderCitation }: { source: string; className?: string; renderCitation?: (id: string) => ReactNode }) {
   const blocks = parseMarkdown(source);
   return (
     <div className={`markdown ${className}`.trim()}>
@@ -122,16 +122,16 @@ export function Markdown({ source, className = "" }: { source: string; className
         switch (block.kind) {
           case "heading": {
             const Tag = `h${Math.min(block.level + 1, 5)}` as "h2" | "h3" | "h4" | "h5";
-            return <Tag key={key}>{renderInline(block.text, key)}</Tag>;
+            return <Tag key={key}>{renderInline(block.text, key, renderCitation)}</Tag>;
           }
           case "paragraph":
-            return <p key={key}>{renderInline(block.text, key)}</p>;
+            return <p key={key}>{renderInline(block.text, key, renderCitation)}</p>;
           case "list": {
             const List = block.ordered ? "ol" : "ul";
             return (
               <List key={key}>
                 {block.items.map((item, itemIndex) => (
-                  <li key={`${key}-${itemIndex}`}>{renderInline(item, `${key}-${itemIndex}`)}</li>
+                  <li key={`${key}-${itemIndex}`}>{renderInline(item, `${key}-${itemIndex}`, renderCitation)}</li>
                 ))}
               </List>
             );
@@ -143,7 +143,7 @@ export function Markdown({ source, className = "" }: { source: string; className
               </pre>
             );
           case "quote":
-            return <blockquote key={key}>{renderInline(block.text, key)}</blockquote>;
+            return <blockquote key={key}>{renderInline(block.text, key, renderCitation)}</blockquote>;
           case "rule":
             return <hr key={key} />;
           default:

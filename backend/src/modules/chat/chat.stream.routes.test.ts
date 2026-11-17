@@ -11,6 +11,7 @@ import type { ChatService } from "./chat.service.js";
 
 const USER = "10000000-0000-4000-8000-000000000001";
 const PROJECT = "30000000-0000-4000-8000-000000000001";
+const MESSAGE = "40000000-0000-4000-8000-000000000001";
 let server: Server;
 let baseUrl: string;
 let unauthServer: Server;
@@ -21,6 +22,7 @@ let cancelNext = false;
 let cancellationObserved = false;
 let renameCall: { user: string; id: string; title: unknown } | null = null;
 let lastQueryDelayMs = 0;
+let lastAttemptId: string | undefined;
 
 function createService(): ChatService {
   return {
@@ -29,7 +31,8 @@ function createService(): ChatService {
       renameCall = { user, id, title };
       return { id, usuario_id: user, projeto_id: PROJECT, titulo: String(title), created_at: "2026-10-27T00:00:00Z", updated_at: "2026-10-27T00:00:00Z" };
     },
-    query: async (_user: string, _input: unknown, onProgress?: (stage: ChatProgressStage) => void, signal?: AbortSignal) => {
+    query: async (_user: string, input: { attemptId?: string }, onProgress?: (stage: ChatProgressStage) => void, signal?: AbortSignal, onConversationCreated?: (conversation: Record<string, unknown>) => void, onMessagePersisted?: (id: string) => void) => {
+      lastAttemptId = input.attemptId;
       if (cancelNext) {
         cancelNext = false;
         return await new Promise((_resolve, reject) => signal?.addEventListener("abort", () => {
@@ -40,6 +43,8 @@ function createService(): ChatService {
       if (lastQueryDelayMs > 0) {
         await new Promise((resolve) => setTimeout(resolve, lastQueryDelayMs));
       }
+      onConversationCreated?.({ id: "20000000-0000-4000-8000-000000000001", titulo: "Pergunta de QA", projeto_id: PROJECT, projeto_nome: "QA", escopo_tipo: "projeto", updated_at: "2026-10-27T00:00:00Z" });
+      onMessagePersisted?.(MESSAGE);
       onProgress?.("searching");
       onProgress?.("synthesizing");
       onProgress?.("validating");
@@ -114,7 +119,7 @@ test("SSE relata etapas reais e envia somente a resposta final concluída", asyn
   const response = await fetch(`${baseUrl}/chat/query/stream`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ pergunta: "Pergunta de QA", projeto_id: PROJECT }),
+    body: JSON.stringify({ pergunta: "Pergunta de QA", projeto_id: PROJECT, tentativa_id: "50000000-0000-4000-8000-000000000001" }),
   });
   assert.match(response.headers.get("content-type") ?? "", /text\/event-stream/);
   const body = await response.text();
@@ -122,7 +127,35 @@ test("SSE relata etapas reais e envia somente a resposta final concluída", asyn
   assert.match(body, /event: completed\ndata: .*"resposta":"Resposta validada"/);
   assert.match(body, /event: timing\ndata: .*"duration_ms":\d+/);
   assert.match(body, /event: timing\ndata: .*"message":"Pensou por/);
+  const eventOrder = ["conversation", "message_persisted", "progress", "completed", "timing"].map(event => body.indexOf(`event: ${event}\n`));
+  assert.ok(eventOrder.every((position, index) => position >= 0 && (index === 0 || position > eventOrder[index - 1])), `SSE event order: ${eventOrder.join(",")}`);
+  assert.match(body, /event: message_persisted\ndata: \{"id":"40000000-0000-4000-8000-000000000001"\}/);
+  assert.equal(lastAttemptId, "50000000-0000-4000-8000-000000000001");
   assert.doesNotMatch(body, /token|partial|delta/i);
+});
+
+test("SSE transmite somente trechos verificados sem IDs e mantém fontes no completed", async () => {
+  const quote = "O login exige autenticação.";
+  const service = createService() as unknown as { query: (...args: any[]) => Promise<unknown> };
+  service.query = async (_user: string, _input: unknown, _progress: unknown, _signal: unknown, _conversation: unknown, onMessagePersisted: (id:string) => void, onEvidenceCandidate: (item: {source_id:string;quote:string}) => void) => {
+    onMessagePersisted("40000000-0000-4000-8000-000000000001");
+    onEvidenceCandidate({ source_id: "30000000-0000-4000-8000-000000000009", quote });
+    return { resposta: quote, fontes: [{ id: "source-id" }], conversa_id: "20000000-0000-4000-8000-000000000001", origem: "assistente" };
+  };
+  const streamed = createChatRouter(service as unknown as ChatService, (req, _res, next) => { req.auth = { id: USER, nome: "QA", email: "qa@example.test", role: "admin" }; next(); });
+  const app = express(); app.use(express.json()); app.use("/api/v1/chat", streamed);
+  const local = app.listen(0); const url = `http://127.0.0.1:${(local.address() as AddressInfo).port}/api/v1/chat/query/stream`;
+  try {
+    const response = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ pergunta: "Como funciona o login?", projeto_id: PROJECT }) });
+    const body = await response.text();
+    const chunk = /event: evidence_chunk\ndata: (.*?)\n\n/.exec(body);
+    assert.ok(chunk);
+    assert.deepEqual(JSON.parse(chunk[1]), { sequence: 1, text: quote });
+    assert.doesNotMatch(chunk[1], /source|fontes|30000000/);
+    assert.ok(body.indexOf("event: message_persisted") < body.indexOf("event: evidence_chunk"));
+    assert.ok(body.indexOf("event: evidence_chunk") < body.indexOf("event: completed"));
+    assert.match(body, /event: completed\ndata: .*"fontes"/);
+  } finally { local.close(); }
 });
 
 test("SSE timing reflete a duração real da consulta", async () => {
@@ -272,4 +305,17 @@ test("SSE sem autenticação responde 401 sem abrir event-stream", async () => {
   assert.doesNotMatch(response.headers.get("content-type") ?? "", /text\/event-stream/);
   const payload = await response.json() as { code: string };
   assert.equal(payload.code, "UNAUTHORIZED");
+});
+
+test("SSE rejeita tentativa_id inválido com HTTP 400 antes dos cabeçalhos de stream", async () => {
+  const response = await fetch(`${baseUrl}/chat/query/stream`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ pergunta: "Pergunta de QA", tentativa_id: "tentativa-invalida" }),
+  });
+  assert.equal(response.status, 400);
+  assert.doesNotMatch(response.headers.get("content-type") ?? "", /text\/event-stream/);
+  const payload = await response.json() as { code: string; error: string };
+  assert.equal(payload.code, "VALIDATION_ERROR");
+  assert.match(payload.error, /ID da tentativa inválido/i);
 });

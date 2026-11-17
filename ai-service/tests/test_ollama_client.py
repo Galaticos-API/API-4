@@ -6,6 +6,7 @@ from main import app, settings
 from unittest.mock import AsyncMock, MagicMock, patch
 from services.ollama_client import OllamaClient, grammar_schema
 from query_planner import QUERY_PLAN_SCHEMA
+from harness import extract_evidence_candidates, IncrementalEvidenceParser
 
 TEXT = {"type":"string", "minLength":1, "maxLength":12000}
 # Mesma forma do schema de cenários publicado pelo harness do backend.
@@ -19,6 +20,95 @@ def has_max_length(value):
     return False
 
 class GrammarSchemaTests(unittest.IsolatedAsyncioTestCase):
+    async def test_ollama_stream_parses_ndjson_and_emits_complete_candidates(self):
+        source_id = "11111111-1111-4111-8111-111111111111"
+        quote = "A decisão foi usar PostgreSQL."
+        raw = json.dumps({"coverage":"complete","evidence":[{"source_id":source_id,"quote":quote}]}, ensure_ascii=False)
+        fragments = [raw[:36], raw[36:71], raw[71:]]
+
+        class FakeResponse:
+            def raise_for_status(self): pass
+            async def aiter_lines(self):
+                for index, fragment in enumerate(fragments):
+                    yield json.dumps({"response":fragment,"done":index == len(fragments)-1})
+
+        class FakeStream:
+            async def __aenter__(self): return FakeResponse()
+            async def __aexit__(self, *_args): return False
+
+        class Callback:
+            def __init__(self): self.parser=IncrementalEvidenceParser(); self.values=[]
+            def feed(self, fragment): return self.parser.feed(fragment)
+            async def callback(self, candidate): self.values.append(candidate)
+
+        callback=Callback()
+        client=OllamaClient("http://ollama.test")
+        with patch("services.ollama_client.httpx.AsyncClient.stream", return_value=FakeStream()) as stream:
+            result=await client.generate_response_stream("question", output_schema={"type":"object"}, on_json_candidate=callback)
+        self.assertEqual(result,raw)
+        self.assertEqual(callback.values,[{"source_id":source_id,"quote":quote}])
+        self.assertTrue(stream.call_args.kwargs["json"]["stream"])
+
+    async def test_harness_stream_emits_complete_evidence_candidates_then_canonical_result(self):
+        payload = {"mode":"consulta", "operation":"responder", "level":"pbi", "version":3, "schema_version":1,
+            "config":{"instructions":"Responder.","operation_instructions":{"responder":"r"},"timeout_ms":5000,"rules":{}},
+            "output_schema":{"type":"object","properties":{"coverage":{"type":"string","enum":["complete","partial","no_evidence","out_of_scope"]},"evidence":{"type":"array","items":{"type":"object","properties":{"source_id":{"type":"string"},"quote":{"type":"string"}},"required":["source_id","quote"],"additionalProperties":False}}},"required":["coverage","evidence"],"additionalProperties":False},
+            "fields":{"pergunta":"Qual decisão?"}, "context":[{"id":"source-1","text":"A decisão foi usar SQLite."}]}
+        raw = '{"coverage":"complete","evidence":[{"source_id":"source-1","quote":"A decisão foi usar SQLite."}]}'
+        async def fragments(*args, on_json_candidate=None, **kwargs):
+            parser = IncrementalEvidenceParser()
+            for fragment in [raw[:30], raw[30:78], raw[78:]]:
+                if on_json_candidate:
+                    for candidate in on_json_candidate.feed(fragment):
+                        await on_json_candidate.callback(candidate)
+            return raw
+        with patch.object(settings, "AI_SERVICE_TOKEN", "test-secret"), patch("harness.ollama_client.generate_response_stream", fragments):
+            async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as client:
+                response = await client.post("/harness/run/stream", json=payload, headers={"X-Service-Token":"test-secret"})
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("event: evidence_candidate", response.text)
+        self.assertIn('"source_id":"source-1"', response.text)
+        self.assertIn('event: completed', response.text)
+        self.assertIn('"version":3', response.text)
+
+    def test_incremental_extractor_does_not_emit_partial_or_malformed_objects(self):
+        parser = IncrementalEvidenceParser()
+        self.assertEqual(parser.feed('{"evidence":[{"source_id":"s","quote":"a'), [])
+        self.assertEqual(parser.feed('b"}'), [{"source_id":"s","quote":"ab"}])
+        self.assertEqual(extract_evidence_candidates('{"answer":"x","evidence":[{"source_id":"s",'), [])
+        self.assertEqual(extract_evidence_candidates('{"sources":[{"source_id":"s","quote":3}]}'), [])
+        self.assertEqual(extract_evidence_candidates('{"sources":[{"source_id":"s","quote":"q"}]}'), [{"source_id":"s","quote":"q"}])
+
+    async def test_harness_stream_has_same_canonical_result_as_run(self):
+        payload = {"mode":"consulta", "operation":"responder", "level":"pbi", "version":3, "schema_version":1,
+            "config":{"instructions":"Responder.","operation_instructions":{"responder":"r"},"timeout_ms":5000,"rules":{}},
+            "output_schema":{"type":"object","properties":{"coverage":{"type":"string","enum":["complete","partial","no_evidence","out_of_scope"]},"evidence":{"type":"array","items":{"type":"object","properties":{"source_id":{"type":"string"},"quote":{"type":"string"}},"required":["source_id","quote"],"additionalProperties":False}}},"required":["coverage","evidence"],"additionalProperties":False},
+            "fields":{"pergunta":"Qual decisão?"}, "context":[{"id":"source-1","text":"A decisão foi usar SQLite."}]}
+        raw = '{"coverage":"complete","evidence":[{"source_id":"source-1","quote":"A decisão foi usar SQLite."}]}'
+        async def complete(*args, **kwargs): return raw
+        async def streaming(*args, **kwargs):
+            callback = kwargs["on_json_candidate"]
+            for item in callback.feed(raw): await callback.callback(item)
+            return raw
+        with patch.object(settings, "AI_SERVICE_TOKEN", "test-secret"), patch("harness.ollama_client.generate_response", complete), patch("harness.ollama_client.generate_response_stream", streaming):
+            async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as client:
+                baseline = await client.post("/harness/run", json=payload, headers={"X-Service-Token":"test-secret"})
+                streamed = await client.post("/harness/run/stream", json=payload, headers={"X-Service-Token":"test-secret"})
+        terminal = json.loads(streamed.text.split("event: completed\ndata: ", 1)[1].split("\n", 1)[0])
+        self.assertEqual(terminal, baseline.json())
+
+    async def test_stream_malformed_output_is_safe_and_never_completes(self):
+        payload = {"mode":"consulta", "operation":"responder", "level":"pbi", "version":0, "schema_version":1,
+            "config":{"instructions":"x","operation_instructions":{"responder":"x"},"timeout_ms":5000,"rules":{}},
+            "output_schema":{"type":"object","properties":{"answer":{"type":"string"}},"required":["answer"]},"fields":{"pergunta":"q"},"context":[{"id":"source-1","text":"context"}]}
+        async def malformed(*args, **kwargs): return '{"answer":"secret'
+        with patch.object(settings, "AI_SERVICE_TOKEN", "test-secret"), patch("harness.ollama_client.generate_response_stream", malformed):
+            async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as client:
+                response = await client.post("/harness/run/stream", json=payload, headers={"X-Service-Token":"test-secret"})
+        self.assertIn("event: error", response.text)
+        self.assertNotIn("event: completed", response.text)
+        self.assertNotIn("secret", response.text)
+
     def test_removes_only_max_length_and_keeps_the_original(self):
         schema = {"type":"object", "properties":{"a":{"type":"string", "minLength":1, "maxLength":12000}, "b":{"type":"array", "maxItems":6, "items":{"type":"string", "maxLength":12000}}}, "required":["a","b"], "additionalProperties":False}
         original = deepcopy(schema)

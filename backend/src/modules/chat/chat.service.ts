@@ -1,7 +1,7 @@
 import { HttpHarnessEngine } from "../harness/harness.service.js";
 export { searchPatterns } from "../harness/search-patterns.js";
 import { env } from "../../config/env.js";
-import { AppError, NotFoundError, ValidationError, UUID_REGEX, validateUuid } from "../../shared/errors.js";
+import { AppError, ConflictError, NotFoundError, ValidationError, UUID_REGEX, validateUuid } from "../../shared/errors.js";
 import { ChatRepository } from "./chat.repository.js";
 import { GREETING_REPLY, isGreetingOnly } from "./greetings.js";
 import { RagService } from './rag.service.js';
@@ -24,8 +24,8 @@ import {
 } from "./chat.types.js";
 
 export interface AssistantClient {
-  ask(pergunta: string, projetoId?: string,usuarioId?:string,onProgress?:(stage:ChatProgressStage)=>void,signal?:AbortSignal): Promise<AssistantAnswer>;
-  askProjects?(pergunta: string, projetoIds: string[],usuarioId:string,onProgress?:(stage:ChatProgressStage)=>void,signal?:AbortSignal,history?:ConversationTurn[]): Promise<AssistantAnswer>;
+  ask(pergunta: string, projetoId?: string,usuarioId?:string,onProgress?:(stage:ChatProgressStage)=>void,signal?:AbortSignal,onEvidenceCandidate?:(item:{source_id:string;quote:string})=>void|Promise<void>): Promise<AssistantAnswer>;
+  askProjects?(pergunta: string, projetoIds: string[],usuarioId:string,onProgress?:(stage:ChatProgressStage)=>void,signal?:AbortSignal,history?:ConversationTurn[],onEvidenceCandidate?:(item:{source_id:string;quote:string})=>void|Promise<void>): Promise<AssistantAnswer>;
 }
 
 const MAX_CONTEXT_MESSAGES = 8;
@@ -104,18 +104,18 @@ function attachValidatedEvidence(sources: ChatSource[], evidence: AssistantAnswe
 export class HttpAssistantClient implements AssistantClient {
   constructor(private readonly baseUrl: string = env.AI_SERVICE_URL, private readonly repository = new ChatRepository(), private readonly ragAnswerer?: RagAnswerer) { }
 
-  async ask(pergunta: string, projetoId?: string,usuarioId?:string,onProgress?:(stage:ChatProgressStage)=>void,signal?:AbortSignal): Promise<AssistantAnswer> {
+  async ask(pergunta: string, projetoId?: string,usuarioId?:string,onProgress?:(stage:ChatProgressStage)=>void,signal?:AbortSignal,onEvidenceCandidate?:(item:{source_id:string;quote:string})=>void|Promise<void>): Promise<AssistantAnswer> {
     if (!projetoId) throw new ValidationError("Escolha um projeto.");
     if(!usuarioId)throw new ValidationError('Autenticação necessária.');
-    return this.askProjects(pergunta, [projetoId], usuarioId, onProgress, signal);
+    return this.askProjects(pergunta, [projetoId], usuarioId, onProgress, signal,[],onEvidenceCandidate);
   }
 
-  async askProjects(pergunta: string, projetoIds: string[],usuarioId:string,onProgress?:(stage:ChatProgressStage)=>void,signal?:AbortSignal,history:ConversationTurn[]=[]): Promise<AssistantAnswer> {
+  async askProjects(pergunta: string, projetoIds: string[],usuarioId:string,onProgress?:(stage:ChatProgressStage)=>void,signal?:AbortSignal,history:ConversationTurn[]=[],onEvidenceCandidate?:(item:{source_id:string;quote:string})=>void|Promise<void>): Promise<AssistantAnswer> {
     if (!projetoIds.length) throw new ValidationError("Você não tem projetos disponíveis para consulta.");
     // O RAG já monta a resposta exclusivamente com citações verificadas.
     // Não substituir esse texto por uma segunda geração livre sem validação de evidências.
     const rag=this.ragAnswerer??new RagService(this.repository,new SearchRepository(),new HttpSearchEmbeddingClient(this.baseUrl),undefined,new HttpHarnessEngine(this.baseUrl));
-    return rag.answer(usuarioId,pergunta,projetoIds,onProgress,signal,history);
+    return rag.answer(usuarioId,pergunta,projetoIds,onProgress,signal,history,true,undefined,onEvidenceCandidate);
   }
 }
 
@@ -265,7 +265,7 @@ export class ChatService {
     return this.repository.listMessages(conversaId,usuarioId);
   }
 
-  async query(usuarioId: string, input: QueryInput, onProgress?:(stage:ChatProgressStage)=>void, signal?:AbortSignal, onConversationCreated?:(conversation:Conversation)=>void): Promise<QueryResult> {
+  async query(usuarioId: string, input: QueryInput, onProgress?:(stage:ChatProgressStage)=>void, signal?:AbortSignal, onConversationCreated?:(conversation:Conversation)=>void, onMessagePersisted?:(id:string)=>void, onEvidenceCandidate?:(item:{source_id:string;quote:string})=>void|Promise<void>): Promise<QueryResult> {
     const startedAt=performance.now();
     const logCompleted=(result:QueryResult)=>{
       console.info('[Chat] Request completed',{
@@ -280,6 +280,7 @@ export class ChatService {
     if (pergunta.length > MAX_QUESTION_LENGTH) throw new ValidationError(`A pergunta pode ter no máximo ${MAX_QUESTION_LENGTH} caracteres.`);
 
     if (input.mensagemId && !input.conversaId) throw new ValidationError("A conversa é obrigatória para repetir uma pergunta.");
+    if (input.attemptId) validateUuid(input.attemptId, "ID da tentativa");
     if (input.mensagemId) validateUuid(input.mensagemId, "ID da mensagem");
     if(!validChatText(pergunta))throw new ValidationError('Use texto Unicode válido, sem caractere nulo.');
 
@@ -298,15 +299,27 @@ export class ChatService {
       const resolved = await this.resolveScope(usuarioId, input.escopo, input.projetoId);
       scope = resolved.scope;
       projectIds = resolved.projectIds;
-      const conversation = await this.repository.createConversation(usuarioId, resolved.projectId, makeTitle(pergunta), scope);
+      const conversation = await this.repository.createConversation(usuarioId, resolved.projectId, makeTitle(pergunta), scope, input.attemptId);
       conversaId = conversation.id;
       try { onConversationCreated?.(conversation); } catch { /* A atualização do cliente não deve interromper o processamento. */ }
     }
 
-    const messageId = input.mensagemId
-      ? await this.repository.retryMessage(conversaId, input.mensagemId, pergunta)
-      : await this.repository.addMessage(conversaId, "user", pergunta);
+    let messageId: string;
     try {
+      messageId = input.mensagemId
+        ? await this.repository.retryMessage(conversaId, input.mensagemId, pergunta)
+        : await this.repository.addMessage(conversaId, "user", pergunta, [], input.attemptId);
+    } catch (error) {
+      if (!(error instanceof ConflictError) || !input.attemptId || input.mensagemId) throw error;
+      try {
+        messageId = await this.repository.retryMessage(conversaId, input.attemptId, pergunta, true);
+      } catch (retryError) {
+        if (!(retryError instanceof ConflictError)) throw retryError;
+        throw new AppError("A tentativa já foi registrada ou a conversa está ocupada.", 409, "CHAT_ATTEMPT_REGISTERED", { conversa_id: conversaId });
+      }
+    }
+    try {
+      onMessagePersisted?.(messageId);
 
       if(signal?.aborted)throw new DOMException("Consulta interrompida.","AbortError");
 
@@ -320,7 +333,7 @@ export class ChatService {
         ? recentConversationContext(await this.repository.listMessages(conversaId, usuarioId), messageId)
         : [];
       const answer=this.assistant.askProjects
-        ? await this.assistant.askProjects(pergunta,projectIds,usuarioId,onProgress,signal,history)
+        ? await this.assistant.askProjects(pergunta,projectIds,usuarioId,onProgress,signal,history,onEvidenceCandidate)
         : projectIds.length === 1
           ? await this.assistant.ask(pergunta,projectIds[0],usuarioId,onProgress,signal)
           : (() => { throw new ValidationError("Este assistente não suporta consultas em múltiplos projetos."); })();

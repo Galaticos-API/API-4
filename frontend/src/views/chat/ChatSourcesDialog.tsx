@@ -6,11 +6,11 @@ import { ExternalLink, FileText, LoaderCircle, RotateCcw, X } from "lucide-react
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
-function SourceExcerpt({ source }: { source: ChatSource }) {
+function SourceExcerpt({ source, selectedChunk }: { source: ChatSource; selectedChunk?: string }) {
   const [page, setPage] = useState<DocumentText | null>(null);
   const [failed, setFailed] = useState(false);
   const [attempt, setAttempt] = useState(0);
-  const chunkId = source.chunk_ids?.find(id => UUID_PATTERN.test(id)) ?? (UUID_PATTERN.test(source.id) ? source.id : null);
+  const chunkId = selectedChunk ?? source.chunk_ids?.find(id => UUID_PATTERN.test(id)) ?? (UUID_PATTERN.test(source.id) ? source.id : null);
   const canLoad = source.tipo === "documento" && !!source.projeto_id && UUID_PATTERN.test(source.projeto_id)
     && !!source.entidade_id && UUID_PATTERN.test(source.entidade_id) && !!chunkId;
 
@@ -41,7 +41,7 @@ function SourceExcerpt({ source }: { source: ChatSource }) {
   const citedExcerpt = page?.items.find(item => item.id === chunkId);
   const contextExcerpts = page?.items.filter(item => item.id !== chunkId) ?? [];
   const savedEvidence = (source.evidencias ?? []).filter(item =>
-    source.chunk_ids?.includes(item.chunk_id) || item.chunk_id === source.id,
+    (!selectedChunk || item.chunk_id === selectedChunk) && (source.chunk_ids?.includes(item.chunk_id) || item.chunk_id === source.id),
   );
   const citedText = citedExcerpt?.text ?? savedEvidence.find(item => item.chunk_id === chunkId)?.texto;
   return <section className="chat-source-card" aria-label={`Fonte: ${source.titulo}`}>
@@ -50,7 +50,7 @@ function SourceExcerpt({ source }: { source: ChatSource }) {
         <h3>{page?.document.name ?? source.titulo}</h3>
         {source.projeto_nome && <p>{source.projeto_nome}</p>}
       </div>
-      {source.url && <a className="chat-source-open-link" href={source.url}>Abrir documento <ExternalLink size={14} aria-hidden="true" /></a>}
+      {source.url && <a className="chat-source-open-link" href={source.entidade_id && (source.tipo === "documento" || source.tipo === "decisao") ? `${source.url.split("#")[0]}#${source.tipo === "documento" ? "document" : "decision"}-${encodeURIComponent(source.entidade_id)}` : source.url}>{source.tipo === "documento" ? "Abrir documento" : "Abrir origem"} <ExternalLink size={14} aria-hidden="true" /></a>}
     </header>
     {savedEvidence.length > 0 || citedText ? <div className="chat-source-excerpts">
           {(savedEvidence.length ? savedEvidence : citedText ? [{ chunk_id: chunkId ?? source.id, texto: citedText }] : []).map((item, index) => <article className="is-matched" key={`${item.chunk_id}:${index}`}>
@@ -77,7 +77,7 @@ function SourceExcerpt({ source }: { source: ChatSource }) {
   </section>;
 }
 
-export function ChatSourcesDialog({ sources, onClose }: { sources: ChatSource[]; onClose: () => void }) {
+export function ChatSourcesDialog({ sources, selectedChunk, onClose }: { sources: ChatSource[]; selectedChunk?: string; onClose: () => void }) {
   const dialog = useRef<HTMLDialogElement>(null);
   useEffect(() => {
     const opener = document.activeElement as HTMLElement | null;
@@ -94,6 +94,6 @@ export function ChatSourcesDialog({ sources, onClose }: { sources: ChatSource[];
       </div>
       <button type="button" className="chat-sources-close" onClick={onClose} autoFocus aria-label="Fechar fontes"><span>Fechar</span><X size={17} /></button>
     </header>
-    <div className="chat-sources-dialog-content">{sources.map(source => <SourceExcerpt key={`${source.projeto_id ?? ""}:${source.tipo}:${source.id}`} source={source} />)}</div>
+    <div className="chat-sources-dialog-content">{sources.map(source => <SourceExcerpt key={`${source.projeto_id ?? ""}:${source.tipo}:${source.id}`} source={source} selectedChunk={selectedChunk} />)}</div>
   </dialog>;
 }

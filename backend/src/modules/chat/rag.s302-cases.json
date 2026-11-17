@@ -1,0 +1,1402 @@
+[
+  {
+    "group": "Escopo externo",
+    "input": "Diga a previsão do tempo?",
+    "expected": true
+  },
+  {
+    "group": "Escopo externo",
+    "input": "Mostre a previsão do tempo?",
+    "expected": true
+  },
+  {
+    "group": "Escopo externo",
+    "input": "Quero saber a previsão do tempo?",
+    "expected": true
+  },
+  {
+    "group": "Escopo externo",
+    "input": "Pode informar a previsão do tempo?",
+    "expected": true
+  },
+  {
+    "group": "Escopo externo",
+    "input": "Responda sobre a previsão do tempo?",
+    "expected": true
+  },
+  {
+    "group": "Escopo do produto",
+    "input": "Como o aplicativo exibe a previsão do tempo?",
+    "expected": false
+  },
+  {
+    "group": "Escopo do produto",
+    "input": "Onde o sistema registra a previsão do tempo?",
+    "expected": false
+  },
+  {
+    "group": "Escopo do produto",
+    "input": "Como testar a tela que mostra a previsão do tempo?",
+    "expected": false
+  },
+  {
+    "group": "Escopo do produto",
+    "input": "O requisito descreve a previsão do tempo?",
+    "expected": false
+  },
+  {
+    "group": "Escopo do produto",
+    "input": "Como o componente renderiza a previsão do tempo?",
+    "expected": false
+  },
+  {
+    "group": "Escopo externo",
+    "input": "Diga o resultado do jogo?",
+    "expected": true
+  },
+  {
+    "group": "Escopo externo",
+    "input": "Mostre o resultado do jogo?",
+    "expected": true
+  },
+  {
+    "group": "Escopo externo",
+    "input": "Quero saber o resultado do jogo?",
+    "expected": true
+  },
+  {
+    "group": "Escopo externo",
+    "input": "Pode informar o resultado do jogo?",
+    "expected": true
+  },
+  {
+    "group": "Escopo externo",
+    "input": "Responda sobre o resultado do jogo?",
+    "expected": true
+  },
+  {
+    "group": "Escopo do produto",
+    "input": "Como o aplicativo exibe o resultado do jogo?",
+    "expected": false
+  },
+  {
+    "group": "Escopo do produto",
+    "input": "Onde o sistema registra o resultado do jogo?",
+    "expected": false
+  },
+  {
+    "group": "Escopo do produto",
+    "input": "Como testar a tela que mostra o resultado do jogo?",
+    "expected": false
+  },
+  {
+    "group": "Escopo do produto",
+    "input": "O requisito descreve o resultado do jogo?",
+    "expected": false
+  },
+  {
+    "group": "Escopo do produto",
+    "input": "Como o componente renderiza o resultado do jogo?",
+    "expected": false
+  },
+  {
+    "group": "Escopo externo",
+    "input": "Diga meu horóscopo?",
+    "expected": true
+  },
+  {
+    "group": "Escopo externo",
+    "input": "Mostre meu horóscopo?",
+    "expected": true
+  },
+  {
+    "group": "Escopo externo",
+    "input": "Quero saber meu horóscopo?",
+    "expected": true
+  },
+  {
+    "group": "Escopo externo",
+    "input": "Pode informar meu horóscopo?",
+    "expected": true
+  },
+  {
+    "group": "Escopo externo",
+    "input": "Responda sobre meu horóscopo?",
+    "expected": true
+  },
+  {
+    "group": "Escopo do produto",
+    "input": "Como o aplicativo exibe meu horóscopo?",
+    "expected": false
+  },
+  {
+    "group": "Escopo do produto",
+    "input": "Onde o sistema registra meu horóscopo?",
+    "expected": false
+  },
+  {
+    "group": "Escopo do produto",
+    "input": "Como testar a tela que mostra meu horóscopo?",
+    "expected": false
+  },
+  {
+    "group": "Escopo do produto",
+    "input": "O requisito descreve meu horóscopo?",
+    "expected": false
+  },
+  {
+    "group": "Escopo do produto",
+    "input": "Como o componente renderiza meu horóscopo?",
+    "expected": false
+  },
+  {
+    "group": "Escopo externo",
+    "input": "Diga uma receita de bolo?",
+    "expected": true
+  },
+  {
+    "group": "Escopo externo",
+    "input": "Mostre uma receita de bolo?",
+    "expected": true
+  },
+  {
+    "group": "Escopo externo",
+    "input": "Quero saber uma receita de bolo?",
+    "expected": true
+  },
+  {
+    "group": "Escopo externo",
+    "input": "Pode informar uma receita de bolo?",
+    "expected": true
+  },
+  {
+    "group": "Escopo externo",
+    "input": "Responda sobre uma receita de bolo?",
+    "expected": true
+  },
+  {
+    "group": "Escopo do produto",
+    "input": "Como o aplicativo exibe uma receita de bolo?",
+    "expected": false
+  },
+  {
+    "group": "Escopo do produto",
+    "input": "Onde o sistema registra uma receita de bolo?",
+    "expected": false
+  },
+  {
+    "group": "Escopo do produto",
+    "input": "Como testar a tela que mostra uma receita de bolo?",
+    "expected": false
+  },
+  {
+    "group": "Escopo do produto",
+    "input": "O requisito descreve uma receita de bolo?",
+    "expected": false
+  },
+  {
+    "group": "Escopo do produto",
+    "input": "Como o componente renderiza uma receita de bolo?",
+    "expected": false
+  },
+  {
+    "group": "Escopo externo",
+    "input": "Diga a capital da França?",
+    "expected": true
+  },
+  {
+    "group": "Escopo externo",
+    "input": "Mostre a capital da França?",
+    "expected": true
+  },
+  {
+    "group": "Escopo externo",
+    "input": "Quero saber a capital da França?",
+    "expected": true
+  },
+  {
+    "group": "Escopo externo",
+    "input": "Pode informar a capital da França?",
+    "expected": true
+  },
+  {
+    "group": "Escopo externo",
+    "input": "Responda sobre a capital da França?",
+    "expected": true
+  },
+  {
+    "group": "Escopo do produto",
+    "input": "Como o aplicativo exibe a capital da França?",
+    "expected": false
+  },
+  {
+    "group": "Escopo do produto",
+    "input": "Onde o sistema registra a capital da França?",
+    "expected": false
+  },
+  {
+    "group": "Escopo do produto",
+    "input": "Como testar a tela que mostra a capital da França?",
+    "expected": false
+  },
+  {
+    "group": "Escopo do produto",
+    "input": "O requisito descreve a capital da França?",
+    "expected": false
+  },
+  {
+    "group": "Escopo do produto",
+    "input": "Como o componente renderiza a capital da França?",
+    "expected": false
+  },
+  {
+    "group": "Escopo externo",
+    "input": "Diga o placar da final?",
+    "expected": true
+  },
+  {
+    "group": "Escopo externo",
+    "input": "Mostre o placar da final?",
+    "expected": true
+  },
+  {
+    "group": "Escopo externo",
+    "input": "Quero saber o placar da final?",
+    "expected": true
+  },
+  {
+    "group": "Escopo externo",
+    "input": "Pode informar o placar da final?",
+    "expected": true
+  },
+  {
+    "group": "Escopo externo",
+    "input": "Responda sobre o placar da final?",
+    "expected": true
+  },
+  {
+    "group": "Escopo do produto",
+    "input": "Como o aplicativo exibe o placar da final?",
+    "expected": false
+  },
+  {
+    "group": "Escopo do produto",
+    "input": "Onde o sistema registra o placar da final?",
+    "expected": false
+  },
+  {
+    "group": "Escopo do produto",
+    "input": "Como testar a tela que mostra o placar da final?",
+    "expected": false
+  },
+  {
+    "group": "Escopo do produto",
+    "input": "O requisito descreve o placar da final?",
+    "expected": false
+  },
+  {
+    "group": "Escopo do produto",
+    "input": "Como o componente renderiza o placar da final?",
+    "expected": false
+  },
+  {
+    "group": "Escopo externo",
+    "input": "Diga a cotação do dólar?",
+    "expected": true
+  },
+  {
+    "group": "Escopo externo",
+    "input": "Mostre a cotação do dólar?",
+    "expected": true
+  },
+  {
+    "group": "Escopo externo",
+    "input": "Quero saber a cotação do dólar?",
+    "expected": true
+  },
+  {
+    "group": "Escopo externo",
+    "input": "Pode informar a cotação do dólar?",
+    "expected": true
+  },
+  {
+    "group": "Escopo externo",
+    "input": "Responda sobre a cotação do dólar?",
+    "expected": true
+  },
+  {
+    "group": "Escopo do produto",
+    "input": "Como o aplicativo exibe a cotação do dólar?",
+    "expected": false
+  },
+  {
+    "group": "Escopo do produto",
+    "input": "Onde o sistema registra a cotação do dólar?",
+    "expected": false
+  },
+  {
+    "group": "Escopo do produto",
+    "input": "Como testar a tela que mostra a cotação do dólar?",
+    "expected": false
+  },
+  {
+    "group": "Escopo do produto",
+    "input": "O requisito descreve a cotação do dólar?",
+    "expected": false
+  },
+  {
+    "group": "Escopo do produto",
+    "input": "Como o componente renderiza a cotação do dólar?",
+    "expected": false
+  },
+  {
+    "group": "Escopo externo",
+    "input": "Diga o signo de Áries?",
+    "expected": true
+  },
+  {
+    "group": "Escopo externo",
+    "input": "Mostre o signo de Áries?",
+    "expected": true
+  },
+  {
+    "group": "Escopo externo",
+    "input": "Quero saber o signo de Áries?",
+    "expected": true
+  },
+  {
+    "group": "Escopo externo",
+    "input": "Pode informar o signo de Áries?",
+    "expected": true
+  },
+  {
+    "group": "Escopo externo",
+    "input": "Responda sobre o signo de Áries?",
+    "expected": true
+  },
+  {
+    "group": "Escopo do produto",
+    "input": "Como o aplicativo exibe o signo de Áries?",
+    "expected": false
+  },
+  {
+    "group": "Escopo do produto",
+    "input": "Onde o sistema registra o signo de Áries?",
+    "expected": false
+  },
+  {
+    "group": "Escopo do produto",
+    "input": "Como testar a tela que mostra o signo de Áries?",
+    "expected": false
+  },
+  {
+    "group": "Escopo do produto",
+    "input": "O requisito descreve o signo de Áries?",
+    "expected": false
+  },
+  {
+    "group": "Escopo do produto",
+    "input": "Como o componente renderiza o signo de Áries?",
+    "expected": false
+  },
+  {
+    "group": "Escopo externo",
+    "input": "Diga a receita de pão caseiro?",
+    "expected": true
+  },
+  {
+    "group": "Escopo externo",
+    "input": "Mostre a receita de pão caseiro?",
+    "expected": true
+  },
+  {
+    "group": "Escopo externo",
+    "input": "Quero saber a receita de pão caseiro?",
+    "expected": true
+  },
+  {
+    "group": "Escopo externo",
+    "input": "Pode informar a receita de pão caseiro?",
+    "expected": true
+  },
+  {
+    "group": "Escopo externo",
+    "input": "Responda sobre a receita de pão caseiro?",
+    "expected": true
+  },
+  {
+    "group": "Escopo do produto",
+    "input": "Como o aplicativo exibe a receita de pão caseiro?",
+    "expected": false
+  },
+  {
+    "group": "Escopo do produto",
+    "input": "Onde o sistema registra a receita de pão caseiro?",
+    "expected": false
+  },
+  {
+    "group": "Escopo do produto",
+    "input": "Como testar a tela que mostra a receita de pão caseiro?",
+    "expected": false
+  },
+  {
+    "group": "Escopo do produto",
+    "input": "O requisito descreve a receita de pão caseiro?",
+    "expected": false
+  },
+  {
+    "group": "Escopo do produto",
+    "input": "Como o componente renderiza a receita de pão caseiro?",
+    "expected": false
+  },
+  {
+    "group": "Escopo externo",
+    "input": "Diga o clima de amanhã?",
+    "expected": true
+  },
+  {
+    "group": "Escopo externo",
+    "input": "Mostre o clima de amanhã?",
+    "expected": true
+  },
+  {
+    "group": "Escopo externo",
+    "input": "Quero saber o clima de amanhã?",
+    "expected": true
+  },
+  {
+    "group": "Escopo externo",
+    "input": "Pode informar o clima de amanhã?",
+    "expected": true
+  },
+  {
+    "group": "Escopo externo",
+    "input": "Responda sobre o clima de amanhã?",
+    "expected": true
+  },
+  {
+    "group": "Escopo do produto",
+    "input": "Como o aplicativo exibe o clima de amanhã?",
+    "expected": false
+  },
+  {
+    "group": "Escopo do produto",
+    "input": "Onde o sistema registra o clima de amanhã?",
+    "expected": false
+  },
+  {
+    "group": "Escopo do produto",
+    "input": "Como testar a tela que mostra o clima de amanhã?",
+    "expected": false
+  },
+  {
+    "group": "Escopo do produto",
+    "input": "O requisito descreve o clima de amanhã?",
+    "expected": false
+  },
+  {
+    "group": "Escopo do produto",
+    "input": "Como o componente renderiza o clima de amanhã?",
+    "expected": false
+  },
+  {
+    "group": "Evidência de adoção",
+    "input": "A equipe adotou PostgreSQL.",
+    "expected": true
+  },
+  {
+    "group": "Evidência de adoção",
+    "input": "PostgreSQL é o banco de dados do projeto.",
+    "expected": true
+  },
+  {
+    "group": "Evidência de adoção",
+    "input": "O banco utilizado é PostgreSQL.",
+    "expected": true
+  },
+  {
+    "group": "Evidência de adoção",
+    "input": "A equipe usa PostgreSQL como banco principal.",
+    "expected": true
+  },
+  {
+    "group": "Evidência de adoção",
+    "input": "A equipe adotou PostgreSQL, mas não usa Pinecone.",
+    "expected": true
+  },
+  {
+    "group": "Evidência de adoção",
+    "input": "A equipe pretende adotar PostgreSQL.",
+    "expected": false
+  },
+  {
+    "group": "Evidência de adoção",
+    "input": "A equipe deve avaliar a adoção de PostgreSQL.",
+    "expected": false
+  },
+  {
+    "group": "Evidência de adoção",
+    "input": "A equipe não adotou PostgreSQL.",
+    "expected": false
+  },
+  {
+    "group": "Evidência de adoção",
+    "input": "A equipe escolheu PostgreSQL apenas para testes.",
+    "expected": false
+  },
+  {
+    "group": "Evidência de adoção",
+    "input": "A equipe utiliza PostgreSQL como alternativa se o banco principal falhar.",
+    "expected": false
+  },
+  {
+    "group": "Evidência de adoção",
+    "input": "A equipe adotou MySQL.",
+    "expected": true
+  },
+  {
+    "group": "Evidência de adoção",
+    "input": "MySQL é o banco de dados do projeto.",
+    "expected": true
+  },
+  {
+    "group": "Evidência de adoção",
+    "input": "O banco utilizado é MySQL.",
+    "expected": true
+  },
+  {
+    "group": "Evidência de adoção",
+    "input": "A equipe usa MySQL como banco principal.",
+    "expected": true
+  },
+  {
+    "group": "Evidência de adoção",
+    "input": "A equipe adotou MySQL, mas não usa Pinecone.",
+    "expected": true
+  },
+  {
+    "group": "Evidência de adoção",
+    "input": "A equipe pretende adotar MySQL.",
+    "expected": false
+  },
+  {
+    "group": "Evidência de adoção",
+    "input": "A equipe deve avaliar a adoção de MySQL.",
+    "expected": false
+  },
+  {
+    "group": "Evidência de adoção",
+    "input": "A equipe não adotou MySQL.",
+    "expected": false
+  },
+  {
+    "group": "Evidência de adoção",
+    "input": "A equipe escolheu MySQL apenas para testes.",
+    "expected": false
+  },
+  {
+    "group": "Evidência de adoção",
+    "input": "A equipe utiliza MySQL como alternativa se o banco principal falhar.",
+    "expected": false
+  },
+  {
+    "group": "Evidência de adoção",
+    "input": "A equipe adotou MariaDB.",
+    "expected": true
+  },
+  {
+    "group": "Evidência de adoção",
+    "input": "MariaDB é o banco de dados do projeto.",
+    "expected": true
+  },
+  {
+    "group": "Evidência de adoção",
+    "input": "O banco utilizado é MariaDB.",
+    "expected": true
+  },
+  {
+    "group": "Evidência de adoção",
+    "input": "A equipe usa MariaDB como banco principal.",
+    "expected": true
+  },
+  {
+    "group": "Evidência de adoção",
+    "input": "A equipe adotou MariaDB, mas não usa Pinecone.",
+    "expected": true
+  },
+  {
+    "group": "Evidência de adoção",
+    "input": "A equipe pretende adotar MariaDB.",
+    "expected": false
+  },
+  {
+    "group": "Evidência de adoção",
+    "input": "A equipe deve avaliar a adoção de MariaDB.",
+    "expected": false
+  },
+  {
+    "group": "Evidência de adoção",
+    "input": "A equipe não adotou MariaDB.",
+    "expected": false
+  },
+  {
+    "group": "Evidência de adoção",
+    "input": "A equipe escolheu MariaDB apenas para testes.",
+    "expected": false
+  },
+  {
+    "group": "Evidência de adoção",
+    "input": "A equipe utiliza MariaDB como alternativa se o banco principal falhar.",
+    "expected": false
+  },
+  {
+    "group": "Evidência de adoção",
+    "input": "A equipe adotou SQLite.",
+    "expected": true
+  },
+  {
+    "group": "Evidência de adoção",
+    "input": "SQLite é o banco de dados do projeto.",
+    "expected": true
+  },
+  {
+    "group": "Evidência de adoção",
+    "input": "O banco utilizado é SQLite.",
+    "expected": true
+  },
+  {
+    "group": "Evidência de adoção",
+    "input": "A equipe usa SQLite como banco principal.",
+    "expected": true
+  },
+  {
+    "group": "Evidência de adoção",
+    "input": "A equipe adotou SQLite, mas não usa Pinecone.",
+    "expected": true
+  },
+  {
+    "group": "Evidência de adoção",
+    "input": "A equipe pretende adotar SQLite.",
+    "expected": false
+  },
+  {
+    "group": "Evidência de adoção",
+    "input": "A equipe deve avaliar a adoção de SQLite.",
+    "expected": false
+  },
+  {
+    "group": "Evidência de adoção",
+    "input": "A equipe não adotou SQLite.",
+    "expected": false
+  },
+  {
+    "group": "Evidência de adoção",
+    "input": "A equipe escolheu SQLite apenas para testes.",
+    "expected": false
+  },
+  {
+    "group": "Evidência de adoção",
+    "input": "A equipe utiliza SQLite como alternativa se o banco principal falhar.",
+    "expected": false
+  },
+  {
+    "group": "Evidência de adoção",
+    "input": "A equipe adotou MongoDB.",
+    "expected": true
+  },
+  {
+    "group": "Evidência de adoção",
+    "input": "MongoDB é o banco de dados do projeto.",
+    "expected": true
+  },
+  {
+    "group": "Evidência de adoção",
+    "input": "O banco utilizado é MongoDB.",
+    "expected": true
+  },
+  {
+    "group": "Evidência de adoção",
+    "input": "A equipe usa MongoDB como banco principal.",
+    "expected": true
+  },
+  {
+    "group": "Evidência de adoção",
+    "input": "A equipe adotou MongoDB, mas não usa Pinecone.",
+    "expected": true
+  },
+  {
+    "group": "Evidência de adoção",
+    "input": "A equipe pretende adotar MongoDB.",
+    "expected": false
+  },
+  {
+    "group": "Evidência de adoção",
+    "input": "A equipe deve avaliar a adoção de MongoDB.",
+    "expected": false
+  },
+  {
+    "group": "Evidência de adoção",
+    "input": "A equipe não adotou MongoDB.",
+    "expected": false
+  },
+  {
+    "group": "Evidência de adoção",
+    "input": "A equipe escolheu MongoDB apenas para testes.",
+    "expected": false
+  },
+  {
+    "group": "Evidência de adoção",
+    "input": "A equipe utiliza MongoDB como alternativa se o banco principal falhar.",
+    "expected": false
+  },
+  {
+    "group": "Evidência de adoção",
+    "input": "A equipe adotou SQL Server.",
+    "expected": true
+  },
+  {
+    "group": "Evidência de adoção",
+    "input": "SQL Server é o banco de dados do projeto.",
+    "expected": true
+  },
+  {
+    "group": "Evidência de adoção",
+    "input": "O banco utilizado é SQL Server.",
+    "expected": true
+  },
+  {
+    "group": "Evidência de adoção",
+    "input": "A equipe usa SQL Server como banco principal.",
+    "expected": true
+  },
+  {
+    "group": "Evidência de adoção",
+    "input": "A equipe adotou SQL Server, mas não usa Pinecone.",
+    "expected": true
+  },
+  {
+    "group": "Evidência de adoção",
+    "input": "A equipe pretende adotar SQL Server.",
+    "expected": false
+  },
+  {
+    "group": "Evidência de adoção",
+    "input": "A equipe deve avaliar a adoção de SQL Server.",
+    "expected": false
+  },
+  {
+    "group": "Evidência de adoção",
+    "input": "A equipe não adotou SQL Server.",
+    "expected": false
+  },
+  {
+    "group": "Evidência de adoção",
+    "input": "A equipe escolheu SQL Server apenas para testes.",
+    "expected": false
+  },
+  {
+    "group": "Evidência de adoção",
+    "input": "A equipe utiliza SQL Server como alternativa se o banco principal falhar.",
+    "expected": false
+  },
+  {
+    "group": "Evidência de adoção",
+    "input": "A equipe adotou Oracle Database.",
+    "expected": true
+  },
+  {
+    "group": "Evidência de adoção",
+    "input": "Oracle Database é o banco de dados do projeto.",
+    "expected": true
+  },
+  {
+    "group": "Evidência de adoção",
+    "input": "O banco utilizado é Oracle Database.",
+    "expected": true
+  },
+  {
+    "group": "Evidência de adoção",
+    "input": "A equipe usa Oracle Database como banco principal.",
+    "expected": true
+  },
+  {
+    "group": "Evidência de adoção",
+    "input": "A equipe adotou Oracle Database, mas não usa Pinecone.",
+    "expected": true
+  },
+  {
+    "group": "Evidência de adoção",
+    "input": "A equipe pretende adotar Oracle Database.",
+    "expected": false
+  },
+  {
+    "group": "Evidência de adoção",
+    "input": "A equipe deve avaliar a adoção de Oracle Database.",
+    "expected": false
+  },
+  {
+    "group": "Evidência de adoção",
+    "input": "A equipe não adotou Oracle Database.",
+    "expected": false
+  },
+  {
+    "group": "Evidência de adoção",
+    "input": "A equipe escolheu Oracle Database apenas para testes.",
+    "expected": false
+  },
+  {
+    "group": "Evidência de adoção",
+    "input": "A equipe utiliza Oracle Database como alternativa se o banco principal falhar.",
+    "expected": false
+  },
+  {
+    "group": "Evidência de adoção",
+    "input": "A equipe adotou CockroachDB.",
+    "expected": true
+  },
+  {
+    "group": "Evidência de adoção",
+    "input": "CockroachDB é o banco de dados do projeto.",
+    "expected": true
+  },
+  {
+    "group": "Evidência de adoção",
+    "input": "O banco utilizado é CockroachDB.",
+    "expected": true
+  },
+  {
+    "group": "Evidência de adoção",
+    "input": "A equipe usa CockroachDB como banco principal.",
+    "expected": true
+  },
+  {
+    "group": "Evidência de adoção",
+    "input": "A equipe adotou CockroachDB, mas não usa Pinecone.",
+    "expected": true
+  },
+  {
+    "group": "Evidência de adoção",
+    "input": "A equipe pretende adotar CockroachDB.",
+    "expected": false
+  },
+  {
+    "group": "Evidência de adoção",
+    "input": "A equipe deve avaliar a adoção de CockroachDB.",
+    "expected": false
+  },
+  {
+    "group": "Evidência de adoção",
+    "input": "A equipe não adotou CockroachDB.",
+    "expected": false
+  },
+  {
+    "group": "Evidência de adoção",
+    "input": "A equipe escolheu CockroachDB apenas para testes.",
+    "expected": false
+  },
+  {
+    "group": "Evidência de adoção",
+    "input": "A equipe utiliza CockroachDB como alternativa se o banco principal falhar.",
+    "expected": false
+  },
+  {
+    "group": "Evidência de adoção",
+    "input": "A equipe adotou Firebird.",
+    "expected": true
+  },
+  {
+    "group": "Evidência de adoção",
+    "input": "Firebird é o banco de dados do projeto.",
+    "expected": true
+  },
+  {
+    "group": "Evidência de adoção",
+    "input": "O banco utilizado é Firebird.",
+    "expected": true
+  },
+  {
+    "group": "Evidência de adoção",
+    "input": "A equipe usa Firebird como banco principal.",
+    "expected": true
+  },
+  {
+    "group": "Evidência de adoção",
+    "input": "A equipe adotou Firebird, mas não usa Pinecone.",
+    "expected": true
+  },
+  {
+    "group": "Evidência de adoção",
+    "input": "A equipe pretende adotar Firebird.",
+    "expected": false
+  },
+  {
+    "group": "Evidência de adoção",
+    "input": "A equipe deve avaliar a adoção de Firebird.",
+    "expected": false
+  },
+  {
+    "group": "Evidência de adoção",
+    "input": "A equipe não adotou Firebird.",
+    "expected": false
+  },
+  {
+    "group": "Evidência de adoção",
+    "input": "A equipe escolheu Firebird apenas para testes.",
+    "expected": false
+  },
+  {
+    "group": "Evidência de adoção",
+    "input": "A equipe utiliza Firebird como alternativa se o banco principal falhar.",
+    "expected": false
+  },
+  {
+    "group": "Evidência de adoção",
+    "input": "A equipe adotou Db2.",
+    "expected": true
+  },
+  {
+    "group": "Evidência de adoção",
+    "input": "Db2 é o banco de dados do projeto.",
+    "expected": true
+  },
+  {
+    "group": "Evidência de adoção",
+    "input": "O banco utilizado é Db2.",
+    "expected": true
+  },
+  {
+    "group": "Evidência de adoção",
+    "input": "A equipe usa Db2 como banco principal.",
+    "expected": true
+  },
+  {
+    "group": "Evidência de adoção",
+    "input": "A equipe adotou Db2, mas não usa Pinecone.",
+    "expected": true
+  },
+  {
+    "group": "Evidência de adoção",
+    "input": "A equipe pretende adotar Db2.",
+    "expected": false
+  },
+  {
+    "group": "Evidência de adoção",
+    "input": "A equipe deve avaliar a adoção de Db2.",
+    "expected": false
+  },
+  {
+    "group": "Evidência de adoção",
+    "input": "A equipe não adotou Db2.",
+    "expected": false
+  },
+  {
+    "group": "Evidência de adoção",
+    "input": "A equipe escolheu Db2 apenas para testes.",
+    "expected": false
+  },
+  {
+    "group": "Evidência de adoção",
+    "input": "A equipe utiliza Db2 como alternativa se o banco principal falhar.",
+    "expected": false
+  },
+  {
+    "group": "Pergunta composta",
+    "input": "Qual banco foi adotado e qual extensão ele usa?",
+    "expected": [
+      "Qual banco foi adotado?",
+      "qual extensão ele usa?"
+    ]
+  },
+  {
+    "group": "Pergunta composta",
+    "input": "Qual banco foi adotado. qual extensão ele usa?",
+    "expected": [
+      "Qual banco foi adotado?",
+      "qual extensão ele usa?"
+    ]
+  },
+  {
+    "group": "Pergunta composta",
+    "input": "Qual banco foi adotado e como é feito o backup?",
+    "expected": [
+      "Qual banco foi adotado?",
+      "como é feito o backup?"
+    ]
+  },
+  {
+    "group": "Pergunta composta",
+    "input": "Qual banco foi adotado. como é feito o backup?",
+    "expected": [
+      "Qual banco foi adotado?",
+      "como é feito o backup?"
+    ]
+  },
+  {
+    "group": "Pergunta composta",
+    "input": "Qual banco foi adotado e quem mantém o serviço?",
+    "expected": [
+      "Qual banco foi adotado?",
+      "quem mantém o serviço?"
+    ]
+  },
+  {
+    "group": "Pergunta composta",
+    "input": "Qual banco foi adotado. quem mantém o serviço?",
+    "expected": [
+      "Qual banco foi adotado?",
+      "quem mantém o serviço?"
+    ]
+  },
+  {
+    "group": "Pergunta composta",
+    "input": "Qual banco foi adotado e onde fica o registro?",
+    "expected": [
+      "Qual banco foi adotado?",
+      "onde fica o registro?"
+    ]
+  },
+  {
+    "group": "Pergunta composta",
+    "input": "Qual banco foi adotado. onde fica o registro?",
+    "expected": [
+      "Qual banco foi adotado?",
+      "onde fica o registro?"
+    ]
+  },
+  {
+    "group": "Pergunta composta",
+    "input": "Qual banco foi adotado e qual política foi definida?",
+    "expected": [
+      "Qual banco foi adotado?",
+      "qual política foi definida?"
+    ]
+  },
+  {
+    "group": "Pergunta composta",
+    "input": "Qual banco foi adotado. qual política foi definida?",
+    "expected": [
+      "Qual banco foi adotado?",
+      "qual política foi definida?"
+    ]
+  },
+  {
+    "group": "Pergunta composta",
+    "input": "Qual versão foi instalada e qual extensão ele usa?",
+    "expected": [
+      "Qual versão foi instalada?",
+      "qual extensão ele usa?"
+    ]
+  },
+  {
+    "group": "Pergunta composta",
+    "input": "Qual versão foi instalada. qual extensão ele usa?",
+    "expected": [
+      "Qual versão foi instalada?",
+      "qual extensão ele usa?"
+    ]
+  },
+  {
+    "group": "Pergunta composta",
+    "input": "Qual versão foi instalada e como é feito o backup?",
+    "expected": [
+      "Qual versão foi instalada?",
+      "como é feito o backup?"
+    ]
+  },
+  {
+    "group": "Pergunta composta",
+    "input": "Qual versão foi instalada. como é feito o backup?",
+    "expected": [
+      "Qual versão foi instalada?",
+      "como é feito o backup?"
+    ]
+  },
+  {
+    "group": "Pergunta composta",
+    "input": "Qual versão foi instalada e quem mantém o serviço?",
+    "expected": [
+      "Qual versão foi instalada?",
+      "quem mantém o serviço?"
+    ]
+  },
+  {
+    "group": "Pergunta composta",
+    "input": "Qual versão foi instalada. quem mantém o serviço?",
+    "expected": [
+      "Qual versão foi instalada?",
+      "quem mantém o serviço?"
+    ]
+  },
+  {
+    "group": "Pergunta composta",
+    "input": "Qual versão foi instalada e onde fica o registro?",
+    "expected": [
+      "Qual versão foi instalada?",
+      "onde fica o registro?"
+    ]
+  },
+  {
+    "group": "Pergunta composta",
+    "input": "Qual versão foi instalada. onde fica o registro?",
+    "expected": [
+      "Qual versão foi instalada?",
+      "onde fica o registro?"
+    ]
+  },
+  {
+    "group": "Pergunta composta",
+    "input": "Qual versão foi instalada e qual política foi definida?",
+    "expected": [
+      "Qual versão foi instalada?",
+      "qual política foi definida?"
+    ]
+  },
+  {
+    "group": "Pergunta composta",
+    "input": "Qual versão foi instalada. qual política foi definida?",
+    "expected": [
+      "Qual versão foi instalada?",
+      "qual política foi definida?"
+    ]
+  },
+  {
+    "group": "Pergunta composta",
+    "input": "Como funciona o login e qual extensão ele usa?",
+    "expected": [
+      "Como funciona o login?",
+      "qual extensão ele usa?"
+    ]
+  },
+  {
+    "group": "Pergunta composta",
+    "input": "Como funciona o login. qual extensão ele usa?",
+    "expected": [
+      "Como funciona o login?",
+      "qual extensão ele usa?"
+    ]
+  },
+  {
+    "group": "Pergunta composta",
+    "input": "Como funciona o login e como é feito o backup?",
+    "expected": [
+      "Como funciona o login?",
+      "como é feito o backup?"
+    ]
+  },
+  {
+    "group": "Pergunta composta",
+    "input": "Como funciona o login. como é feito o backup?",
+    "expected": [
+      "Como funciona o login?",
+      "como é feito o backup?"
+    ]
+  },
+  {
+    "group": "Pergunta composta",
+    "input": "Como funciona o login e quem mantém o serviço?",
+    "expected": [
+      "Como funciona o login?",
+      "quem mantém o serviço?"
+    ]
+  },
+  {
+    "group": "Pergunta composta",
+    "input": "Como funciona o login. quem mantém o serviço?",
+    "expected": [
+      "Como funciona o login?",
+      "quem mantém o serviço?"
+    ]
+  },
+  {
+    "group": "Pergunta composta",
+    "input": "Como funciona o login e onde fica o registro?",
+    "expected": [
+      "Como funciona o login?",
+      "onde fica o registro?"
+    ]
+  },
+  {
+    "group": "Pergunta composta",
+    "input": "Como funciona o login. onde fica o registro?",
+    "expected": [
+      "Como funciona o login?",
+      "onde fica o registro?"
+    ]
+  },
+  {
+    "group": "Pergunta composta",
+    "input": "Como funciona o login e qual política foi definida?",
+    "expected": [
+      "Como funciona o login?",
+      "qual política foi definida?"
+    ]
+  },
+  {
+    "group": "Pergunta composta",
+    "input": "Como funciona o login. qual política foi definida?",
+    "expected": [
+      "Como funciona o login?",
+      "qual política foi definida?"
+    ]
+  },
+  {
+    "group": "Pergunta composta",
+    "input": "Onde ficam os documentos e qual extensão ele usa?",
+    "expected": [
+      "Onde ficam os documentos?",
+      "qual extensão ele usa?"
+    ]
+  },
+  {
+    "group": "Pergunta composta",
+    "input": "Onde ficam os documentos. qual extensão ele usa?",
+    "expected": [
+      "Onde ficam os documentos?",
+      "qual extensão ele usa?"
+    ]
+  },
+  {
+    "group": "Pergunta composta",
+    "input": "Onde ficam os documentos e como é feito o backup?",
+    "expected": [
+      "Onde ficam os documentos?",
+      "como é feito o backup?"
+    ]
+  },
+  {
+    "group": "Pergunta composta",
+    "input": "Onde ficam os documentos. como é feito o backup?",
+    "expected": [
+      "Onde ficam os documentos?",
+      "como é feito o backup?"
+    ]
+  },
+  {
+    "group": "Pergunta composta",
+    "input": "Onde ficam os documentos e quem mantém o serviço?",
+    "expected": [
+      "Onde ficam os documentos?",
+      "quem mantém o serviço?"
+    ]
+  },
+  {
+    "group": "Pergunta composta",
+    "input": "Onde ficam os documentos. quem mantém o serviço?",
+    "expected": [
+      "Onde ficam os documentos?",
+      "quem mantém o serviço?"
+    ]
+  },
+  {
+    "group": "Pergunta composta",
+    "input": "Onde ficam os documentos e onde fica o registro?",
+    "expected": [
+      "Onde ficam os documentos?",
+      "onde fica o registro?"
+    ]
+  },
+  {
+    "group": "Pergunta composta",
+    "input": "Onde ficam os documentos. onde fica o registro?",
+    "expected": [
+      "Onde ficam os documentos?",
+      "onde fica o registro?"
+    ]
+  },
+  {
+    "group": "Pergunta composta",
+    "input": "Onde ficam os documentos e qual política foi definida?",
+    "expected": [
+      "Onde ficam os documentos?",
+      "qual política foi definida?"
+    ]
+  },
+  {
+    "group": "Pergunta composta",
+    "input": "Onde ficam os documentos. qual política foi definida?",
+    "expected": [
+      "Onde ficam os documentos?",
+      "qual política foi definida?"
+    ]
+  },
+  {
+    "group": "Pergunta composta",
+    "input": "Quem aprovou a decisão e qual extensão ele usa?",
+    "expected": [
+      "Quem aprovou a decisão?",
+      "qual extensão ele usa?"
+    ]
+  },
+  {
+    "group": "Pergunta composta",
+    "input": "Quem aprovou a decisão. qual extensão ele usa?",
+    "expected": [
+      "Quem aprovou a decisão?",
+      "qual extensão ele usa?"
+    ]
+  },
+  {
+    "group": "Pergunta composta",
+    "input": "Quem aprovou a decisão e como é feito o backup?",
+    "expected": [
+      "Quem aprovou a decisão?",
+      "como é feito o backup?"
+    ]
+  },
+  {
+    "group": "Pergunta composta",
+    "input": "Quem aprovou a decisão. como é feito o backup?",
+    "expected": [
+      "Quem aprovou a decisão?",
+      "como é feito o backup?"
+    ]
+  },
+  {
+    "group": "Pergunta composta",
+    "input": "Quem aprovou a decisão e quem mantém o serviço?",
+    "expected": [
+      "Quem aprovou a decisão?",
+      "quem mantém o serviço?"
+    ]
+  },
+  {
+    "group": "Pergunta composta",
+    "input": "Quem aprovou a decisão. quem mantém o serviço?",
+    "expected": [
+      "Quem aprovou a decisão?",
+      "quem mantém o serviço?"
+    ]
+  },
+  {
+    "group": "Pergunta composta",
+    "input": "Quem aprovou a decisão e onde fica o registro?",
+    "expected": [
+      "Quem aprovou a decisão?",
+      "onde fica o registro?"
+    ]
+  },
+  {
+    "group": "Pergunta composta",
+    "input": "Quem aprovou a decisão. onde fica o registro?",
+    "expected": [
+      "Quem aprovou a decisão?",
+      "onde fica o registro?"
+    ]
+  },
+  {
+    "group": "Pergunta composta",
+    "input": "Quem aprovou a decisão e qual política foi definida?",
+    "expected": [
+      "Quem aprovou a decisão?",
+      "qual política foi definida?"
+    ]
+  },
+  {
+    "group": "Pergunta composta",
+    "input": "Quem aprovou a decisão. qual política foi definida?",
+    "expected": [
+      "Quem aprovou a decisão?",
+      "qual política foi definida?"
+    ]
+  }
+]
