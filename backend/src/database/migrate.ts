@@ -62,7 +62,8 @@ async function migrate(): Promise<void> {
                 'queue_analysis_report',
                 'remove_analysis_report_chunks',
                 'sincronizar_indice_projeto',
-                'publicar_evento_indice'
+                'publicar_evento_indice',
+                'sync_desenvolvedor_profile_fields'
               )
           ) LOOP
             EXECUTE 'DROP FUNCTION IF EXISTS public.' || quote_ident(r.proname) || '(' || r.args || ') CASCADE';

@@ -6,6 +6,7 @@ export const routes = {
   knowledge: "/knowledge",
   chat: "/chat",
   rag: "/rag",
+  developers: "/developers",
   documents: "/documents",
   admin: "/admin",
   ingestion: "/admin/ingestion",
@@ -19,12 +20,19 @@ export function isProjectPath(path: string) {
   ).test(path);
 }
 
+export function isDeveloperPath(path: string) {
+  return new RegExp(`^/developers(?:/${SEGMENT})?$`).test(path);
+}
+
 /** Only known internal pages are valid post-login destinations. */
 export function safeDestination(value: string | null): string {
   if (!value || !value.startsWith("/") || value.startsWith("//") || /[\\\s\u0000-\u001f]/.test(value)) return "/";
   try {
     const url = new URL(value, "https://sinapse.invalid");
-    if (url.origin !== "https://sinapse.invalid" || !(Object.values(routes).some(path => path === url.pathname) || isProjectPath(url.pathname))) return "/";
+    if (
+      url.origin !== "https://sinapse.invalid" ||
+      !(Object.values(routes).some(path => path === url.pathname) || isProjectPath(url.pathname) || isDeveloperPath(url.pathname))
+    ) return "/";
     return url.pathname + url.search + url.hash;
   } catch { return "/"; }
 }

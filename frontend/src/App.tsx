@@ -1,8 +1,8 @@
 import { SearchOriginFocus } from "./views/knowledge/SearchOriginFocus";
 import { Button } from "./views/common/ui";
 import React, { useState, useEffect } from "react";
-import { ArrowRight, BookOpenText, FolderKanban, Layers3, LogOut, MessageCircle, ShieldCheck } from "lucide-react";
-import { isProjectPath, navigate, routes } from "./models/navigation";
+import { ArrowRight, BookOpenText, FolderKanban, Layers3, LogOut, MessageCircle, ShieldCheck, Users } from "lucide-react";
+import { isDeveloperPath, isProjectPath, navigate, routes } from "./models/navigation";
 import { useAuth } from "./viewmodels/useAuthViewModel";
 const ProjectsView = React.lazy(() => import("./views/projects/ProjectsView").then(module => ({ default: module.ProjectsView })));
 const LandingPageView = React.lazy(() => import("./views/landing/LandingPageView").then(module => ({ default: module.LandingPageView })));
@@ -10,6 +10,7 @@ const DeveloperDashboardView = React.lazy(() => import("./views/dashboard/Develo
 const DocumentsView = React.lazy(() => import("./views/documents/DocumentsView").then(module => ({ default: module.DocumentsView })));
 const KnowledgeView = React.lazy(() => import("./views/knowledge/KnowledgeView").then(module => ({ default: module.KnowledgeView })));
 const ChatView = React.lazy(() => import("./views/chat/ChatView").then(module => ({ default: module.ChatView })));
+const DevelopersView = React.lazy(() => import("./views/developers/DevelopersView").then(module => ({ default: module.DevelopersView })));
 const AdminView = React.lazy(() => import("./views/admin/AdminView").then(module => ({ default: module.AdminView })));
 const IngestionObservabilityView = React.lazy(() => import("./views/admin/IngestionObservabilityView").then(module => ({ default: module.IngestionObservabilityView })));
 const RequirementsView = React.lazy(() => import("./views/backlog/RequirementsView").then(module => ({ default: module.RequirementsView })));
@@ -25,7 +26,9 @@ export const App: React.FC = () => {
   const isAdmin = session.user?.role === "admin";
   const activeTab = isProjectPath(pathname)
     ? "projects"
-    : (Object.keys(routes) as Array<keyof typeof routes>).find((key) => routes[key] === pathname) || "projects";
+    : isDeveloperPath(pathname)
+      ? "developers"
+      : (Object.keys(routes) as Array<keyof typeof routes>).find((key) => routes[key] === pathname) || "projects";
   const isChatPage = activeTab === "chat" || activeTab === "rag";
 
   const setActiveTab = (tab: keyof typeof routes) => { setMenuOpen(false); navigate(routes[tab]); };
@@ -158,6 +161,13 @@ export const App: React.FC = () => {
           >
             Conversa
           </button>
+          <button
+            onClick={() => setActiveTab("developers")}
+            className={activeTab === "developers" ? "active" : ""}
+            aria-current={activeTab === "developers" ? "page" : undefined}
+          >
+            Equipe
+          </button>
         </nav>
 
         <div className="app-user-actions">
@@ -213,9 +223,12 @@ export const App: React.FC = () => {
               <button onClick={() => setActiveTab("chat")} aria-current={activeTab === "chat" || activeTab === "rag" ? "page" : undefined}>
                 <MessageCircle aria-hidden="true" /><span>Conversa</span><small>04</small><ArrowRight aria-hidden="true" />
               </button>
+              <button onClick={() => setActiveTab("developers")} aria-current={activeTab === "developers" ? "page" : undefined}>
+                <Users aria-hidden="true" /><span>Equipe</span><small>05</small><ArrowRight aria-hidden="true" />
+              </button>
               {isAdmin && (
                 <button onClick={() => setActiveTab("admin")} aria-label="Abrir administração" aria-current={activeTab === "admin" ? "page" : undefined}>
-                  <ShieldCheck aria-hidden="true" /><span>Administração</span><small>05</small><ArrowRight aria-hidden="true" />
+                  <ShieldCheck aria-hidden="true" /><span>Administração</span><small>06</small><ArrowRight aria-hidden="true" />
                 </button>
               )}
             </nav>
@@ -240,6 +253,7 @@ export const App: React.FC = () => {
           {activeTab === "documents" && <DocumentsView />}
           {activeTab === "knowledge" && <KnowledgeView />}
           {(activeTab === "chat" || activeTab === "rag") && <ChatView />}
+          {activeTab === "developers" && <DevelopersView key={pathname} pathname={pathname} canManage={session.user?.role === "po" || session.user?.role === "admin"} />}
           {activeTab === "admin" && (isAdmin ? <AdminView /> : (
             <section className="page-container" role="alert" aria-labelledby="admin-access-title">
               <h1 id="admin-access-title">Acesso restrito</h1>
