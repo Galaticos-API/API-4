@@ -129,3 +129,8 @@ consulta e valida as fontes persistidas antes de reexibir o histórico.
 ## 027 — Origem das mensagens do chat
 
 `027_chat_message_origin.sql` persiste a classificação da resposta do assistente (`assistente`, `busca_textual` ou `sem_resultado`) para restaurar o estado visual ao reabrir conversas. Mensagens antigas ficam sem origem quando ela não pode ser reconstruída com segurança. Evidências literais já validadas são guardadas junto das fontes em `fontes_json`, associadas aos IDs dos chunks citados e protegidas pelo escopo de projeto da conversa.
+
+## 028 — Perfis profissionais e vínculo único de desenvolvedor (S3-08)
+
+`028_developer_profiles.sql` adiciona `nome` e `updated_at` em `desenvolvedor`, permite cadastrar perfis antes ou com vínculo a `usuario`, sincroniza o nome a partir do usuário vinculado quando omitido e cria o índice único `uq_desenvolvedor_usuario_id` para impedir perfis duplicados para o mesmo usuário (`PBI-05.1.1`). Também indexa `competencia` e `alocacao` por desenvolvedor para suportar a consulta consolidada de perfil (`PBI-05.1.4`) sem armazenar dados pessoais fora do propósito profissional.
+

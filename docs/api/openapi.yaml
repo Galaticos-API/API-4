@@ -3582,14 +3582,139 @@ paths:
 
   /api/v1/developers:
     get:
-      summary: Desenvolvedores, tecnologias e competências
+      summary: Desenvolvedores, tecnologias e competências (S3-08)
+      description: Retorna os perfis profissionais cadastrados (sem dados pessoais fora do propósito), catálogo de tecnologias e competências.
       operationId: listDevelopers
       security: [{cookieAuth: []}]
       responses:
         '200':
-          description: Mapeamento de competências
+          description: Mapeamento de perfis profissionais e competências
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DevelopersOverview'
         '401':
           $ref: '#/components/responses/Unauthorized'
+    post:
+      summary: Cadastra um perfil profissional de desenvolvedor e/ou vincula a um usuário (S3-08 / PBI-05.1.1)
+      description: >
+        Cria o perfil profissional restrito a informações de natureza profissional (nome, senioridade,
+        resumo profissional e vínculo único com usuário da plataforma). Qualquer campo pessoal fora do
+        propósito (CPF, RG, telefone, endereço, data de nascimento, salário etc.) é rejeitado com 400.
+        Se já existir perfil para o mesmo usuário, retorna 409 indicando o perfil existente.
+      operationId: createDeveloperProfile
+      security: [{cookieAuth: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateDeveloperRequest'
+      responses:
+        '201':
+          description: Perfil profissional criado com sucesso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeveloperProfile'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Somente PO ou administrador podem cadastrar perfis profissionais
+        '404':
+          description: Usuário informado para vínculo não encontrado ou inativo
+        '409':
+          description: Já existe perfil profissional para o usuário informado (retorna existing_profile)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/v1/developers/users:
+    get:
+      summary: Lista usuários ativos da plataforma para vínculo único com perfil profissional (S3-08)
+      description: Retorna apenas dados institucionais necessários para o vínculo (id, nome, role e perfil_id existente), sem dados pessoais sensíveis.
+      operationId: listLinkableDeveloperUsers
+      security: [{cookieAuth: []}]
+      responses:
+        '200':
+          description: Lista de usuários ativos e status de vínculo
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/LinkablePlatformUser'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Somente PO ou administrador
+
+  /api/v1/developers/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      summary: Consulta o perfil profissional consolidado de um desenvolvedor (S3-08 / PBI-05.1.4)
+      description: >
+        Retorna os dados profissionais do desenvolvedor, suas competências técnicas com nível e evidência,
+        suas alocações e o histórico consolidado de atuação nos projetos autorizados ao usuário autenticado.
+      operationId: getDeveloperConsolidatedProfile
+      security: [{cookieAuth: []}]
+      responses:
+        '200':
+          description: Perfil profissional consolidado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeveloperConsolidatedProfile'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Perfil profissional não encontrado
+    patch:
+      summary: Atualiza dados profissionais ou vínculo único de um desenvolvedor (S3-08 / PBI-05.1.1)
+      operationId: updateDeveloperProfile
+      security: [{cookieAuth: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateDeveloperRequest'
+      responses:
+        '200':
+          description: Perfil profissional atualizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeveloperProfile'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Somente PO ou administrador podem editar perfis profissionais
+        '404':
+          description: Perfil ou usuário vinculado não encontrado
+        '409':
+          description: O usuário informado já está vinculado a outro perfil profissional (retorna existing_profile)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
 
   /api/v1/admin/stats:
     get:
@@ -5753,6 +5878,171 @@ components:
           required: [latency_ms]
           properties:
             latency_ms: {type: integer, minimum: 0}
+
+    CreateDeveloperRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        nome:
+          type: string
+          minLength: 2
+          maxLength: 255
+        usuario_id:
+          type: string
+          format: uuid
+          nullable: true
+        senioridade:
+          type: string
+          enum: [Junior, Pleno, Senior, Especialista, Tech Lead]
+          nullable: true
+        bio:
+          type: string
+          maxLength: 2000
+          nullable: true
+
+    UpdateDeveloperRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        nome:
+          type: string
+          minLength: 2
+          maxLength: 255
+        usuario_id:
+          type: string
+          format: uuid
+          nullable: true
+        senioridade:
+          type: string
+          enum: [Junior, Pleno, Senior, Especialista, Tech Lead]
+          nullable: true
+        bio:
+          type: string
+          maxLength: 2000
+          nullable: true
+
+    LinkablePlatformUser:
+      type: object
+      required: [id, nome, role, perfil_id]
+      properties:
+        id: {type: string, format: uuid}
+        nome: {type: string}
+        role: {type: string, enum: [admin, po, dev]}
+        perfil_id: {type: string, format: uuid, nullable: true}
+
+    DeveloperProfile:
+      type: object
+      required: [id, nome, senioridade, bio, usuario_id, usuario_nome, role, competencias_count, alocacoes_count, created_at, updated_at]
+      properties:
+        id: {type: string, format: uuid}
+        nome: {type: string}
+        senioridade: {type: string, nullable: true}
+        bio: {type: string, nullable: true}
+        usuario_id: {type: string, format: uuid, nullable: true}
+        usuario_nome: {type: string, nullable: true}
+        role: {type: string, enum: [admin, po, dev], nullable: true}
+        competencias_count: {type: integer, minimum: 0}
+        alocacoes_count: {type: integer, minimum: 0}
+        created_at: {type: string, format: date-time}
+        updated_at: {type: string, format: date-time}
+
+    DeveloperConsolidatedProfile:
+      type: object
+      required: [id, nome, senioridade, bio, usuario_id, usuario_nome, role, created_at, updated_at, competencias, alocacoes, historico_consolidado]
+      properties:
+        id: {type: string, format: uuid}
+        nome: {type: string}
+        senioridade: {type: string, nullable: true}
+        bio: {type: string, nullable: true}
+        usuario_id: {type: string, format: uuid, nullable: true}
+        usuario_nome: {type: string, nullable: true}
+        role: {type: string, enum: [admin, po, dev], nullable: true}
+        created_at: {type: string, format: date-time}
+        updated_at: {type: string, format: date-time}
+        competencias:
+          type: array
+          items:
+            type: object
+            required: [id, desenvolvedor_id, tecnologia_id, nivel, evidencia, tecnologia_nome]
+            properties:
+              id: {type: string, format: uuid}
+              desenvolvedor_id: {type: string, format: uuid}
+              tecnologia_id: {type: string, format: uuid}
+              nivel: {type: string, nullable: true}
+              evidencia: {type: string, nullable: true}
+              tecnologia_nome: {type: string}
+              tecnologia_categoria: {type: string, nullable: true}
+        alocacoes:
+          type: array
+          items:
+            type: object
+            required: [id, desenvolvedor_id, projeto_id, projeto_nome, projeto_status, papel, data_inicio, data_fim, em_andamento]
+            properties:
+              id: {type: string, format: uuid}
+              desenvolvedor_id: {type: string, format: uuid}
+              projeto_id: {type: string, format: uuid}
+              projeto_nome: {type: string}
+              projeto_status: {type: string}
+              papel: {type: string, nullable: true}
+              data_inicio: {type: string, format: date-time}
+              data_fim: {type: string, format: date-time, nullable: true}
+              em_andamento: {type: boolean}
+        historico_consolidado:
+          type: array
+          items:
+            type: object
+            required: [projeto_id, projeto_nome, projeto_descricao, projeto_status, papeis, primeira_alocacao, ultima_alocacao, em_andamento, tecnologias]
+            properties:
+              projeto_id: {type: string, format: uuid}
+              projeto_nome: {type: string}
+              projeto_descricao: {type: string, nullable: true}
+              projeto_status: {type: string}
+              papeis:
+                type: array
+                items: {type: string}
+              primeira_alocacao: {type: string, format: date-time}
+              ultima_alocacao: {type: string, format: date-time, nullable: true}
+              em_andamento: {type: boolean}
+              tecnologias:
+                type: array
+                items:
+                  type: object
+                  required: [id, nome, categoria]
+                  properties:
+                    id: {type: string, format: uuid}
+                    nome: {type: string}
+                    categoria: {type: string, nullable: true}
+
+    DevelopersOverview:
+      type: object
+      required: [desenvolvedores, tecnologias, competencias]
+      properties:
+        desenvolvedores:
+          type: array
+          items:
+            $ref: '#/components/schemas/DeveloperProfile'
+        tecnologias:
+          type: array
+          items:
+            type: object
+            required: [id, nome, categoria]
+            properties:
+              id: {type: string, format: uuid}
+              nome: {type: string}
+              categoria: {type: string, nullable: true}
+        competencias:
+          type: array
+          items:
+            type: object
+            required: [id, desenvolvedor_id, tecnologia_id, nivel, evidencia, tecnologia_nome]
+            properties:
+              id: {type: string, format: uuid}
+              desenvolvedor_id: {type: string, format: uuid}
+              tecnologia_id: {type: string, format: uuid}
+              nivel: {type: string, nullable: true}
+              evidencia: {type: string, nullable: true}
+              tecnologia_nome: {type: string}
+              tecnologia_categoria: {type: string, nullable: true}
 
     Error:
       type: object
