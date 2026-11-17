@@ -1213,3 +1213,124 @@ it('mantém a renomeação modal ao passar do celular ao desktop e libera a rola
   expect(screen.queryByRole('dialog',{name:'Renomear conversa'})).toBeNull();
   expect(document.body.style.overflow).toBe('');
 });
+
+it('mantém o escopo ativo visível ao recolher o histórico',async()=>{
+  vi.mocked(listConversations).mockResolvedValue([]);
+  vi.mocked(listChatProjects).mockResolvedValue([{id:'project-a',nome:'Projeto A'}]);
+  render(<ChatView/>);
+  await screen.findByRole('option',{name:'Projeto A'});
+  const scope=screen.getByRole('status',{name:'Escopo ativo'});
+  expect(scope).toHaveTextContent('Todos os projetos permitidos');
+  fireEvent.change(screen.getByLabelText('Escopo da consulta'),{target:{value:'projeto:project-a'}});
+  fireEvent.click(screen.getByRole('button',{name:'Recolher navegação de conversas'}));
+  expect(scope).toBeVisible();
+  expect(scope).toHaveTextContent('Projeto A');
+});
+
+it('mostra chunks validados em um placeholder e os substitui pela resposta canônica com fontes', async () => {
+  let finish!:(answer:ChatAnswer)=>void;
+  let onChunk!:(sequence:number,text:string)=>void;
+  vi.mocked(listConversations).mockResolvedValue([]);
+  vi.mocked(listChatProjects).mockResolvedValue([{id:'project-a',nome:'Projeto A'}]);
+  vi.mocked(askQuestion).mockImplementation((_input,_signal,_progress,_conversation,_timing,_persisted,chunk)=>{
+    onChunk=chunk!;
+    return new Promise(resolve=>{finish=resolve;});
+  });
+  render(<ChatView/>);
+  await screen.findByRole('option',{name:'Projeto A'});
+  fireEvent.change(screen.getByLabelText('Escopo da consulta'),{target:{value:'projeto:project-a'}});
+  fireEvent.change(screen.getByRole('textbox'),{target:{value:'Pergunta com evidências'}});
+  fireEvent.click(screen.getByRole('button',{name:'Enviar'}));
+  act(()=>onChunk(1,'Excerto validado. '));
+  expect(screen.getByText('Excerto validado.')).toBeInTheDocument();
+  expect(screen.getByText(/Trechos de evidência validados/)).toBeInTheDocument();
+  expect(screen.queryByRole('button',{name:/Fontes e evidências/})).toBeNull();
+  await act(async()=>{
+    onChunk(2,'Mais um excerto.');
+    finish({conversa_id:'conversation-a',resposta:'Resposta final canônica.',fontes:[{id:'source-1',titulo:'Documento',tipo:'documento'}],origem:'assistente'});
+  });
+  expect(await screen.findByText('Resposta final canônica.')).toBeInTheDocument();
+  expect(screen.queryByText(/Excerto validado/)).toBeNull();
+  expect(screen.getByRole('button',{name:/Fontes e evidências/})).toBeInTheDocument();
+});
+
+it('preserva chunks recebidos ao interromper e pausa a fila sem declarar resposta concluída', async () => {
+  let onChunk!:(sequence:number,text:string)=>void;
+  vi.mocked(listConversations).mockResolvedValue([]);
+  vi.mocked(listChatProjects).mockResolvedValue([{id:'project-a',nome:'Projeto A'}]);
+  vi.mocked(askQuestion).mockImplementation((_input,_signal,_progress,_conversation,_timing,_persisted,chunk)=>{
+    onChunk=chunk!;
+    return new Promise((_resolve,reject)=>_signal?.addEventListener('abort',()=>reject(new DOMException('interrompida','AbortError')),{once:true}));
+  });
+  render(<ChatView/>);
+  await screen.findByRole('option',{name:'Projeto A'});
+  fireEvent.change(screen.getByLabelText('Escopo da consulta'),{target:{value:'projeto:project-a'}});
+  fireEvent.change(screen.getByRole('textbox'),{target:{value:'Pergunta interrompida'}});
+  fireEvent.click(screen.getByRole('button',{name:'Enviar'}));
+  fireEvent.change(screen.getByRole('textbox'),{target:{value:'Pergunta seguinte na fila'}});
+  fireEvent.keyDown(screen.getByRole('textbox'),{key:'Enter',code:'Enter',charCode:13});
+  act(()=>onChunk(1,'Trecho parcial preservado.'));
+  fireEvent.click(await screen.findByRole('button',{name:'Interromper consulta'}));
+  expect(await screen.findByText(/Trechos parciais, resposta incompleta e sem fontes finais/)).toBeInTheDocument();
+  expect(screen.getByText('Trecho parcial preservado.')).toBeInTheDocument();
+  expect(screen.getByRole('button',{name:'Tentar novamente'})).toBeInTheDocument();
+  expect(screen.queryByRole('button',{name:/Fontes e evidências/})).toBeNull();
+  expect(screen.getByRole('region',{name:'Fila de mensagens'})).toHaveTextContent('Pergunta seguinte na fila');
+  expect(screen.getByText('Fila pausada')).toBeInTheDocument();
+  expect(askQuestion).toHaveBeenCalledTimes(1);
+});
+
+it('ignora chunks atrasados depois que o usuário troca de conversa', async () => {
+  let onChunk!:(sequence:number,text:string)=>void;
+  let finish!:(answer:ChatAnswer)=>void;
+  vi.mocked(listConversations).mockResolvedValue([
+    {id:'conversation-a',titulo:'Conversa A',projeto_id:'project-a',projeto_nome:'Projeto A',updated_at:''},
+    {id:'conversation-b',titulo:'Conversa B',projeto_id:'project-a',projeto_nome:'Projeto A',updated_at:''},
+  ]);
+  vi.mocked(listMessages).mockResolvedValue([]);
+  vi.mocked(listChatProjects).mockResolvedValue([{id:'project-a',nome:'Projeto A'}]);
+  vi.mocked(askQuestion).mockImplementation((_input,_signal,_progress,_conversation,_timing,_persisted,chunk)=>{
+    onChunk=chunk!;
+    return new Promise(resolve=>{finish=resolve;});
+  });
+  render(<ChatView/>);
+  await screen.findByRole('heading',{name:'Conversa A'});
+  fireEvent.change(screen.getByRole('textbox'),{target:{value:'Pergunta da conversa A'}});
+  fireEvent.click(screen.getByRole('button',{name:'Enviar'}));
+  act(()=>onChunk(1,'Trecho da conversa A'));
+  fireEvent.click(screen.getByText('Conversa B'));
+  await screen.findByRole('heading',{name:'Conversa B'});
+  act(()=>onChunk(2,'Chunk atrasado não deve vazar'));
+  await act(async()=>finish({conversa_id:'conversation-a',resposta:'Resposta atrasada',fontes:[],origem:'assistente'}));
+  expect(screen.queryByText('Trecho da conversa A')).toBeNull();
+  expect(screen.queryByText('Chunk atrasado não deve vazar')).toBeNull();
+  expect(screen.queryByText('Resposta atrasada')).toBeNull();
+  expect(screen.getByRole('heading',{name:'Conversa B'})).toBeInTheDocument();
+});
+
+it('usa o ID persistido pelo SSE ao tentar novamente uma pergunta otimista',async()=>{
+  const persistedId='40000000-0000-4000-8000-000000000001';
+  let retryInput:Parameters<typeof askQuestion>[0]|undefined;
+  vi.mocked(listConversations).mockResolvedValue([]);
+  vi.mocked(listChatProjects).mockResolvedValue([{id:'project-a',nome:'Projeto A'}]);
+  vi.mocked(askQuestion)
+    .mockImplementationOnce(async(_input,_signal,_progress,_conversation,_timing,onMessagePersisted,onEvidenceChunk)=>{
+      onEvidenceChunk?.(1,'Trecho parcial recuperável');
+      onMessagePersisted?.(persistedId);
+      throw new Error('Falha de rede após persistência');
+    })
+    .mockImplementationOnce(async(input)=>{
+      retryInput=input;
+      return {conversa_id:'conversation-a',resposta:'Resposta após retry',fontes:[],origem:'assistente'};
+    });
+  render(<ChatView/>);
+  await screen.findByRole('option',{name:'Projeto A'});
+  fireEvent.change(screen.getByLabelText('Escopo da consulta'),{target:{value:'projeto:project-a'}});
+  fireEvent.change(screen.getByRole('textbox'),{target:{value:'Pergunta recuperável'}});
+  fireEvent.click(screen.getByRole('button',{name:'Enviar'}));
+  const retry=await screen.findByRole('button',{name:'Tentar novamente'});
+  expect(screen.getByText('Trecho parcial recuperável')).toBeInTheDocument();
+  fireEvent.click(retry);
+  expect(await screen.findByText('Resposta após retry')).toBeInTheDocument();
+  expect(retryInput).toMatchObject({pergunta:'Pergunta recuperável',mensagemId:persistedId});
+});
