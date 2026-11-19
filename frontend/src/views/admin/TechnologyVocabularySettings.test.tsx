@@ -1,5 +1,6 @@
 import { afterEach, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { StrictMode } from "react";
 import { TechnologyVocabularySettings } from "./TechnologyVocabularySettings";
 import {
   TechnologyExistsError,
@@ -53,6 +54,18 @@ it("inclui tecnologia nova com categoria", async () => {
   fireEvent.click(screen.getByRole("button", { name: "Incluir tecnologia" }));
   expect(await screen.findByText("Kafka")).toBeTruthy();
   expect(createTechnology).toHaveBeenCalledWith({ nome: "Kafka", categoria: "backend" });
+});
+
+it("continua atualizando a interface em StrictMode após o ciclo de montagem", async () => {
+  vi.mocked(listVocabulary).mockResolvedValue([node]);
+  const kafka: Technology = { id: "t-kafka", nome: "Kafka", categoria: "backend", uso: { competencias: 0, itens: 0, total: 0 } };
+  vi.mocked(createTechnology).mockResolvedValue(kafka);
+  render(<StrictMode><TechnologyVocabularySettings /></StrictMode>);
+  await screen.findByText("Node.js");
+  fireEvent.change(screen.getByLabelText("Nome da tecnologia"), { target: { value: "Kafka" } });
+  fireEvent.click(screen.getByRole("button", { name: "Incluir tecnologia" }));
+  expect(await screen.findByText(/incluída no vocabulário/)).toBeTruthy();
+  expect(screen.getByText("Kafka")).toBeTruthy();
 });
 
 it("exige confirmação explícita com a quantidade informada pelo servidor antes de remover", async () => {

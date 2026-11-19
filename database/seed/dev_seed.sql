@@ -25,7 +25,9 @@ VALUES
   ('20000000-0000-4000-8000-000000000006', 'Ollama / Qwen2.5', 'ai'),
   ('20000000-0000-4000-8000-000000000007', 'Docker', 'devops'),
   ('20000000-0000-4000-8000-000000000008', 'Vite', 'frontend')
-ON CONFLICT (nome) DO NOTHING;
+-- O índice de unicidade usa a grafia normalizada; inferência por (nome) não o atende.
+-- Em seed idempotente, ignoramos qualquer conflito e resolvemos referências pelo nome normalizado.
+ON CONFLICT DO NOTHING;
 
 -- 3. Desenvolvedores e Competências
 INSERT INTO desenvolvedor (id, usuario_id, senioridade, bio)
@@ -40,8 +42,10 @@ FROM (VALUES
   ('31000000-0000-4000-8000-000000000002'::uuid, '30000000-0000-4000-8000-000000000001'::uuid, 'PostgreSQL', 'avancado', 'Modelagem relacional e vetorial com PostgreSQL e pgvector'),
   ('31000000-0000-4000-8000-000000000003'::uuid, '30000000-0000-4000-8000-000000000001'::uuid, 'Ollama / Qwen2.5', 'intermediario', 'Integração de embeddings bge-m3 e inferência local via Ollama')
 ) AS seed(id, desenvolvedor_id, tecnologia_nome, nivel, evidencia)
-JOIN tecnologia ON tecnologia.nome = seed.tecnologia_nome
-ON CONFLICT (id) DO NOTHING;
+JOIN tecnologia ON normalizar_nome_tecnologia(tecnologia.nome) = normalizar_nome_tecnologia(seed.tecnologia_nome)
+-- A migração 030 unifica IDs e instala uma chave natural por perfil/tecnologia.
+-- O UUID histórico pode ter sido descartado; ignorar conflitos de qualquer chave mantém o seed repetível.
+ON CONFLICT DO NOTHING;
 
 -- 4. Projetos no Acervo
 INSERT INTO projeto (id, nome, cliente, descricao, status)
@@ -104,8 +108,8 @@ FROM (VALUES
   ('21000000-0000-4000-8000-000000000003'::uuid, 'pbi', '70000000-0000-4000-8000-000000000002'::uuid, 'pgvector'),
   ('21000000-0000-4000-8000-000000000004'::uuid, 'pbi', '70000000-0000-4000-8000-000000000002'::uuid, 'Ollama / Qwen2.5')
 ) AS seed(id, entidade_tipo, entidade_id, tecnologia_nome)
-JOIN tecnologia ON tecnologia.nome = seed.tecnologia_nome
-ON CONFLICT (id) DO NOTHING;
+JOIN tecnologia ON normalizar_nome_tecnologia(tecnologia.nome) = normalizar_nome_tecnologia(seed.tecnologia_nome)
+ON CONFLICT DO NOTHING;
 
 -- 11. Decisões Arquiteturais
 INSERT INTO decisao (id, entidade_tipo, entidade_id, titulo, decisao, contexto, justificativa, alternativas, autor_id)
@@ -166,3 +170,4 @@ O repositório implementa uma arquitetura conteinerizada com React 19, Node.js E
 ON CONFLICT (id) DO NOTHING;
 
 COMMIT;
+

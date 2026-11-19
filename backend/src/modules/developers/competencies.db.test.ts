@@ -45,6 +45,14 @@ test("S3-09: migration unifica competências repetidas e repositório exige voca
     assert.equal(ts.nivel, "especialista");
     assert.deepEqual(ts.evidencia?.split("\n").sort(), ["Projeto Atlas", "Projeto Boreal"]);
     assert.equal(rows.rows.find((row) => row.tecnologia_id === ids.pg)?.nivel, "intermediario");
+    // O seed pode repetir um UUID histórico já removido pela deduplicação, mas a
+    // chave natural já existe. O conflito sem alvo precisa ser ignorado com segurança.
+    await client.query(
+      `INSERT INTO competencia (id, desenvolvedor_id, tecnologia_id, nivel, evidencia)
+       VALUES ($1, $2, $3, 'especialista', 'seed') ON CONFLICT DO NOTHING`,
+      [randomUUID(), ids.dev, ids.ts],
+    );
+    assert.equal((await client.query("SELECT id FROM competencia WHERE desenvolvedor_id=$1 AND tecnologia_id=$2", [ids.dev, ids.ts])).rowCount, 1);
     await assert.rejects(
       () => client.query("INSERT INTO competencia (desenvolvedor_id, tecnologia_id, nivel) VALUES ($1,$2,'avancado')", [ids.dev, ids.ts]),
       (error: { code?: string }) => error.code === "23505",
