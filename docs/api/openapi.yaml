@@ -841,13 +841,21 @@ paths:
 
   /api/v1/technologies:
     get:
-      summary: Lista o catálogo de tecnologias para associação ao backlog
+      summary: Lista o vocabulário controlado de tecnologias (PBI-06.2.2 / S3-14)
       operationId: listTechnologies
+      description: Disponível a qualquer usuário autenticado. O filtro `q` compara o nome normalizado (sem acentos, pontuação e espaços), então "nodejs" encontra "Node.js".
       security:
         - cookieAuth: []
+      parameters:
+        - in: query
+          name: q
+          required: false
+          schema:
+            type: string
+            maxLength: 100
       responses:
         '200':
-          description: Catálogo ordenado sem dados pessoais de desenvolvedores
+          description: Vocabulário ordenado por nome, com a quantidade de associações de cada tecnologia
           content:
             application/json:
               schema:
@@ -857,9 +865,137 @@ paths:
                   items:
                     type: array
                     items:
-                      $ref: '#/components/schemas/TechnologyOption'
+                      $ref: '#/components/schemas/Technology'
         '401':
           $ref: '#/components/responses/Unauthorized'
+    post:
+      summary: Inclui uma tecnologia no vocabulário (PBI-06.2.2 cenário 2 / PBI-05.1.2 cenário 3)
+      operationId: createTechnology
+      description: Perfis admin e po. A unicidade é garantida pelo nome normalizado; uma variação de escrita retorna 409 com o registro existente. Registra autor e data na auditoria.
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TechnologyInput'
+      responses:
+        '201':
+          description: Tecnologia incluída
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Technology'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Perfil sem permissão
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Já existe tecnologia com a mesma grafia normalizada (code TECHNOLOGY_EXISTS, details.existente)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/v1/technologies/{id}:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+          format: uuid
+    patch:
+      summary: Altera nome ou categoria de uma tecnologia (somente admin)
+      operationId: updateTechnology
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              minProperties: 1
+              properties:
+                nome:
+                  type: string
+                  maxLength: 100
+                categoria:
+                  $ref: '#/components/schemas/TechnologyCategory'
+      responses:
+        '200':
+          description: Tecnologia alterada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Technology'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Tecnologia não encontrada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: O novo nome colide com outra tecnologia (code TECHNOLOGY_EXISTS)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    delete:
+      summary: Remove uma tecnologia, exigindo confirmação das associações existentes (somente admin)
+      operationId: removeTechnology
+      description: Sem associações, remove direto. Com associações, responde 409 TECHNOLOGY_IN_USE com a contagem atual até que `confirmar_associacoes` seja exatamente o total informado; competências e classificações de itens são removidas junto e os itens são reindexados.
+      security:
+        - cookieAuth: []
+      parameters:
+        - in: query
+          name: confirmar_associacoes
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+      responses:
+        '200':
+          description: Tecnologia removida
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [removida, associacoes_removidas]
+                properties:
+                  removida:
+                    type: boolean
+                  associacoes_removidas:
+                    $ref: '#/components/schemas/TechnologyUsage'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Tecnologia não encontrada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Tecnologia em uso sem confirmação válida (code TECHNOLOGY_IN_USE, details.uso)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
 
   /api/v1/epics:
     post:
@@ -4471,6 +4607,48 @@ components:
           type: string
           format: date-time
 
+
+    TechnologyCategory:
+      type: string
+      enum: [frontend, backend, database, ai, cloud, devops, mobile, outros]
+
+    TechnologyUsage:
+      type: object
+      required: [competencias, itens, total]
+      properties:
+        competencias:
+          type: integer
+        itens:
+          type: integer
+        total:
+          type: integer
+
+    Technology:
+      type: object
+      required: [id, nome, categoria, uso]
+      properties:
+        id:
+          type: string
+          format: uuid
+        nome:
+          type: string
+        categoria:
+          type: string
+          nullable: true
+        uso:
+          $ref: '#/components/schemas/TechnologyUsage'
+
+    TechnologyInput:
+      type: object
+      additionalProperties: false
+      required: [nome, categoria]
+      properties:
+        nome:
+          type: string
+          minLength: 1
+          maxLength: 100
+        categoria:
+          $ref: '#/components/schemas/TechnologyCategory'
 
     TechnologyOption:
       type: object
