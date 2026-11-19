@@ -43,7 +43,9 @@ FROM (VALUES
   ('31000000-0000-4000-8000-000000000003'::uuid, '30000000-0000-4000-8000-000000000001'::uuid, 'Ollama / Qwen2.5', 'intermediario', 'Integração de embeddings bge-m3 e inferência local via Ollama')
 ) AS seed(id, desenvolvedor_id, tecnologia_nome, nivel, evidencia)
 JOIN tecnologia ON normalizar_nome_tecnologia(tecnologia.nome) = normalizar_nome_tecnologia(seed.tecnologia_nome)
-ON CONFLICT (desenvolvedor_id, tecnologia_id) DO NOTHING;
+-- A migração 030 unifica IDs e instala uma chave natural por perfil/tecnologia.
+-- O UUID histórico pode ter sido descartado; ignorar conflitos de qualquer chave mantém o seed repetível.
+ON CONFLICT DO NOTHING;
 
 -- 4. Projetos no Acervo
 INSERT INTO projeto (id, nome, cliente, descricao, status)
@@ -168,3 +170,4 @@ O repositório implementa uma arquitetura conteinerizada com React 19, Node.js E
 ON CONFLICT (id) DO NOTHING;
 
 COMMIT;
+
