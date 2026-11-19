@@ -21,7 +21,7 @@ test("chat project readiness reports index states and only projects the user can
     for (let index = 0; index < projects.length; index++) {
       await db.query("INSERT INTO projeto(id,nome,cliente,status) VALUES($1,$2,'QA','ativo')", [projects[index], `QA readiness ${index}`]);
     }
-    await db.query("INSERT INTO alocacao(desenvolvedor_id,projeto_id,data_inicio) VALUES($1,$2,CURRENT_TIMESTAMP-INTERVAL '1 day')", [developerProfile, projects[0]]);
+    await db.query("INSERT INTO alocacao(desenvolvedor_id,projeto_id,papel,data_inicio) VALUES($1,$2,'QA',CURRENT_TIMESTAMP-INTERVAL '1 day')", [developerProfile, projects[0]]);
 
     const statuses = ["processado", "pendente", "falha", "processado"];
     for (let index = 0; index < statuses.length; index++) {

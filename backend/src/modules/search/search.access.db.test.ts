@@ -42,7 +42,7 @@ test("Busca e leituras relacionadas respeitam o acesso ao projeto", { skip: !pro
         await db.query("INSERT INTO desenvolvedor(id,usuario_id) VALUES ($1,$2)", [developer, user]);
         const start = i === 5 ? new Date(Date.now() + 86400000) : new Date(Date.now() - 86400000);
         const end = i === 4 ? new Date(Date.now() - 1000) : null;
-        await db.query("INSERT INTO alocacao(desenvolvedor_id,projeto_id,data_inicio,data_fim) VALUES ($1,$2,$3,$4)",
+        await db.query("INSERT INTO alocacao(desenvolvedor_id,projeto_id,papel,data_inicio,data_fim) VALUES ($1,$2,'QA',$3,$4)",
           [developer, i === 3 ? projectA : projectB, start, end]);
       }
       tokens.push((await sessionService.createSession(user)).token);

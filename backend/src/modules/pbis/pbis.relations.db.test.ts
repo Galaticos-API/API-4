@@ -22,7 +22,7 @@ test("Relações: isolamento, arquivamento e ciclos longos", { skip: !process.en
       await db.query("INSERT INTO feature(id,epico_id,titulo) VALUES ($1,$2,'QA')", [feature, epic]);
     }
     await db.query("INSERT INTO desenvolvedor(id,usuario_id) VALUES ($1,$2)", [developer, dev]);
-    await db.query("INSERT INTO alocacao(desenvolvedor_id,projeto_id,data_inicio) VALUES ($1,$2,CURRENT_TIMESTAMP - INTERVAL '1 day')", [developer, projectA]);
+    await db.query("INSERT INTO alocacao(desenvolvedor_id,projeto_id,papel,data_inicio) VALUES ($1,$2,'QA',CURRENT_TIMESTAMP - INTERVAL '1 day')", [developer, projectA]);
     for (const [i, id] of ids.entries()) {
       await db.query("INSERT INTO pbi(id,feature_id,codigo,titulo,historia_como_um,historia_eu_quero,historia_para_que) VALUES ($1,$2,$3,'Consultar dados','PO','Consultar','Validar')",
         [id, i === 52 ? featureB : featureA, id]);
@@ -32,7 +32,7 @@ test("Relações: isolamento, arquivamento e ciclos longos", { skip: !process.en
       await repo.createRelation(ids[0]!, ids[1]!, "similar_a", po!);
       assert.equal((await repo.listRelations(ids[0]!, po!)).length, 2);
       assert.deepEqual((await repo.listRelations(ids[0]!, dev!)).map(r => r.relacionado_id), [ids[1]]);
-      await db.query("INSERT INTO alocacao(desenvolvedor_id,projeto_id,data_inicio) VALUES ($1,$2,CURRENT_TIMESTAMP - INTERVAL '1 day')", [developer, projectB]);
+      await db.query("INSERT INTO alocacao(desenvolvedor_id,projeto_id,papel,data_inicio) VALUES ($1,$2,'QA',CURRENT_TIMESTAMP - INTERVAL '1 day')", [developer, projectB]);
       assert.equal((await repo.listRelations(ids[0]!, dev!)).length, 2);
       await db.query("UPDATE alocacao SET data_fim=CURRENT_TIMESTAMP - INTERVAL '1 second' WHERE projeto_id=$1", [projectB]);
       assert.equal((await repo.listRelations(ids[0]!, dev!)).length, 1);

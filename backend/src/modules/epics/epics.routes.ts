@@ -3,6 +3,7 @@ import { Router } from "express";
 import { EpicsController } from "./epics.controller.js";
 import { EpicsService, epicsService } from "./epics.service.js";
 import { requireRole } from "../../middleware/requireRole.js";
+import { backlogExportHandlers } from "../export/backlog-export.controller.js";
 
 export function createEpicsRouter(service: EpicsService = epicsService) {
 const epicsRouter = Router();
@@ -324,6 +325,36 @@ epicsRouter.patch("/:id", canWrite, epicsController.update);
  *         description: Épico não encontrado
  */
 epicsRouter.patch("/:id/complete", canWrite, epicsController.complete);
+/**
+ * @swagger
+ * /api/v1/epics/{id}/export/markdown:
+ *   get:
+ *     summary: Exportar o épico, suas features e seus PBIs em Markdown no formato do guia (S3-15)
+ *     tags: [Epics]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *     responses:
+ *       200:
+ *         description: Arquivo Markdown para download
+ *         content:
+ *           text/markdown:
+ *             schema:
+ *               type: string
+ *       401:
+ *         description: Não autenticado
+ *       404:
+ *         description: Épico não encontrado ou sem acesso ao projeto
+ *       409:
+ *         description: Épico ou projeto arquivado
+ */
+epicsRouter.get("/:id/export/markdown", backlogExportHandlers.epic);
 const archive = archiveHandlers("epico");
 epicsRouter.get("/:id/archive-impact", canWrite, archive.impact);
 epicsRouter.patch("/:id/archive", canWrite, archive.archive);

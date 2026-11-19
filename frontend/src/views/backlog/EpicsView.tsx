@@ -16,6 +16,7 @@ import { BacklogBreadcrumb } from "./BacklogBreadcrumb";
 import { BacklogTechnologySelector } from "./BacklogTechnologySelector";
 import { CriteriaEditor } from "./CriteriaView";
 import { ItemArchiveView } from "./ItemArchiveView";
+import { ExportMarkdownButton } from "./ExportMarkdownButton";
 import { reuseAfterCreate, SimilarItemsPanel, SimilarSelection } from "./SimilarItemsPanel";
 import type { SimilarItem } from "../../api/api_similar_items";
 
@@ -193,7 +194,10 @@ export function EpicDetail({ projectId, epicId, canEdit, children }: { projectId
       />
       <div className="projects-heading">
         <div><p className="projects-eyebrow">Épico</p><h2>{epic.titulo} <ProvenanceBadge provenance={epic.provenance_json} field="titulo" /></h2></div>
-        <Button variant="secondary" onClick={() => { if (confirmLeave()) navigate(`/projects/${projectId}`); }}>Voltar ao projeto</Button>
+        <div className="project-actions">
+          {!readOnly && <ExportMarkdownButton kind="epics" id={epic.id} />}
+          <Button variant="secondary" onClick={() => { if (confirmLeave()) navigate(`/projects/${projectId}`); }}>Voltar ao projeto</Button>
+        </div>
       </div>
       {readOnly && (
         <div className="ds-card ds-card--glass projects-state">

@@ -2,6 +2,7 @@ import { archiveHandlers } from "../projects/hierarchy-archive.js";
 import { Router } from "express";
 import { featuresController } from "./features.controller.js";
 import { requireRole } from "../../middleware/requireRole.js";
+import { backlogExportHandlers } from "../export/backlog-export.controller.js";
 
 export const featuresRouter = Router();
 
@@ -297,6 +298,36 @@ featuresRouter.patch("/:id", canWrite, featuresController.update);
  */
 featuresRouter.patch("/:id/complete", canWrite, featuresController.complete);
 
+/**
+ * @swagger
+ * /api/v1/features/{id}/export/markdown:
+ *   get:
+ *     summary: Exportar somente a feature e seus PBIs em Markdown no formato do guia (S3-15)
+ *     tags: [Features]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *     responses:
+ *       200:
+ *         description: Arquivo Markdown para download
+ *         content:
+ *           text/markdown:
+ *             schema:
+ *               type: string
+ *       401:
+ *         description: Não autenticado
+ *       404:
+ *         description: Feature não encontrada ou sem acesso ao projeto
+ *       409:
+ *         description: Feature, épico ou projeto arquivado
+ */
+featuresRouter.get("/:id/export/markdown", backlogExportHandlers.feature);
 const archive = archiveHandlers("feature");
 featuresRouter.get("/:id/archive-impact", canWrite, archive.impact);
 featuresRouter.patch("/:id/archive", canWrite, archive.archive);

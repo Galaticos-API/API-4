@@ -14,6 +14,6 @@ export async function testDatabase(work) {
 export async function allocateDeveloper(account, project) {
   await testDatabase(async db => {
     const developer = await db.query('INSERT INTO desenvolvedor(usuario_id) VALUES($1) RETURNING id', [account.user.id]);
-    await db.query('INSERT INTO alocacao(desenvolvedor_id,projeto_id) VALUES($1,$2)', [developer.rows[0].id, project.id]);
+    await db.query("INSERT INTO alocacao(desenvolvedor_id,projeto_id,papel) VALUES($1,$2,'QA')", [developer.rows[0].id, project.id]);
   });
 }
