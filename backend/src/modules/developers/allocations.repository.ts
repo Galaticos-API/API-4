@@ -173,11 +173,13 @@ export class AllocationsRepository {
       await client.query(
         `UPDATE alocacao
          SET papel = COALESCE($3, papel),
-             data_inicio = ${START_SQL("$4::text")},
-             data_fim = CASE WHEN $5::text IS NULL THEN NULL ELSE ${END_SQL("$5::text")} END,
+             data_inicio = CASE WHEN $6::boolean THEN ${START_SQL("$4::text")} ELSE data_inicio END,
+             data_fim = CASE WHEN $5::boolean
+               THEN CASE WHEN $7::text IS NULL THEN NULL ELSE ${END_SQL("$7::text")} END
+               ELSE data_fim END,
              updated_at = CURRENT_TIMESTAMP
          WHERE id = $1 AND desenvolvedor_id = $2`,
-        [allocationId, developerId, input.papel ?? null, start, end],
+        [allocationId, developerId, input.papel ?? null, start, input.data_fim !== undefined, input.data_inicio !== undefined, input.data_fim ?? null],
       );
       const updated = await findAllocation(client, developerId, allocationId);
       await client.query("UPDATE desenvolvedor SET updated_at = CURRENT_TIMESTAMP WHERE id = $1", [developerId]);

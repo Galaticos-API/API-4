@@ -13,7 +13,9 @@ import type { ProfessionalExperience, VocabularyTechnology } from "./team.reposi
 const PIX: VocabularyTechnology = { id: "20000000-0000-4000-8000-000000000001", nome: "PIX" };
 const NODE: VocabularyTechnology = { id: "20000000-0000-4000-8000-000000000002", nome: "Node.js" };
 const C: VocabularyTechnology = { id: "20000000-0000-4000-8000-000000000003", nome: "C" };
-const VOCABULARY = [PIX, NODE, C];
+const JAVA: VocabularyTechnology = { id: "20000000-0000-4000-8000-000000000004", nome: "Java" };
+const JAVASCRIPT: VocabularyTechnology = { id: "20000000-0000-4000-8000-000000000005", nome: "JavaScript" };
+const VOCABULARY = [PIX, NODE, C, JAVA, JAVASCRIPT];
 const PROJECT = "40000000-0000-4000-8000-000000000001";
 
 test("reconhece perguntas sobre experiência da equipe e extrai a tecnologia", () => {
@@ -23,7 +25,7 @@ test("reconhece perguntas sobre experiência da equipe e extrai a tecnologia", (
   assert.equal(teamTechnologyQuestion("quem domina   PostgreSQL aqui?"), "PostgreSQL");
   assert.equal(teamTechnologyQuestion("Quais são os especialistas em Docker?"), null);
   assert.equal(teamTechnologyQuestion("Quem são os especialistas em Docker?"), "Docker");
-  for (const other of ["Quem decidiu usar Redis?", "Qual a decisão sobre PIX?", "quem trabalhou no projeto Atlas?", "O que é PIX?"]) {
+  for (const other of ["Quem decidiu usar Redis?", "Qual a decisão sobre PIX?", "quem trabalhou no projeto Atlas?", "Quem desenvolveu o login do projeto Atlas?", "O que é PIX?"]) {
     assert.equal(teamTechnologyQuestion(other), null, other);
   }
 });
@@ -31,6 +33,9 @@ test("reconhece perguntas sobre experiência da equipe e extrai a tecnologia", (
 test("casa o termo com o vocabulário sem confundir nomes curtos", () => {
   assert.deepEqual(matchVocabulary("integração PIX", VOCABULARY), [PIX]);
   assert.deepEqual(matchVocabulary("NodeJS", VOCABULARY), [NODE]);
+  assert.deepEqual(matchVocabulary("JavaScript", VOCABULARY), [JAVASCRIPT]);
+  assert.deepEqual(matchVocabulary("Java", VOCABULARY), [JAVA]);
+  assert.deepEqual(matchVocabulary("usar JavaScript no projeto Atlas", VOCABULARY), [JAVASCRIPT]);
   assert.deepEqual(matchVocabulary("Cobol", VOCABULARY), []);
   assert.deepEqual(matchVocabulary("C", VOCABULARY), [C]);
   assert.deepEqual(matchVocabulary("Kotlin", VOCABULARY), []);
