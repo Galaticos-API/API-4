@@ -5,6 +5,7 @@ import { ApiError, apiRequest } from "../../api/api_auth";
 import { navigate } from "../../models/navigation";
 import { OrganizationQualitySettings } from './OrganizationQualitySettings';
 import { WorkDefinitionsSettings } from './WorkDefinitionsSettings';
+import { UserRolesSettings } from './UserRolesSettings';
 import { TechnologyVocabularySettings } from './TechnologyVocabularySettings';
 
 interface Stats {
@@ -157,6 +158,7 @@ export const AdminView: React.FC = () => {
         </div>
       )}
 
+      <UserRolesSettings />
       <OrganizationQualitySettings />
       <WorkDefinitionsSettings />
       <TechnologyVocabularySettings />

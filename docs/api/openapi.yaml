@@ -352,6 +352,87 @@ paths:
           description: Somente administrador
         '404':
           description: Projeto não encontrado
+  /api/v1/admin/users:
+    get:
+      operationId: listUserRoles
+      summary: Lista usuários da plataforma com o perfil de acesso vigente (S3-13 / PBI-06.2.1)
+      description: >
+        Exclusivo de administrador. Retorna nome, e-mail, perfil, situação e a última troca de
+        perfil (autor e data) lida da auditoria. Nunca expõe hash de senha.
+      security:
+        - cookieAuth: []
+      responses:
+        '200':
+          description: Usuários ordenados por nome
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [usuarios]
+                properties:
+                  usuarios:
+                    type: array
+                    items: {$ref: '#/components/schemas/PlatformUserRole'}
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Somente administrador
+  /api/v1/admin/users/{id}/role:
+    patch:
+      operationId: changeUserRole
+      summary: Atribui perfil de acesso (admin, po ou dev) a um usuário (S3-13 / PBI-06.2.1)
+      description: >
+        Exclusivo de administrador. A troca e o registro de auditoria (acao ALTERAR_PAPEL,
+        entidade_tipo usuario, autor e data, papel anterior e novo) acontecem na mesma transação.
+        As permissões passam a valer no próximo acesso do usuário: a sessão é opaca e o papel é
+        relido do banco a cada requisição autenticada e em GET /api/v1/auth/me, sem revogar a sessão.
+        Um lock transacional serializa as trocas de perfil, impedindo que pedidos simultâneos deixem
+        a plataforma sem administrador ativo. Repetir o perfil atual não altera nada nem gera auditoria.
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: {type: string, format: uuid}
+          description: ID do usuário
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/ChangeUserRoleRequest'}
+      responses:
+        '200':
+          description: Perfil atribuído (ou já vigente)
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [usuario, papel_anterior, alterado, message]
+                properties:
+                  usuario: {$ref: '#/components/schemas/PlatformUserRole'}
+                  papel_anterior: {type: string, enum: [admin, po, dev]}
+                  alterado: {type: boolean}
+                  message: {type: string}
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Somente administrador
+        '404':
+          description: Usuário não encontrado
+        '409':
+          description: Alteração bloqueada porque o usuário é o único administrador ativo (code LAST_ADMIN)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Não é possível alterar o perfil do único administrador ativo. Defina outro administrador antes de alterar este perfil.
+                  code: {type: string, enum: [LAST_ADMIN]}
   /api/v1/projects/{projectId}/ai/requests:
 
     post:
@@ -5039,6 +5120,26 @@ components:
       name: sinapse_session
 
   schemas:
+    PlatformUserRole:
+      type: object
+      required: [id, nome, email, role, ativo, created_at, papel_alterado_em, papel_alterado_por, papel_alterado_por_nome]
+      properties:
+        id: {type: string, format: uuid}
+        nome: {type: string}
+        email: {type: string, format: email}
+        role: {type: string, enum: [admin, po, dev]}
+        ativo: {type: boolean}
+        created_at: {type: string, format: date-time}
+        papel_alterado_em: {type: string, format: date-time, nullable: true, description: Data da última troca de perfil registrada na auditoria}
+        papel_alterado_por: {type: string, format: uuid, nullable: true, description: Administrador que fez a última troca}
+        papel_alterado_por_nome: {type: string, nullable: true}
+    ChangeUserRoleRequest:
+      type: object
+      additionalProperties: false
+      required: [role]
+      properties:
+        role: {type: string, enum: [admin, po, dev]}
+        justificativa: {type: string, maxLength: 2000}
     ChatProjectReadiness:
       type: object
       required: [id, nome, documentos_total, documentos_processados, documentos_pendentes, documentos_com_falha, trechos_elegiveis, trechos_com_embedding, ultimo_trecho_em, prontidao]

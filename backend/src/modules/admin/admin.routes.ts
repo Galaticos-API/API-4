@@ -2,8 +2,13 @@ import { Router, type RequestHandler } from "express";
 import { requireAuth } from "../../middleware/requireAuth.js";
 import { requireRole } from "../../middleware/requireRole.js";
 import { AdminController } from "./admin.controller.js";
+import { UserRolesController } from "./user-roles.service.js";
 
-export function createAdminRouter(controller = new AdminController(), authenticate: RequestHandler = requireAuth) {
+export function createAdminRouter(
+  controller = new AdminController(),
+  authenticate: RequestHandler = requireAuth,
+  userRoles = new UserRolesController(),
+) {
   const router = Router();
   router.use(authenticate);
   router.use(requireRole("admin"));
@@ -16,6 +21,10 @@ export function createAdminRouter(controller = new AdminController(), authentica
   router.get("/ingestion", controller.ingestionSnapshot);
   // S2-05: Expurgo transacional do contexto indexado por projeto
   router.post("/projects/:id/purge", controller.purgeProject);
+  // S3-13 / PBI-06.2.1: perfis de acesso. O papel é lido do banco a cada
+  // requisição autenticada, então a troca vale no próximo acesso do usuário.
+  router.get("/users", userRoles.list);
+  router.patch("/users/:id/role", userRoles.changeRole);
   return router;
 }
 
