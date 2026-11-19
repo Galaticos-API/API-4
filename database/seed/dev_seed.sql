@@ -170,3 +170,4 @@ O repositório implementa uma arquitetura conteinerizada com React 19, Node.js E
 ON CONFLICT (id) DO NOTHING;
 
 COMMIT;
+
