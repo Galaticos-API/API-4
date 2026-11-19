@@ -166,3 +166,37 @@ export async function removeCompetency(developerId: string, competencyId: string
     { method: "DELETE" },
   );
 }
+
+export interface AllocationInput {
+  projeto_id: string;
+  papel: string;
+  data_inicio: string;
+  data_fim: string | null;
+}
+
+export async function createAllocation(developerId: string, payload: AllocationInput): Promise<DeveloperAllocation> {
+  const res = await apiRequest(`/developers/${encodeURIComponent(developerId)}/allocations`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+  return (await res.json()) as DeveloperAllocation;
+}
+
+export async function updateAllocation(
+  developerId: string,
+  allocationId: string,
+  payload: Partial<Omit<AllocationInput, "projeto_id">>,
+): Promise<DeveloperAllocation> {
+  const res = await apiRequest(
+    `/developers/${encodeURIComponent(developerId)}/allocations/${encodeURIComponent(allocationId)}`,
+    { method: "PATCH", body: JSON.stringify(payload) },
+  );
+  return (await res.json()) as DeveloperAllocation;
+}
+
+export async function removeAllocation(developerId: string, allocationId: string): Promise<void> {
+  await apiRequest(
+    `/developers/${encodeURIComponent(developerId)}/allocations/${encodeURIComponent(allocationId)}`,
+    { method: "DELETE" },
+  );
+}

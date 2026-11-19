@@ -142,3 +142,7 @@ consulta e valida as fontes persistidas antes de reexibir o histórico.
 
 `030_competencies.sql` adiciona `updated_at`, normaliza níveis legados para `intermediario`, exige nível dentro da escala `iniciante`, `intermediario`, `avancado` e `especialista` (`ck_competencia_nivel`) e cria `uq_competencia_desenvolvedor_tecnologia`, uma competência por tecnologia em cada perfil (`PBI-05.1.2`). Repetições antigas são unificadas no registro de maior nível, juntando as evidências distintas.
 
+## 031 - Alocações com papel e período (S3-10)
+
+`031_allocations.sql` adiciona `created_at` e `updated_at`, torna `papel` e `data_inicio` obrigatórios (papéis vazios antigos viram "Integrante") e cria `ck_alocacao_periodo`, que impede término anterior ao início (`PBI-05.1.3`). A restrição é `NOT VALID`: períodos invertidos legados não são reescritos automaticamente, porque a alocação vigente define o acesso do profissional ao projeto; toda inclusão ou alteração nova é validada. O histórico consolidado (`PBI-05.2.3`) continua derivado das alocações na leitura do perfil.
+

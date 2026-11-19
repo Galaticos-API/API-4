@@ -3,11 +3,13 @@ import { requireAuth } from "../../middleware/requireAuth.js";
 import { requireRole } from "../../middleware/requireRole.js";
 import { DevelopersController } from "./developers.controller.js";
 import { CompetenciesController } from "./competencies.service.js";
+import { AllocationsController } from "./allocations.service.js";
 
 export function createDevelopersRouter(
   controller = new DevelopersController(),
   authenticate: RequestHandler = requireAuth,
   competencies = new CompetenciesController(),
+  allocations = new AllocationsController(),
 ) {
   const router = Router();
   router.use(authenticate);
@@ -25,6 +27,12 @@ export function createDevelopersRouter(
   router.post("/:id/competencies", requireRole("admin", "po"), competencies.create);
   router.patch("/:id/competencies/:competencyId", requireRole("admin", "po"), competencies.update);
   router.delete("/:id/competencies/:competencyId", requireRole("admin", "po"), competencies.remove);
+
+  // Alocações com papel e período (PBI-05.1.3). Alocação vigente concede ao usuário vinculado
+  // acesso ao projeto, por isso a escrita fica com gestores e é auditada.
+  router.post("/:id/allocations", requireRole("admin", "po"), allocations.create);
+  router.patch("/:id/allocations/:allocationId", requireRole("admin", "po"), allocations.update);
+  router.delete("/:id/allocations/:allocationId", requireRole("admin", "po"), allocations.remove);
 
   return router;
 }

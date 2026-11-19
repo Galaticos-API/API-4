@@ -3976,6 +3976,153 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
+  /api/v1/developers/{id}/allocations:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+          format: uuid
+    post:
+      summary: Registra alocação com projeto, papel e período (PBI-05.1.3 / S3-10)
+      operationId: createDeveloperAllocation
+      description: Perfis admin e po. Datas são dias de calendário (AAAA-MM-DD) no fuso America/Sao_Paulo; o início vale a partir de 00:00 e o término até 23:59:59.999 do dia informado. Sem `data_fim`, a alocação fica em andamento. Término anterior ao início responde 400 com details.field = data_fim. O projeto deve existir e não estar arquivado. Alocações do mesmo profissional no mesmo projeto não podem se sobrepor. Enquanto vigente, a alocação concede acesso ao projeto ao usuário vinculado, e o histórico consolidado do perfil é derivado dela (PBI-05.2.3). Operação auditada.
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [projeto_id, papel, data_inicio]
+              properties:
+                projeto_id:
+                  type: string
+                  format: uuid
+                papel:
+                  type: string
+                  minLength: 2
+                  maxLength: 100
+                data_inicio:
+                  type: string
+                  format: date
+                data_fim:
+                  type: string
+                  format: date
+                  nullable: true
+      responses:
+        '201':
+          description: Alocação registrada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeveloperAllocationRecord'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Perfil sem permissão
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Perfil profissional não encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Período sobreposto a outra alocação no mesmo projeto (code ALLOCATION_OVERLAP, details.existente)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/v1/developers/{id}/allocations/{allocationId}:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - in: path
+        name: allocationId
+        required: true
+        schema:
+          type: string
+          format: uuid
+    patch:
+      summary: Altera papel ou período de uma alocação (o projeto não muda)
+      operationId: updateDeveloperAllocation
+      description: Campos omitidos mantêm o valor gravado; o período resultante é revalidado. `data_fim` nulo reabre a alocação como em andamento.
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              minProperties: 1
+              properties:
+                papel:
+                  type: string
+                  minLength: 2
+                  maxLength: 100
+                data_inicio:
+                  type: string
+                  format: date
+                data_fim:
+                  type: string
+                  format: date
+                  nullable: true
+      responses:
+        '200':
+          description: Alocação alterada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeveloperAllocationRecord'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Alocação não encontrada neste perfil
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Período sobreposto (code ALLOCATION_OVERLAP)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    delete:
+      summary: Remove uma alocação (e o acesso ao projeto que ela concedia)
+      operationId: removeDeveloperAllocation
+      security:
+        - cookieAuth: []
+      responses:
+        '204':
+          description: Alocação removida
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Alocação não encontrada neste perfil
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
   /api/v1/admin/stats:
     get:
       summary: Indicadores administrativos
@@ -4731,6 +4878,35 @@ components:
           type: string
           format: date-time
 
+
+    DeveloperAllocationRecord:
+      type: object
+      required: [id, desenvolvedor_id, projeto_id, projeto_nome, projeto_status, papel, data_inicio, data_fim, em_andamento]
+      properties:
+        id:
+          type: string
+          format: uuid
+        desenvolvedor_id:
+          type: string
+          format: uuid
+        projeto_id:
+          type: string
+          format: uuid
+        projeto_nome:
+          type: string
+        projeto_status:
+          type: string
+        papel:
+          type: string
+        data_inicio:
+          type: string
+          format: date-time
+        data_fim:
+          type: string
+          format: date-time
+          nullable: true
+        em_andamento:
+          type: boolean
 
     CompetencyLevel:
       type: string
