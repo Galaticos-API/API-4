@@ -54,6 +54,9 @@ export class HttpHarnessEngine implements HarnessEngine {
         const value = JSON.parse(data.join('\n')) as unknown;
         if (event === 'evidence_candidate') await onEvidenceCandidate(value);
         else if (event === 'completed') terminal = value;
+        else if (event === 'error' && (value as { code?: unknown } | null)?.code === 'HARNESS_OUTPUT_REJECTED')
+          // Equivale ao 422 do /harness/run: saída fora do contrato, não indisponibilidade.
+          throw new ModelOutputRejectedError("Saída do modelo fora do contrato");
         else if (event === 'error' || event === 'cancelled') throw new Error('Harness stream terminou sem conclusão.');
       };
       try {

@@ -106,8 +106,22 @@ class GrammarSchemaTests(unittest.IsolatedAsyncioTestCase):
             async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as client:
                 response = await client.post("/harness/run/stream", json=payload, headers={"X-Service-Token":"test-secret"})
         self.assertIn("event: error", response.text)
+        # Saída fora do contrato tem código próprio: o backend degrada para "sem evidência".
+        self.assertIn('"code":"HARNESS_OUTPUT_REJECTED"', response.text)
         self.assertNotIn("event: completed", response.text)
         self.assertNotIn("secret", response.text)
+
+    async def test_stream_unavailable_model_is_not_reported_as_rejected_output(self):
+        payload = {"mode":"consulta", "operation":"responder", "level":"pbi", "version":0, "schema_version":1,
+            "config":{"instructions":"x","operation_instructions":{"responder":"x"},"timeout_ms":5000,"rules":{}},
+            "output_schema":{"type":"object","properties":{"answer":{"type":"string"}},"required":["answer"]},"fields":{"pergunta":"q"},"context":[{"id":"source-1","text":"context"}]}
+        async def unavailable(*args, **kwargs): raise ConnectionError("ollama fora do ar")
+        with patch.object(settings, "AI_SERVICE_TOKEN", "test-secret"), patch("harness.ollama_client.generate_response_stream", unavailable):
+            async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as client:
+                response = await client.post("/harness/run/stream", json=payload, headers={"X-Service-Token":"test-secret"})
+        self.assertIn('"code":"HARNESS_STREAM_FAILED"', response.text)
+        self.assertNotIn("HARNESS_OUTPUT_REJECTED", response.text)
+        self.assertNotIn("ollama fora do ar", response.text)
 
     def test_removes_only_max_length_and_keeps_the_original(self):
         schema = {"type":"object", "properties":{"a":{"type":"string", "minLength":1, "maxLength":12000}, "b":{"type":"array", "maxItems":6, "items":{"type":"string", "maxLength":12000}}}, "required":["a","b"], "additionalProperties":False}
