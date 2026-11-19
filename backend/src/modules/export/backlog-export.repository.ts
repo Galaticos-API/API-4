@@ -86,14 +86,14 @@ export class BacklogExportRepository implements BacklogExportReader {
       const epic = (await client.query<Row<Omit<ExportEpic, "criterios" | "features">>>(EPIC_SQL, [id])).rows[0];
       if (!epic) return null;
       const features = (await client.query<FeatureRow>(FEATURES_OF_EPIC_SQL, [id])).rows;
-      const { pbis, criteria } = await this.loadChildren(client, "epico", id, features.map((feature) => feature.id));
+      const { pbis, criteria: criteriaByEntity } = await this.loadChildren(client, "epico", id, features.map((feature) => feature.id));
       const { projeto_status, ...data } = epic;
       return {
         projeto_status: projeto_status ?? "",
         epic: {
           ...data,
-          criterios: textCriteriaOf(criteria, "epico", id),
-          features: features.map((feature) => assembleFeature(feature, pbis, criteria)),
+          criterios: textCriteriaOf(criteriaByEntity, "epico", id),
+          features: features.map((feature) => assembleFeature(feature, pbis, criteriaByEntity)),
         },
       };
     }, "snapshot");
@@ -105,26 +105,38 @@ export class BacklogExportRepository implements BacklogExportReader {
       if (!feature) return null;
       const epic = (await client.query<Row<ExportEpicRef>>(EPIC_REF_SQL, [feature.epico_id])).rows[0];
       if (!epic) return null;
-      const { pbis, criteria } = await this.loadChildren(client, "feature", id, [id]);
+      const { pbis, criteria: criteriaByEntity } = await this.loadChildren(client, "feature", id, [id]);
       const { projeto_status, ...epicRef } = epic;
-      return { projeto_status: projeto_status ?? "", epic: epicRef, feature: assembleFeature(feature, pbis, criteria) };
+      return { projeto_status: projeto_status ?? "", epic: epicRef, feature: assembleFeature(feature, pbis, criteriaByEntity) };
     }, "snapshot");
   }
 
   private async loadChildren(client: PoolClient, rootType: "epico" | "feature", rootId: string, featureIds: string[]) {
     const pbis = (await client.query<PbiRow>(PBIS_SQL, [featureIds])).rows;
     const criteria = (await client.query<CriterionRow>(CRITERIA_SQL, [rootType, rootId, featureIds, pbis.map((pbi) => pbi.id)])).rows;
-    return { pbis, criteria };
+    return { pbis, criteria: indexCriteria(criteria) };
   }
 }
 
-function textCriteriaOf(criteria: CriterionRow[], tipo: string, id: string): ExportTextCriterion[] {
-  return criteria
-    .filter((criterion) => criterion.entidade_tipo === tipo && criterion.entidade_id === id)
-    .map(({ ordem, texto }) => ({ ordem, texto }));
+type CriteriaIndex = Map<string, CriterionRow[]>;
+const criteriaKey = (tipo: string, id: string) => `${tipo}\0${id}`;
+
+export function indexCriteria(criteria: CriterionRow[]): CriteriaIndex {
+  const byEntity: CriteriaIndex = new Map();
+  for (const criterion of criteria) {
+    const key = criteriaKey(criterion.entidade_tipo, criterion.entidade_id);
+    const bucket = byEntity.get(key);
+    if (bucket) bucket.push(criterion);
+    else byEntity.set(key, [criterion]);
+  }
+  return byEntity;
 }
 
-function assembleFeature(feature: FeatureRow, pbis: PbiRow[], criteria: CriterionRow[]): ExportFeature {
+function textCriteriaOf(criteria: CriteriaIndex, tipo: string, id: string): ExportTextCriterion[] {
+  return (criteria.get(criteriaKey(tipo, id)) ?? []).map(({ ordem, texto }) => ({ ordem, texto }));
+}
+
+function assembleFeature(feature: FeatureRow, pbis: PbiRow[], criteria: CriteriaIndex): ExportFeature {
   return {
     ...feature,
     criterios: textCriteriaOf(criteria, "feature", feature.id),
@@ -132,8 +144,7 @@ function assembleFeature(feature: FeatureRow, pbis: PbiRow[], criteria: Criterio
       .filter((pbi) => pbi.feature_id === feature.id)
       .map((pbi) => ({
         ...pbi,
-        cenarios: criteria
-          .filter((criterion) => criterion.entidade_tipo === "pbi" && criterion.entidade_id === pbi.id)
+        cenarios: (criteria.get(criteriaKey("pbi", pbi.id)) ?? [])
           .map(({ ordem, nome, dado, quando, entao }) => ({ ordem, nome, dado, quando, entao })),
       })),
   };
