@@ -114,7 +114,9 @@ export function createHarnessModel(token) {
                                         : "Revisão inicial",
                                 }
                                 : { answer: "Evidência do projeto", sources: [data.context[0].id] };
-            res.end(JSON.stringify({ response: JSON.stringify(result) }));
+            // Como o Ollama, a última linha leva done: true. O cliente em streaming
+            // (consulta com evidências) recusa um fluxo sem esse marcador de conclusão.
+            res.end(JSON.stringify({ response: JSON.stringify(result), done: true, done_reason: "stop" }));
         }
         catch {
             if (!res.headersSent)

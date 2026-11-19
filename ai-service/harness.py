@@ -254,6 +254,15 @@ async def run_harness_stream(req: HarnessRequest):
             task.cancel()
             await asyncio.gather(task, return_exceptions=True)
             raise
+        except HTTPException as error:
+            # Mesma distinção do /harness/run: 422 é saída fora do contrato (o backend degrada
+            # para "sem evidência"); o resto é indisponibilidade.
+            task.cancel()
+            await asyncio.gather(task, return_exceptions=True)
+            if error.status_code == 422:
+                yield 'event: error\ndata: {"error":"Resposta da IA fora do schema","code":"HARNESS_OUTPUT_REJECTED"}\n\n'
+            else:
+                yield 'event: error\ndata: {"error":"Consulta indisponível","code":"HARNESS_STREAM_FAILED"}\n\n'
         except Exception:
             task.cancel()
             await asyncio.gather(task, return_exceptions=True)
