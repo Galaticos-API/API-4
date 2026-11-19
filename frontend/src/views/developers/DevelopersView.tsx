@@ -1,4 +1,7 @@
 import React, { useEffect, useState, useCallback } from "react";
+import { CompetenciesPanel } from "./CompetenciesPanel";
+import { AllocationsPanel } from "./AllocationsPanel";
+import { TeamExperienceSearch } from "./TeamExperienceSearch";
 import { Button } from "../common/ui";
 import { ApiError } from "../../api/api_auth";
 import {
@@ -471,84 +474,19 @@ export const DevelopersView: React.FC<DevelopersViewProps> = ({
                 </div>
               </article>
 
-              {/* Competências Técnicas */}
-              <article className="ds-card" style={{ padding: "24px" }}>
-                <h3 style={{ marginTop: 0, marginBottom: "12px" }}>
-                  Competências Técnicas ({profile.competencias.length})
-                </h3>
-                {profile.competencias.length === 0 ? (
-                  <p className="muted">Nenhuma competência técnica registrada para este profissional.</p>
-                ) : (
-                  <div className="ds-grid ds-grid--two" style={{ gap: "12px" }}>
-                    {profile.competencias.map((comp) => (
-                      <div
-                        key={comp.id}
-                        className="ds-card"
-                        style={{ padding: "16px", background: "rgba(255, 255, 255, 0.02)" }}
-                      >
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "8px" }}>
-                          <strong>{comp.tecnologia_nome}</strong>
-                          {comp.nivel && (
-                            <span className="ds-badge ds-badge--brand">{comp.nivel}</span>
-                          )}
-                        </div>
-                        {comp.evidencia && (
-                          <p className="muted" style={{ marginTop: "8px", marginBottom: 0, fontSize: "0.88rem" }}>
-                            Evidência: {comp.evidencia}
-                          </p>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </article>
+              <CompetenciesPanel
+                developerId={profile.id}
+                competencias={profile.competencias}
+                canManage={canManage}
+                onChanged={() => { void loadConsolidatedProfile(profile.id); void loadOverview(); }}
+              />
 
-              {/* Alocações em Projetos */}
-              <article className="ds-card" style={{ padding: "24px" }}>
-                <h3 style={{ marginTop: 0, marginBottom: "12px" }}>
-                  Alocações em Projetos ({profile.alocacoes.length})
-                </h3>
-                {profile.alocacoes.length === 0 ? (
-                  <p className="muted">Nenhuma alocação registrada em projetos visíveis.</p>
-                ) : (
-                  <div style={{ display: "grid", gap: "12px" }}>
-                    {profile.alocacoes.map((aloc) => (
-                      <div
-                        key={aloc.id}
-                        className="ds-card"
-                        style={{
-                          padding: "16px",
-                          display: "flex",
-                          justifyContent: "space-between",
-                          alignItems: "center",
-                          gap: "16px",
-                          flexWrap: "wrap",
-                        }}
-                      >
-                        <div>
-                          <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
-                            <strong>{aloc.projeto_nome}</strong>
-                            <span className={`ds-badge ${aloc.em_andamento ? "ds-badge--success" : ""}`}>
-                              {aloc.em_andamento ? "Em andamento" : "Encerrada"}
-                            </span>
-                          </div>
-                          <p className="muted" style={{ margin: "6px 0 0", fontSize: "0.88rem" }}>
-                            Papel: <strong>{aloc.papel || "Integrante"}</strong> · Período:{" "}
-                            {formatDatePtBr(aloc.data_inicio)} até{" "}
-                            {aloc.data_fim ? formatDatePtBr(aloc.data_fim) : "Em andamento"}
-                          </p>
-                        </div>
-                        <Button
-                          variant="secondary"
-                          onClick={() => navigate(`/projects/${aloc.projeto_id}`)}
-                        >
-                          Abrir projeto
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </article>
+              <AllocationsPanel
+                developerId={profile.id}
+                alocacoes={profile.alocacoes}
+                canManage={canManage}
+                onChanged={() => { void loadConsolidatedProfile(profile.id); void loadOverview(); }}
+              />
 
               {/* Histórico Consolidado de Atuação (PBI-05.1.4 / PBI-05.2.3) */}
               <article className="ds-card" style={{ padding: "24px" }}>
@@ -616,6 +554,7 @@ export const DevelopersView: React.FC<DevelopersViewProps> = ({
       ) : (
         /* Listagem de Perfis Profissionais */
         <section aria-label="Lista de perfis profissionais" style={{ marginTop: "20px" }}>
+          <TeamExperienceSearch />
           <div className="ds-field" style={{ marginBottom: "20px", maxWidth: "460px" }}>
             <label htmlFor="search-developers-input">Buscar profissional</label>
             <input

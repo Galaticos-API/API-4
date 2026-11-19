@@ -28,6 +28,7 @@ import { searchRouter } from "./modules/search/search.routes.js";
 import { chatRouter } from "./modules/chat/chat.routes.js";
 import { developersRouter } from "./modules/developers/developers.routes.js";
 import { technologiesRouter } from "./modules/technologies/technologies.routes.js";
+import { featureRecommendationsRouter, teamRouter } from "./modules/team/team.routes.js";
 import { adminRouter } from "./modules/admin/admin.routes.js";
 import { auditRouter } from "./modules/audit/audit.routes.js";
 import { errorHandler } from "./middleware/errorHandler.js";
@@ -89,6 +90,7 @@ app.use("/api/v1/chat", chatRouter);
 // Desenvolvedores e competências
 app.use("/api/v1/developers", developersRouter);
 app.use("/api/v1/technologies", requireAuth, technologiesRouter);
+app.use("/api/v1/team", requireAuth, teamRouter);
 
 app.use("/api/v1/admin/ai-harness", createHarnessAdminRouter());
 app.use("/api/v1/projects/:projectId/ai/requests", createHarnessRunRouter());
@@ -114,6 +116,7 @@ app.use("/api/v1/pbis/:entityId/suggestions", pbiSuggestionsRouter);
 app.use("/api/v1/projects/:projectId/similar-items", projectSimilarItemsRouter);
 app.use("/api/v1/epics/:entityId/similar-items", epicSimilarItemsRouter);
 app.use("/api/v1/features/:entityId/similar-items", featureSimilarItemsRouter);
+app.use("/api/v1/features/:entityId/recommendations", requireAuth, featureRecommendationsRouter);
 app.use("/api/v1/pbis/:entityId/similar-items", pbiSimilarItemsRouter);
 
 // Busca textual no backlog (S1-17)
