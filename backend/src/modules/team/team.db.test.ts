@@ -5,6 +5,7 @@ import { Pool, type Client } from "pg";
 import { applyUntil, withDatabase } from "../../database/migration-test-utils.js";
 import { TeamRepository } from "./team.repository.js";
 import { TeamKnowledgeService } from "./team.service.js";
+import { RecommendationsService } from "./recommendations.service.js";
 
 // Aponte TEAM_TEST_DATABASE_URL para um PostgreSQL descartável; o teste cria e remove o próprio banco.
 const adminUrl = process.env.TEAM_TEST_DATABASE_URL;
@@ -87,6 +88,20 @@ test("S3-11: experiência vem de competências e de projetos autorizados, nunca 
       const managerProjects = await repository.accessibleProjectIds(ids.po);
       const manager = await new TeamKnowledgeService(repository).whoWorkedWith("PIX", managerProjects);
       assert.ok(manager.profissionais.some((item) => item.nome === "Carla"));
+
+      // S3-12: tecnologias da feature e dos PBIs dela; quem já está alocado no projeto é sinalizado.
+      const recommendation = await new RecommendationsService(repository).forFeature(ids.featureAtlas, ids.viewer);
+      assert.equal(recommendation.base_suficiente, true);
+      assert.deepEqual(recommendation.tecnologias.map((item) => item.nome), ["PIX"]);
+      assert.deepEqual(recommendation.recomendacoes.map((item) => item.nome), ["Ana", "Bruno", "Leitor"]);
+      assert.equal(recommendation.recomendacoes.find((item) => item.nome === "Leitor")?.ja_alocado_no_projeto, true);
+      assert.equal(recommendation.recomendacoes.find((item) => item.nome === "Bruno")?.ja_alocado_no_projeto, false);
+      assert.equal((await client.query("SELECT count(*)::int AS n FROM alocacao")).rows[0].n, 4);
+
+      const emptyFeature = randomUUID();
+      await client.query("INSERT INTO feature (id, epico_id, titulo) VALUES ($1,$2,'Sem tecnologia')", [emptyFeature, ids.epicAtlas]);
+      const insufficient = await new RecommendationsService(repository).forFeature(emptyFeature, ids.viewer);
+      assert.equal(insufficient.base_suficiente, false);
 
       const refusal = await new TeamKnowledgeService(repository).whoWorkedWith("React", managerProjects);
       assert.equal(refusal.encontrado, false);

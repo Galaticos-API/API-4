@@ -1090,6 +1090,99 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
 
+  /api/v1/features/{id}/recommendations:
+    get:
+      summary: Recomenda profissionais para uma feature por aderência explicável (PBI-05.2.2 / S3-12)
+      operationId: recommendFeatureProfessionals
+      description: Consultivo, sem nenhuma escrita. Considera as tecnologias da feature e dos PBIs não arquivados dela. Aderência é a parcela dessas tecnologias com evidência registrada (competência ou alocação em projeto autorizado do solicitante que usa a tecnologia); o desempate usa profundidade. Retorna no máximo 5 sugestões, cada uma com justificativa por tecnologia e sinalização de quem já está alocado no projeto. Sem tecnologias associadas, ou sem ninguém com evidência, `base_suficiente` é false. Exige acesso ao projeto da feature.
+      security:
+        - cookieAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Recomendação calculada
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [feature, base_suficiente, mensagem, aviso, criterio, tecnologias, recomendacoes]
+                properties:
+                  feature:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+                      titulo:
+                        type: string
+                  base_suficiente:
+                    type: boolean
+                  mensagem:
+                    type: string
+                  aviso:
+                    type: string
+                    description: Sempre informa que nenhuma alocação é feita automaticamente
+                  criterio:
+                    type: string
+                  tecnologias:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TechnologyOption'
+                  recomendacoes:
+                    type: array
+                    maxItems: 5
+                    items:
+                      type: object
+                      required: [desenvolvedor_id, nome, aderencia, pontuacao, ja_alocado_no_projeto, tecnologias, justificativa]
+                      properties:
+                        desenvolvedor_id:
+                          type: string
+                          format: uuid
+                        nome:
+                          type: string
+                        senioridade:
+                          type: string
+                          nullable: true
+                        aderencia:
+                          type: integer
+                          minimum: 1
+                          maximum: 100
+                        pontuacao:
+                          type: number
+                        ja_alocado_no_projeto:
+                          type: boolean
+                        justificativa:
+                          type: string
+                        tecnologias:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              tecnologia:
+                                $ref: '#/components/schemas/TechnologyOption'
+                              atendida:
+                                type: boolean
+                              justificativas:
+                                type: array
+                                items:
+                                  type: string
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Feature inexistente ou fora dos projetos do solicitante
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
   /api/v1/epics:
     post:
       summary: Cadastra um épico dentro de um projeto (PBI-01.1.2 / S1-05)
