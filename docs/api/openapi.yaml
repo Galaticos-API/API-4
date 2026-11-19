@@ -3852,6 +3852,130 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
+  /api/v1/developers/{id}/competencies:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+          format: uuid
+    post:
+      summary: Registra competência com nível e evidência sobre o vocabulário controlado (PBI-05.1.2 / S3-09)
+      operationId: createDeveloperCompetency
+      description: Perfis admin e po. Uma competência por tecnologia em cada perfil. Tecnologia fora do vocabulário responde 422 TECHNOLOGY_NOT_IN_VOCABULARY com details.oferecer_inclusao; a inclusão é feita em POST /api/v1/technologies. A evidência passa pela mesma checagem de dados pessoais do perfil (RNF-09) e a operação é auditada.
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CompetencyInput'
+      responses:
+        '201':
+          description: Competência registrada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeveloperCompetency'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Perfil sem permissão
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Perfil profissional não encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: O perfil já possui competência nessa tecnologia (code COMPETENCY_EXISTS, details.existente)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Tecnologia fora do vocabulário (code TECHNOLOGY_NOT_IN_VOCABULARY)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/v1/developers/{id}/competencies/{competencyId}:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - in: path
+        name: competencyId
+        required: true
+        schema:
+          type: string
+          format: uuid
+    patch:
+      summary: Altera nível ou evidência de uma competência (a tecnologia não muda)
+      operationId: updateDeveloperCompetency
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              minProperties: 1
+              properties:
+                nivel:
+                  $ref: '#/components/schemas/CompetencyLevel'
+                evidencia:
+                  type: string
+                  minLength: 10
+                  maxLength: 2000
+      responses:
+        '200':
+          description: Competência alterada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeveloperCompetency'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Competência não encontrada neste perfil
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    delete:
+      summary: Remove uma competência do perfil
+      operationId: removeDeveloperCompetency
+      security:
+        - cookieAuth: []
+      responses:
+        '204':
+          description: Competência removida
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Competência não encontrada neste perfil
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
   /api/v1/admin/stats:
     get:
       summary: Indicadores administrativos
@@ -4607,6 +4731,49 @@ components:
           type: string
           format: date-time
 
+
+    CompetencyLevel:
+      type: string
+      enum: [iniciante, intermediario, avancado, especialista]
+
+    CompetencyInput:
+      type: object
+      additionalProperties: false
+      required: [tecnologia_id, nivel, evidencia]
+      properties:
+        tecnologia_id:
+          type: string
+          format: uuid
+        nivel:
+          $ref: '#/components/schemas/CompetencyLevel'
+        evidencia:
+          type: string
+          minLength: 10
+          maxLength: 2000
+
+    DeveloperCompetency:
+      type: object
+      required: [id, desenvolvedor_id, tecnologia_id, nivel, evidencia, tecnologia_nome]
+      properties:
+        id:
+          type: string
+          format: uuid
+        desenvolvedor_id:
+          type: string
+          format: uuid
+        tecnologia_id:
+          type: string
+          format: uuid
+        nivel:
+          $ref: '#/components/schemas/CompetencyLevel'
+        evidencia:
+          type: string
+          nullable: true
+        tecnologia_nome:
+          type: string
+        tecnologia_categoria:
+          type: string
+          nullable: true
 
     TechnologyCategory:
       type: string
