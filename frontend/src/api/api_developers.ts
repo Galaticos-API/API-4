@@ -134,3 +134,35 @@ export async function updateDeveloperProfile(
   });
   return (await res.json()) as DeveloperProfileSummary;
 }
+
+import type { CompetencyLevel } from "../models/competencies";
+
+export async function createCompetency(
+  developerId: string,
+  payload: { tecnologia_id: string; nivel: CompetencyLevel; evidencia: string },
+): Promise<DeveloperCompetency> {
+  const res = await apiRequest(`/developers/${encodeURIComponent(developerId)}/competencies`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+  return (await res.json()) as DeveloperCompetency;
+}
+
+export async function updateCompetency(
+  developerId: string,
+  competencyId: string,
+  payload: { nivel?: CompetencyLevel; evidencia?: string },
+): Promise<DeveloperCompetency> {
+  const res = await apiRequest(
+    `/developers/${encodeURIComponent(developerId)}/competencies/${encodeURIComponent(competencyId)}`,
+    { method: "PATCH", body: JSON.stringify(payload) },
+  );
+  return (await res.json()) as DeveloperCompetency;
+}
+
+export async function removeCompetency(developerId: string, competencyId: string): Promise<void> {
+  await apiRequest(
+    `/developers/${encodeURIComponent(developerId)}/competencies/${encodeURIComponent(competencyId)}`,
+    { method: "DELETE" },
+  );
+}

@@ -138,3 +138,7 @@ consulta e valida as fontes persistidas antes de reexibir o histórico.
 
 `029_technology_vocabulary.sql` cria a função `normalizar_nome_tecnologia` (minúsculas, sem acentos, pontuação e espaços, preservando `+` e `#` para distinguir C, C++ e C#) e o índice único `uq_tecnologia_nome_normalizado`, impedindo variações como "Node.js" e "NodeJS" (`PBI-06.2.2`). Antes do índice, unifica variações já cadastradas no registro mais antigo, redirecionando competências e classificações de itens sem violar `uq_entidade_tecnologia_association`. Também adiciona `updated_at` e índices por tecnologia para a contagem de associações exigida na remoção consciente.
 
+## 030 - Competências com nível e evidência (S3-09)
+
+`030_competencies.sql` adiciona `updated_at`, normaliza níveis legados para `intermediario`, exige nível dentro da escala `iniciante`, `intermediario`, `avancado` e `especialista` (`ck_competencia_nivel`) e cria `uq_competencia_desenvolvedor_tecnologia`, uma competência por tecnologia em cada perfil (`PBI-05.1.2`). Repetições antigas são unificadas no registro de maior nível, juntando as evidências distintas.
+

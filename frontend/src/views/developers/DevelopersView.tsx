@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useCallback } from "react";
+import { CompetenciesPanel } from "./CompetenciesPanel";
 import { Button } from "../common/ui";
 import { ApiError } from "../../api/api_auth";
 import {
@@ -471,37 +472,12 @@ export const DevelopersView: React.FC<DevelopersViewProps> = ({
                 </div>
               </article>
 
-              {/* Competências Técnicas */}
-              <article className="ds-card" style={{ padding: "24px" }}>
-                <h3 style={{ marginTop: 0, marginBottom: "12px" }}>
-                  Competências Técnicas ({profile.competencias.length})
-                </h3>
-                {profile.competencias.length === 0 ? (
-                  <p className="muted">Nenhuma competência técnica registrada para este profissional.</p>
-                ) : (
-                  <div className="ds-grid ds-grid--two" style={{ gap: "12px" }}>
-                    {profile.competencias.map((comp) => (
-                      <div
-                        key={comp.id}
-                        className="ds-card"
-                        style={{ padding: "16px", background: "rgba(255, 255, 255, 0.02)" }}
-                      >
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "8px" }}>
-                          <strong>{comp.tecnologia_nome}</strong>
-                          {comp.nivel && (
-                            <span className="ds-badge ds-badge--brand">{comp.nivel}</span>
-                          )}
-                        </div>
-                        {comp.evidencia && (
-                          <p className="muted" style={{ marginTop: "8px", marginBottom: 0, fontSize: "0.88rem" }}>
-                            Evidência: {comp.evidencia}
-                          </p>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </article>
+              <CompetenciesPanel
+                developerId={profile.id}
+                competencias={profile.competencias}
+                canManage={canManage}
+                onChanged={() => { void loadConsolidatedProfile(profile.id); void loadOverview(); }}
+              />
 
               {/* Alocações em Projetos */}
               <article className="ds-card" style={{ padding: "24px" }}>
