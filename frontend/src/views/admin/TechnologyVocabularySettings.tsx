@@ -33,7 +33,12 @@ export function TechnologyVocabularySettings() {
   const [existing, setExisting] = useState<Technology | null>(null);
   const [pendingRemoval, setPendingRemoval] = useState<PendingRemoval | null>(null);
   const mounted = useRef(true);
-  useEffect(() => () => { mounted.current = false; }, []);
+  useEffect(() => {
+    // React StrictMode executa setup → cleanup → setup em desenvolvimento.
+    // Rearmar a flag no setup evita suprimir para sempre os resultados das ações.
+    mounted.current = true;
+    return () => { mounted.current = false; };
+  }, []);
 
   useEffect(() => {
     const controller = new AbortController();
