@@ -997,6 +997,99 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
+  /api/v1/team/experience:
+    get:
+      summary: Quem já trabalhou com uma tecnologia, com evidências (PBI-05.2.1 / S3-11)
+      operationId: teamExperience
+      description: Resolve o termo no vocabulário controlado (grafia normalizada ou nome contido no termo, como "integração PIX" para "PIX") e lista profissionais por duas evidências, competência registrada (nível e evidência) e alocação iniciada em projeto cujos itens não arquivados usam a tecnologia. A experiência em projetos considera somente os projetos que o solicitante pode acessar. Sem registro, `encontrado` é false e a resposta informa a ausência sem sugerir profissionais. A mesma consulta responde perguntas como "quem já trabalhou com X?" no chat, sem geração livre, com origem `sem_resultado` quando não há registro.
+      security:
+        - cookieAuth: []
+      parameters:
+        - in: query
+          name: tecnologia
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 100
+      responses:
+        '200':
+          description: Resultado da consulta
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [resposta, encontrado, tecnologias, profissionais, fontes]
+                properties:
+                  resposta:
+                    type: string
+                  encontrado:
+                    type: boolean
+                  tecnologias:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TechnologyOption'
+                  profissionais:
+                    type: array
+                    items:
+                      type: object
+                      required: [desenvolvedor_id, nome, competencias, projetos, pontuacao]
+                      properties:
+                        desenvolvedor_id:
+                          type: string
+                          format: uuid
+                        nome:
+                          type: string
+                        senioridade:
+                          type: string
+                          nullable: true
+                        pontuacao:
+                          type: number
+                        competencias:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              tecnologia_id:
+                                type: string
+                                format: uuid
+                              tecnologia_nome:
+                                type: string
+                              nivel:
+                                $ref: '#/components/schemas/CompetencyLevel'
+                              evidencia:
+                                type: string
+                                nullable: true
+                        projetos:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              projeto_id:
+                                type: string
+                                format: uuid
+                              projeto_nome:
+                                type: string
+                              papeis:
+                                type: array
+                                items:
+                                  type: string
+                              em_andamento:
+                                type: boolean
+                              tecnologias:
+                                type: array
+                                items:
+                                  $ref: '#/components/schemas/TechnologyOption'
+                  fontes:
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: true
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
   /api/v1/epics:
     post:
       summary: Cadastra um épico dentro de um projeto (PBI-01.1.2 / S1-05)

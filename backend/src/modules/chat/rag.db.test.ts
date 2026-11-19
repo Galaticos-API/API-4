@@ -97,6 +97,15 @@ test('S2-24: busca híbrida, evidências, escopo transversal autorizado e revoga
       assert.equal(result.evidencias.length,2);assert.ok(result.fontes.every(source=>source.url?.startsWith('/projects/')));
       assert.ok(result.resposta.includes('RAG A'));assert.ok(result.resposta.includes('RAG B'));
     });
+    await t.test('histórico global aceita fonte de perfil ativa e rejeita perfil inexistente',async()=>{
+      const repository=new ChatRepository(db);
+      const valid=await repository.createConversation(admin,null,'Fonte de perfil','todos_autorizados');
+      await repository.addMessage(valid.id,'assistant','Experiência registrada.',[{id:developer,titulo:'Perfil profissional',tipo:'perfil_profissional',url:`/developers/${developer}`}]);
+      assert.equal(await repository.hasUnsafeGeneralSources(valid.id,admin),false);
+      const invalid=await repository.createConversation(admin,null,'Perfil inválido','todos_autorizados');
+      await repository.addMessage(invalid.id,'assistant','Fonte inválida.',[{id:randomUUID(),titulo:'Perfil profissional',tipo:'perfil_profissional'}]);
+      assert.equal(await repository.hasUnsafeGeneralSources(invalid.id,admin),true);
+    });
     await t.test('desenvolvedor não recupera projeto sem alocação e não chama embeddings em escopo proibido',async()=>{
       const result=await service.answer(dev,'WhatsApp');assert.deepEqual(result.fontes.map(source=>source.projeto_id),[a]);
       const previous=calls;await assert.rejects(()=>service.answer(dev,'WhatsApp',[b]),/Projeto não encontrado/);assert.equal(calls,previous);

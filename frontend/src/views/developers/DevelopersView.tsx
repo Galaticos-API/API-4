@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { CompetenciesPanel } from "./CompetenciesPanel";
 import { AllocationsPanel } from "./AllocationsPanel";
+import { TeamExperienceSearch } from "./TeamExperienceSearch";
 import { Button } from "../common/ui";
 import { ApiError } from "../../api/api_auth";
 import {
@@ -553,6 +554,7 @@ export const DevelopersView: React.FC<DevelopersViewProps> = ({
       ) : (
         /* Listagem de Perfis Profissionais */
         <section aria-label="Lista de perfis profissionais" style={{ marginTop: "20px" }}>
+          <TeamExperienceSearch />
           <div className="ds-field" style={{ marginBottom: "20px", maxWidth: "460px" }}>
             <label htmlFor="search-developers-input">Buscar profissional</label>
             <input
