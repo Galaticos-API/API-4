@@ -114,12 +114,23 @@ export class BacklogExportRepository implements BacklogExportReader {
   private async loadChildren(client: PoolClient, rootType: "epico" | "feature", rootId: string, featureIds: string[]) {
     const pbis = (await client.query<PbiRow>(PBIS_SQL, [featureIds])).rows;
     const criteria = (await client.query<CriterionRow>(CRITERIA_SQL, [rootType, rootId, featureIds, pbis.map((pbi) => pbi.id)])).rows;
-    return { pbis, criteria: indexCriteria(criteria) };
+    return { pbis: indexPbis(pbis), criteria: indexCriteria(criteria) };
   }
 }
 
 type CriteriaIndex = Map<string, CriterionRow[]>;
+type PbiIndex = Map<string, PbiRow[]>;
 const criteriaKey = (tipo: string, id: string) => `${tipo}\0${id}`;
+
+function indexPbis(pbis: PbiRow[]): PbiIndex {
+  const byFeature: PbiIndex = new Map();
+  for (const pbi of pbis) {
+    const bucket = byFeature.get(pbi.feature_id);
+    if (bucket) bucket.push(pbi);
+    else byFeature.set(pbi.feature_id, [pbi]);
+  }
+  return byFeature;
+}
 
 export function indexCriteria(criteria: CriterionRow[]): CriteriaIndex {
   const byEntity: CriteriaIndex = new Map();
@@ -136,12 +147,11 @@ function textCriteriaOf(criteria: CriteriaIndex, tipo: string, id: string): Expo
   return (criteria.get(criteriaKey(tipo, id)) ?? []).map(({ ordem, texto }) => ({ ordem, texto }));
 }
 
-function assembleFeature(feature: FeatureRow, pbis: PbiRow[], criteria: CriteriaIndex): ExportFeature {
+function assembleFeature(feature: FeatureRow, pbis: PbiIndex, criteria: CriteriaIndex): ExportFeature {
   return {
     ...feature,
     criterios: textCriteriaOf(criteria, "feature", feature.id),
-    pbis: pbis
-      .filter((pbi) => pbi.feature_id === feature.id)
+    pbis: (pbis.get(feature.id) ?? [])
       .map((pbi) => ({
         ...pbi,
         cenarios: (criteria.get(criteriaKey("pbi", pbi.id)) ?? [])
