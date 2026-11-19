@@ -134,3 +134,7 @@ consulta e valida as fontes persistidas antes de reexibir o histórico.
 
 `028_developer_profiles.sql` adiciona `nome` e `updated_at` em `desenvolvedor`, permite cadastrar perfis antes ou com vínculo a `usuario`, sincroniza o nome a partir do usuário vinculado quando omitido e cria o índice único `uq_desenvolvedor_usuario_id` para impedir perfis duplicados para o mesmo usuário (`PBI-05.1.1`). Também indexa `competencia` e `alocacao` por desenvolvedor para suportar a consulta consolidada de perfil (`PBI-05.1.4`) sem armazenar dados pessoais fora do propósito profissional.
 
+## 029 - Vocabulário controlado de tecnologias (S3-14)
+
+`029_technology_vocabulary.sql` cria a função `normalizar_nome_tecnologia` (minúsculas, sem acentos, pontuação e espaços, preservando `+` e `#` para distinguir C, C++ e C#) e o índice único `uq_tecnologia_nome_normalizado`, impedindo variações como "Node.js" e "NodeJS" (`PBI-06.2.2`). Antes do índice, unifica variações já cadastradas no registro mais antigo, redirecionando competências e classificações de itens sem violar `uq_entidade_tecnologia_association`. Também adiciona `updated_at` e índices por tecnologia para a contagem de associações exigida na remoção consciente.
+

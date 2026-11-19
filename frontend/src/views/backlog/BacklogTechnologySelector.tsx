@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { listTechnologies, type TechnologyOption } from "../../api/api_backlog";
 import { Button } from "../common/ui";
+import { normalizeTechnologyName } from "../../models/technologies";
 
 type LoadState =
   | { state: "loading" }
@@ -18,6 +19,7 @@ export function BacklogTechnologySelector({
 }) {
   const [attempt, setAttempt] = useState(0);
   const [result, setResult] = useState<LoadState>({ state: "loading" });
+  const [filter, setFilter] = useState("");
 
   useEffect(() => {
     const controller = new AbortController();
@@ -31,6 +33,18 @@ export function BacklogTechnologySelector({
       });
     return () => controller.abort();
   }, [attempt]);
+
+  // Selecionadas continuam visíveis mesmo fora do filtro, para nunca sumirem da tela.
+  const { visible, matches } = useMemo(() => {
+    if (result.state !== "ready") return { visible: [], matches: 0 };
+    const term = normalizeTechnologyName(filter);
+    if (!term) return { visible: result.items, matches: result.items.length };
+    const matching = result.items.filter((item) => normalizeTechnologyName(item.nome).includes(term));
+    return {
+      visible: result.items.filter((item) => value.includes(item.id) || matching.includes(item)),
+      matches: matching.length,
+    };
+  }, [filter, result, value]);
 
   function toggle(id: string, checked: boolean) {
     onChange(
@@ -56,8 +70,20 @@ export function BacklogTechnologySelector({
         <p>Nenhuma tecnologia cadastrada no catálogo.</p>
       )}
       {result.state === "ready" && result.items.length > 0 && (
+        <input
+          type="search"
+          aria-label="Filtrar tecnologias"
+          placeholder="Digite para filtrar o vocabulário"
+          value={filter}
+          onChange={(event) => setFilter(event.target.value)}
+        />
+      )}
+      {result.state === "ready" && result.items.length > 0 && filter && matches === 0 && (
+        <p>Nenhuma tecnologia do vocabulário corresponde a "{filter}". Peça a inclusão a um administrador.</p>
+      )}
+      {result.state === "ready" && result.items.length > 0 && (
         <div className="backlog-technology-options">
-          {result.items.map((technology) => (
+          {visible.map((technology) => (
             <label key={technology.id}>
               <input
                 type="checkbox"
