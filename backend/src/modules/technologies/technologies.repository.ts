@@ -68,6 +68,25 @@ export class TechnologyInUseError extends AppError {
 export class TechnologiesRepository {
   constructor(private readonly db: Pick<Pool, "query"> = pool) {}
 
+  /**
+   * O gatilho de indexação bloqueia projetos ao alterar uma tecnologia. Escritores
+   * do backlog já mantêm esse bloqueio antes de inserir a associação/FK; portanto,
+   * adquirimos os mesmos locks de projeto, em ordem estável, antes de bloquear a
+   * tecnologia para evitar o ciclo projeto → tecnologia / tecnologia → projeto.
+   */
+  private async lockAffectedProjects(client: Pick<PoolClient, "query">, technologyId: string): Promise<void> {
+    await client.query(
+      `SELECT id FROM projeto
+       WHERE id IN (
+         SELECT projeto_id FROM indice_origem
+         WHERE payload->'tecnologias_ids' ? $1
+       )
+       ORDER BY id
+       FOR UPDATE`,
+      [technologyId],
+    );
+  }
+
   async list(search?: string): Promise<Technology[]> {
     const term = search?.trim();
     const { rows } = term
@@ -141,6 +160,7 @@ export class TechnologiesRepository {
 
   async update(id: string, input: UpdateTechnologyInput, actorUserId: string): Promise<Technology> {
     return withTransaction(this.db as Pool, async (client) => {
+      await this.lockAffectedProjects(client, id);
       const { rows: locked } = await client.query<{ id: string }>(
         "SELECT id FROM tecnologia WHERE id = $1 FOR UPDATE",
         [id],
@@ -198,6 +218,7 @@ export class TechnologiesRepository {
     actorUserId: string,
   ): Promise<TechnologyUsage> {
     return withTransaction(this.db as Pool, async (client) => {
+      await this.lockAffectedProjects(client, id);
       const { rows: locked } = await client.query<{ id: string }>(
         "SELECT id FROM tecnologia WHERE id = $1 FOR UPDATE",
         [id],
