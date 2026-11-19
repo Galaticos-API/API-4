@@ -22,6 +22,7 @@ const QUESTION_PATTERNS = [
 
 // Perguntas sobre projetos ou itens de trabalho seguem para o RAG, não para a consulta de equipe.
 const NOT_A_TECHNOLOGY = /^(?:(?:o|a|os|as|esse|essa|este|esta)\s+)?(?:projetos?|clientes?|features?|funcionalidades?|[eé]picos?|pbis?|itens?|tarefas?|documentos?|decis(?:[aã]o|[oõ]es)|requisitos?|sprints?|squads?|reuni[aã]o|reuni[oõ]es)\b/iu;
+const PROJECT_CONTEXT = /\b(?:projetos?|sistemas?|aplicativos?|features?|funcionalidades?|requisitos?|clientes?|sprints?|tarefas?|documentos?)\b/iu;
 
 const TRAILING_NOISE = /\s*(?:\?|!|\.)+\s*$|\s+(?:na|no|da|do)\s+(?:equipe|time|f[aá]brica|empresa)\s*$|\s+aqui\s*$|\s+antes\s*$/giu;
 
@@ -37,7 +38,7 @@ export function teamTechnologyQuestion(question: string): string | null {
       term = term.replace(TRAILING_NOISE, "").trim();
     }
     term = term.replace(/^(?:a|o|as|os|um|uma)\s+/iu, "").replace(/^["'“”]+|["'“”]+$/gu, "").trim();
-    if (NOT_A_TECHNOLOGY.test(term)) return null;
+    if (NOT_A_TECHNOLOGY.test(term) || PROJECT_CONTEXT.test(term)) return null;
     if (normalizeTechnologyName(term).length >= 1) return term;
   }
   return null;
@@ -53,14 +54,19 @@ export function matchVocabulary(term: string, vocabulary: VocabularyTechnology[]
   if (!normalizedTerm) return [];
   const exact = vocabulary.filter((item) => normalizeTechnologyName(item.nome) === normalizedTerm);
   if (exact.length) return exact;
-  const words = new Set(
+  const words =
     term.toLowerCase().normalize("NFD").replace(/\p{Diacritic}/gu, "").split(/[^a-z0-9+#.]+/).filter(Boolean)
-      .map((word) => normalizeTechnologyName(word)),
-  );
+      .map((word) => normalizeTechnologyName(word));
+  const containsWholeTechnology = (technologyName: string) => {
+    const technologyWords = technologyName.toLowerCase().normalize("NFD").replace(/\p{Diacritic}/gu, "")
+      .split(/[^a-z0-9+#.]+/).filter(Boolean).map(normalizeTechnologyName);
+    if (!technologyWords.length) return false;
+    return words.some((_, start) => technologyWords.every((word, offset) => words[start + offset] === word));
+  };
   return vocabulary.filter((item) => {
     const name = normalizeTechnologyName(item.nome);
-    if (name.length < 2) return words.has(name);
-    return words.has(name) || (name.length >= 3 && normalizedTerm.includes(name));
+    if (name.length < 2) return words.includes(name);
+    return containsWholeTechnology(item.nome);
   });
 }
 
