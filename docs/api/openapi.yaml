@@ -1057,6 +1057,53 @@ paths:
         '404':
           description: Épico não encontrado
 
+  /api/v1/epics/{id}/export/markdown:
+    get:
+      summary: Exporta o épico com todas as suas features e PBIs em Markdown no formato do guia de especificação (PBI-01.5.5 / S3-15)
+      operationId: exportEpicMarkdown
+      description: >-
+        Gera o arquivo no servidor e o entrega para download. Disponível a qualquer perfil com
+        acesso ao projeto (admin, po ou dev alocado). Itens arquivados não entram no arquivo;
+        os códigos EP/FT/PBI são posicionais (ordem de criação entre irmãos, contando arquivados,
+        para não mudar quando um irmão é arquivado).
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Arquivo Markdown
+          headers:
+            Content-Disposition:
+              description: attachment com o nome do arquivo, por exemplo EP-01-titulo.md
+              schema:
+                type: string
+          content:
+            text/markdown:
+              schema:
+                type: string
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Épico não encontrado ou usuário sem acesso ao projeto
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Épico ou projeto arquivado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
   /api/v1/features:
     post:
       summary: Cadastra uma feature dentro de um épico (PBI-01.1.3 / S1-06)
@@ -1222,6 +1269,53 @@ paths:
                 $ref: '#/components/schemas/Error'
         '404':
           description: Feature não encontrada
+
+  /api/v1/features/{id}/export/markdown:
+    get:
+      summary: Exporta somente a feature e os seus PBIs em Markdown no formato do guia de especificação (PBI-01.5.5 / S3-15)
+      operationId: exportFeatureMarkdown
+      description: >-
+        Gera o arquivo no servidor e o entrega para download. Disponível a qualquer perfil com
+        acesso ao projeto (admin, po ou dev alocado). Itens arquivados não entram no arquivo;
+        os códigos EP/FT/PBI são posicionais (ordem de criação entre irmãos, contando arquivados,
+        para não mudar quando um irmão é arquivado).
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Arquivo Markdown
+          headers:
+            Content-Disposition:
+              description: attachment com o nome do arquivo, por exemplo FT-01.2-titulo.md
+              schema:
+                type: string
+          content:
+            text/markdown:
+              schema:
+                type: string
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Feature não encontrada ou usuário sem acesso ao projeto
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Feature, épico ou projeto arquivado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
 
   /api/v1/pbis:
     post:
