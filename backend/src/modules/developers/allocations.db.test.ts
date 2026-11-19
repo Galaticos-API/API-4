@@ -61,6 +61,10 @@ test("S3-10: alocação valida período, concede acesso e alimenta o histórico 
       assert.equal(past.em_andamento, false);
       assert.equal(saoPauloDay(past.data_fim), "2025-06-30");
       assert.equal(await hasAccess(ids.boreal), false);
+      const originalPastDates = { data_inicio: past.data_inicio, data_fim: past.data_fim };
+      const roleOnlyUpdate = await repository.update(ids.dev, past.id, { papel: "Arquiteto" }, ids.po);
+      assert.equal(roleOnlyUpdate.data_inicio, originalPastDates.data_inicio);
+      assert.equal(roleOnlyUpdate.data_fim, originalPastDates.data_fim);
 
       await assert.rejects(
         () => repository.create(ids.dev, { projeto_id: ids.atlas, papel: "QA", data_inicio: "2026-03-01", data_fim: "2026-04-01" }, ids.po),
