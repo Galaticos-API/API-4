@@ -266,7 +266,7 @@ test('S2-19: organização, níveis, dicionário imediato, conclusão, autoria e
       assert.equal((await call<Report>('/quality/items/epico/'+ids.epic,'dev')).status,404);
       const developer=randomUUID();
       await db.query('INSERT INTO desenvolvedor(id,usuario_id) VALUES ($1,$2)',[developer,ids.dev]);
-      await db.query("INSERT INTO alocacao(desenvolvedor_id,projeto_id,data_inicio) VALUES ($1,$2,CURRENT_TIMESTAMP-INTERVAL '1 day')",[developer,ids.project]);
+      await db.query("INSERT INTO alocacao(desenvolvedor_id,projeto_id,papel,data_inicio) VALUES ($1,$2,'QA',CURRENT_TIMESTAMP-INTERVAL '1 day')",[developer,ids.project]);
       assert.equal((await call<Report>('/quality/items/epico/'+ids.epic,'dev')).status,200);
       const other=randomUUID(),otherEpic=randomUUID();
       await db.query("INSERT INTO projeto(id,nome,cliente) VALUES ($1,'Outro','QA')",[other]);

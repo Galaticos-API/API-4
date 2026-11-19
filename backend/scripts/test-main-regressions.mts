@@ -55,7 +55,7 @@ try {
   const devToken = (await sessions.createSession(dev)).token;
   const project = (await db.query("INSERT INTO projeto(nome,cliente,status) VALUES ('QA privado','QA','ativo') RETURNING id")).rows[0].id;
   const developer = (await db.query('INSERT INTO desenvolvedor(usuario_id) VALUES ($1) RETURNING id', [dev])).rows[0].id;
-  const allocate = () => db.query('INSERT INTO alocacao(desenvolvedor_id,projeto_id) VALUES ($1,$2)', [developer, project]);
+  const allocate = () => db.query("INSERT INTO alocacao(desenvolvedor_id,projeto_id,papel) VALUES ($1,$2,'QA')", [developer, project]);
   const revoke = () => db.query('DELETE FROM alocacao WHERE desenvolvedor_id=$1 AND projeto_id=$2', [developer, project]);
   await allocate();
   const document = (await db.query("INSERT INTO documento(projeto_id,nome,caminho,mime,status_processamento) VALUES ($1,'QA.txt','qa.txt','text/plain','processado') RETURNING id", [project])).rows[0].id;

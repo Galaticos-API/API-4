@@ -57,7 +57,7 @@ test("S2-12: itens semelhantes entre projetos, aproveitamento com origem e visib
     await pool.query("INSERT INTO usuario (id,nome,email,senha_hash,role) VALUES ($1,'Dev sem alocação',$2,'h','dev')", [devOther, `${devOther}@similares.test`]);
     await pool.query("INSERT INTO desenvolvedor (id,usuario_id) VALUES ($1,$2)", [developerA, devA]);
     await pool.query("INSERT INTO projeto (id,nome,cliente,status) VALUES ($1,'Projeto A','T','ativo'),($2,'Portal do Cliente','T','ativo'),($3,'Projeto Antigo','T','ativo')", [projectA, projectB, projectArchived]);
-    await pool.query("INSERT INTO alocacao (desenvolvedor_id,projeto_id) VALUES ($1,$2)", [developerA, projectA]);
+    await pool.query("INSERT INTO alocacao (desenvolvedor_id,projeto_id,papel) VALUES ($1,$2,'QA')", [developerA, projectA]);
     await insertTree(projectA, ids.a);
     await insertTree(projectB, ids.b);
     await insertTree(projectArchived, ids.z);
@@ -97,7 +97,7 @@ test("S2-12: itens semelhantes entre projetos, aproveitamento com origem e visib
       assert.deepEqual(allocatedToA.items.map((item) => item.id), [ids.a.sibling], "sem acesso ao projeto B");
       const noAllocation = await service.search(projectA, devOther, DRAFT);
       assert.deepEqual(noAllocation.items, []);
-      await pool.query("INSERT INTO alocacao (desenvolvedor_id,projeto_id) VALUES ($1,$2)", [developerA, projectB]);
+      await pool.query("INSERT INTO alocacao (desenvolvedor_id,projeto_id,papel) VALUES ($1,$2,'QA')", [developerA, projectB]);
       const allocatedToBoth = await service.search(projectA, devA, DRAFT);
       assert.ok(allocatedToBoth.items.some((item) => item.id === ids.b.similar));
       await pool.query("DELETE FROM alocacao WHERE desenvolvedor_id=$1 AND projeto_id=$2", [developerA, projectB]);

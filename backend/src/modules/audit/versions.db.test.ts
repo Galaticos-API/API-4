@@ -117,7 +117,7 @@ test('S2-16: snapshots transacionais, comparação, concorrência e isolamento',
       assert.equal((await request('/compare?de=1&para=999',poToken)).status,404);
       const developer=randomUUID();
       await db.query('INSERT INTO desenvolvedor(id,usuario_id) VALUES ($1,$2)',[developer,dev]);
-      await db.query("INSERT INTO alocacao(desenvolvedor_id,projeto_id,data_inicio) VALUES ($1,$2,CURRENT_TIMESTAMP - INTERVAL '1 day')",[developer,other]);
+      await db.query("INSERT INTO alocacao(desenvolvedor_id,projeto_id,papel,data_inicio) VALUES ($1,$2,'QA',CURRENT_TIMESTAMP - INTERVAL '1 day')",[developer,other]);
       assert.equal((await request('',devToken)).status,404);
       assert.equal((await request('/compare?de=1&para=2',devToken)).status,404);
       await db.query('UPDATE alocacao SET projeto_id=$1 WHERE desenvolvedor_id=$2',[project,developer]);
