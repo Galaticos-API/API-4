@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import { ArrowRight, BookOpenText, FolderKanban, Layers3, LogOut, MessageCircle, ShieldCheck, Users } from "lucide-react";
 import { isDeveloperPath, isProjectPath, navigate, routes } from "./models/navigation";
 import { useAuth } from "./viewmodels/useAuthViewModel";
+import { canEditWorkItems } from "./models/permissions";
 const ProjectsView = React.lazy(() => import("./views/projects/ProjectsView").then(module => ({ default: module.ProjectsView })));
 const LandingPageView = React.lazy(() => import("./views/landing/LandingPageView").then(module => ({ default: module.LandingPageView })));
 const DeveloperDashboardView = React.lazy(() => import("./views/dashboard/DeveloperDashboardView").then(module => ({ default: module.DeveloperDashboardView })));
@@ -24,6 +25,7 @@ export const App: React.FC = () => {
   const menuPanelRef = React.useRef<HTMLDivElement>(null);
 
   const isAdmin = session.user?.role === "admin";
+  const canEdit = canEditWorkItems(session.user?.role);
   const activeTab = isProjectPath(pathname)
     ? "projects"
     : isDeveloperPath(pathname)
@@ -248,12 +250,12 @@ export const App: React.FC = () => {
       <main className={`app-content${isChatPage ? " app-content--chat" : ""}`}>
         <React.Suspense fallback={<div className="page-container" role="status" aria-live="polite">Carregando tela…</div>}>
           <SearchOriginFocus pathname={pathname} />
-          {activeTab === "projects" && <ProjectsView key={pathname} pathname={pathname} canCreate={session.user?.role === "po" || session.user?.role === "admin"} />}
-          {activeTab === "requirements" && <RequirementsView canCreate={session.user?.role === "po" || session.user?.role === "admin"} />}
+          {activeTab === "projects" && <ProjectsView key={pathname} pathname={pathname} canCreate={canEdit} />}
+          {activeTab === "requirements" && <RequirementsView canCreate={canEdit} />}
           {activeTab === "documents" && <DocumentsView />}
           {activeTab === "knowledge" && <KnowledgeView />}
           {(activeTab === "chat" || activeTab === "rag") && <ChatView />}
-          {activeTab === "developers" && <DevelopersView key={pathname} pathname={pathname} canManage={session.user?.role === "po" || session.user?.role === "admin"} />}
+          {activeTab === "developers" && <DevelopersView key={pathname} pathname={pathname} canManage={canEdit} />}
           {activeTab === "admin" && (isAdmin ? <AdminView /> : (
             <section className="page-container" role="alert" aria-labelledby="admin-access-title">
               <h1 id="admin-access-title">Acesso restrito</h1>
