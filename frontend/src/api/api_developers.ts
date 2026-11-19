@@ -134,3 +134,69 @@ export async function updateDeveloperProfile(
   });
   return (await res.json()) as DeveloperProfileSummary;
 }
+
+import type { CompetencyLevel } from "../models/competencies";
+
+export async function createCompetency(
+  developerId: string,
+  payload: { tecnologia_id: string; nivel: CompetencyLevel; evidencia: string },
+): Promise<DeveloperCompetency> {
+  const res = await apiRequest(`/developers/${encodeURIComponent(developerId)}/competencies`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+  return (await res.json()) as DeveloperCompetency;
+}
+
+export async function updateCompetency(
+  developerId: string,
+  competencyId: string,
+  payload: { nivel?: CompetencyLevel; evidencia?: string },
+): Promise<DeveloperCompetency> {
+  const res = await apiRequest(
+    `/developers/${encodeURIComponent(developerId)}/competencies/${encodeURIComponent(competencyId)}`,
+    { method: "PATCH", body: JSON.stringify(payload) },
+  );
+  return (await res.json()) as DeveloperCompetency;
+}
+
+export async function removeCompetency(developerId: string, competencyId: string): Promise<void> {
+  await apiRequest(
+    `/developers/${encodeURIComponent(developerId)}/competencies/${encodeURIComponent(competencyId)}`,
+    { method: "DELETE" },
+  );
+}
+
+export interface AllocationInput {
+  projeto_id: string;
+  papel: string;
+  data_inicio: string;
+  data_fim: string | null;
+}
+
+export async function createAllocation(developerId: string, payload: AllocationInput): Promise<DeveloperAllocation> {
+  const res = await apiRequest(`/developers/${encodeURIComponent(developerId)}/allocations`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+  return (await res.json()) as DeveloperAllocation;
+}
+
+export async function updateAllocation(
+  developerId: string,
+  allocationId: string,
+  payload: Partial<Omit<AllocationInput, "projeto_id">>,
+): Promise<DeveloperAllocation> {
+  const res = await apiRequest(
+    `/developers/${encodeURIComponent(developerId)}/allocations/${encodeURIComponent(allocationId)}`,
+    { method: "PATCH", body: JSON.stringify(payload) },
+  );
+  return (await res.json()) as DeveloperAllocation;
+}
+
+export async function removeAllocation(developerId: string, allocationId: string): Promise<void> {
+  await apiRequest(
+    `/developers/${encodeURIComponent(developerId)}/allocations/${encodeURIComponent(allocationId)}`,
+    { method: "DELETE" },
+  );
+}

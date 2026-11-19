@@ -4,6 +4,7 @@ import { env } from "../../config/env.js";
 import { AppError, ConflictError, NotFoundError, ValidationError, UUID_REGEX, validateUuid } from "../../shared/errors.js";
 import { ChatRepository } from "./chat.repository.js";
 import { GREETING_REPLY, isGreetingOnly } from "./greetings.js";
+import { TeamKnowledgeService, teamTechnologyQuestion } from "../team/team.service.js";
 import { RagService } from './rag.service.js';
 import { SearchRepository } from '../search/search.repository.js';
 import { HttpSearchEmbeddingClient } from '../search/search.service.js';
@@ -68,7 +69,7 @@ export function sanitizeSources(value: unknown): ChatSource[] {
       ...(typeof source.projeto_id === "string" && UUID_REGEX.test(source.projeto_id) ? { projeto_id: source.projeto_id } : {}),
       ...(typeof source.projeto_nome === "string" ? { projeto_nome: source.projeto_nome.slice(0, 200) } : {}),
       ...(typeof source.entidade_id === "string" && UUID_REGEX.test(source.entidade_id) ? { entidade_id: source.entidade_id } : {}),
-      ...(typeof source.url === "string" && source.url.startsWith("/projects/") && !/[\\\s]/.test(source.url) ? { url: source.url.slice(0, 500) } : {}),
+      ...(typeof source.url === "string" && (source.url.startsWith("/projects/") || source.url.startsWith("/developers/")) && !/[\\\s]/.test(source.url) ? { url: source.url.slice(0, 500) } : {}),
       ...(Array.isArray(source.chunk_ids) ? { chunk_ids: source.chunk_ids.filter((id): id is string => typeof id === "string" && UUID_REGEX.test(id)).slice(0, 20) } : {}),
       ...(Array.isArray(source.evidencias) ? { evidencias: source.evidencias.flatMap((value) => {
         if (typeof value !== "object" || value === null) return [];
@@ -144,6 +145,7 @@ export class ChatService {
   constructor(
     private readonly repository: ChatRepository = new ChatRepository(),
     private readonly assistant: AssistantClient = new HttpAssistantClient(env.AI_SERVICE_URL, repository),
+    private readonly team: Pick<TeamKnowledgeService, "whoWorkedWith"> = new TeamKnowledgeService(),
   ) { }
 
   accessibleProjects(usuarioId: string) { return this.repository.accessibleProjects(usuarioId); }
@@ -327,6 +329,18 @@ export class ChatService {
         const answer: AssistantAnswer = { resposta: GREETING_REPLY, fontes: [] };
         await this.repository.finishMessage(conversaId, messageId, answer.resposta, answer.fontes, "assistente");
         return logCompleted({ conversa_id: conversaId, escopo_tipo: scope, resposta: answer.resposta, fontes: answer.fontes, origem: "assistente" });
+      }
+
+      // Consultas sobre a equipe (PBI-05.2.1) são respondidas de forma determinística a partir de
+      // competências e alocações registradas, sem geração livre: sem registro, recusa.
+      const teamTerm = teamTechnologyQuestion(pergunta);
+      if (teamTerm) {
+        const teamAnswer = await this.team.whoWorkedWith(teamTerm, projectIds);
+        if (signal?.aborted) throw new DOMException("Consulta interrompida.", "AbortError");
+        const origem: QueryResult["origem"] = teamAnswer.encontrado ? "assistente" : "sem_resultado";
+        const fontes = sanitizeSources(teamAnswer.fontes);
+        await this.repository.finishMessage(conversaId, messageId, teamAnswer.resposta, fontes, origem);
+        return logCompleted({ conversa_id: conversaId, escopo_tipo: scope, resposta: teamAnswer.resposta, fontes, origem });
       }
 
       const history = isExistingConversation

@@ -116,6 +116,7 @@ export function FeatureForm({ projectId, epicoId }: { projectId: string; epicoId
 }
 
 import { DecisionsPanel } from "./DecisionsPanel";
+import { TeamRecommendationsPanel } from "./TeamRecommendationsPanel";
 import { SuggestionsPanel } from "./SuggestionsPanel";
 import { ProvenanceBadge } from "./ProvenanceBadge";
 import { ItemHistoryView } from "./ItemHistoryView";
@@ -296,6 +297,7 @@ export function FeatureDetail({ projectId, epicoId, featureId, canEdit, children
       )}
       <SuggestionsPanel kind="feature" id={feature!.id} refreshKey={reuseTick} onChanged={refreshHistory} canWrite={canEdit && !readOnly} readOnlyNote={readOnly ? "Item ou ancestral arquivado: as sugestões ficam disponíveis somente para consulta." : undefined} />
       <DecisionsPanel kind="feature" id={feature!.id} canWrite={canEdit && !readOnly} readOnlyNote={readOnly ? "Item ou ancestral arquivado: as decisões ficam disponíveis somente para consulta." : undefined} />
+      {canEdit && !readOnly && <TeamRecommendationsPanel featureId={feature!.id} />}
       <ItemHistoryView entidadeTipo="feature" entidadeId={feature!.id} refreshTrigger={attempt + historyRevision} />
       <ReadOnlyContext.Provider value={readOnly}>{children}</ReadOnlyContext.Provider>
     </section>

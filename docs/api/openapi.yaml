@@ -922,13 +922,21 @@ paths:
 
   /api/v1/technologies:
     get:
-      summary: Lista o catálogo de tecnologias para associação ao backlog
+      summary: Lista o vocabulário controlado de tecnologias (PBI-06.2.2 / S3-14)
       operationId: listTechnologies
+      description: Disponível a qualquer usuário autenticado. O filtro `q` compara o nome normalizado (sem acentos, pontuação e espaços), então "nodejs" encontra "Node.js".
       security:
         - cookieAuth: []
+      parameters:
+        - in: query
+          name: q
+          required: false
+          schema:
+            type: string
+            maxLength: 100
       responses:
         '200':
-          description: Catálogo ordenado sem dados pessoais de desenvolvedores
+          description: Vocabulário ordenado por nome, com a quantidade de associações de cada tecnologia
           content:
             application/json:
               schema:
@@ -938,9 +946,323 @@ paths:
                   items:
                     type: array
                     items:
-                      $ref: '#/components/schemas/TechnologyOption'
+                      $ref: '#/components/schemas/Technology'
         '401':
           $ref: '#/components/responses/Unauthorized'
+    post:
+      summary: Inclui uma tecnologia no vocabulário (PBI-06.2.2 cenário 2 / PBI-05.1.2 cenário 3)
+      operationId: createTechnology
+      description: Perfis admin e po. A unicidade é garantida pelo nome normalizado; uma variação de escrita retorna 409 com o registro existente. Registra autor e data na auditoria.
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TechnologyInput'
+      responses:
+        '201':
+          description: Tecnologia incluída
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Technology'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Perfil sem permissão
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Já existe tecnologia com a mesma grafia normalizada (code TECHNOLOGY_EXISTS, details.existente)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/v1/technologies/{id}:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+          format: uuid
+    patch:
+      summary: Altera nome ou categoria de uma tecnologia (somente admin)
+      operationId: updateTechnology
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              minProperties: 1
+              properties:
+                nome:
+                  type: string
+                  maxLength: 100
+                categoria:
+                  $ref: '#/components/schemas/TechnologyCategory'
+      responses:
+        '200':
+          description: Tecnologia alterada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Technology'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Tecnologia não encontrada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: O novo nome colide com outra tecnologia (code TECHNOLOGY_EXISTS)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    delete:
+      summary: Remove uma tecnologia, exigindo confirmação das associações existentes (somente admin)
+      operationId: removeTechnology
+      description: Sem associações, remove direto. Com associações, responde 409 TECHNOLOGY_IN_USE com a contagem atual até que `confirmar_associacoes` seja exatamente o total informado; competências e classificações de itens são removidas junto e os itens são reindexados.
+      security:
+        - cookieAuth: []
+      parameters:
+        - in: query
+          name: confirmar_associacoes
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+      responses:
+        '200':
+          description: Tecnologia removida
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [removida, associacoes_removidas]
+                properties:
+                  removida:
+                    type: boolean
+                  associacoes_removidas:
+                    $ref: '#/components/schemas/TechnologyUsage'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Tecnologia não encontrada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Tecnologia em uso sem confirmação válida (code TECHNOLOGY_IN_USE, details.uso)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/v1/team/experience:
+    get:
+      summary: Quem já trabalhou com uma tecnologia, com evidências (PBI-05.2.1 / S3-11)
+      operationId: teamExperience
+      description: Resolve o termo no vocabulário controlado (grafia normalizada ou nome contido no termo, como "integração PIX" para "PIX") e lista profissionais por duas evidências, competência registrada (nível e evidência) e alocação iniciada em projeto cujos itens não arquivados usam a tecnologia. A experiência em projetos considera somente os projetos que o solicitante pode acessar. Sem registro, `encontrado` é false e a resposta informa a ausência sem sugerir profissionais. A mesma consulta responde perguntas como "quem já trabalhou com X?" no chat, sem geração livre, com origem `sem_resultado` quando não há registro.
+      security:
+        - cookieAuth: []
+      parameters:
+        - in: query
+          name: tecnologia
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 100
+      responses:
+        '200':
+          description: Resultado da consulta
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [resposta, encontrado, tecnologias, profissionais, fontes]
+                properties:
+                  resposta:
+                    type: string
+                  encontrado:
+                    type: boolean
+                  tecnologias:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TechnologyOption'
+                  profissionais:
+                    type: array
+                    items:
+                      type: object
+                      required: [desenvolvedor_id, nome, competencias, projetos, pontuacao]
+                      properties:
+                        desenvolvedor_id:
+                          type: string
+                          format: uuid
+                        nome:
+                          type: string
+                        senioridade:
+                          type: string
+                          nullable: true
+                        pontuacao:
+                          type: number
+                        competencias:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              tecnologia_id:
+                                type: string
+                                format: uuid
+                              tecnologia_nome:
+                                type: string
+                              nivel:
+                                $ref: '#/components/schemas/CompetencyLevel'
+                              evidencia:
+                                type: string
+                                nullable: true
+                        projetos:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              projeto_id:
+                                type: string
+                                format: uuid
+                              projeto_nome:
+                                type: string
+                              papeis:
+                                type: array
+                                items:
+                                  type: string
+                              em_andamento:
+                                type: boolean
+                              tecnologias:
+                                type: array
+                                items:
+                                  $ref: '#/components/schemas/TechnologyOption'
+                  fontes:
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: true
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v1/features/{id}/recommendations:
+    get:
+      summary: Recomenda profissionais para uma feature por aderência explicável (PBI-05.2.2 / S3-12)
+      operationId: recommendFeatureProfessionals
+      description: Consultivo, sem nenhuma escrita. Considera as tecnologias da feature e dos PBIs não arquivados dela. Aderência é a parcela dessas tecnologias com evidência registrada (competência ou alocação em projeto autorizado do solicitante que usa a tecnologia); o desempate usa profundidade. Retorna no máximo 5 sugestões, cada uma com justificativa por tecnologia e sinalização de quem já está alocado no projeto. Sem tecnologias associadas, ou sem ninguém com evidência, `base_suficiente` é false. Exige acesso ao projeto da feature.
+      security:
+        - cookieAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Recomendação calculada
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [feature, base_suficiente, mensagem, aviso, criterio, tecnologias, recomendacoes]
+                properties:
+                  feature:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+                      titulo:
+                        type: string
+                  base_suficiente:
+                    type: boolean
+                  mensagem:
+                    type: string
+                  aviso:
+                    type: string
+                    description: Sempre informa que nenhuma alocação é feita automaticamente
+                  criterio:
+                    type: string
+                  tecnologias:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TechnologyOption'
+                  recomendacoes:
+                    type: array
+                    maxItems: 5
+                    items:
+                      type: object
+                      required: [desenvolvedor_id, nome, aderencia, pontuacao, ja_alocado_no_projeto, tecnologias, justificativa]
+                      properties:
+                        desenvolvedor_id:
+                          type: string
+                          format: uuid
+                        nome:
+                          type: string
+                        senioridade:
+                          type: string
+                          nullable: true
+                        aderencia:
+                          type: integer
+                          minimum: 1
+                          maximum: 100
+                        pontuacao:
+                          type: number
+                        ja_alocado_no_projeto:
+                          type: boolean
+                        justificativa:
+                          type: string
+                        tecnologias:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              tecnologia:
+                                $ref: '#/components/schemas/TechnologyOption'
+                              atendida:
+                                type: boolean
+                              justificativas:
+                                type: array
+                                items:
+                                  type: string
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Feature inexistente ou fora dos projetos do solicitante
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
 
   /api/v1/epics:
     post:
@@ -3797,6 +4119,277 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
+  /api/v1/developers/{id}/competencies:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+          format: uuid
+    post:
+      summary: Registra competência com nível e evidência sobre o vocabulário controlado (PBI-05.1.2 / S3-09)
+      operationId: createDeveloperCompetency
+      description: Perfis admin e po. Uma competência por tecnologia em cada perfil. Tecnologia fora do vocabulário responde 422 TECHNOLOGY_NOT_IN_VOCABULARY com details.oferecer_inclusao; a inclusão é feita em POST /api/v1/technologies. A evidência passa pela mesma checagem de dados pessoais do perfil (RNF-09) e a operação é auditada.
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CompetencyInput'
+      responses:
+        '201':
+          description: Competência registrada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeveloperCompetency'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Perfil sem permissão
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Perfil profissional não encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: O perfil já possui competência nessa tecnologia (code COMPETENCY_EXISTS, details.existente)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Tecnologia fora do vocabulário (code TECHNOLOGY_NOT_IN_VOCABULARY)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/v1/developers/{id}/competencies/{competencyId}:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - in: path
+        name: competencyId
+        required: true
+        schema:
+          type: string
+          format: uuid
+    patch:
+      summary: Altera nível ou evidência de uma competência (a tecnologia não muda)
+      operationId: updateDeveloperCompetency
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              minProperties: 1
+              properties:
+                nivel:
+                  $ref: '#/components/schemas/CompetencyLevel'
+                evidencia:
+                  type: string
+                  minLength: 10
+                  maxLength: 2000
+      responses:
+        '200':
+          description: Competência alterada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeveloperCompetency'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Competência não encontrada neste perfil
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    delete:
+      summary: Remove uma competência do perfil
+      operationId: removeDeveloperCompetency
+      security:
+        - cookieAuth: []
+      responses:
+        '204':
+          description: Competência removida
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Competência não encontrada neste perfil
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/v1/developers/{id}/allocations:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+          format: uuid
+    post:
+      summary: Registra alocação com projeto, papel e período (PBI-05.1.3 / S3-10)
+      operationId: createDeveloperAllocation
+      description: Perfis admin e po. Datas são dias de calendário (AAAA-MM-DD) no fuso America/Sao_Paulo; o início vale a partir de 00:00 e o término até 23:59:59.999 do dia informado. Sem `data_fim`, a alocação fica em andamento. Término anterior ao início responde 400 com details.field = data_fim. O projeto deve existir e não estar arquivado. Alocações do mesmo profissional no mesmo projeto não podem se sobrepor. Enquanto vigente, a alocação concede acesso ao projeto ao usuário vinculado, e o histórico consolidado do perfil é derivado dela (PBI-05.2.3). Operação auditada.
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [projeto_id, papel, data_inicio]
+              properties:
+                projeto_id:
+                  type: string
+                  format: uuid
+                papel:
+                  type: string
+                  minLength: 2
+                  maxLength: 100
+                data_inicio:
+                  type: string
+                  format: date
+                data_fim:
+                  type: string
+                  format: date
+                  nullable: true
+      responses:
+        '201':
+          description: Alocação registrada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeveloperAllocationRecord'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Perfil sem permissão
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Perfil profissional não encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Período sobreposto a outra alocação no mesmo projeto (code ALLOCATION_OVERLAP, details.existente)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/v1/developers/{id}/allocations/{allocationId}:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - in: path
+        name: allocationId
+        required: true
+        schema:
+          type: string
+          format: uuid
+    patch:
+      summary: Altera papel ou período de uma alocação (o projeto não muda)
+      operationId: updateDeveloperAllocation
+      description: Campos omitidos mantêm o valor gravado; o período resultante é revalidado. `data_fim` nulo reabre a alocação como em andamento.
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              minProperties: 1
+              properties:
+                papel:
+                  type: string
+                  minLength: 2
+                  maxLength: 100
+                data_inicio:
+                  type: string
+                  format: date
+                data_fim:
+                  type: string
+                  format: date
+                  nullable: true
+      responses:
+        '200':
+          description: Alocação alterada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeveloperAllocationRecord'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Alocação não encontrada neste perfil
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Período sobreposto (code ALLOCATION_OVERLAP)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    delete:
+      summary: Remove uma alocação (e o acesso ao projeto que ela concedia)
+      operationId: removeDeveloperAllocation
+      security:
+        - cookieAuth: []
+      responses:
+        '204':
+          description: Alocação removida
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Alocação não encontrada neste perfil
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
   /api/v1/admin/stats:
     get:
       summary: Indicadores administrativos
@@ -4572,6 +5165,120 @@ components:
           type: string
           format: date-time
 
+
+    DeveloperAllocationRecord:
+      type: object
+      required: [id, desenvolvedor_id, projeto_id, projeto_nome, projeto_status, papel, data_inicio, data_fim, em_andamento]
+      properties:
+        id:
+          type: string
+          format: uuid
+        desenvolvedor_id:
+          type: string
+          format: uuid
+        projeto_id:
+          type: string
+          format: uuid
+        projeto_nome:
+          type: string
+        projeto_status:
+          type: string
+        papel:
+          type: string
+        data_inicio:
+          type: string
+          format: date-time
+        data_fim:
+          type: string
+          format: date-time
+          nullable: true
+        em_andamento:
+          type: boolean
+
+    CompetencyLevel:
+      type: string
+      enum: [iniciante, intermediario, avancado, especialista]
+
+    CompetencyInput:
+      type: object
+      additionalProperties: false
+      required: [tecnologia_id, nivel, evidencia]
+      properties:
+        tecnologia_id:
+          type: string
+          format: uuid
+        nivel:
+          $ref: '#/components/schemas/CompetencyLevel'
+        evidencia:
+          type: string
+          minLength: 10
+          maxLength: 2000
+
+    DeveloperCompetency:
+      type: object
+      required: [id, desenvolvedor_id, tecnologia_id, nivel, evidencia, tecnologia_nome]
+      properties:
+        id:
+          type: string
+          format: uuid
+        desenvolvedor_id:
+          type: string
+          format: uuid
+        tecnologia_id:
+          type: string
+          format: uuid
+        nivel:
+          $ref: '#/components/schemas/CompetencyLevel'
+        evidencia:
+          type: string
+          nullable: true
+        tecnologia_nome:
+          type: string
+        tecnologia_categoria:
+          type: string
+          nullable: true
+
+    TechnologyCategory:
+      type: string
+      enum: [frontend, backend, database, ai, cloud, devops, mobile, outros]
+
+    TechnologyUsage:
+      type: object
+      required: [competencias, itens, total]
+      properties:
+        competencias:
+          type: integer
+        itens:
+          type: integer
+        total:
+          type: integer
+
+    Technology:
+      type: object
+      required: [id, nome, categoria, uso]
+      properties:
+        id:
+          type: string
+          format: uuid
+        nome:
+          type: string
+        categoria:
+          type: string
+          nullable: true
+        uso:
+          $ref: '#/components/schemas/TechnologyUsage'
+
+    TechnologyInput:
+      type: object
+      additionalProperties: false
+      required: [nome, categoria]
+      properties:
+        nome:
+          type: string
+          minLength: 1
+          maxLength: 100
+        categoria:
+          $ref: '#/components/schemas/TechnologyCategory'
 
     TechnologyOption:
       type: object

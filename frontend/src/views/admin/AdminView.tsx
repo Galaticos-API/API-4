@@ -6,6 +6,7 @@ import { navigate } from "../../models/navigation";
 import { OrganizationQualitySettings } from './OrganizationQualitySettings';
 import { WorkDefinitionsSettings } from './WorkDefinitionsSettings';
 import { UserRolesSettings } from './UserRolesSettings';
+import { TechnologyVocabularySettings } from './TechnologyVocabularySettings';
 
 interface Stats {
   projetos: number;
@@ -160,6 +161,7 @@ export const AdminView: React.FC = () => {
       <UserRolesSettings />
       <OrganizationQualitySettings />
       <WorkDefinitionsSettings />
+      <TechnologyVocabularySettings />
       {/* Grid de Estatísticas */}
       <div className="ds-grid ds-grid--three" style={{ marginTop: "20px" }}>
         <article className="ds-card">

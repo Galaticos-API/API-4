@@ -19,10 +19,18 @@ function unsafeGeneralTranscriptSql(conversationAlias: string, userParameter: st
               THEN COALESCE(assistant_message.fontes_json, '[]'::jsonb) ELSE '[]'::jsonb END
           ) AS source(value)
           WHERE jsonb_typeof(source.value) IS DISTINCT FROM 'object'
-            OR NOT EXISTS (
+            OR NOT (
+              (source.value->>'tipo' = 'perfil_profissional' AND EXISTS (
+                SELECT 1 FROM desenvolvedor source_dev
+                LEFT JOIN usuario source_user ON source_user.id = source_dev.usuario_id
+                WHERE source_dev.id::text = source.value->>'id'
+                  AND (source_user.id IS NULL OR source_user.ativo)
+              ))
+              OR EXISTS (
               SELECT 1 FROM projeto source_project
               WHERE source_project.id::text = source.value->>'projeto_id'
                 AND ${projectAccessSql("source_project.id", userParameter)}
+              )
             )
         )
       )

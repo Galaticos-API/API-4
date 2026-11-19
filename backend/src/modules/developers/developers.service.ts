@@ -112,7 +112,7 @@ function assertNoPersonalDataInPayload(input: unknown): void {
   }
 }
 
-function assertNoPersonalDataInText(fieldLabel: string, value: string | null | undefined): void {
+export function assertNoPersonalDataInText(fieldLabel: string, value: string | null | undefined): void {
   if (!value) return;
   EMAIL_ADDRESS_REGEX.lastIndex = 0;
   const emailIsPersonal = PERSONAL_EMAIL_LABEL_REGEX.test(value) ||
