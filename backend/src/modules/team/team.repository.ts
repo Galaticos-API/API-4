@@ -67,6 +67,43 @@ export class TeamRepository {
     return rows.map((row) => row.id);
   }
 
+  /** Feature com as tecnologias dela e dos PBIs não arquivados, ou null se não existir. */
+  async featureTechnologies(featureId: string): Promise<{
+    id: string;
+    titulo: string;
+    projeto_id: string;
+    status: string;
+    tecnologias: VocabularyTechnology[];
+  } | null> {
+    const { rows } = await this.db.query<{ id: string; titulo: string; projeto_id: string; status: string; tecnologias: VocabularyTechnology[] }>(
+      `SELECT f.id, f.titulo, e.projeto_id, f.status,
+              COALESCE((
+                SELECT jsonb_agg(DISTINCT jsonb_build_object('id', t.id, 'nome', t.nome))
+                FROM entidade_tecnologia et JOIN tecnologia t ON t.id = et.tecnologia_id
+                WHERE (et.entidade_tipo = 'feature' AND et.entidade_id = f.id)
+                   OR (et.entidade_tipo = 'pbi' AND et.entidade_id IN (
+                        SELECT b.id FROM pbi b WHERE b.feature_id = f.id AND b.status <> 'arquivado'))
+              ), '[]'::jsonb) AS tecnologias
+       FROM feature f JOIN epico e ON e.id = f.epico_id
+       WHERE f.id = $1`,
+      [featureId],
+    );
+    const row = rows[0];
+    if (!row) return null;
+    return { ...row, tecnologias: [...row.tecnologias].sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR")) };
+  }
+
+  /** Profissionais com alocação vigente no projeto, para sinalizar quem já está na demanda. */
+  async currentlyAllocated(projectId: string): Promise<Set<string>> {
+    const { rows } = await this.db.query<{ desenvolvedor_id: string }>(
+      `SELECT DISTINCT desenvolvedor_id FROM alocacao
+       WHERE projeto_id = $1 AND data_inicio <= CURRENT_TIMESTAMP
+         AND (data_fim IS NULL OR data_fim > CURRENT_TIMESTAMP)`,
+      [projectId],
+    );
+    return new Set(rows.map((row) => row.desenvolvedor_id));
+  }
+
   async vocabulary(): Promise<VocabularyTechnology[]> {
     const { rows } = await this.db.query<VocabularyTechnology>("SELECT id, nome FROM tecnologia ORDER BY nome, id");
     return rows;
