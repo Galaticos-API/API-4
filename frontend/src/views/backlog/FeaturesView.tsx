@@ -16,6 +16,7 @@ import { BacklogBreadcrumb } from "./BacklogBreadcrumb";
 import { BacklogTechnologySelector } from "./BacklogTechnologySelector";
 import { CriteriaEditor } from "./CriteriaView";
 import { ItemArchiveView } from "./ItemArchiveView";
+import { ExportMarkdownButton } from "./ExportMarkdownButton";
 import { reuseAfterCreate, SimilarItemsPanel, SimilarSelection } from "./SimilarItemsPanel";
 import type { SimilarItem } from "../../api/api_similar_items";
 
@@ -190,7 +191,10 @@ export function FeatureDetail({ projectId, epicoId, featureId, canEdit, children
       />
       <div className="projects-heading">
         <div><p className="projects-eyebrow">Épico: {feature!.epico_titulo}</p><h2>{feature!.titulo} <ProvenanceBadge provenance={feature!.provenance_json} field="titulo" /></h2></div>
-        <Button variant="secondary" onClick={() => { if (confirmLeave()) navigate(`/projects/${projectId}/epics/${epicoId}`); }}>Voltar ao épico de origem</Button>
+        <div className="project-actions">
+          {!readOnly && <ExportMarkdownButton kind="features" id={feature!.id} />}
+          <Button variant="secondary" onClick={() => { if (confirmLeave()) navigate(`/projects/${projectId}/epics/${epicoId}`); }}>Voltar ao épico de origem</Button>
+        </div>
       </div>
       {readOnly && <div className="ds-card ds-card--glass projects-state"><p role="status">Esta feature pertence a um projeto arquivado e está disponível apenas para leitura.</p></div>}
       <article className="ds-card ds-card--glass project-card">

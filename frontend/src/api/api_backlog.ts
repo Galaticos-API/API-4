@@ -1068,3 +1068,33 @@ export async function deletePbiRelation(pbiId: string, relationId: string): Prom
   });
 }
 
+// S3-15 / PBI-01.5.5: o backend gera o Markdown no formato do guia; aqui só se baixa.
+export type MarkdownExportKind = "epics" | "features";
+
+export interface MarkdownExport {
+  filename: string;
+  content: string;
+}
+
+export function filenameFromDisposition(header: string | null, fallback: string): string {
+  if (!header) return fallback;
+  const encoded = /filename\*=UTF-8''([^;]+)/i.exec(header)?.[1];
+  if (encoded) {
+    try { return decodeURIComponent(encoded.trim()); } catch { /* usa o nome simples abaixo */ }
+  }
+  const plain = /filename="([^"]+)"/i.exec(header)?.[1] ?? /filename=([^;]+)/i.exec(header)?.[1];
+  return plain?.trim() || fallback;
+}
+
+export async function exportBacklogMarkdown(kind: MarkdownExportKind, id: string, signal?: AbortSignal): Promise<MarkdownExport> {
+  const response = await apiRequest(`/${kind}/${encodeURIComponent(id)}/export/markdown`, {
+    signal,
+    headers: { Accept: "text/markdown" },
+  }, 30000);
+  const fallback = `${kind === "epics" ? "epico" : "feature"}-${id}.md`;
+  return {
+    filename: filenameFromDisposition(response.headers.get("Content-Disposition"), fallback),
+    content: await response.text(),
+  };
+}
+
