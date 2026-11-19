@@ -3,6 +3,7 @@ import { ApiError } from "../../api/api_auth";
 import { changeUserRole, listUserRoles, type PlatformUserRole } from "../../api/api_admin_users";
 import { ROLE_LABELS, USER_ROLES, type UserRole } from "../../models/permissions";
 import { Button } from "../common/ui";
+import { useAuth } from "../../viewmodels/useAuthViewModel";
 import "../../assets/styles/organization-quality.css";
 
 const SOLE_ADMIN_NOTE = "Único administrador ativo: defina outro administrador antes de alterar este perfil.";
@@ -14,6 +15,7 @@ function describeChange(user: PlatformUserRole): string {
 }
 
 export function UserRolesSettings() {
+  const { session, restore } = useAuth();
   const [users, setUsers] = useState<PlatformUserRole[]>([]);
   const [drafts, setDrafts] = useState<Record<string, UserRole>>({});
   const [loading, setLoading] = useState(true);
@@ -54,6 +56,9 @@ export function UserRolesSettings() {
       setUsers((current) => current.map((item) => (item.id === user.id ? result.usuario : item)));
       setDrafts((current) => ({ ...current, [user.id]: result.usuario.role }));
       setMessage(`${result.usuario.nome}: ${result.message}`);
+      if (session.status === "authenticated" && session.user.id === user.id) {
+        await restore();
+      }
     } catch (err) {
       if (!mounted.current) return;
       const details = err instanceof ApiError ? (err.details as { error?: string } | undefined) : undefined;

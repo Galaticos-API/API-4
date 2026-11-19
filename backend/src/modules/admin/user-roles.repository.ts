@@ -99,6 +99,18 @@ export class UserRolesRepository {
     return withTransaction(this.db as Pool, async (client: PoolClient) => {
       await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", [ROLE_CHANGE_LOCK_KEY]);
 
+      // A autorização HTTP pode ter ocorrido antes de esta chamada aguardar o lock.
+      // Revalidar dentro da seção serializada impede que um admin recém-rebaixado
+      // conclua uma mutação que já estava na fila.
+      const actorResult = await client.query<{ role: UserRole; ativo: boolean }>(
+        "SELECT role, ativo FROM usuario WHERE id = $1 FOR UPDATE",
+        [actorId],
+      );
+      const actor = actorResult.rows[0];
+      if (!actor || actor.role !== "admin" || actor.ativo === false) {
+        throw new AppError("Somente administradores ativos podem alterar perfis.", 403, "FORBIDDEN");
+      }
+
       const current = await client.query<{ id: string; role: UserRole; ativo: boolean }>(
         "SELECT id, role, ativo FROM usuario WHERE id = $1 FOR UPDATE",
         [targetUserId],

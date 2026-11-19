@@ -90,6 +90,10 @@ function createFakePool(seed: FakeUser[]) {
             releaseLock = unlock;
             return { rows: [{}], rowCount: 1 };
           }
+          if (text === "SELECT role, ativo FROM usuario WHERE id = $1 FOR UPDATE") {
+            const user = users.get(String(params[0]));
+            return { rows: user ? [{ role: user.role, ativo: user.ativo }] : [], rowCount: user ? 1 : 0 };
+          }
           if (text.startsWith("SELECT id, role, ativo FROM usuario WHERE id = $1 FOR UPDATE")) {
             const user = users.get(String(params[0]));
             // Cede a vez para que pedidos concorrentes tentem intercalar.
@@ -206,10 +210,21 @@ test("S3-13: dois pedidos simultâneos de rebaixamento não deixam a plataforma 
 
   assert.equal(results.filter((r) => r.status === "fulfilled").length, 1);
   const rejected = results.find((r) => r.status === "rejected") as PromiseRejectedResult;
-  assert.equal((rejected.reason as { statusCode?: number }).statusCode, 409);
+  assert.ok([403, 409].includes((rejected.reason as { statusCode?: number }).statusCode ?? 0));
   const admins = [...pool.users.values()].filter((u) => u.role === "admin" && u.ativo);
   assert.equal(admins.length, 1);
   assert.equal(pool.audits.length, 1);
+});
+
+test("S3-13: revalida o administrador depois de aguardar o lock global", async () => {
+  const pool = createFakePool([...seedUsers(), { id: ADMIN_B, nome: "Bia Admin", email: "bia@sinapse.local", role: "admin", ativo: true }]);
+  const repository = new UserRolesRepository(pool as never);
+  await repository.changeRole(ADMIN_B, "dev", ADMIN_A);
+  await assert.rejects(
+    () => repository.changeRole(ADMIN_B, "admin", ADMIN_B),
+    (error: unknown) => error instanceof Error && "statusCode" in error && error.statusCode === 403,
+  );
+  assert.equal(pool.users.get(ADMIN_B)?.role, "dev");
 });
 
 test("S3-13 / PBI-06.2.1 cenário 1: o papel novo vale no próximo acesso porque a sessão relê o papel do banco", async () => {
