@@ -18,7 +18,7 @@ DIMENSIONS = ["caminho_principal", "validacoes", "erros_indisponibilidade", "per
 class IncrementalEvidenceParser:
     """Emite apenas objetos completos de evidência encontrados no JSON em curso."""
     def __init__(self):
-        self.buffer = ""
+        self._buffer_parts: list[str] = []
         self.emitted: set[str] = set()
         self._state = "outside"
         self._array_depth = 0
@@ -29,6 +29,11 @@ class IncrementalEvidenceParser:
         self._key_escape = False
         self._key_too_long = False
         self.inspected_characters = 0
+
+    @property
+    def buffer(self) -> str:
+        """Materializa o único objeto parcial sob demanda para compatibilidade."""
+        return "".join(self._buffer_parts)
 
     def _consume_object(self, raw: str, found: list[dict[str, str]]) -> None:
         try:
@@ -46,7 +51,7 @@ class IncrementalEvidenceParser:
         for char in fragment:
             self.inspected_characters += 1
             if self._state == "object":
-                self.buffer += char
+                self._buffer_parts.append(char)
                 if self._string:
                     if self._escaped: self._escaped = False
                     elif char == "\\": self._escaped = True
@@ -56,8 +61,8 @@ class IncrementalEvidenceParser:
                 elif char == "}":
                     self._object_depth -= 1
                     if self._object_depth == 0:
-                        self._consume_object(self.buffer, found)
-                        self.buffer = ""
+                        self._consume_object("".join(self._buffer_parts), found)
+                        self._buffer_parts.clear()
                         self._state = "array"
                 continue
 
@@ -68,7 +73,7 @@ class IncrementalEvidenceParser:
                     if self._array_depth == 0: self._state = "outside"
                 elif char == "{":
                     self._state = "object"
-                    self.buffer = char
+                    self._buffer_parts = [char]
                     self._object_depth = 1
                     self._string = self._escaped = False
                 continue

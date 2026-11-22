@@ -91,6 +91,20 @@ class GrammarSchemaTests(unittest.IsolatedAsyncioTestCase):
                 self.assertLessEqual(parser.inspected_characters, len(raw) * 2)
                 self.assertLess(len(parser.buffer), 2_048)
 
+    def test_incremental_extractor_buffers_large_candidate_without_repeated_string_growth(self):
+        quote = "x" * 24_000
+        raw = json.dumps({"evidence":[{"source_id":"large","quote":quote}]})
+        expected = [{"source_id":"large","quote":quote}]
+        for chunk_size in (2, 4, 8):
+            with self.subTest(chunk_size=chunk_size):
+                parser = IncrementalEvidenceParser()
+                candidates = []
+                for offset in range(0, len(raw), chunk_size):
+                    candidates.extend(parser.feed(raw[offset:offset + chunk_size]))
+                self.assertEqual(candidates, expected)
+                self.assertEqual(parser.buffer, "")
+                self.assertLessEqual(parser.inspected_characters, len(raw))
+
     def test_incremental_extractor_handles_split_keys_escapes_duplicates_and_extras(self):
         raw = '{"sources" : [{"source_id":"s\\\\1","quote":"a \\\"quoted\\\" { brace }"},{"source_id":"s\\\\1","quote":"a \\\"quoted\\\" { brace }"},{"source_id":"x","quote":"ok","extra":true}]}'
         expected = [{"source_id":"s\\1","quote":"a \"quoted\" { brace }"}]
