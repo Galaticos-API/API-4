@@ -20,38 +20,95 @@ class IncrementalEvidenceParser:
     def __init__(self):
         self.buffer = ""
         self.emitted: set[str] = set()
+        self._state = "outside"
+        self._array_depth = 0
+        self._object_depth = 0
+        self._string = False
+        self._escaped = False
+        self._key = ""
+        self._key_escape = False
+        self._key_too_long = False
+        self.inspected_characters = 0
+
+    def _consume_object(self, raw: str, found: list[dict[str, str]]) -> None:
+        try:
+            value = json.loads(raw)
+        except (ValueError, TypeError):
+            value = None
+        if isinstance(value, dict) and set(value) == {"source_id", "quote"} and all(isinstance(value[key], str) and value[key].strip() for key in value):
+            key = json.dumps(value, sort_keys=True, ensure_ascii=False)
+            if key not in self.emitted:
+                self.emitted.add(key)
+                found.append(value)
 
     def feed(self, fragment: str) -> list[dict[str, str]]:
-        self.buffer += fragment
         found: list[dict[str, str]] = []
-        for match in re.finditer(r'\"(?:evidence|sources)\"\s*:\s*\[', self.buffer):
-            pos = match.end()
-            while pos < len(self.buffer):
-                while pos < len(self.buffer) and self.buffer[pos] in " \r\n\t,": pos += 1
-                if pos >= len(self.buffer) or self.buffer[pos] != "{": break
-                start, depth, quoted, escaped = pos, 0, False, False
-                while pos < len(self.buffer):
-                    char = self.buffer[pos]
-                    if quoted:
-                        if escaped: escaped = False
-                        elif char == "\\": escaped = True
-                        elif char == '"': quoted = False
-                    elif char == '"': quoted = True
-                    elif char == "{": depth += 1
-                    elif char == "}":
-                        depth -= 1
-                        if depth == 0:
-                            try: value = json.loads(self.buffer[start:pos + 1])
-                            except (ValueError, TypeError): value = None
-                            if isinstance(value, dict) and set(value) == {"source_id", "quote"} and all(isinstance(value[key], str) and value[key].strip() for key in value):
-                                key = json.dumps(value, sort_keys=True, ensure_ascii=False)
-                                if key not in self.emitted:
-                                    self.emitted.add(key)
-                                    found.append(value)
-                            pos += 1
-                            break
-                    pos += 1
-                else: break
+        for char in fragment:
+            self.inspected_characters += 1
+            if self._state == "object":
+                self.buffer += char
+                if self._string:
+                    if self._escaped: self._escaped = False
+                    elif char == "\\": self._escaped = True
+                    elif char == '"': self._string = False
+                elif char == '"': self._string = True
+                elif char == "{": self._object_depth += 1
+                elif char == "}":
+                    self._object_depth -= 1
+                    if self._object_depth == 0:
+                        self._consume_object(self.buffer, found)
+                        self.buffer = ""
+                        self._state = "array"
+                continue
+
+            if self._state == "array":
+                if char == "[": self._array_depth += 1
+                elif char == "]":
+                    self._array_depth -= 1
+                    if self._array_depth == 0: self._state = "outside"
+                elif char == "{":
+                    self._state = "object"
+                    self.buffer = char
+                    self._object_depth = 1
+                    self._string = self._escaped = False
+                continue
+
+            if self._state == "key":
+                if self._key_escape:
+                    self._key_escape = False
+                    if len(self._key) < 8: self._key += char
+                    else: self._key_too_long = True
+                elif char == "\\":
+                    self._key_escape = True
+                    if len(self._key) < 8: self._key += char
+                    else: self._key_too_long = True
+                elif char == '"':
+                    self._state = "after_key"
+                else:
+                    if len(self._key) < 8: self._key += char
+                    else: self._key_too_long = True
+                continue
+
+            if self._state == "after_key":
+                if char.isspace(): continue
+                if char == ":" and not self._key_too_long and self._key in ("evidence", "sources"):
+                    self._state = "after_evidence_key"
+                else:
+                    self._state = "outside"
+                continue
+
+            if self._state == "after_evidence_key":
+                if char.isspace(): continue
+                self._state = "array" if char == "[" else "outside"
+                self._array_depth = 1 if char == "[" else 0
+                continue
+
+            # Busca nomes de chave somente fora de strings.
+            if char == '"':
+                self._state = "key"
+                self._key = ""
+                self._key_escape = False
+                self._key_too_long = False
         return found
 
 def extract_evidence_candidates(value: str) -> list[dict[str, str]]:

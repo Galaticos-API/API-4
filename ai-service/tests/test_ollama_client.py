@@ -79,6 +79,47 @@ class GrammarSchemaTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(extract_evidence_candidates('{"sources":[{"source_id":"s","quote":3}]}'), [])
         self.assertEqual(extract_evidence_candidates('{"sources":[{"source_id":"s","quote":"q"}]}'), [{"source_id":"s","quote":"q"}])
 
+    def test_incremental_extractor_releases_scanned_prefix_for_long_fragmented_outputs(self):
+        raw = '{"answer":"' + ('x' * 20_000) + '","evidence":[{"source_id":"s","quote":"verified"}]}'
+        for chunk_size in (2, 4, 8):
+            with self.subTest(chunk_size=chunk_size):
+                parser = IncrementalEvidenceParser()
+                candidates = []
+                for offset in range(0, len(raw), chunk_size):
+                    candidates.extend(parser.feed(raw[offset:offset + chunk_size]))
+                self.assertEqual(candidates, [{"source_id":"s","quote":"verified"}])
+                self.assertLessEqual(parser.inspected_characters, len(raw) * 2)
+                self.assertLess(len(parser.buffer), 2_048)
+
+    def test_incremental_extractor_handles_split_keys_escapes_duplicates_and_extras(self):
+        raw = '{"sources" : [{"source_id":"s\\\\1","quote":"a \\\"quoted\\\" { brace }"},{"source_id":"s\\\\1","quote":"a \\\"quoted\\\" { brace }"},{"source_id":"x","quote":"ok","extra":true}]}'
+        expected = [{"source_id":"s\\1","quote":"a \"quoted\" { brace }"}]
+        for chunk_size in (2, 4, 8):
+            with self.subTest(chunk_size=chunk_size):
+                parser = IncrementalEvidenceParser()
+                candidates = []
+                for offset in range(0, len(raw), chunk_size):
+                    candidates.extend(parser.feed(raw[offset:offset + chunk_size]))
+                self.assertEqual(candidates, expected)
+
+    def test_incremental_extractor_ignores_key_like_text_and_keeps_multiple_unique_candidates(self):
+        raw = r'{"answer":"literal \\\"evidence\\\": [ { not data ]","evidence" : [{"source_id":"one","quote":"first"},{"source_id":"two","quote":"second"},{"source_id":"one","quote":"first"}]}'
+        expected = [{"source_id":"one","quote":"first"}, {"source_id":"two","quote":"second"}]
+        for chunk_size in (2, 4, 8):
+            parser = IncrementalEvidenceParser()
+            candidates = []
+            for offset in range(0, len(raw), chunk_size):
+                candidates.extend(parser.feed(raw[offset:offset + chunk_size]))
+            self.assertEqual(candidates, expected)
+
+    def test_incremental_extractor_ignores_truncated_and_malformed_evidence(self):
+        parser = IncrementalEvidenceParser()
+        partial = '{"evidence":[{"source_id":"s","quote":"unfinished'
+        self.assertEqual(parser.feed(partial), [])
+        self.assertEqual(parser.buffer, '{"source_id":"s","quote":"unfinished')
+        self.assertEqual(parser.feed(''), [])
+        self.assertEqual(extract_evidence_candidates('{"evidence":[{"source_id":"s","quote":"bad\\q"}]}'), [])
+
     async def test_harness_stream_has_same_canonical_result_as_run(self):
         payload = {"mode":"consulta", "operation":"responder", "level":"pbi", "version":3, "schema_version":1,
             "config":{"instructions":"Responder.","operation_instructions":{"responder":"r"},"timeout_ms":5000,"rules":{}},
