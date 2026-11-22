@@ -38,18 +38,24 @@ export async function applyUntil(client: Client, vectorAvailable: boolean, stop:
 
 export async function withDatabase(adminUrl: string, run: (client: Client, vectorAvailable: boolean) => Promise<void>): Promise<void> {
   const admin = new Client({ connectionString: adminUrl });
-  await admin.connect();
   const database = `migration_${randomUUID().replaceAll("-", "").slice(0, 16)}_test`;
-  const vector = await admin.query("SELECT 1 FROM pg_available_extensions WHERE name='vector'");
-  const vectorAvailable = Boolean(vector.rowCount);
-  await admin.query(`CREATE DATABASE ${database}`);
-  const client = new Client({ connectionString: connectionFor(adminUrl, database) });
+  let client: Client | undefined;
+  let databaseCreated = false;
   try {
+    await admin.connect();
+    const vector = await admin.query("SELECT 1 FROM pg_available_extensions WHERE name='vector'");
+    const vectorAvailable = Boolean(vector.rowCount);
+    await admin.query(`CREATE DATABASE ${database}`);
+    databaseCreated = true;
+    client = new Client({ connectionString: connectionFor(adminUrl, database) });
     await client.connect();
     await run(client, vectorAvailable);
   } finally {
-    await client.end().catch(() => undefined);
-    await admin.query(`DROP DATABASE IF EXISTS ${database} WITH (FORCE)`);
-    await admin.end();
+    await client?.end().catch(() => undefined);
+    try {
+      if (databaseCreated) await admin.query(`DROP DATABASE IF EXISTS ${database} WITH (FORCE)`);
+    } finally {
+      await admin.end().catch(() => undefined);
+    }
   }
 }

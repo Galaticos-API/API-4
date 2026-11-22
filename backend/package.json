@@ -15,6 +15,7 @@
     "bootstrap:admin": "tsx scripts/bootstrap-admin.mts",
     "test": "node scripts/test.mjs",
     "test:integration:indexing": "tsx scripts/test-indexing-db.mts",
+    "test:integration:developers": "node --import tsx --test src/modules/developers/developers.migration.db.test.ts",
     "test:integration:quality": "tsx scripts/test-indexing-db.mts --quality",
     "test:integration:search": "tsx scripts/test-indexing-db.mts --search",
     "test:integration:harness": "tsx scripts/validate-harness.mts",

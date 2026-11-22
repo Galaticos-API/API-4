@@ -312,6 +312,18 @@ test("S3-08 / RNF-09 (Security by Design): rejeita dados pessoais fora do propó
     "Engenheiro com telefone (11) 98765-4321",
     "Documento informado: 12345678900",
     "Mora na Rua das Flores, 123, Centro",
+    "Contato profissional: ana@pro4tech.com.br",
+    "Contato: pesquisadora@acervo.museum",
+    "Contato: first%tag@example.com",
+    "Contato: first`tag@example.com",
+    "Contato: <josé@exemplo.рф>",
+    "Contato: <jose\u0301@exemplo.com>",
+    "Contato: <δοκιμή@παράδειγμα.ελ>",
+    "Nascido em 12/03/1990",
+    "Nascido em 12 de março de 1990",
+    "Nascido em março de 1990",
+    "Nascido em 1990",
+    "Data de nascimento: 1990-03-12",
     "Resumo com caractere nulo\u0000inválido",
   ]) {
     await assert.rejects(
@@ -329,11 +341,13 @@ test("S3-08 / RNF-09 (Security by Design): rejeita dados pessoais fora do propó
   }
 
   const corporateBio = "Engenheiro de software com contato profissional pessoa@empresa.com";
-  const corporateProfile = await service.createProfile(
-    { nome: "Profissional Corporativo", senioridade: "Pleno", bio: corporateBio },
-    "10000000-0000-4000-8000-000000000001",
+  await assert.rejects(
+    () => service.createProfile(
+      { nome: "Profissional Corporativo", senioridade: "Pleno", bio: corporateBio },
+      "10000000-0000-4000-8000-000000000001",
+    ),
+    (err: unknown) => err instanceof AppError && err.statusCode === 400,
   );
-  assert.equal(corporateProfile.bio, corporateBio);
 
   await assert.rejects(
     () => service.createProfile(
@@ -342,6 +356,68 @@ test("S3-08 / RNF-09 (Security by Design): rejeita dados pessoais fora do propó
     ),
     (err: unknown) => err instanceof AppError && err.statusCode === 400,
   );
+});
+
+test("S3-08: create e update bloqueiam PII em texto livre antes da persistência", async () => {
+  const store = createFakeDevelopersStore();
+  let createCalls = 0;
+  let updateCalls = 0;
+  const repository = {
+    ...store,
+    async create(input: CreateDeveloperInput) {
+      createCalls += 1;
+      return store.create(input);
+    },
+    async update(id: string, input: UpdateDeveloperInput) {
+      updateCalls += 1;
+      return store.update(id, input);
+    },
+  };
+  const service = new DevelopersService(repository);
+  const rejectedText = [
+    "Contato: pessoal@gmail.com",
+    "Contato profissional: pessoa@empresa.com",
+    "Contato: pesquisadora@acervo.museum",
+    "Contato: first%tag@example.com",
+    "Contato: first`tag@example.com",
+    "Contato: <josé@exemplo.рф>",
+    "Contato: <jose\u0301@exemplo.com>",
+    "Contato: <δοκιμή@παράδειγμα.ελ>",
+    "Nascido(a) em 12/03/1990",
+    "Nascido em 12 de março de 1990",
+    "Nascido em março de 1990",
+    "Nascido em 1990",
+    "Data de nascimento: 1990-03-12",
+    "CPF: 123.456.789-00",
+    "Telefone: (11) 99999-9999",
+    "Mora na Rua das Flores, 123, Centro",
+    "Resumo com caractere nulo\u0000inválido",
+  ];
+
+  for (const bio of rejectedText) {
+    for (const operation of ["create", "update"] as const) {
+      await assert.rejects(
+        operation === "create"
+          ? service.createProfile({ nome: "Profissional", bio }, USER_DEV_ID)
+          : service.updateProfile(DEV_1_ID, { bio }, USER_DEV_ID),
+        (err: unknown) => err instanceof AppError && err.statusCode === 400 && err.code === "VALIDATION_ERROR",
+        `${operation} deveria rejeitar ${bio}`,
+      );
+    }
+  }
+  assert.equal(createCalls, 0, "nenhum perfil rejeitado chega a create do repositório");
+  assert.equal(updateCalls, 0, "nenhuma atualização rejeitada chega a update do repositório");
+
+  const professionalBio = "Tech Lead backend, especialista em Node.js, certificado AWS em 12 de março de 2020; certificação válida até março de 2026; experiência desde 2021 e projeto entregue em 2022-06-15.";
+  const created = await service.createProfile(
+    { nome: "Profissional Seguro", senioridade: "Senior", bio: professionalBio },
+    USER_DEV_ID,
+  );
+  assert.equal(created.bio, professionalBio);
+  const updated = await service.updateProfile(DEV_1_ID, { bio: "Engenheiro backend com experiência em PostgreSQL." }, USER_DEV_ID);
+  assert.equal(updated.bio, "Engenheiro backend com experiência em PostgreSQL.");
+  assert.equal(createCalls, 1);
+  assert.equal(updateCalls, 1);
 });
 
 test("S3-08: unique violation em create consulta perfil após restaurar estado da transação", async () => {

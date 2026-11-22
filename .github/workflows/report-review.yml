@@ -5,6 +5,49 @@ on:
     paths: ['backend/**', 'frontend/**', 'ai-service/**', 'database/**', 'e2e/**', '.github/workflows/report-review.yml']
   workflow_dispatch:
 jobs:
+  developers-postgres:
+    name: PostgreSQL real — perfis profissionais
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: sinapse_test
+          POSTGRES_PASSWORD: sinapse_test_only
+          POSTGRES_DB: sinapse_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U sinapse_test -d sinapse_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      TEAM_TEST_DATABASE_URL: postgres://sinapse_test:sinapse_test_only@localhost:5432/sinapse_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - name: Instalar dependências do backend
+        working-directory: backend
+        run: npm ci
+      - name: Preflight PostgreSQL obrigatório
+        working-directory: backend
+        run: |
+          test -n "$TEAM_TEST_DATABASE_URL"
+          node -e 'const { Client } = require("pg"); (async () => { const c = new Client({ connectionString: process.env.TEAM_TEST_DATABASE_URL }); try { await c.connect(); await c.query("SELECT 1"); } finally { await c.end(); } })().catch(e => { console.error(e); process.exit(1); });'
+      - name: Executar integração e provar que não foi ignorada
+        working-directory: backend
+        run: |
+          npm run test:integration:developers 2>&1 | tee developers-postgres.log
+          test ${PIPESTATUS[0]} -eq 0
+          grep -q '# pass 2' developers-postgres.log
+          ! grep -Eq '# skipped [1-9][0-9]*' developers-postgres.log
+
   review:
     runs-on: ubuntu-latest
     timeout-minutes: 20

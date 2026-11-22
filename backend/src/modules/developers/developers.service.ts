@@ -63,17 +63,21 @@ const PERSONAL_DATA_IN_TEXT_PATTERNS = [
   /\b\d{3}[.\s-]?\d{3}[.\s-]?\d{3}[-.\s]?\d{2}(?!\d)/u,
   /\b\(?\d{2}\)?\s*[-.]?\s*\d{4,5}\s*[-.]?\s*\d{4}\b/u,
   /\b(?:cpf|rg|cnh|passaporte|documento)\b\s*(?:[:=-]\s*)?\d{7,14}\b/iu,
-  /\b(?:cpf|rg|cnh|passaporte|documento pessoal|data\s+de\s+nascimento|endere[cç]o\s+residencial|sal[aá]rio|remunera[cç][aã]o)\s*[:=-]/iu,
+  /\b(?:cpf|rg|cnh|passaporte|documento pessoal|endere[cç]o\s+residencial|sal[aá]rio|remunera[cç][aã]o)\s*[:=-]/iu,
   /\b(?:rua|avenida|av\.?|travessa|alameda|rodovia)\s+[\p{L}].{0,60}?\b\d{1,5}\b/iu,
 ];
-const PERSONAL_EMAIL_DOMAINS = new Set([
-  "gmail.com", "googlemail.com", "hotmail.com", "hotmail.com.br", "outlook.com", "outlook.com.br",
-  "live.com", "live.com.br", "msn.com", "yahoo.com", "yahoo.com.br", "icloud.com", "me.com",
-  "mac.com", "aol.com", "proton.me", "protonmail.com", "uol.com.br", "bol.com.br", "terra.com.br",
-  "ig.com.br", "globo.com",
-]);
-const EMAIL_ADDRESS_REGEX = /\b[\w.+-]+@([\w.-]+\.[a-z]{2,})\b/giu;
+const EMAIL_LOCAL_ATOM = "[\\p{L}\\p{M}\\p{N}!#$%&'*+/=?^_`{|}~-]+";
+const EMAIL_LOCAL_BOUNDARY = "[\\p{L}\\p{M}\\p{N}!#$%&'*+/=?^_`{|}~.-]";
+const EMAIL_ADDRESS_REGEX = new RegExp(
+  `(?<!${EMAIL_LOCAL_BOUNDARY})${EMAIL_LOCAL_ATOM}(?:\\.${EMAIL_LOCAL_ATOM})*@(?:[\\p{L}\\p{N}](?:[\\p{L}\\p{M}\\p{N}-]{0,61}[\\p{L}\\p{N}])?\\.)+(?:[\\p{L}\\p{M}]{2,63}|xn--[a-z0-9-]{2,59})(?![\\p{L}\\p{M}\\p{N}-])`,
+  "giu",
+);
 const PERSONAL_EMAIL_LABEL_REGEX = /\b(?:e-?mail|correio\s+eletr[oô]nico)\s+(?:pessoal|particular)\b/iu;
+const BIRTH_MONTH_REGEX = "(?:janeiro|fevereiro|mar[cç]o|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro)";
+const BIRTH_DATE_CONTEXT_REGEX = new RegExp(
+  `\\b(?:nascid[oa](?:\\(a\\))?|data\\s+de\\s+nascimento|nascimento)\\b[^\\n]{0,40}?\\b(?:\\d{1,2}[./-]\\d{1,2}[./-]\\d{2,4}|\\d{4}-\\d{2}(?:-\\d{2})?|${BIRTH_MONTH_REGEX}(?:\\s+de)?\\s+\\d{4}|\\d{1,2}\\s+de\\s+${BIRTH_MONTH_REGEX}(?:\\s+de)?\\s+\\d{4}|(?:19|20)\\d{2})\\b`,
+  "iu",
+);
 
 function normalizeSeniority(value: string | null | undefined): string | null | undefined {
   if (value === undefined) return undefined;
@@ -115,14 +119,9 @@ function assertNoPersonalDataInPayload(input: unknown): void {
 export function assertNoPersonalDataInText(fieldLabel: string, value: string | null | undefined): void {
   if (!value) return;
   EMAIL_ADDRESS_REGEX.lastIndex = 0;
-  const emailIsPersonal = PERSONAL_EMAIL_LABEL_REGEX.test(value) ||
-    Array.from(value.matchAll(EMAIL_ADDRESS_REGEX)).some((match) => {
-      const domain = match[1]?.toLowerCase();
-      return domain !== undefined && (PERSONAL_EMAIL_DOMAINS.has(domain) ||
-        Array.from(PERSONAL_EMAIL_DOMAINS).some((personalDomain) => domain.endsWith(`.${personalDomain}`)));
-    });
+  const emailIsPersonal = PERSONAL_EMAIL_LABEL_REGEX.test(value) || EMAIL_ADDRESS_REGEX.test(value.normalize("NFKC"));
 
-  if (emailIsPersonal || PERSONAL_DATA_IN_TEXT_PATTERNS.some((pattern) => pattern.test(value))) {
+  if (emailIsPersonal || BIRTH_DATE_CONTEXT_REGEX.test(value) || PERSONAL_DATA_IN_TEXT_PATTERNS.some((pattern) => pattern.test(value))) {
     throw new ValidationError(
       `O campo ${fieldLabel} contém dados pessoais fora do propósito profissional (ex.: contato pessoal, documentos, endereço ou salário).`,
       { field: fieldLabel, purpose_limitation: "LGPD_RNF_09" },
