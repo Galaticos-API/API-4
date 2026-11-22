@@ -10,7 +10,7 @@ A aplicação permite estruturar projetos em **Épicos, Features e PBIs**, acomp
 
 <div align="center">
 
-![Status](https://img.shields.io/badge/Sprint%201-Conclu%C3%ADda-success?style=for-the-badge)
+![Status](https://img.shields.io/badge/Release%20Final-Sprints%201%2C%202%20e%203%20Conclu%C3%ADdas-success?style=for-the-badge)
 ![Fatec](https://img.shields.io/badge/Fatec-S%C3%A3o%20Jos%C3%A9%20dos%20Campos-blue?style=for-the-badge)
 ![Projeto](https://img.shields.io/badge/API-4%C2%BA%20Semestre-purple?style=for-the-badge)
 
@@ -65,7 +65,10 @@ A primeira sprint teve como objetivo construir a **base funcional do Sinapse** e
 
 ### 📍 Estado atual do trabalho
 
-A Sprint 1 foi concluída em **27/09/2026**. A Sprint 2 está planejada para **05/10 a 25/10/2026**. A implementação candidata de ingestão, busca e avaliação está em [PR de revisão](https://github.com/Galaticos-API/API-4/pull/44) e ainda não foi aceita: o baseline encontrou latência acima de 2 s e pendências de relevância (Q008 e Q022). Veja o [registro QA](docs/STATUS_REVISAO_2026-10-02.md) para evidências, limites e próximos passos.
+As **Sprints 1, 2 e 3 foram concluídas**, entregando os 66 PBIs planejados:
+- **Sprint 1 (`07/09/2026 → 27/09/2026`):** Autenticação, RBAC (`admin`, `po`, `dev`), hierarquia completa do backlog (`Projeto → Épico → Feature → PBI → Critérios BDD`), motor determinístico de qualidade, registro de decisões, histórico auditável e anexos/protótipos.
+- **Sprint 2 (`05/10/2026 → 25/10/2026`):** Pipeline assíncrono de ingestão e vetorização (`bge-m3` 1024d), busca híbrida (`pgvector` HNSW + Full-Text Search em português), copiloto assistivo de IA (`qwen2.5:1.5b`) com governança humana obrigatória e rastreamento de proveniência por campo, relações entre PBIs, comparação de versões e configuração organizacional de qualidade (DoR/DoD).
+- **Sprint 3 (`02/11/2026 → 22/11/2026`):** Chat conversacional sobre o acervo com citações verificadas, recusa sem evidência, seleção de escopo, histórico privado e streaming cancelável (`S3-01` a `S3-07`), mapeamento de perfis profissionais, competências, alocações, busca de experiência e recomendação explicável de equipe (`S3-08` a `S3-12`), administração de perfis de acesso e vocabulário controlado de tecnologias (`S3-13`, `S3-14`), exportação Markdown (`S3-15`), validação completa de RNFs ([S3-16](docs/qa/S3-16-validacao-rnfs.md)) e preparação do release final com seed reproduzível, backup/restore e roteiro de demonstração ([S3-17](docs/qa/S3-17-release-final.md)).
 
 ---
 
@@ -451,6 +454,8 @@ Para informações mais específicas:
 | 🔌 [OpenAPI](docs/api/openapi.yaml)                 | Contrato da API          |
 | 📋 [PRD](docs/PRD-PRO4TECH.md)                      | Requisitos do produto    |
 | 🗂️ [Backlog](docs/backlog/README.md)               | Épicos e PBIs            |
+| 🛡️ [Validação de RNFs (S3-16)](docs/qa/S3-16-validacao-rnfs.md) | Desempenho, autorização, LGPD, acessibilidade e operação local |
+| 🚀 [Release Final & Roteiro Demo (S3-17)](docs/qa/S3-17-release-final.md) | Regressão integral, seed reproduzível, backup/restore e roteiro de apresentação |
 
 ---
 

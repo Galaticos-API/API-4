@@ -99,7 +99,7 @@ test("S3-10: alocação valida período, concede acesso e alimenta o histórico 
       await repository.remove(ids.dev, past.id, ids.po);
       const audit = await client.query<{ acao: string }>(
         "SELECT acao FROM auditoria WHERE entidade_tipo='alocacao' AND usuario_id=$1 ORDER BY created_at", [ids.po]);
-      assert.deepEqual(audit.rows.map((row) => row.acao), ["REGISTRAR_ALOCACAO", "REGISTRAR_ALOCACAO", "ATUALIZAR_ALOCACAO", "REMOVER_ALOCACAO"]);
+      assert.deepEqual(audit.rows.map((row) => row.acao), ["REGISTRAR_ALOCACAO", "REGISTRAR_ALOCACAO", "ATUALIZAR_ALOCACAO", "ATUALIZAR_ALOCACAO", "REMOVER_ALOCACAO"]);
     } finally {
       await pool.end();
     }

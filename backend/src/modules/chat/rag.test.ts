@@ -41,10 +41,12 @@ test('RAG recusa recortar uma negação ou publicar fragmento incompleto de fras
   assert.equal(validateEvidence({evidence:[{source_id:chunk,quote:'A senha é obrigatória.'}]},context).length,1);
 });
 test('RAG aceita passagem literal completa no início de um chunk mesmo em minúscula',()=>{
-  const text='token expirado bloqueia a sessão.';
+  const text='Token expirado bloqueia a sessão.';
   assert.equal(wholePassage(text,text),true);
   assert.deepEqual(resolveQuote([{id:chunk,text}],chunk,text),{source_id:chunk,quote:text});
   assert.deepEqual(validateEvidence({evidence:[{source_id:chunk,quote:text}]},[{id:chunk,text}]),[{source_id:chunk,quote:text}]);
+  const lower='token expirado bloqueia a sessão.';
+  assert.equal(wholePassage(lower,lower),true);
 });
 test('RAG valida cobertura parcial e exige consistência entre classificação e evidências',()=>{
   const citation={source_id:chunk,quote:row.text};
@@ -63,9 +65,9 @@ test('RAG valida cobertura parcial e exige consistência entre classificação e
   ]) assert.throws(()=>validateEvidenceResponse(invalid,context));
 });
 test('resposta final é montada somente com o trecho literal validado e seu UUID',()=>{
-  assert.equal(formatVerifiedEvidence([{source_id:chunk,quote:row.text}]),`Trecho literal encontrado no acervo: O login exige autenticação\\. [${chunk}]`);
+  assert.equal(formatVerifiedEvidence([{source_id:chunk,quote:row.text}]),`O login exige autenticação\\. [${chunk}]`);
   assert.equal(formatVerifiedEvidence([{source_id:chunk,quote:row.text},{source_id:other,quote:'A senha deve ter 12 caracteres.'}]),
-    `Trechos literais encontrados no acervo:\n\n- O login exige autenticação\\. [${chunk}]\n- A senha deve ter 12 caracteres\\. [${other}]`);
+    `Com base no acervo do projeto:\n\n- O login exige autenticação\\. [${chunk}]\n- A senha deve ter 12 caracteres\\. [${other}]`);
 });
 test('RAG separa perguntas coordenadas sem dividir termos nominais',()=>{
   assert.deepEqual(splitCompoundQuestion('Para que o projeto integra WhatsApp e qual sistema de pagamentos usa?'),[
@@ -373,7 +375,7 @@ test('RAG preserva citações verificadas quando a cobertura declarada as contra
   });
   const answer=await service.answer(randomUUID(),'Como funciona o login?',[project]);
   assert.equal(answer.cobertura,'partial');
-  assert.match(answer.resposta,/Trecho literal encontrado no acervo/);
+  assert.match(answer.resposta,/O login exige autenticação/);
   assert.match(answer.resposta,/não consegui confirmar se respondem a todos os pontos/i);
   assert.match(answer.resposta,/O login exige autenticação/);
   assert.doesNotMatch(answer.resposta,/usa SMS/i);

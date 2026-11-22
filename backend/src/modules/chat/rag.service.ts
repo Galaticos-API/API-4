@@ -46,12 +46,39 @@ export function usedSources(rows:HybridSearchRow[],evidence:ReturnType<typeof va
   return [...sources.values()];
 }
 
+const OVERVIEW_META_PATTERN = /^(?:>|#{1,6}\s|[-*+]\s|as respostas devem usar somente os trechos desta base|este fato é deliberadamente inventado|fato inventado para teste de isolamento|este documento não define|este documento não fornece|o cenário não define|todo o conteúdo operacional deste documento é fictício|este material é integralmente fictício)/iu;
+
+function cleanEvidenceQuote(quote:string):string {
+  const stripped = quote.trim()
+    .replace(/^(?:[-*+>]\s+)/u, '')
+    .replace(/^(?:Descrição|Decisões e Racional|Contexto|Justificativa|Objetivo|Escopo Macro|Resultado Esperado)\s*:\s*/iu, '');
+  if (/^Título\s*:/iu.test(stripped)) {
+    const lines = stripped.split(/\n+/u).map(line => line.trim()).filter(Boolean)
+      .filter(line => !/^(?:Critérios de Aceitação|Decisões e Racional)\s*:?\s*$/iu.test(line) && !/^(?:ChromaDB,\s*Pinecone)/iu.test(line));
+    const title = lines[0]?.replace(/^Título\s*:\s*/iu, '').trim() ?? '';
+    const bodyLines = lines.slice(1).map(line => line.replace(/^(?:Descrição|Decisões e Racional|Contexto|Justificativa)\s*:\s*/iu, '').trim()).filter(Boolean);
+    if (title && bodyLines.length) {
+      const joinedBody = bodyLines.join(' ').replace(/\s+/gu, ' ').replace(/([^.!?])$/u, '$1.');
+      return `${title}: ${joinedBody}`;
+    }
+  }
+  const paragraphs = stripped.split(/\n\s*\n/u)
+    .map(p => p.trim())
+    .filter(p => p.length > 0 && !/^#{1,6}\s/u.test(p) && !OVERVIEW_META_PATTERN.test(p))
+    .map(p => p.replace(/\n*#{1,6}\s+[^\n]+$/u, '').trim())
+    .filter(Boolean);
+  const target = paragraphs.length ? paragraphs.join(' ') : stripped;
+  return target.replace(/\s*\n+\s*/gu, ' ').trim();
+}
+
 function projectOverviewEvidence(rows:HybridSearchRow[]):Array<{source_id:string;quote:string}> {
   const evidence:Array<{source_id:string;quote:string}>=[];
+  const isFragmentOrQuestion = (value:string) =>
+    !value || OVERVIEW_META_PATTERN.test(value) || /\?/u.test(value) || /^[\p{Ll}]/u.test(value);
   for(const row of rows) for(const paragraph of row.text.split(/\n\s*\n/u).map(value=>value.trim())) {
-    if(!paragraph||/^#{1,6}\s/u.test(paragraph)||/^as respostas devem usar somente os trechos desta base/iu.test(paragraph))continue;
+    if(isFragmentOrQuestion(paragraph))continue;
     const passages=paragraph.length<=1000?[paragraph]:paragraph.split(/(?<=[.!?])\s+(?=[\p{Lu}])/u);
-    for(const quote of passages.map(value=>value.trim()).filter(value=>value.length<=1000&&wholePassage(row.text,value))) {
+    for(const quote of passages.map(value=>value.trim()).filter(value=>value.length<=1000&&!isFragmentOrQuestion(value)&&wholePassage(row.text,value))) {
       if(!evidence.some(item=>item.quote===quote))evidence.push({source_id:row.id,quote});
       if(evidence.length===5)return evidence;
     }
@@ -104,8 +131,11 @@ export function splitCompoundQuestion(question:string):string[] {
 }
 
 export function formatVerifiedEvidence(evidence:ReturnType<typeof validateEvidence>):string {
-  if(evidence.length===1)return `Trecho literal encontrado no acervo: ${escapeMarkdown(evidence[0].quote)} [${evidence[0].source_id}]`;
-  return `Trechos literais encontrados no acervo:\n\n${evidence.map(item=>`- ${escapeMarkdown(item.quote)} [${item.source_id}]`).join("\n")}`;
+  const cleaned = evidence.map(item => ({ source_id: item.source_id, text: cleanEvidenceQuote(item.quote) }))
+    .filter(item => item.text.length > 0 && !OVERVIEW_META_PATTERN.test(item.text));
+  const items = cleaned.length ? cleaned : evidence.map(item => ({ source_id: item.source_id, text: cleanEvidenceQuote(item.quote) || item.quote.trim() }));
+  if(items.length===1)return `${escapeMarkdown(items[0].text)} [${items[0].source_id}]`;
+  return `Com base no acervo do projeto:\n\n${items.map(item=>`- ${escapeMarkdown(item.text)} [${item.source_id}]`).join("\n")}`;
 }
 
 export function isClearlyOutsideKnowledge(question:string):boolean {
@@ -267,6 +297,8 @@ export class RagService {
       const overviewRequest=isProjectOverviewQuestion(parsed.data.pergunta);
       const queryPlan=overviewRequest
         ? {queries:[],resolvedQuestion:parsed.data.pergunta,aspects:[parsed.data.pergunta]}
+        : history.length===0 && originalAspects.length===1
+        ? {queries:[fallbackSearchQuery(parsed.data.pergunta)],resolvedQuestion:parsed.data.pergunta,aspects:[parsed.data.pergunta]}
         : this.embeddings.planQuery
         ? await this.embeddings.planQuery(parsed.data.pergunta,signal,history)
         : {queries:[fallbackSearchQuery(parsed.data.pergunta)],resolvedQuestion:parsed.data.pergunta,aspects:[parsed.data.pergunta]};

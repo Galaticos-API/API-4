@@ -19,6 +19,7 @@ test('S2-23 PostgreSQL: fila atomica, idempotencia, revisao, recuperacao, fencin
     const approve = async () => repository.approveReport(analysis, project, user, (await record()).relatorio_revisao);
     const record = async () => (await db.query('SELECT * FROM analise_repositorio WHERE id=$1', [analysis])).rows[0];
     try {
+        await db.query("UPDATE analise_repositorio SET indexacao_status='nao_aplicavel' WHERE indexacao_status IN ('pendente','processando')");
         await db.query("INSERT INTO projeto(id,nome,cliente,status) VALUES ($1,'QA S223','QA','ativo'),($2,'QA Outro','QA','ativo')", [project, other]);
         await db.query("INSERT INTO usuario(id,nome,email,senha_hash,role) VALUES ($1,'QA',$2,'test','po')", [user, user + '@test.local']);
         await db.query("INSERT INTO analise_repositorio(id,projeto_id,usuario_id,repositorio_url,run_id,status) VALUES ($1,$2,$3,'https://github.com/test/repo',$4,'em_execucao')", [analysis, project, user, 'run-' + analysis]);

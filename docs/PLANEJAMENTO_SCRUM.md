@@ -1,6 +1,6 @@
 # Planejamento de Tarefas por Sprint — Sinapse
 
-> Planejamento de produto e registro da execução da Sprint 1. Situação atualizada em 27/09/2026.
+> Planejamento de produto e registro da execução das Sprints 1, 2 e 3. Situação consolidada em 22/11/2026.
 
 ## Visão geral
 
@@ -11,7 +11,7 @@
 | User Stories/PBIs | 66 |
 | Tarefas técnicas | 71 |
 | Sprints previstas no plano inicial | 3 |
-| Sprints concluídas até 27/09/2026 | 1 |
+| Sprints concluídas até 22/11/2026 | 3 |
 
 Este planejamento converte as 66 User Stories em tarefas técnicas executáveis. Cada tarefa está vinculada a pelo menos um PBI existente e deve ser validada contra os respectivos cenários de aceitação.
 
@@ -36,9 +36,9 @@ commit `gaelslasaro@gmail.com`, ligado ao perfil [@GaelNotFound](https://github.
 ## Abordagem Scrum
 
 O produto foi organizado em backlog priorizado, estruturado em épicos, features
-e PBIs. O plano inicial previa três sprints. **Até 27/09/2026, somente a Sprint 1
-foi executada e concluída**; as sprints seguintes seguem como planejamento, sem
-serem apresentadas como trabalho realizado.
+e PBIs. O plano de três sprints foi executado e concluído integralmente até 22/11/2026,
+cobrindo todos os 66 PBIs e 71 tarefas técnicas mapeadas, com validação de RNFs registrada em
+[S3-16](qa/S3-16-validacao-rnfs.md) e consolidação de release em [S3-17](qa/S3-17-release-final.md).
 
 O acompanhamento documentado foi feito por tarefas relacionadas aos PBIs,
 critérios de aceitação, revisão das entregas e consolidação de QA. Este repositório
@@ -158,11 +158,11 @@ entregue sem ressalvas.
 | S1-23 | Integrar e validar os fluxos obrigatórios da Sprint 1 com testes e documentação | PBI-01.1.1, PBI-01.1.2, PBI-01.1.3, PBI-01.1.4, PBI-01.1.5, PBI-01.2.1, PBI-01.2.2, PBI-01.2.3, PBI-01.3.1, PBI-01.3.2, PBI-01.3.3, PBI-01.3.5, PBI-01.4.1, PBI-01.4.2, PBI-01.5.1, PBI-01.5.2, PBI-02.1.1, PBI-06.1.1, PBI-06.1.2, PBI-06.1.3 |
 | S1-24 | Exigir justificativa obrigatória e gravar histórico ao alterar item salvo | PBI-01.5.6 |
 
-## Sprint 2 — planejada, não iniciada
+## Sprint 2 — concluída em 25/10/2026
 
-**Período planejado:** 05/10/2026 a 25/10/2026
+**Período:** 05/10/2026 a 25/10/2026
 
-**Quantidade:** 18 tarefas
+**Quantidade:** 21 tarefas (incluindo extensões S2-23 e S2-24)
 
 **Meta:** formar o acervo pesquisável e introduzir a IA como apoio assistivo, sempre com confirmação humana.
 
@@ -194,9 +194,9 @@ Ao final da Sprint 2, documentos e itens concluídos deverão formar um acervo p
 | S2-20 | Permitir configurar e exibir Definição de Preparado (DoR) e Definição de Pronto (DoD) | PBI-01.6.2 |
 | S2-21 | Restringir sugestões semânticas do copiloto estritamente ao acervo do projeto e item em edição | PBI-03.2.4 |
 
-## Sprint 3 — planejada, não iniciada
+## Sprint 3 — concluída em 22/11/2026
 
-**Período planejado:** 02/11/2026 a 22/11/2026
+**Período:** 02/11/2026 a 22/11/2026
 
 **Quantidade:** 17 tarefas
 
@@ -240,6 +240,6 @@ Ao final da Sprint 3, as pessoas poderão conversar com o acervo e receber respo
 | Sprint | Tarefas | Situação |
 |:---:|:---:|---|
 | 1 | 33 (9 PRE + 24 S1) | Concluída em 27/09/2026; tarefas mapeadas a PBIs |
-| 2 | 21 | Planejada; ainda não executada |
-| 3 | 17 | Planejada; ainda não executada |
-| **Plano total** | **71** | Cobertura planejada: 66 de 66 PBIs mapeados |
+| 2 | 21 | Concluída em 25/10/2026; acervo pesquisável e copiloto assistivo entregues |
+| 3 | 17 | Concluída em 22/11/2026; chat RAG, equipe, administração e release final entregues |
+| **Plano total** | **71** | Cobertura concluída: 66 de 66 PBIs mapeados e validados |
