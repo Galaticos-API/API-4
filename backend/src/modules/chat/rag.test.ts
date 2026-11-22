@@ -574,6 +574,19 @@ test('Harness HTTP recusa stream sem evento completed',async()=>{
   try { await assert.rejects(()=>new HttpHarnessEngine(`http://127.0.0.1:${port}`).generate({mode:'consulta',version:1,schema_version:1},2000,undefined,()=>{}),/Revisão de resposta incompatível/); }
   finally { server.close(); }
 });
+test('Harness HTTP trata saída fora do contrato no stream como rejeição e o resto como indisponibilidade',async()=>{
+  let code='HARNESS_OUTPUT_REJECTED';
+  const server=createServer((_req,res)=>{res.writeHead(200,{'content-type':'text/event-stream'});res.end(`event: error\ndata: {"error":"x","code":"${code}"}\n\n`);});
+  await new Promise<void>(done=>server.listen(0,'127.0.0.1',done));
+  const {port}=server.address() as AddressInfo;
+  const engine=new HttpHarnessEngine(`http://127.0.0.1:${port}`);
+  try {
+    await assert.rejects(()=>engine.generate({mode:'consulta',version:1,schema_version:1},2000,undefined,()=>{}),ModelOutputRejectedError);
+    code='HARNESS_STREAM_FAILED';
+    await assert.rejects(()=>engine.generate({mode:'consulta',version:1,schema_version:1},2000,undefined,()=>{}),
+      (error:unknown)=>!(error instanceof ModelOutputRejectedError)&&/sem conclusão/.test(String(error)));
+  } finally { server.close(); }
+});
 test('RAG só publica candidate literal e relevante após revalidar autorização e chunk atual',async()=>{
   const published:Array<{source_id:string;quote:string}>=[];
   const service=new RagService(new Chats(),new Search(),{embed:async()=>Array(1024).fill(0.1)},new Revisions(),{
