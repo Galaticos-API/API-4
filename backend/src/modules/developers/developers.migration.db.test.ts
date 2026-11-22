@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
-import { Pool, type Client } from "pg";
+import { Client, Pool } from "pg";
 import { applyUntil, loadMigration, withDatabase } from "../../database/migration-test-utils.js";
 import { AppError } from "../../shared/errors.js";
 import { DevelopersRepository } from "./developers.repository.js";
@@ -41,6 +41,7 @@ test("S3-08: migration consolida perfis e criação concorrente mantém unicidad
     await client.query("INSERT INTO alocacao (desenvolvedor_id,projeto_id,papel) VALUES ($1,$3,'Tech Lead'),($2,$3,'Backend')", [ids.canonical, ids.duplicate, ids.project]);
 
     await client.query(await loadMigration("028_developer_profiles.sql", vectorAvailable));
+    await client.query("INSERT INTO _schema_migrations (version) VALUES ('028_developer_profiles.sql')");
     const profiles = await client.query<{ id: string; nome: string }>("SELECT id,nome FROM desenvolvedor WHERE usuario_id=$1", [ids.user]);
     assert.equal(profiles.rowCount, 1);
     assert.equal(profiles.rows[0].id, ids.canonical);
@@ -74,4 +75,25 @@ test("S3-08: migration consolida perfis e criação concorrente mantém unicidad
       await pool.end();
     }
   });
+});
+
+test("withDatabase remove o banco temporário quando o callback falha", { skip: !adminUrl }, async () => {
+  let temporaryDatabase = "";
+  const callbackError = new Error("falha intencional do callback de teste");
+  await assert.rejects(
+    withDatabase(adminUrl!, async (client) => {
+      temporaryDatabase = (await client.query<{ database: string }>("SELECT current_database() AS database")).rows[0].database;
+      throw callbackError;
+    }),
+    (error) => error === callbackError,
+  );
+
+  const admin = new Client({ connectionString: adminUrl });
+  await admin.connect();
+  try {
+    const remaining = await admin.query("SELECT 1 FROM pg_database WHERE datname=$1", [temporaryDatabase]);
+    assert.equal(remaining.rowCount, 0);
+  } finally {
+    await admin.end();
+  }
 });
