@@ -45,7 +45,7 @@ jobs:
         run: |
           npm run test:integration:developers 2>&1 | tee developers-postgres.log
           test ${PIPESTATUS[0]} -eq 0
-          grep -q '# pass 1' developers-postgres.log
+          grep -q '# pass 2' developers-postgres.log
           ! grep -Eq '# skipped [1-9][0-9]*' developers-postgres.log
 
   review:
