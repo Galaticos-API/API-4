@@ -66,13 +66,18 @@ const PERSONAL_DATA_IN_TEXT_PATTERNS = [
   /\b(?:cpf|rg|cnh|passaporte|documento pessoal|endere[cç]o\s+residencial|sal[aá]rio|remunera[cç][aã]o)\s*[:=-]/iu,
   /\b(?:rua|avenida|av\.?|travessa|alameda|rodovia)\s+[\p{L}].{0,60}?\b\d{1,5}\b/iu,
 ];
-const EMAIL_LOCAL_ATOM = "[\\p{L}\\p{N}!#$%&'*+/=?^_{|}~-]+";
+const EMAIL_LOCAL_ATOM = "[\\p{L}\\p{M}\\p{N}!#$%&'*+/=?^_`{|}~-]+";
+const EMAIL_LOCAL_BOUNDARY = "[\\p{L}\\p{M}\\p{N}!#$%&'*+/=?^_`{|}~.-]";
 const EMAIL_ADDRESS_REGEX = new RegExp(
-  `(?<![\\p{L}\\p{N}!#$%&'*+/=?^_{|}~.-])${EMAIL_LOCAL_ATOM}(?:\\.${EMAIL_LOCAL_ATOM})*@(?:[\\p{L}\\p{N}](?:[\\p{L}\\p{N}-]{0,61}[\\p{L}\\p{N}])?\\.)+(?:[\\p{L}]{2,63}|xn--[a-z0-9-]{2,59})(?![\\p{L}\\p{N}-])`,
+  `(?<!${EMAIL_LOCAL_BOUNDARY})${EMAIL_LOCAL_ATOM}(?:\\.${EMAIL_LOCAL_ATOM})*@(?:[\\p{L}\\p{N}](?:[\\p{L}\\p{M}\\p{N}-]{0,61}[\\p{L}\\p{N}])?\\.)+(?:[\\p{L}\\p{M}]{2,63}|xn--[a-z0-9-]{2,59})(?![\\p{L}\\p{M}\\p{N}-])`,
   "giu",
 );
 const PERSONAL_EMAIL_LABEL_REGEX = /\b(?:e-?mail|correio\s+eletr[oô]nico)\s+(?:pessoal|particular)\b/iu;
-const BIRTH_DATE_CONTEXT_REGEX = /\b(?:nascid[oa](?:\(a\))?|data\s+de\s+nascimento|nascimento)\b[^\n]{0,40}?\b(?:\d{1,2}[./-]\d{1,2}[./-]\d{2,4}|\d{4}-\d{2}(?:-\d{2})?|\d{1,2}\s+de\s+(?:janeiro|fevereiro|mar[cç]o|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro)(?:\s+de)?\s+\d{4}|(?:19|20)\d{2})\b/iu;
+const BIRTH_MONTH_REGEX = "(?:janeiro|fevereiro|mar[cç]o|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro)";
+const BIRTH_DATE_CONTEXT_REGEX = new RegExp(
+  `\\b(?:nascid[oa](?:\\(a\\))?|data\\s+de\\s+nascimento|nascimento)\\b[^\\n]{0,40}?\\b(?:\\d{1,2}[./-]\\d{1,2}[./-]\\d{2,4}|\\d{4}-\\d{2}(?:-\\d{2})?|${BIRTH_MONTH_REGEX}(?:\\s+de)?\\s+\\d{4}|\\d{1,2}\\s+de\\s+${BIRTH_MONTH_REGEX}(?:\\s+de)?\\s+\\d{4}|(?:19|20)\\d{2})\\b`,
+  "iu",
+);
 
 function normalizeSeniority(value: string | null | undefined): string | null | undefined {
   if (value === undefined) return undefined;
