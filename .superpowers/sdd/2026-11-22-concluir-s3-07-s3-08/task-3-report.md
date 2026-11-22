@@ -2,7 +2,7 @@
 
 ## Estado
 
-Implementação base commitada em `412ccd98ef9010fb6f848d994a5ead33bab91f58` (`test: add developers PostgreSQL integration gate`). Na rodada de revisão foram corrigidos a marcação da migration 028 no ledger antes de aplicar migrations seguintes, e o cleanup de `withDatabase`; também foi adicionado teste de regressão para remover o banco temporário quando o callback falha. Essas alterações estão pendentes de commit. A execução PostgreSQL real **não está confirmada**: Docker/PostgreSQL local estão indisponíveis e os dois testes dedicados reportaram `SKIP` sem `TEAM_TEST_DATABASE_URL`. Esse skip não é aprovação. A execução efetiva e aprovação deste gate dependem do job PostgreSQL no CI da PR.
+Implementação distribuída em dois commits: `412ccd98ef9010fb6f848d994a5ead33bab91f58` (`test: add developers PostgreSQL integration gate`) e `5d587b2ed0d40d57f0b4a01e396fac7659752cec` (`test: harden developer migration db cleanup`). O segundo commit registra 028 no ledger antes de aplicar migrations posteriores, endurece o cleanup de `withDatabase` e inclui regressão que verifica remoção do banco temporário quando o callback falha. A execução PostgreSQL real **não foi testada localmente**: Docker/PostgreSQL local estão indisponíveis e os dois testes dedicados reportaram `SKIP` sem `TEAM_TEST_DATABASE_URL`. Esse skip não é aprovação. A aprovação ainda depende do job PostgreSQL no CI da PR.
 
 ## Arquivos do commit
 
@@ -26,8 +26,8 @@ Implementação base commitada em `412ccd98ef9010fb6f848d994a5ead33bab91f58` (`t
 
 - `.github/workflows/report-review.yml`: `3BEE03C3DB31D37638420BD0237F8ABDE245D3206069DD93BF6D7A561C44FE99`
 - `backend/package.json`: `06AA5DB41D63BF038E6641BBD7CD57BDAC1138FE985467C00FA546EC131C8AF5`
-- `backend/src/modules/developers/developers.migration.db.test.ts` (estado revisado, pendente de commit): `C856FE548D032AE16EEA7608EF0846F98DAD7BE0F1870A9EA4033F04A36FD293`
-- `backend/src/database/migration-test-utils.ts` (estado revisado, pendente de commit): `418241AC1FF3058490A62A414355678FFDE241C6BD94E1605C3C6E6485A2EE4B`
+- `backend/src/modules/developers/developers.migration.db.test.ts` (commit `5d587b2`): `C856FE548D032AE16EEA7608EF0846F98DAD7BE0F1870A9EA4033F04A36FD293`
+- `backend/src/database/migration-test-utils.ts` (commit `5d587b2`): `418241AC1FF3058490A62A414355678FFDE241C6BD94E1605C3C6E6485A2EE4B`
 
 ## Gate pendente
 
