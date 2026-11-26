@@ -113,4 +113,3 @@ GraphRAG, extração de relações em grafo e os benchmarks de embeddings são p
 - [Fluxo conceitual RAG](Diagrams/RAG.mmd)
 - [ERD](Diagrams/ERD.mmd)
 - [PRD e requisitos de produto](../PRD-PRO4TECH.md)
-- [PRD](../PRD-PRO4TECH.md)
