@@ -54,6 +54,19 @@ Este índice consolida os guias operacionais, contratos técnicos, especificaç�
 
 ---
 
+
+### 📦 Especificações Adicionais da Sprint 2
+
+| Documento | Conteúdo |
+|---|---|
+| [S2-01-PIPELINE-DOCUMENTOS](S2-01-PIPELINE-DOCUMENTOS.md) | Arquitetura e fluxo assíncrono do pipeline de ingestão de documentos. |
+| [S2-03-INDEXACAO](S2-03-INDEXACAO.md) | Indexação de itens do backlog e decisões no acervo vetorial. |
+| [S2-11-CENARIOS](S2-11-CENARIOS.md) | Matriz de cenários e casos de teste para o copiloto de IA. |
+| [S2-16-versoes](S2-16-versoes.md) | Controle de versões e comparação lado a lado de alterações. |
+| [S2-19-qualidade-organizacao](S2-19-qualidade-organizacao.md) | Configuração organizacional e versionamento de regras de qualidade. |
+| [S2-20-dor-dod](S2-20-dor-dod.md) | Definições organizacionais de preparado (DoR) e pronto (DoD). |
+| [S2-23-RELATORIOS](S2-23-RELATORIOS.md) | Estrutura e geração de relatórios consolidados de qualidade. |
+
 ## 🧪 Qualidade, Homologação e Registros de QA
 
 | Documento | Conteúdo |
