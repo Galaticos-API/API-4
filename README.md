@@ -349,7 +349,7 @@ O backend recebe `POST /api/v1/projects/{projectId}/ai/requests` (exige perfil `
 
 ## 6. 🗄️ Modelo de dados <a id="6-modelo-de-dados"></a>
 
-O esquema é versionado em [`database/init.sql`](database/init.sql) (*baseline*) e em **41 migrations** SQL (`001` a `031`) em [`database/migrations`](database/migrations). O backend aplica as pendentes ao iniciar e registra os nomes em `_schema_migrations`. As mais de 30 tabelas cobrem identidade e sessões, hierarquia do backlog, critérios, decisões, versões, documentos e chunks, conversas, qualidade organizacional, harness de IA, perfis profissionais, competências e alocações.
+O esquema é versionado em [`database/init.sql`](database/init.sql) (*baseline*) e em **41 arquivos de migration** SQL, com prefixos numéricos de `001` a `031` (há prefixos repetidos por causa de migrations históricas), em [`database/migrations`](database/migrations). O backend aplica as pendentes ao iniciar e registra os nomes completos em `_schema_migrations`. As mais de 30 tabelas cobrem identidade e sessões, hierarquia do backlog, critérios, decisões, versões, documentos e chunks, conversas, qualidade organizacional, harness de IA, perfis profissionais, competências e alocações.
 
 ```mermaid
 erDiagram
@@ -479,7 +479,7 @@ O script verifica o `.env`, inicia o Ollama se necessário, baixa os modelos aus
 | Parâmetro | Efeito |
 |---|---|
 | `-NoLlm` | Não baixa nem usa `qwen2.5:1.5b` (economiza cerca de 1 GB de RAM); mantém embeddings e busca vetorial. |
-| `-NoEmbeddings` | Não baixa nem usa `bge-m3`; mantém apenas o copiloto. |
+| `-NoEmbeddings` | Não baixa `bge-m3`; sem esse modelo, o copiloto fica limitado aos modos textuais (com `qwen2.5:1.5b` disponível). Busca semântica/vetorial, ingestão e sugestões de itens semelhantes dependem de embeddings. |
 | `-SkipPull` | Pula a verificação e o download de modelos. |
 
 Para encerrar: `.\stop-dev.ps1`. Logs da IA em `.sinapse-dev/ai.log` e `.sinapse-dev/ai-error.log`.
@@ -615,12 +615,14 @@ npm --prefix frontend run build
 pip install -r ai-service/requirements.txt
 cd ai-service && python -m unittest discover -s tests -v
 
-# E2E de navegador (pilha em execução e Chrome/Chromium disponíveis)
+# E2E de navegador (banco dedicado sinapse_e2e_test, pilha e Chrome/Chromium disponíveis)
+# Substitua <senha> e <porta> pelos valores do seu .env
+export E2E_DATABASE_URL='postgresql://sinapse:<senha>@localhost:<porta>/sinapse_e2e_test'
 npm ci --prefix e2e
 npm --prefix e2e test
 ```
 
-Os testes unitários do backend rodam sem banco. As suítes de integração (`*.db.test.ts`) exigem um PostgreSQL descartável com as migrations aplicadas, por exemplo `npm --prefix backend run test:integration:regressions` e `test:integration:review`. Os pré-requisitos de cada suíte estão em [`docs/SETUP_GUIDE.md`](docs/SETUP_GUIDE.md) e em [`database/migrations/README.md`](database/migrations/README.md).
+O banco `sinapse_e2e_test` deve existir e ter as migrations aplicadas; configure o backend para usar esse mesmo banco. `E2E_DATABASE_URL` deve apontar para ele (ajuste usuário, senha e porta conforme seu `.env`). Consulte [`e2e/README.md`](e2e/README.md) para provisionamento e migração. Os testes unitários do backend rodam sem banco. As suítes de integração (`*.db.test.ts`) exigem um PostgreSQL descartável com as migrations aplicadas, por exemplo `npm --prefix backend run test:integration:regressions` e `test:integration:review`. Os pré-requisitos de cada suíte estão em [`docs/SETUP_GUIDE.md`](docs/SETUP_GUIDE.md) e em [`database/migrations/README.md`](database/migrations/README.md).
 
 ### 10.2 📊 Resultado da regressão final
 
